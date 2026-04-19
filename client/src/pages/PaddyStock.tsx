@@ -12,6 +12,9 @@ const Container = styled.div`
   
   @media (max-width: 1200px) {
     grid-template-columns: 1fr;
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   }
 `;
 
@@ -51,6 +54,9 @@ const FilterSection = styled.div`
 const FilterRow = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   gap: 1rem;
   align-items: end;
 `;
@@ -128,6 +134,9 @@ const StockList = styled.div`
 const StockItem = styled.div`
   display: grid;
   grid-template-columns: 80px 200px 1fr;
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   gap: 1rem;
   padding: 0.5rem 0;
   border-bottom: 1px solid #f0f0f0;
@@ -152,6 +161,9 @@ const BifurcationSection = styled.div`
 const BifurcationItem = styled.div`
   display: grid;
   grid-template-columns: 60px 120px 200px 200px 1fr;
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   gap: 1rem;
   padding: 0.75rem;
   margin-bottom: 0.5rem;
@@ -178,6 +190,9 @@ const ClosingSection = styled.div`
 const ClosingItem = styled.div`
   display: grid;
   grid-template-columns: 150px 200px 1fr;
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   gap: 1rem;
   padding: 0.5rem 0;
   font-weight: 600;

@@ -36,6 +36,9 @@ const ResponsiveGrid = styled.div<{
     }, 
     1fr
   );
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   gap: ${props => 
     props.isMobile 
       ? props.gap?.mobile || '16px'
@@ -47,6 +50,9 @@ const ResponsiveGrid = styled.div<{
   /* Stack on mobile if needed */
   ${props => props.isMobile && `
     grid-template-columns: 1fr;
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   `}
 `;
 

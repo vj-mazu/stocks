@@ -32,6 +32,9 @@ const MainGrid = styled.div`
 
   @media (max-width: 1200px) {
     grid-template-columns: 1fr;
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   }
 `;
 
@@ -107,6 +110,9 @@ const InfoTableBody = styled.div`
 const InfoTableRow = styled.div`
   display: grid;
   grid-template-columns: 120px 1fr;
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid #f3f4f6;
 
@@ -167,6 +173,9 @@ const ToggleButton = styled.button<{ $active: boolean }>`
 const TopSection = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   gap: 2rem;
   margin-bottom: 2rem;
   padding-bottom: 2rem;
@@ -191,6 +200,9 @@ const SectionTitle = styled.h3`
 const FormRow = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   gap: 1rem;
   margin-bottom: 1rem;
 `;
@@ -198,6 +210,9 @@ const FormRow = styled.div`
 const TwoColumnRow = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   gap: 1rem;
   margin-bottom: 1.5rem;
 `;

@@ -97,6 +97,9 @@ const ModalBody = styled.div`
 const FormGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   gap: 1rem;
   margin-bottom: 1.5rem;
 `;

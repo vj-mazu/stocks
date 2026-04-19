@@ -88,6 +88,9 @@ const WorkTypeTitle = styled.div`
 const EntryRow = styled.div`
   display: grid;
   grid-template-columns: 120px 1fr;
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   padding: 0.5rem 0;
   padding-left: 2rem;
   gap: 2rem;
@@ -111,6 +114,9 @@ const TotalSection = styled.div`
   margin-top: 2rem;
   display: grid;
   grid-template-columns: 120px 1fr;
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   gap: 2rem;
   padding-left: 2rem;
 `;

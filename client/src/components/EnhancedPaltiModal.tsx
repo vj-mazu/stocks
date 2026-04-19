@@ -125,6 +125,9 @@ const SectionTitle = styled.h3<{ $color?: string }>`
 const FormGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   gap: 1rem;
 `;
 
@@ -185,6 +188,9 @@ const Select = styled.select`
 const ProductTypeGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   gap: 0.5rem;
   margin-top: 0.5rem;
 `;
@@ -252,6 +258,9 @@ const TargetEntry = styled.div`
   margin-bottom: 0.75rem;
   display: grid;
   grid-template-columns: 1.2fr 1.2fr 100px 120px 40px;
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   gap: 0.75rem;
   align-items: end;
   transition: all 0.2s;
@@ -263,6 +272,9 @@ const TargetEntry = styled.div`
   
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   }
 `;
 
@@ -360,6 +372,9 @@ const ShortageTitle = styled.h4<{ $hasShortage: boolean }>`
 const ShortageGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   gap: 1rem;
 `;
 

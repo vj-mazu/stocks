@@ -68,6 +68,9 @@ const FilterSection = styled.div`
 const FilterRow = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   gap: 1rem;
   align-items: end;
 `;

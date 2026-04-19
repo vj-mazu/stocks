@@ -44,6 +44,9 @@ const FilterSection = styled.div`
 const FilterRow = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   gap: 1rem;
   align-items: end;
 `;
@@ -136,6 +139,9 @@ const LedgerHeader = styled.div`
 const LedgerInfo = styled.div`
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   gap: 1rem;
   margin-bottom: 1rem;
 
@@ -254,6 +260,9 @@ const SummarySection = styled.div`
 const SummaryGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   gap: 1rem;
 `;
 

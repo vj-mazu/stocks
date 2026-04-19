@@ -123,6 +123,9 @@ const CreateFormContainer = styled.div`
 const FormGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   gap: 1.5rem;
   align-items: end;
 `;

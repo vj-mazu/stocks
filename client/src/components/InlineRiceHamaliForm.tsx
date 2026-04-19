@@ -71,6 +71,9 @@ const CompactGrid = styled.div`
   
   @media (max-width: 768px) {
     grid-template-columns: repeat(2, 1fr);
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   }
 `;
 

@@ -467,11 +467,6 @@ body {
     border-radius: 12px 12px 0 0 !important;
   }
 
-  /* Grid layouts: Force single column */
-  [style*="grid-template-columns"] {
-    grid-template-columns: 1fr !important;
-  }
-
   /* Flex wrapping for filter bars */
   [style*="display: flex"][style*="gap"] {
     flex-wrap: wrap;

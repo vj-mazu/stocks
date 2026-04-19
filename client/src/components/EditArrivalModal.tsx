@@ -486,6 +486,9 @@ const Form = styled.form`
 const FormRow = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   gap: 20px;
   margin-bottom: 20px;
 `;

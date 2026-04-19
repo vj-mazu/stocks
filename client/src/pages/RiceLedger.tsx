@@ -175,6 +175,9 @@ const SummaryGrid = styled.div`
 
   @media (max-width: 768px) {
     grid-template-columns: repeat(2, 1fr);
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   }
 `;
 
@@ -229,6 +232,9 @@ const FilterRow = styled.div<{ isDirectLoad?: boolean }>`
   grid-template-columns: ${props => props.isDirectLoad
         ? 'repeat(2, 1fr) 1.5fr auto'
         : 'repeat(2, 1fr) 1.5fr 1.5fr auto'};
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   gap: 1.5rem;
   align-items: flex-start;
   flex-wrap: wrap;
@@ -239,6 +245,9 @@ const FilterRow = styled.div<{ isDirectLoad?: boolean }>`
 
   @media (max-width: 640px) {
     grid-template-columns: 1fr;
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   }
 `;
 

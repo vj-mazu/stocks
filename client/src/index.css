@@ -160,29 +160,40 @@ div[style*="overflowX"] {
     float: none !important;
   }
 
-  /* TABLES → card style on mobile */
-  table { display: block; width: 100%; }
-  thead { display: none; }
-  tr {
-    display: block;
-    margin-bottom: 16px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    padding: 12px;
+  /* TABLES → Horizontal Scroll on mobile */
+  table {
+    display: table;
+    width: 100%;
+    min-width: max-content;
   }
-  td {
-    display: flex;
-    justify-content: space-between;
-    padding: 6px 0;
+  thead {
+    display: table-header-group;
+  }
+  tr {
+    display: table-row;
+    margin-bottom: 0;
     border: none;
-    font-size: 14px;
+    padding: 0;
+  }
+  td, th {
+    display: table-cell;
+    padding: 8px 12px;
+    font-size: 13px;
+    white-space: nowrap;
   }
   td::before {
-    content: attr(data-label);
-    font-weight: 600;
-    color: #555;
-    flex-shrink: 0;
-    margin-right: 12px;
+    display: none; /* remove data-label trick */
+  }
+  
+  /* Make all table containers horizontally scrollable */
+  div[style*="overflow-x"],
+  div[style*="overflow: auto"],
+  .table-container,
+  .table-wrapper {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    width: 100% !important;
+    display: block !important;
   }
 
   /* FORMS */

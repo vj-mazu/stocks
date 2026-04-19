@@ -22,6 +22,14 @@ export const TabContainer = styled.div`
   gap: 1rem;
   margin-bottom: 2rem;
   border-bottom: 2px solid #e5e7eb;
+  
+  @media (max-width: 767px) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+    padding-bottom: 5px;
+    gap: 0.5rem;
+  }
 `;
 
 export const Tab = styled.button<{ $active: boolean }>`
@@ -46,6 +54,12 @@ export const FilterSection = styled.div`
   border-radius: 12px;
   margin-bottom: 2rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+
+  @media (max-width: 767px) {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
 `;
 
 export const FilterRow = styled.div`
@@ -53,6 +67,13 @@ export const FilterRow = styled.div`
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1rem;
   align-items: end;
+
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr;
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
+  }
 `;
 
 export const FormGroup = styled.div`
@@ -243,6 +264,10 @@ export const StatusBadge = styled.span<{ status: string }>`
 export const ActionButtons = styled.div`
   display: flex;
   gap: 0.5rem;
+  
+  @media (max-width: 767px) {
+    flex-wrap: wrap;
+  }
 `;
 
 export const IconButton = styled.button`
@@ -551,6 +576,9 @@ export const RateFormTitle = styled.h3`
 export const RateFormGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(6, 1fr);
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   gap: 0.75rem;
   margin-bottom: 0.75rem;
 `;

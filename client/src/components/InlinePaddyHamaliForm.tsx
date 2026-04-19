@@ -71,6 +71,9 @@ const TypesGrid = styled.div`
   
   @media (max-width: 640px) {
     grid-template-columns: 1fr;
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr !important;
+  }
   }
 `;
 
