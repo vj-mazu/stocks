@@ -1332,7 +1332,7 @@ const SampleEntryPage: React.FC<{
       formDataToSend.append('packaging', formData.packaging);
       let finalCollectedBy = formData.sampleCollectedBy;
       if (formData.sampleGivenToOffice && finalCollectedBy) {
-        const loggedInName = toTitleCase(user.fullName || user.username || '');
+        const loggedInName = toTitleCase(user?.fullName || user?.username || '');
         if (loggedInName && !finalCollectedBy.includes(loggedInName)) {
           finalCollectedBy = `${finalCollectedBy} | ${loggedInName}`;
         }
@@ -2430,46 +2430,47 @@ const SampleEntryPage: React.FC<{
                   brokerSeq++;
                   return (
                     <div key={brokerName} style={{ marginBottom: '0px' }}>
-                      {/* Date + Paddy Sample bar — only first broker */}
-                      {brokerIdx === 0 && <div style={{
-                        background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-                        color: 'white',
-                        padding: '6px 10px',
-                        fontWeight: '700',
-                        fontSize: '14px',
-                        textAlign: 'center',
-                        letterSpacing: '0.5px'
-                      }}>
-                        {(() => { const d = getEffectiveDate(brokerEntries[0]); return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`; })()}
-                        &nbsp;&nbsp;{filterEntryType === 'RICE_SAMPLE' ? 'Rice Sample' : 'Paddy Sample'}
-                      </div>}
-                      {/* Broker name bar */}
-                      <div style={{
-                        background: '#e8eaf6',
-                        color: '#000',
-                        padding: '4px 10px',
-                        fontWeight: '700',
-                        fontSize: '13.5px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}>
-                        <span style={{ fontSize: '13.5px', fontWeight: '800' }}>{brokerSeq}.</span> {toTitleCase(brokerName)}
-                      </div>
-                      <table className={`responsive-table ${filterEntryType === 'RICE_SAMPLE' ? 'no-type-col' : 'has-type-col'}`}>
-                        <thead>
+                      <div style={{ display: 'inline-block', minWidth: '100%' }}>
+                        {brokerIdx === 0 && (
+                          <div style={{
+                            background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+                            color: 'white',
+                            padding: '6px 10px',
+                            fontWeight: '700',
+                            fontSize: '14px',
+                            textAlign: 'center',
+                            letterSpacing: '0.5px'
+                          }}>
+                            {(() => { const d = getEffectiveDate(brokerEntries[0] || {} as any); return isNaN(d.getTime()) ? '' : `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`; })()}
+                            &nbsp;&nbsp;{filterEntryType === 'RICE_SAMPLE' ? 'Rice Sample' : 'Paddy Sample'}
+                          </div>
+                        )}
+                        <div style={{
+                          background: '#e8eaf6',
+                          color: '#000',
+                          padding: '4px 10px',
+                          fontWeight: '700',
+                          fontSize: '13.5px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}>
+                          <span style={{ fontSize: '13.5px', fontWeight: '800' }}>{brokerSeq}.</span> {toTitleCase(brokerName)}
+                        </div>
+                        <table className={`responsive-table ${filterEntryType === 'RICE_SAMPLE' ? 'no-type-col' : 'has-type-col'}`} style={{ width: '100%', border: '1px solid #000', borderCollapse: 'collapse' }}>
+                          <thead>
                           <tr style={{ backgroundColor: filterEntryType === 'RICE_SAMPLE' ? '#4a148c' : '#1a237e', color: 'white' }}>
-                            <th style={{ fontWeight: '600', fontSize: '13px', textAlign: 'center', whiteSpace: 'nowrap', width: '3%' }}>SL No</th>
+                            <th style={{ fontWeight: '600', fontSize: '13px', textAlign: 'center', whiteSpace: 'nowrap', width: '3%', border: '1px solid #000' }}>SL No</th>
                             {filterEntryType !== 'RICE_SAMPLE' && (
-                              <th style={{ fontWeight: '600', fontSize: '13px', textAlign: 'center', whiteSpace: 'nowrap', width: '4%' }}>Type</th>
+                              <th style={{ fontWeight: '600', fontSize: '13px', textAlign: 'center', whiteSpace: 'nowrap', width: '4%', border: '1px solid #000' }}>Type</th>
                             )}
-                            <th style={{ fontWeight: '600', fontSize: '13px', textAlign: 'center', whiteSpace: 'nowrap', width: '6%' }}>Bags</th>
-                            <th style={{ fontWeight: '600', fontSize: '13px', textAlign: 'center', whiteSpace: 'nowrap', width: '6%' }}>Pkg</th>
-                            <th style={{ fontWeight: '600', fontSize: '13px', textAlign: 'left', whiteSpace: 'nowrap', width: '16%' }}>Party Name</th>
-                           <th style={{ fontWeight: '600', fontSize: '13px', textAlign: 'left', whiteSpace: 'nowrap', width: '14%' }}>{filterEntryType === 'RICE_SAMPLE' ? 'Rice Location' : 'Paddy Location'}</th>
-                           <th style={{ fontWeight: '600', fontSize: '13px', textAlign: 'left', whiteSpace: 'nowrap', width: '12%' }}>Variety</th>
-                            <th style={{ fontWeight: '600', fontSize: '13px', textAlign: 'left', whiteSpace: 'nowrap', width: '33%' }}>Sample Reports</th>
-                            <th style={{ fontWeight: '600', fontSize: '13px', textAlign: 'left', whiteSpace: 'nowrap', width: '12%' }}>Sample Collected By</th>
+                            <th style={{ fontWeight: '600', fontSize: '13px', textAlign: 'center', whiteSpace: 'nowrap', width: '6%', border: '1px solid #000' }}>Bags</th>
+                            <th style={{ fontWeight: '600', fontSize: '13px', textAlign: 'center', whiteSpace: 'nowrap', width: '6%', border: '1px solid #000' }}>Pkg</th>
+                            <th style={{ fontWeight: '600', fontSize: '13px', textAlign: 'left', whiteSpace: 'nowrap', width: '16%', border: '1px solid #000' }}>Party Name</th>
+                           <th style={{ fontWeight: '600', fontSize: '13px', textAlign: 'left', whiteSpace: 'nowrap', width: '14%', border: '1px solid #000' }}>{filterEntryType === 'RICE_SAMPLE' ? 'Rice Location' : 'Paddy Location'}</th>
+                           <th style={{ fontWeight: '600', fontSize: '13px', textAlign: 'left', whiteSpace: 'nowrap', width: '12%', border: '1px solid #000' }}>Variety</th>
+                            <th style={{ fontWeight: '600', fontSize: '13px', textAlign: 'left', whiteSpace: 'nowrap', width: '27%', border: '1px solid #000' }}>Sample Reports</th>
+                            <th style={{ fontWeight: '600', fontSize: '13px', textAlign: 'left', whiteSpace: 'nowrap', width: '18%', border: '1px solid #000' }}>Sample Collected By</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -2683,9 +2684,9 @@ const SampleEntryPage: React.FC<{
                             const hasCookingData = cookingHistory.length > 0 || !!cookingReport?.status;
                             return (
                               <tr key={entry.id} style={{ backgroundColor: isSmellDarkOrMedium ? '#ffebee' : isSmellLight ? '#fffde7' : isPaddyResample ? '#fff3e0' : entry.entryType === 'DIRECT_LOADED_VEHICLE' ? '#e3f2fd' : entry.entryType === 'LOCATION_SAMPLE' ? '#ffcc80' : '#ffffff', border: isPaddyResample ? '2px solid #f4a460' : undefined }}>
-                                <td style={{ padding: '1px 4px', textAlign: 'center', fontWeight: '700', fontSize: '13px', verticalAlign: 'middle' }}>{slNo}</td>
+                                <td style={{ padding: '1px 4px', textAlign: 'center', fontWeight: '700', fontSize: '13px', verticalAlign: 'middle', border: '1px solid #000' }}>{slNo}</td>
                                 {filterEntryType !== 'RICE_SAMPLE' && (
-                                  <td style={{ padding: '1px 4px', textAlign: 'center', fontSize: '11px', fontWeight: '700', lineHeight: '1.2', color: getEntryTypeTextColor(getDisplayedEntryTypeCode(entry)) }}>
+                                  <td style={{ padding: '1px 4px', textAlign: 'center', fontSize: '11px', fontWeight: '700', lineHeight: '1.2', color: getEntryTypeTextColor(getDisplayedEntryTypeCode(entry)), border: '1px solid #000' }}>
                                     {(() => {
                                       if (isConvertedResampleType(entry)) {
                                         const originalTypeCode = getOriginalEntryTypeCode(entry);
@@ -2704,8 +2705,8 @@ const SampleEntryPage: React.FC<{
                                     })()}
                                   </td>
                                 )}
-                                <td style={{ padding: '1px 4px', textAlign: 'center', fontSize: '13px', fontWeight: '600', lineHeight: '1.2' }}>{entry.bags?.toLocaleString('en-IN') || '0'}</td>
-                                <td style={{ padding: '1px 4px', textAlign: 'center', fontSize: '13px', lineHeight: '1.2' }}>{(() => {
+                                <td style={{ padding: '1px 4px', textAlign: 'center', fontSize: '13px', fontWeight: '600', lineHeight: '1.2', border: '1px solid #000' }}>{entry.bags?.toLocaleString('en-IN') || '0'}</td>
+                                <td style={{ padding: '1px 4px', textAlign: 'center', fontSize: '13px', lineHeight: '1.2', border: '1px solid #000' }}>{(() => {
                                   let pkg = String((entry as any).packaging || '75');
                                   if (pkg.toLowerCase() === '0' || pkg.toLowerCase() === 'loose') return 'Loose';
                                   if (pkg.toLowerCase().includes('kg')) return pkg;
@@ -2714,7 +2715,7 @@ const SampleEntryPage: React.FC<{
                                 })()}</td>
                                 <td 
                                   onClick={filterEntryType !== 'RICE_SAMPLE' ? () => openDetailEntry(entry) : undefined}
-                                  style={{ padding: '1px 4px', textAlign: 'left', fontSize: '14px', lineHeight: '1.2', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: filterEntryType !== 'RICE_SAMPLE' ? 'pointer' : 'default', color: filterEntryType !== 'RICE_SAMPLE' ? '#1565c0' : 'inherit', fontWeight: '700', textDecoration: filterEntryType !== 'RICE_SAMPLE' ? 'underline' : 'none' }}
+                                  style={{ padding: '1px 4px', textAlign: 'left', fontSize: '14px', lineHeight: '1.2', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: filterEntryType !== 'RICE_SAMPLE' ? 'pointer' : 'default', color: filterEntryType !== 'RICE_SAMPLE' ? '#1565c0' : 'inherit', fontWeight: '700', textDecoration: filterEntryType !== 'RICE_SAMPLE' ? 'underline' : 'none', border: '1px solid #000' }}
                                 >
                                   {(() => {
                                     const party = (entry.partyName || '').trim();
@@ -2732,7 +2733,7 @@ const SampleEntryPage: React.FC<{
                                     return lorry || '-';
                                   })()}
                                 </td>
-                                 <td style={{ padding: '1px 4px', textAlign: 'left', fontSize: '14px', lineHeight: '1.2', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                 <td style={{ padding: '1px 4px', textAlign: 'left', fontSize: '14px', lineHeight: '1.2', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', border: '1px solid #000', width: '150px' }}>
                                   {toTitleCase(entry.location)}
                                   {entry.entryType === 'LOCATION_SAMPLE' && (entry as any).gpsCoordinates && (() => {
                                     const gps = (entry as any).gpsCoordinates;
@@ -2750,7 +2751,7 @@ const SampleEntryPage: React.FC<{
                                     );
                                   })()}
                                 </td>
-                                <td style={{ padding: '1px 4px', textAlign: 'left', fontSize: '14px', lineHeight: '1.2', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                <td style={{ padding: '1px 4px', textAlign: 'left', fontSize: '14px', lineHeight: '1.2', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', border: '1px solid #000' }}>
                                   {toTitleCase(entry.variety)}
                                   {(() => {
                                     if (smellState) {
@@ -2765,7 +2766,7 @@ const SampleEntryPage: React.FC<{
                                   {has100Grams && <span style={{ marginLeft: '3px', color: '#e65100', fontSize: '11px' }} title="100g Completed">⚡</span>}
                                   {hasResampleWbActivation && <span style={{ marginLeft: '3px', color: '#7c3aed', fontSize: '11px' }} title="WB saved for resample cooking">⚡</span>}
                                 </td>
-                                <td style={{ padding: '0px 2px', textAlign: 'left', lineHeight: '1.1' }}>
+                                <td style={{ padding: '0px 2px', textAlign: 'left', lineHeight: '1.1', border: '1px solid #000' }}>
                                   <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-start' }}>
                                     {isCancelledEntry ? (
                                       <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
@@ -3108,7 +3109,7 @@ const SampleEntryPage: React.FC<{
                                     )}
                                   </div>
                                 </td>
-                                <td style={{ padding: '1px 8px', textAlign: 'left', fontSize: '11px', lineHeight: '1.2', verticalAlign: 'middle' }}>
+                                <td style={{ padding: '1px 8px', textAlign: 'left', fontSize: '11px', lineHeight: '1.2', verticalAlign: 'middle', border: '1px solid #000' }}>
                                   {(() => {
                                     const collectedByDisplay = getCollectedByDisplay(entry as any);
 
@@ -3134,6 +3135,7 @@ const SampleEntryPage: React.FC<{
                           })}
                         </tbody>
                       </table>
+                      </div>
                     </div>
                   );
                 })}

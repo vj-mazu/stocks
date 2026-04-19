@@ -543,13 +543,13 @@ const SampleEntryLedger: React.FC = () => {
           width: '100%',
           borderCollapse: 'collapse',
           fontSize: '8px',
-          border: '1px solid #bbb',
+          border: '1px solid #000',
           fontFamily: "'Segoe UI', Tahoma, sans-serif"
         }}>
           <thead>
             {(() => {
               const thStyle: React.CSSProperties = {
-                border: '1px solid #2a4a6b',
+                border: '1px solid #000',
                 padding: '5px 4px',
                 whiteSpace: 'nowrap',
                 fontWeight: 600,
@@ -632,7 +632,7 @@ const SampleEntryLedger: React.FC = () => {
                   pageSize={pageSize}
                   isAdminOrManager={isAdminOrManager}
                   openEditModal={openEditModal}
-                  cellStyle={{ border: '1px solid #ddd', padding: '3px 4px', verticalAlign: 'middle', fontSize: '9px', lineHeight: '1.3' }}
+                  cellStyle={{ border: '1px solid #000', padding: '3px 4px', verticalAlign: 'middle', fontSize: '9px', lineHeight: '1.3' }}
                 />
               ))
             )}

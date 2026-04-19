@@ -1623,7 +1623,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             </div>
 
             {activeView === 'edit-approvals' ? (
-                <div style={{ overflowX: 'auto', backgroundColor: 'white', border: '1px solid #ddd', marginTop: '12px' }}>
+                <div style={{ overflowX: 'auto', backgroundColor: 'white', border: '1px solid #000', marginTop: '12px' }}>
                     {loading ? (
                         <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>Loading...</div>
                     ) : approvalEntries.length === 0 ? (
@@ -1694,7 +1694,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             {activeView === 'sample-book' ? (
             <>
             {/* Entries grouped by Date → Broker */}
-            <div style={{ overflowX: 'auto', backgroundColor: 'white', border: '1px solid #ddd' }}>
+            <div style={{ overflowX: 'auto', backgroundColor: 'white', border: '1px solid #000' }}>
                 {loading ? (
                     <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>Loading...</div>
                 ) : Object.keys(groupedEntries).length === 0 ? (

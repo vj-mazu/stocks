@@ -452,6 +452,13 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
   const isRiceMode = entryType === 'RICE_SAMPLE';
   const tableMinWidth = isRiceMode ? '100%' : '2500px';
   const pageSize = 100;
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const [entries, setEntries] = useState<SampleEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -542,6 +549,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     paymentConditionValue: '15',
     paymentConditionUnit: 'days',
     finalPrice: '',
+    baseRateType: 'PD_LOOSE',
     remarks: ''
   });
   const [managerData, setManagerData] = useState({
@@ -739,6 +747,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
       paymentConditionValue: o.paymentConditionValue != null ? String(o.paymentConditionValue) : '15',
       paymentConditionUnit: o.paymentConditionUnit || 'days',
       finalPrice: o.finalPrice != null ? String(o.finalPrice) : (entry.finalPrice != null ? String(entry.finalPrice) : ''),
+      baseRateType: o.baseRateType || entry.offering?.baseRateType || 'PD_LOOSE',
       remarks: o.finalRemarks || ''
     });
     setShowFinalEditModal(true);
@@ -1238,7 +1247,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
 
     const historyRaw = Array.isArray(cr?.history) ? cr.history : [];
     const history = [...historyRaw].sort((a, b) => toTs((a as any)?.date || (a as any)?.updatedAt || (a as any)?.createdAt || '') - toTs((b as any)?.date || (b as any)?.updatedAt || (b as any)?.createdAt || ''));
-    const rows: Array<{ status: string; remarks: string; doneBy: string; doneDate: any; approvedBy: string; approvedDate: any; }> = [];
+    const rows: { status: string; remarks: string; doneBy: string; doneDate: any; approvedBy: string; approvedDate: any; }[] = [];
     let pendingDone: { doneBy: string; doneDate: any; remarks: string } | null = null;
 
     history.forEach((item: any) => {
@@ -1293,12 +1302,13 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
       || entry.workflowStatus === 'LOT_ALLOTMENT'
       || entry.workflowStatus === 'COMPLETED';
 
-    if (pendingDone) {
+    const pd = pendingDone as any;
+    if (pd) {
       rows.push({
         status: 'Pending',
-        remarks: pendingDone.remarks,
-        doneBy: pendingDone.doneBy,
-        doneDate: pendingDone.doneDate,
+        remarks: pd.remarks,
+        doneBy: pd.doneBy,
+        doneDate: pd.doneDate,
         approvedBy: '',
         approvedDate: null,
       });
@@ -1500,7 +1510,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     rowBackground: string,
     isHeader = false
   ): React.CSSProperties => {
-    if (isRiceMode || columnIndex >= frozenPaddyColumnCount) {
+    if (isRiceMode || isMobile || columnIndex >= frozenPaddyColumnCount) {
       return baseStyle;
     }
     return {
@@ -1604,19 +1614,29 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                     });
                     brokerSeq++;
                     return (
-                      <div key={brokerName} style={{ marginBottom: 0 }}>
-                        {brokerIdx === 0 && <div style={{ background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)', color: 'white', padding: '6px 10px', fontWeight: 700, fontSize: '14px', textAlign: 'center', letterSpacing: '0.5px', minWidth: tableMinWidth }}>{(() => { const d = new Date(brokerEntries[0]?.entryDate); return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`; })()}&nbsp;&nbsp;{isRiceMode ? 'Rice Sample' : 'Paddy Sample'}</div>}
-                        <div style={{ background: '#e8eaf6', color: '#000', padding: '4px 10px', fontWeight: 700, fontSize: '13.5px', display: 'flex', alignItems: 'center', gap: '4px', minWidth: tableMinWidth }}><span style={{ fontSize: '13.5px', fontWeight: 800 }}>{brokerSeq}.</span> {brokerName}</div>
-                        <table style={{ width: '100%', minWidth: tableMinWidth, borderCollapse: 'collapse', fontSize: '12px', tableLayout: isRiceMode ? 'fixed' : 'fixed', border: '1px solid #000' }}>
-                          {!isRiceMode && (
-                            <colgroup>
-                              {paddyColumnWidths.map((width, widthIndex) => (
-                                <col key={`${brokerName}-col-${widthIndex}`} style={{ width }} />
-                              ))}
-                            </colgroup>
+                      <div key={brokerName} style={{ display: 'inline-block', minWidth: '100%', marginBottom: 0 }}>
+                          {brokerIdx === 0 && (
+                            <div style={{ background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)', color: 'white', padding: '6px 10px', fontWeight: 700, fontSize: '14px', textAlign: 'center', letterSpacing: '0.5px' }}>
+                              {(() => { 
+                                const rawDate = brokerEntries[0]?.entryDate || brokerEntries[0]?.createdAt;
+                                const d = rawDate ? new Date(rawDate) : new Date(NaN);
+                                return isNaN(d.getTime()) ? '' : `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`; 
+                              })()}&nbsp;&nbsp;{isRiceMode ? 'Rice Sample' : 'Paddy Sample'}
+                            </div>
                           )}
-                          <thead style={{ position: 'sticky', top: 56, zIndex: 2 }}>
-                            <tr style={{ backgroundColor: '#1a237e', color: 'white' }}>
+                          <div style={{ background: '#e8eaf6', color: '#000', padding: '4px 10px', fontWeight: 700, fontSize: '13.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ fontSize: '13.5px', fontWeight: 800 }}>{brokerSeq}.</span> {brokerName}
+                          </div>
+                          <table style={{ width: '100%', minWidth: tableMinWidth, borderCollapse: 'collapse', fontSize: '12px', tableLayout: isRiceMode ? 'fixed' : 'fixed', border: '1px solid #000' }}>
+                            {!isRiceMode && (
+                              <colgroup>
+                                {paddyColumnWidths.map((width, widthIndex) => (
+                                  <col key={`${brokerName}-col-${widthIndex}`} style={{ width }} />
+                                ))}
+                              </colgroup>
+                            )}
+                            <thead style={{ position: 'sticky', top: 56, zIndex: 2 }}>
+                              <tr style={{ backgroundColor: '#1a237e', color: 'white' }}>
                               {(isRiceMode ? ['SL', 'Type', 'Bags', 'Pkg', 'Party Name', 'Rice Location', 'Variety', 'Final Rate', 'Sute', 'Mst%', 'Hamali', 'Bkrg', 'LF', 'Status', 'Action'] : ['SL No', 'Type', 'Bags', 'Pkg', 'Party Name', 'Paddy Location', 'Variety', 'Sample Collected By', 'Sample Report By', 'Quality Report', 'Cooking Report', 'Final Rate', 'Sute', 'Moist', 'Brokerage', 'LF', 'Hamali', 'CD', 'EGB', 'Bank Loan', 'Payment', 'Status', 'Action']).map((header, headerIndex) => (
                                 <th
                                   key={header}

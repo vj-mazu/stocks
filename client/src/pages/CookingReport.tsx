@@ -1715,26 +1715,24 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                       });
                       return (
                         <div key={brokerName} style={{ marginBottom: '0px' }}>
-                          {/* Date bar — only first visible broker */}
-                          {vIdx === 0 && (
+                          <div style={{ display: 'inline-block', minWidth: '100%' }}>
+                            {vIdx === 0 && (
+                              <div style={{
+                                background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+                                color: 'white', padding: '6px 10px', fontWeight: '700', fontSize: '14px',
+                                textAlign: 'center', letterSpacing: '0.5px'
+                              }}>
+                                {(() => { const d = getEffectiveDate(paddyEntries[0] || {} as any); return isNaN(d.getTime()) ? '' : `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`; })()}
+                                &nbsp;&nbsp;{(activeTab as string) === 'RICE_COOKING_REPORT' ? 'Rice Sample Cooking' : 'Paddy Sample Cooking'}
+                              </div>
+                            )}
                             <div style={{
-                              background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-                              color: 'white', padding: '6px 10px', fontWeight: '700', fontSize: '14px',
-                              textAlign: 'center', letterSpacing: '0.5px'
+                              background: '#e8eaf6',
+                              color: '#000', padding: '4px 10px', fontWeight: '700', fontSize: '13.5px',
+                              display: 'flex', alignItems: 'center', gap: '4px'
                             }}>
-                              {(() => { const d = getEffectiveDate(paddyEntries[0]); return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`; })()}
-                              &nbsp;&nbsp;{(activeTab as string) === 'RICE_COOKING_REPORT' ? 'Rice Sample Cooking' : 'Paddy Sample Cooking'}
+                              <span style={{ fontSize: '13.5px', fontWeight: '800' }}>{brokerSeq}.</span> {brokerName}
                             </div>
-                          )}
-                          {/* Broker name bar */}
-                          <div style={{
-                            background: '#e8eaf6',
-                            color: '#000', padding: '4px 10px', fontWeight: '700', fontSize: '13.5px',
-                            display: 'flex', alignItems: 'center', gap: '4px'
-                          }}>
-                            <span style={{ fontSize: '13.5px', fontWeight: '800' }}>{brokerSeq}.</span> {brokerName}
-                          </div>
-                          <div className="table-container cooking-table">
                             <table className="responsive-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', tableLayout: 'fixed', border: '1px solid #000' }}>
                               <thead>
                                 <tr style={{ backgroundColor: '#1a237e', color: 'white' }}>
@@ -1926,28 +1924,24 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                       });
                       return (
                         <div key={brokerName} style={{ marginBottom: '0px' }}>
-                          {/* Date bar — only first visible broker */}
-                          {vIdx === 0 && (
+                          <div style={{ display: 'inline-block', minWidth: '100%' }}>
+                            {vIdx === 0 && (
+                              <div style={{
+                                background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+                                color: 'white', padding: '6px 10px', fontWeight: '700', fontSize: '14px',
+                                textAlign: 'center', letterSpacing: '0.5px'
+                              }}>
+                                {(() => { const d = getEffectiveDate(riceEntries[0] || {} as any); return isNaN(d.getTime()) ? '' : `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`; })()}
+                                &nbsp;&nbsp;Rice Sample Cooking
+                              </div>
+                            )}
                             <div style={{
-                              background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-                              color: 'white', padding: '6px 10px', fontWeight: '700', fontSize: '14px',
-                              textAlign: 'center', letterSpacing: '0.5px'
+                              background: '#e8eaf6',
+                              color: '#000', padding: '4px 10px', fontWeight: '700', fontSize: '13.5px',
+                              display: 'flex', alignItems: 'center', gap: '4px'
                             }}>
-                              {(() => { const d = getEffectiveDate(riceEntries[0]); return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`; })()}
-                              &nbsp;&nbsp;Rice Sample Cooking
+                              <span style={{ fontSize: '13.5px', fontWeight: '800' }}>{brokerSeq}.</span> {brokerName}
                             </div>
-                          )}
-
-                          {/* Broker name bar */}
-                          <div style={{
-                            background: '#e8eaf6',
-                            color: '#000', padding: '4px 10px', fontWeight: '700', fontSize: '13.5px',
-                            display: 'flex', alignItems: 'center', gap: '4px'
-                          }}>
-                            <span style={{ fontSize: '13.5px', fontWeight: '800' }}>{brokerSeq}.</span> {brokerName}
-                          </div>
-
-                          <div className="table-container cooking-table">
                             <table className="responsive-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', tableLayout: 'fixed', border: '1px solid #000' }}>
                               <thead>
                                 <tr style={{ backgroundColor: '#4a148c', color: 'white' }}>

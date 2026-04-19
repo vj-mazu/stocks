@@ -59,6 +59,8 @@ const HamburgerButton = styled.button`
     display: flex;
     align-items: center;
     justify-content: center;
+    width: auto !important;
+    min-height: auto !important;
   }
 `;
 
@@ -92,15 +94,17 @@ const NavLinks = styled.div<{ $mobileOpen?: boolean }>`
     right: ${props => props.$mobileOpen ? '0' : '-300px'};
     width: 280px;
     height: 100vh;
+    height: 100dvh;
     background: #059669; /* Solid fallback for older mobile browsers */
     background: linear-gradient(180deg, #10b981, #047857);
     flex-direction: column;
     align-items: stretch;
     justify-content: flex-start;
-    padding: 4rem 1rem 2rem;
+    padding: 4rem 1rem 6rem;
     gap: 0.5rem;
     z-index: 1001;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: ${props => props.$mobileOpen ? '-4px 0 20px rgba(0,0,0,0.4)' : 'none'};
   }
@@ -291,11 +295,14 @@ const LogoutButton = styled.button`
   }
 
   @media (max-width: 1024px) {
-    margin: 0;
+    margin: 0 0 2rem 0;
     width: 100%;
-    padding: 0.8rem;
-    font-size: 1rem;
-    border-radius: 6px;
+    padding: 1rem;
+    font-size: 1.1rem;
+    border-radius: 8px;
+    background: #dc2626;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   }
 `;
 
@@ -418,6 +425,34 @@ const Navbar: React.FC = () => {
         </HamburgerButton>
         <MobileOverlay $open={mobileMenuOpen} onClick={() => setMobileMenuOpen(false)} />
         <NavLinks $mobileOpen={mobileMenuOpen}>
+          {/* Close button inside mobile panel */}
+          <button
+            onClick={() => setMobileMenuOpen(false)}
+            style={{
+              display: 'none',
+              position: 'absolute',
+              top: '10px',
+              right: '10px',
+              background: 'rgba(0,0,0,0.2)',
+              border: 'none',
+              color: 'white',
+              fontSize: '1.5rem',
+              width: '40px',
+              height: '40px',
+              minHeight: '40px',
+              borderRadius: '50%',
+              cursor: 'pointer',
+              zIndex: 1002,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            className="mobile-close-btn"
+          >✕</button>
+          <style>{`
+            @media (max-width: 1024px) {
+              .mobile-close-btn { display: flex !important; }
+            }
+          `}</style>
           {user?.role !== 'staff' && <NavLink to="/dashboard" $active={isActive('/dashboard')}>Dashboard</NavLink>}
           {user && user.role === 'staff' && (
             <>
