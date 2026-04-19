@@ -251,6 +251,7 @@ const isProvidedAlpha = (rawVal: any, valueVal: any) => {
 const hasQualitySnapshot = (attempt: any) => {
   const hasMoisture = isProvidedNumeric(attempt?.moistureRaw, attempt?.moisture);
   const hasGrains = isProvidedNumeric(attempt?.grainsCountRaw, attempt?.grainsCount);
+  const hasSmell = attempt?.smellHas || (attempt?.smellType && String(attempt?.smellType).trim() !== '');
   const hasDetailedQuality =
     isProvidedNumeric(attempt?.cutting1Raw, attempt?.cutting1) ||
     isProvidedNumeric(attempt?.bend1Raw, attempt?.bend1) ||
@@ -261,7 +262,7 @@ const hasQualitySnapshot = (attempt: any) => {
     isProvidedAlpha(attempt?.oilRaw, attempt?.oil) ||
     isProvidedAlpha(attempt?.skRaw, attempt?.sk);
 
-  return hasMoisture && (hasGrains || hasDetailedQuality);
+  return (hasMoisture && (hasGrains || hasDetailedQuality)) || hasDetailedQuality || hasSmell;
 };
 
 const getResampleRoundLabel = (attempts: number) => {
@@ -575,7 +576,14 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             arr.findIndex((candidate) => candidate.toLowerCase() === value.toLowerCase()) === index
         ));
     const getCollectedByDisplay = (entry: SampleEntry) => {
-        const collectorLabel = getCollectorLabel(getOriginalCollector(entry) || null);
+        let rawCollector = getOriginalCollector(entry) || '';
+        if (rawCollector.includes('|')) {
+            const parts = rawCollector.split('|').map(s => s.trim());
+            if (parts.length >= 2) {
+                return { primary: getCollectorLabel(parts[1]), secondary: getCollectorLabel(parts[0]), highlightPrimary: false };
+            }
+        }
+        const collectorLabel = getCollectorLabel(rawCollector || null);
         const extractCollectorNames = (items: any[]) => items.map((item) => {
             if (typeof item === 'string') return item;
             if (item && typeof item === 'object') return item.sampleCollectedBy || item.name || '';
@@ -584,7 +592,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         const resampleTimeline = Array.isArray((entry as any)?.resampleCollectedTimeline) ? (entry as any).resampleCollectedTimeline : [];
         const resampleHistory = Array.isArray((entry as any)?.resampleCollectedHistory) ? (entry as any).resampleCollectedHistory : [];
         const orderedCollectorNames = buildOrderedCollectorNames([
-            getOriginalCollector(entry),
+            rawCollector,
             ...extractCollectorNames(resampleTimeline),
             ...extractCollectorNames(resampleHistory),
             entry.sampleCollectedBy
@@ -767,9 +775,22 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             return Number.isFinite(time) ? time : 0;
         };
 
+        const rows: Array<{ status: string; remarks: string; doneBy: string; doneDate: any; approvedBy: string; approvedDate: any; }> = [];
+        
+        // Inject original Pass Without Cooking row if this is a resample from that state
+        if (String((entry as any)?.resampleOriginDecision || '').toUpperCase() === 'PASS_WITHOUT_COOKING') {
+            rows.push({
+                status: 'Pass Without Cooking',
+                remarks: '',
+                doneBy: 'NA',
+                doneDate: null,
+                approvedBy: 'NA',
+                approvedDate: null
+            });
+        }
+
         const historyRaw = Array.isArray(cr?.history) ? cr!.history : [];
         const history = [...historyRaw].sort((a, b) => toTs((a as any)?.date || (a as any)?.updatedAt || (a as any)?.createdAt || '') - toTs((b as any)?.date || (b as any)?.updatedAt || (b as any)?.createdAt || ''));
-        const rows: Array<{ status: string; remarks: string; doneBy: string; doneDate: any; approvedBy: string; approvedDate: any; }> = [];
         let pendingDone: { doneBy: string; doneDate: any; remarks: string } | null = null as { doneBy: string; doneDate: any; remarks: string } | null;
 
         history.forEach((h: any) => {
@@ -1169,13 +1190,15 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                             qpAll.push({
                                                 _isPhantomRow: true,
                                                 attemptNo: nextAttemptNo,
-                                                reportedBy: getCollectorLabel(_collectorName, supervisors),
+                                                reportedBy: getCollectorLabel(_collectorName),
                                                 updatedAt: _collectedDate,
                                                 createdAt: _collectedDate,
                                             });
                                             phantomRowInjected = true;
                                         }
                                     }
+
+
 
                                     const shouldShowAllQualityAttempts = detailMode === 'history'
                                         || qpAll.length > 1
@@ -1323,7 +1346,8 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                                 wbT: displayVal(qp.wbTRaw, qp.wbT, wbOn) || '-',
                                                 smell: smellLabel,
                                                 paddyWb: displayVal(qp.paddyWbRaw, qp.paddyWb, paddyOn) || '-',
-                                                _isPhantom: false,
+                                                _isPhantom: qp._isPhantomRow === true,
+                                                _isSkipped: qp._isPassWithoutCookingPhantom === true,
                                             };
                                         };
 
@@ -1364,14 +1388,16 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                                         <tbody>
                                                             {rows.map((row: any, idx: number) => {
                                                                 const isPhantom = row._isPhantom === true;
-                                                                const phantomBg = '#fef3c7';
-                                                                const phantomTd: React.CSSProperties = { ...tdStyle, color: '#92400e', fontStyle: 'italic' };
-                                                                const phantomLabel: React.CSSProperties = { ...tdLabelStyle, background: phantomBg, color: '#92400e' };
+                                                                const isSkipped = row._isSkipped === true;
+                                                                const phantomBg = isSkipped ? '#f3f4f6' : '#fef3c7';
+                                                                const phantomTd: React.CSSProperties = { ...tdStyle, color: isSkipped ? '#4b5563' : '#92400e', fontStyle: 'italic' };
+                                                                const phantomLabel: React.CSSProperties = { ...tdLabelStyle, background: phantomBg, color: isSkipped ? '#4b5563' : '#92400e' };
                                                                 return (
                                                                 <tr key={idx} style={{ background: isPhantom ? phantomBg : (idx % 2 === 0 ? '#fff' : '#fafafa') }}>
                                                                     <td style={isPhantom ? phantomLabel : tdLabelStyle}>
                                                                         {row.label}
-                                                                        {isPhantom && <div style={{ fontSize: '8px', fontWeight: '700', color: '#d97706', marginTop: '2px' }}>⏳ Quality Pending</div>}
+                                                                        {isPhantom && !isSkipped && <div style={{ fontSize: '8px', fontWeight: '700', color: '#d97706', marginTop: '2px' }}>⏳ Sample Collected (Pending)</div>}
+                                                                        {isPhantom && isSkipped && <div style={{ fontSize: '8px', fontWeight: '700', color: '#4b5563', marginTop: '2px' }}>⏭️ Pass w/o Cooking</div>}
                                                                     </td>
                                                                     <td style={isPhantom ? { ...phantomTd, fontWeight: '800' } : tdStyle}>
                                                                         {row.reportedBy}
@@ -1626,25 +1652,58 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                     return (
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                             {/* Final Rate Highlight */}
-                                            {(off?.finalPrice || off?.finalBaseRate) && (
-                                                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                    <div>
-                                                        <div style={{ fontSize: '10px', color: '#166534', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Confirmed Final Price</div>
-                                                        <div style={{ fontSize: '24px', fontWeight: '900', color: '#14532d' }}>Rs {toNumberText(off.finalPrice || off.finalBaseRate || 0)}</div>
+                                            {(off?.finalPrice || off?.finalBaseRate) && (() => {
+                                                const mergedOff = {
+                                                    ...off,
+                                                    moistureValue: off.moistureValue,
+                                                    sute: off.finalSute ?? off.sute,
+                                                    suteUnit: off.finalSuteUnit ?? off.suteUnit,
+                                                    hamali: off.hamali,
+                                                    hamaliUnit: off.hamaliUnit,
+                                                    brokerage: off.brokerage,
+                                                    brokerageUnit: off.brokerageUnit,
+                                                    lf: off.lf,
+                                                    lfUnit: off.lfUnit
+                                                };
+                                                return (
+                                                    <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '16px' }}>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                            <div>
+                                                                <div style={{ fontSize: '10px', color: '#166534', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Confirmed Final Price</div>
+                                                                <div style={{ fontSize: '24px', fontWeight: '900', color: '#14532d' }}>Rs {toNumberText(off.finalPrice || off.finalBaseRate || 0)}</div>
+                                                            </div>
+                                                            <div style={{ textAlign: 'right' }}>
+                                                                <div style={{ fontSize: '10px', color: '#166534', fontWeight: '700', marginBottom: '2px' }}>Base Rate Type</div>
+                                                                <div style={{ fontSize: '13px', fontWeight: '700', color: '#15803d' }}>{(off.finalBaseRateType || off.baseRateType || '').replace(/_/g, '/')} / {formatRateUnitLabel(off.finalBaseRateUnit || off.baseRateUnit)}</div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Parameter Grid for Final Price */}
+                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '4px', marginTop: '10px', fontSize: '10.5px', color: '#166534', background: 'rgba(255,255,255,0.5)', padding: '8px', borderRadius: '6px' }}>
+                                                            {mergedOff.moistureValue != null && String(mergedOff.moistureValue) !== '' && Number(mergedOff.moistureValue) !== 0 ? <div><span style={{fontWeight: 800}}>Moisture:</span> {mergedOff.moistureValue}%</div> : null}
+                                                            {mergedOff.sute != null && String(mergedOff.sute) !== '' && Number(mergedOff.sute) !== 0 ? <div><span style={{fontWeight: 800}}>Sute:</span> {mergedOff.sute}</div> : null}
+                                                            {mergedOff.hamali != null && String(mergedOff.hamali) !== '' && Number(mergedOff.hamali) !== 0 ? <div><span style={{fontWeight: 800}}>Hamali:</span> {mergedOff.hamali}</div> : null}
+                                                            {mergedOff.brokerage != null && String(mergedOff.brokerage) !== '' && Number(mergedOff.brokerage) !== 0 ? <div><span style={{fontWeight: 800}}>Brokerage:</span> {mergedOff.brokerage}</div> : null}
+                                                            {mergedOff.lf != null && String(mergedOff.lf) !== '' && Number(mergedOff.lf) !== 0 ? <div><span style={{fontWeight: 800}}>LF:</span> {mergedOff.lf}</div> : null}
+                                                        </div>
                                                     </div>
-                                                    <div style={{ textAlign: 'right' }}>
-                                                        <div style={{ fontSize: '10px', color: '#166534', fontWeight: '700', marginBottom: '2px' }}>Base Rate Type</div>
-                                                        <div style={{ fontSize: '13px', fontWeight: '700', color: '#15803d' }}>{(off.finalBaseRateType || off.baseRateType || '').replace(/_/g, '/')} / {formatRateUnitLabel(off.finalBaseRateUnit || off.baseRateUnit)}</div>
-                                                    </div>
-                                                </div>
-                                            )}
+                                                );
+                                            })()}
 
                                             {/* Offer History */}
                                             {versions.length > 0 && (
-                                                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
+                                                <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 320px))', gap: '8px' }}>
                                                     {versions.map((ov: any, i: number) => {
                                                         const actorStr = ov.updatedByRole || ov.createdByRole || (ov.actorType ? (ov.actorType === 'manager' ? 'Manager' : 'Admin') : 'User');
                                                         const timestampStr = ov.updatedAt || ov.createdAt;
+                                                        const mergedOff = {
+                                                            ...(off || {}),
+                                                            moistureValue: ov.moistureValue ?? off?.moistureValue,
+                                                            sute: ov.sute ?? off?.sute,
+                                                            hamali: ov.hamali ?? off?.hamali,
+                                                            brokerage: ov.brokerage ?? off?.brokerage,
+                                                            lf: ov.lf ?? off?.lf
+                                                        };
                                                         return (
                                                             <div key={i} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px' }}>
                                                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
@@ -1653,6 +1712,15 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                                                 </div>
                                                                 <div style={{ fontSize: '16px', fontWeight: '900', color: '#1e293b' }}>Rs {toNumberText(ov.offerBaseRateValue || ov.offeringPrice || 0)}</div>
                                                                 <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>{(ov.baseRateType || '').replace(/_/g, '/')}</div>
+
+                                                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '4px', marginTop: '10px', fontSize: '10.5px', color: '#475569', background: '#f1f5f9', padding: '8px', borderRadius: '6px' }}>
+                                                                    {mergedOff.moistureValue != null && String(mergedOff.moistureValue) !== '' && Number(mergedOff.moistureValue) !== 0 ? <div><span style={{fontWeight: 800, color: '#334155'}}>Moisture:</span> {mergedOff.moistureValue}%</div> : null}
+                                                                    {mergedOff.sute != null && String(mergedOff.sute) !== '' && Number(mergedOff.sute) !== 0 ? <div><span style={{fontWeight: 800, color: '#334155'}}>Sute:</span> {mergedOff.sute}</div> : null}
+                                                                    {mergedOff.hamali != null && String(mergedOff.hamali) !== '' && Number(mergedOff.hamali) !== 0 ? <div><span style={{fontWeight: 800, color: '#334155'}}>Hamali:</span> {mergedOff.hamali}</div> : null}
+                                                                    {mergedOff.brokerage != null && String(mergedOff.brokerage) !== '' && Number(mergedOff.brokerage) !== 0 ? <div><span style={{fontWeight: 800, color: '#334155'}}>Brokerage:</span> {mergedOff.brokerage}</div> : null}
+                                                                    {mergedOff.lf != null && String(mergedOff.lf) !== '' && Number(mergedOff.lf) !== 0 ? <div><span style={{fontWeight: 800, color: '#334155'}}>LF:</span> {mergedOff.lf}</div> : null}
+                                                                </div>
+
                                                                 {(ov.finalPrice || ov.finalBaseRate) && (
                                                                     <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed #cbd5e1' }}>
                                                                         <div style={{ fontSize: '9px', color: '#166534', fontWeight: '700' }}>Final: <span style={{ fontSize: '12px', fontWeight: '900' }}>Rs {toNumberText(ov.finalPrice || ov.finalBaseRate || 0)}</span></div>
@@ -1863,7 +1931,13 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
 
                                         return (
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                                {[...visibleVersions].sort((left: any, right: any) => getOfferIndex(right.key) - getOfferIndex(left.key)).map((version: any, versionIndex: number) => {
+                                                {[...visibleVersions].sort((left: any, right: any) => {
+                                                    const getOfferIndex = (key: string) => {
+                                                        const match = String(key || '').match(/\d+/);
+                                                        return match ? parseInt(match[0], 10) : 0;
+                                                    };
+                                                    return getOfferIndex(right.key) - getOfferIndex(left.key);
+                                                }).map((version: any, versionIndex: number) => {
                                                     const pricingVersion = pricingDetail.mode === 'offer'
                                                         ? {
                                                             ...offering,

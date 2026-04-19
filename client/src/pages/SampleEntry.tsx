@@ -132,9 +132,16 @@ const SampleEntryPage: React.FC<{
       arr.findIndex((candidate) => candidate.toLowerCase() === value.toLowerCase()) === index
     ));
   const getCollectedByDisplay = (entry: SampleEntry) => {
-    const collectorLabel = getCollectorLabel(getOriginalCollector(entry) || null);
+    let rawCollector = getOriginalCollector(entry) || '';
+    if (rawCollector.includes('|')) {
+      const parts = rawCollector.split('|').map(s => s.trim());
+      if (parts.length >= 2) {
+        return { primary: getCollectorLabel(parts[1]), secondary: getCollectorLabel(parts[0]), highlightPrimary: false };
+      }
+    }
+    const collectorLabel = getCollectorLabel(rawCollector || null);
     const orderedCollectorNames = buildOrderedCollectorNames([
-      getOriginalCollector(entry),
+      rawCollector,
       ...getResampleCollectorNames(entry),
       entry.sampleCollectedBy
     ]);
@@ -1448,6 +1455,28 @@ const SampleEntryPage: React.FC<{
   };
 
   const resetQualityForm = (entry?: SampleEntry, options?: { defaultResampleSmellNo?: boolean }) => {
+    const determinePriorSmell = () => {
+        if (!entry) return { has: false, type: '' };
+        const attempts = Array.isArray((entry as any).qualityAttemptDetails) ? (entry as any).qualityAttemptDetails : [];
+        for (let i = attempts.length - 1; i >= 0; i--) {
+            const att = attempts[i];
+            if (att?.smellHas || (att?.smellType && String(att.smellType).trim())) {
+                return { has: true, type: att.smellType || '' };
+            }
+        }
+        if ((entry as any).qualityParameters) {
+            const qp = (entry as any).qualityParameters;
+            if (qp.smellHas || (qp.smellType && String(qp.smellType).trim())) {
+                return { has: true, type: qp.smellType || '' };
+            }
+        }
+        if (entry.smellHas || (entry.smellType && String(entry.smellType).trim())) {
+            return { has: true, type: entry.smellType || '' };
+        }
+        return { has: false, type: '' };
+    };
+    const priorSmell = determinePriorSmell();
+
     setQualityData({
       moisture: '',
       cutting: '',
@@ -1468,14 +1497,14 @@ const SampleEntryPage: React.FC<{
       wbT: '',
       paddyWb: '',
       dryMoisture: '',
-      smellHas: false,
-      smellType: '',
+      smellHas: priorSmell.has,
+      smellType: priorSmell.type,
       reportedBy: '',
       gramsReport: '10gms',
       uploadFile: null,
       gpsCoordinates: ''
     });
-    setQualitySmellAnswered(Boolean(options?.defaultResampleSmellNo));
+    setQualitySmellAnswered(priorSmell.has || Boolean(options?.defaultResampleSmellNo));
     setHasExistingQualityData(false);
     setSmixEnabled(false);
     setLmixEnabled(false);
@@ -2639,7 +2668,6 @@ const SampleEntryPage: React.FC<{
                                 const nextWorkflowStatus = String((response.data as any)?.workflowStatus || 'QUALITY_CHECK').toUpperCase();
                                 const triggeredEntry = { ...entry, workflowStatus: nextWorkflowStatus } as SampleEntry;
                                 await loadEntries();
-                                await handleViewEntry(triggeredEntry, 'next');
                               } catch (error: any) {
                                 showNotification(error.response?.data?.error || 'Failed to trigger resample', 'error');
                               } finally {

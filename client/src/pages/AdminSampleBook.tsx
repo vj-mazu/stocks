@@ -852,6 +852,9 @@ const AdminSampleBook: React.FC = () => {
                                                         )}
                                                     </div>
                                                     <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+                                                        {selectedEntry.offering.moistureValue != null && String(selectedEntry.offering.moistureValue) !== '' && Number(selectedEntry.offering.moistureValue) !== 0 && (
+                                                            <DetailItem label="Moisture" value={`${selectedEntry.offering.moistureValue}%`} />
+                                                        )}
                                                         {(selectedEntry.offering.finalSute || selectedEntry.offering.sute) && (
                                                             <DetailItem label="Sute" value={`${selectedEntry.offering.finalSute || selectedEntry.offering.sute} ${(selectedEntry.offering.finalSuteUnit || selectedEntry.offering.suteUnit) === 'per_ton' ? '/Ton' : (selectedEntry.offering.finalSuteUnit || selectedEntry.offering.suteUnit) === 'per_quintal' ? '/Qtl' : '/Bag'}`} />
                                                         )}

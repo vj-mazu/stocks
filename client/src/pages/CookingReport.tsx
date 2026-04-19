@@ -352,9 +352,23 @@ const buildCookingStatusRows = (entry: any) => {
     const ts = new Date(value).getTime();
     return Number.isFinite(ts) ? ts : 0;
   };
+
+  const rows: any[] = [];
+  
+  // Inject original Pass Without Cooking row if this is a resample from that state
+  if (String((entry as any)?.resampleOriginDecision || '').toUpperCase() === 'PASS_WITHOUT_COOKING') {
+      rows.push({
+          status: 'Pass Without Cooking',
+          remarks: '',
+          doneBy: 'NA',
+          doneDate: null,
+          approvedBy: 'NA',
+          approvedDate: null
+      });
+  }
+
   const historyRaw = Array.isArray(cr?.history) ? cr.history : [];
   const history = [...historyRaw].sort((a: any, b: any) => toTs(a?.date || a?.updatedAt || a?.createdAt || '') - toTs(b?.date || b?.updatedAt || b?.createdAt || ''));
-  const rows: any[] = [];
   let pendingDone: any = null;
 
   history.forEach((item: any) => {
@@ -1058,7 +1072,11 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
     const decision = normalizeStatus(entry.lotSelectionDecision);
 
     const statusRows: Array<{ label: string; info: { color: string; bg: string; label: string } }> = [];
-    const shouldShowPassWithoutCookingFirstLine = hasResampleSplit && beforeAdminHistory.length === 0;
+    const isPassWithoutCookingOrigin = String((entry as any)?.resampleOriginDecision || '').toUpperCase() === 'PASS_WITHOUT_COOKING';
+
+    if (isPassWithoutCookingOrigin) {
+      statusRows.push({ label: '1st:', info: passWithoutCookingInfo });
+    }
 
     if (hasResampleSplit && beforeAdminHistory.length > 0) {
       beforeAdminHistory.forEach((item: any) => {
@@ -1067,7 +1085,7 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
           info: toStatusInfo(normalizeStatus(item?.status || null))
         });
       });
-    } else {
+    } else if (!isPassWithoutCookingOrigin) {
       const baselineFirstStatus = normalizeStatus(
         adminHistory[0]?.status
         || adminHistory[adminHistory.length - 1]?.status
@@ -1078,10 +1096,6 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
       if (baselineFirstStatus) {
         statusRows.push({ label: '1st:', info: toStatusInfo(baselineFirstStatus) });
       }
-    }
-
-    if (statusRows.length === 0 && shouldShowPassWithoutCookingFirstLine) {
-      statusRows.push({ label: '1st:', info: passWithoutCookingInfo });
     }
 
     if (hasResampleSplit) {

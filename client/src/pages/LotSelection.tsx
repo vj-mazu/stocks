@@ -1091,6 +1091,7 @@ const LotSelection: React.FC<LotSelectionProps> = ({ entryType, excludeEntryType
 
                                         const badgeConfig = {
                                           'PASS': { color: '#27ae60', label: 'Passed', icon: '✅' },
+                                          'PASS_WITHOUT_COOKING': { color: '#1565c0', label: 'Pass Without Cooking', icon: '✅' },
                                           'FAIL': { color: '#dc2626', label: 'Resample', icon: '🔁' },
                                           'RECHECK': { color: '#e67e22', label: 'Recheck', icon: '📝' },
                                           'MEDIUM': { color: '#27ae60', label: 'Passed', icon: '✅' },
@@ -1100,6 +1101,11 @@ const LotSelection: React.FC<LotSelectionProps> = ({ entryType, excludeEntryType
                                         return (
                                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
                                             <span style={{ color: config.color }}>{config.icon} {config.label}</span>
+                                            {status === 'PASS_WITHOUT_COOKING' && (
+                                              <div style={{ fontSize: '9px', fontWeight: '800', color: '#64748b', marginTop: '1px' }}>
+                                                NA | NA
+                                              </div>
+                                            )}
                                             {cookingStatusData.remarks && (
                                               <button
                                                 type="button"

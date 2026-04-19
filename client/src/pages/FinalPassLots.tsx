@@ -395,6 +395,7 @@ const cookingStatusLabel = (status?: string) => {
   if (key === 'MEDIUM') return 'Medium';
   if (key === 'RECHECK') return 'Recheck';
   if (key === 'FAIL') return 'Fail';
+  if (key === 'PASS_WITHOUT_COOKING') return 'Pass Without Cooking';
   return '-';
 };
 const OFFER_KEY_PATTERN = /^offer(\d+)$/i;
@@ -1852,7 +1853,16 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                                     </td>
                                     <td style={{ border: '1px solid #000', padding: '3px 5px', textAlign: 'left' }}>{qp.reportedBy ? toSentenceCase(qp.reportedBy) : '-'}</td>
                                     <td style={{ border: '1px solid #000', padding: '3px', textAlign: 'center' }}>
-                                      <div style={{ fontWeight: '700', color: '#00695c' }}>{cookingStatusLabel(cp.status)}</div>
+                                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                        <div style={{ fontWeight: '700', color: cp.status === 'Pass Without Cooking' ? '#1565c0' : '#00695c' }}>
+                                          {cookingStatusLabel(cp.status)}
+                                        </div>
+                                        {cp.status === 'Pass Without Cooking' && (
+                                          <div style={{ fontSize: '9px', fontWeight: '800', color: '#64748b' }}>
+                                            NA | NA
+                                          </div>
+                                        )}
+                                      </div>
                                         {cp.remarks ? (
                                           <button
                                             onClick={() => setRemarksPopup({ isOpen: true, title: `Cooking Remark - ${getPartyDisplay(entry)}`, text: cp.remarks })}
@@ -1883,20 +1893,12 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                                         <button onClick={() => handleOpenOfferModal(entry)} style={{ fontSize: '10px', padding: '4px 6px', backgroundColor: o?.offerBaseRateValue ? '#3498db' : '#2196F3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: '700', maxWidth: '100%', textAlign: 'center', overflow: 'hidden', wordBreak: 'break-word' as any }}>
                                           {o?.offerBaseRateValue ? (
                                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px', textAlign: 'left', lineHeight: '1.2' }}>
-                                              <div style={{ paddingBottom: '3px', borderBottom: '1px solid rgba(255,255,255,0.3)', width: '100%', marginBottom: '2px' }}>
+                                              <div style={{ paddingBottom: '3px', width: '100%', marginBottom: '2px' }}>
                                                 <span style={{ fontSize: '11px' }}>{`Rs ${toNumberText(o.offerBaseRateValue)}`}</span>
                                                 <span style={{ fontSize: '9px', fontWeight: 600, opacity: 0.95, marginLeft: '4px' }}>
                                                   ({formatRateTypeLabel(o.baseRateType || entry.offering?.baseRateType || 'PD_WB')})
                                                 </span>
                                               </div>
-                                              {o?.sute ? <span style={{ fontSize: '9px', color: '#fff176' }}>{`Sute: ${toNumberText(o.sute)}`}</span> : null}
-                                              {o?.moistureValue ? <span style={{ fontSize: '9px' }}>{`Moisture: ${o.moistureValue}%`}</span> : null}
-                                              {o?.hamaliEnabled && (o?.hamali || o?.hamaliValue) ? <span style={{ fontSize: '9px' }}>{`Hamali: ${toNumberText(o?.hamali || o?.hamaliValue)} / ${o.hamaliUnit === 'per_quintal' ? 'Qtl' : 'Bag'}`}</span> : null}
-                                              {o?.brokerageEnabled && (o?.brokerage || o?.brokerageValue) ? <span style={{ fontSize: '9px' }}>{`Brkg: ${toNumberText(o?.brokerage || o?.brokerageValue)} / ${o.brokerageUnit === 'per_quintal' ? 'Qtl' : 'Bag'}`}</span> : null}
-                                              {o?.lfEnabled && (o?.lf || o?.lfValue) ? <span style={{ fontSize: '9px' }}>{`LF: ${toNumberText(o?.lf || o?.lfValue)}`}</span> : null}
-                                              {o?.cdEnabled && (o?.cd || o?.cdValue) ? <span style={{ fontSize: '9px' }}>{`CD: ${toNumberText(o?.cd || o?.cdValue)}${o.cdUnit === 'percentage' ? '%' : ''}`}</span> : null}
-                                              {o?.paymentConditionValue ? <span style={{ fontSize: '9px' }}>{`Payment: ${o.paymentConditionValue} Days`}</span> : null}
-                                              {o?.bankLoanEnabled && (o?.bankLoan || o?.bankLoanValue) ? <span style={{ fontSize: '9px' }}>{`Bank Loan: ${toNumberText(o?.bankLoan || o?.bankLoanValue)} / ${o.bankLoanUnit === 'per_quintal' ? 'Qtl' : 'Bag'}`}</span> : null}
                                             </div>
                                           ) : 'Add Offer'}
                                         </button>
@@ -1905,20 +1907,12 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px', lineHeight: '1.2', textAlign: 'left', background: '#f8fafc', padding: '4px', borderRadius: '4px', border: '1px solid #e2e8f0', overflow: 'hidden', wordBreak: 'break-word' as any }}>
                                         {o?.offerBaseRateValue ? (
                                           <>
-                                            <div style={{ paddingBottom: '3px', borderBottom: '1px solid #cbd5e1', width: '100%', marginBottom: '2px' }}>
+                                            <div style={{ paddingBottom: '3px', width: '100%', marginBottom: '2px' }}>
                                               <span style={{ fontWeight: 'bold', color: '#1e293b' }}>{`Rs ${toNumberText(o.offerBaseRateValue)}`}</span>
                                               <span style={{ fontSize: '9px', fontWeight: 600, color: '#64748b', marginLeft: '4px' }}>
                                                 ({formatRateTypeLabel(o.baseRateType || entry.offering?.baseRateType || 'PD_WB')})
                                               </span>
                                             </div>
-                                            {o?.sute ? <span style={{ fontSize: '9px', fontWeight: 700, color: '#d35400' }}>{`Sute: ${toNumberText(o.sute)}`}</span> : null}
-                                            {o?.moistureValue ? <span style={{ fontSize: '9px', color: '#334155' }}>{`Moisture: ${o.moistureValue}%`}</span> : null}
-                                            {o?.hamaliEnabled && (o?.hamali || o?.hamaliValue) ? <span style={{ fontSize: '9px', color: '#334155' }}>{`Hamali: ${toNumberText(o?.hamali || o?.hamaliValue)} / ${o.hamaliUnit === 'per_quintal' ? 'Qtl' : 'Bag'}`}</span> : null}
-                                            {o?.brokerageEnabled && (o?.brokerage || o?.brokerageValue) ? <span style={{ fontSize: '9px', color: '#334155' }}>{`Brkg: ${toNumberText(o?.brokerage || o?.brokerageValue)} / ${o.brokerageUnit === 'per_quintal' ? 'Qtl' : 'Bag'}`}</span> : null}
-                                            {o?.lfEnabled && (o?.lf || o?.lfValue) ? <span style={{ fontSize: '9px', color: '#334155' }}>{`LF: ${toNumberText(o?.lf || o?.lfValue)}`}</span> : null}
-                                            {o?.cdEnabled && (o?.cd || o?.cdValue) ? <span style={{ fontSize: '9px', color: '#334155' }}>{`CD: ${toNumberText(o?.cd || o?.cdValue)}${o.cdUnit === 'percentage' ? '%' : ''}`}</span> : null}
-                                            {o?.paymentConditionValue ? <span style={{ fontSize: '9px', color: '#334155' }}>{`Payment: ${o.paymentConditionValue} Days`}</span> : null}
-                                            {o?.bankLoanEnabled && (o?.bankLoan || o?.bankLoanValue) ? <span style={{ fontSize: '9px', color: '#334155' }}>{`Bank: ${toNumberText(o?.bankLoan || o?.bankLoanValue)} / ${o.bankLoanUnit === 'per_quintal' ? 'Qtl' : 'Bag'}`}</span> : null}
                                           </>
                                         ) : (
                                           <span style={{ color: '#94a3b8' }}>-</span>

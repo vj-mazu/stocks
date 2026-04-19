@@ -994,9 +994,23 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     const fallbackCollector = history.length > 0
       ? history[0]
       : entry.sampleCollectedBy;
-    const collectorLabel = getCollectorLabel(fallbackCollector || null);
+
+    let rawCollector = fallbackCollector || '';
+
+    if (rawCollector.includes('|')) {
+        const parts = rawCollector.split('|').map((s: string) => s.trim());
+        if (parts.length >= 2) {
+            return {
+                primary: getCollectorLabel(parts[1]),
+                secondary: getCollectorLabel(parts[0]),
+                highlightPrimary: false
+            };
+        }
+    }
+
+    const collectorLabel = getCollectorLabel(rawCollector || null);
     const orderedCollectors = buildOrderedNameList([
-      fallbackCollector,
+      rawCollector,
       ...((Array.isArray((entry as any)?.resampleCollectedTimeline) ? (entry as any).resampleCollectedTimeline : []).map((item: any) => item?.sampleCollectedBy || item?.name || '')),
       ...((Array.isArray((entry as any)?.resampleCollectedHistory) ? (entry as any).resampleCollectedHistory : []).map((item: any) => item?.sampleCollectedBy || item?.name || '')),
       entry.sampleCollectedBy
@@ -1245,9 +1259,22 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
       return [];
     }
 
+    const rows: { status: string; remarks: string; doneBy: string; doneDate: any; approvedBy: string; approvedDate: any; }[] = [];
+
+    // Inject original Pass Without Cooking row if this is a resample from that state
+    if (String((entry as any)?.resampleOriginDecision || '').toUpperCase() === 'PASS_WITHOUT_COOKING') {
+      rows.push({
+        status: 'Pass Without Cooking',
+        remarks: '',
+        doneBy: 'NA',
+        doneDate: null,
+        approvedBy: 'NA',
+        approvedDate: null
+      });
+    }
+
     const historyRaw = Array.isArray(cr?.history) ? cr.history : [];
     const history = [...historyRaw].sort((a, b) => toTs((a as any)?.date || (a as any)?.updatedAt || (a as any)?.createdAt || '') - toTs((b as any)?.date || (b as any)?.updatedAt || (b as any)?.createdAt || ''));
-    const rows: { status: string; remarks: string; doneBy: string; doneDate: any; approvedBy: string; approvedDate: any; }[] = [];
     let pendingDone: { doneBy: string; doneDate: any; remarks: string } | null = null;
 
     history.forEach((item: any) => {
@@ -1895,14 +1922,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                   </td>
                                   <td style={getFrozenCellStyle(10, { border: '1px solid #000', padding: '4px 5px', textAlign: 'left', fontSize: '10px', lineHeight: '1.2', background: rowBg }, rowBg)}>
                                     {(() => {
-                                      const shouldPrefixPassWithoutCooking =
-                                        String(entry.lotSelectionDecision || '').toUpperCase() === 'FAIL'
-                                        && qualityAttempts.length > 1
-                                        && cookingRows.length === 1
-                                        && cookingRows[0]?.status !== 'Pass Without Cooking';
-                                      const displayRows = shouldPrefixPassWithoutCooking
-                                        ? [{ status: 'Pass Without Cooking', remarks: '', doneBy: '', doneDate: null, approvedBy: '', approvedDate: null }, ...cookingRows]
-                                        : cookingRows;
+                                      const displayRows = cookingRows;
 
                                       if (String(entry.lotSelectionDecision || '').toUpperCase() === 'PASS_WITHOUT_COOKING' && displayRows.length === 0) {
                                         return <span style={{ color: '#999', fontSize: '10px' }}>-</span>;
@@ -1933,6 +1953,11 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                                 <span style={{ background: style.bg, color: style.color, padding: '1px 6px', borderRadius: '10px', fontSize: '9px', fontWeight: 700 }}>
                                                   {row.status}
                                                 </span>
+                                                {row.status === 'Pass Without Cooking' && (
+                                                  <div style={{ fontSize: '9px', fontWeight: 800, color: '#64748b', marginTop: '1px' }}>
+                                                    NA | NA
+                                                  </div>
+                                                )}
                                                 {row.remarks ? (
                                                   <button
                                                     type="button"

@@ -113,6 +113,10 @@ interface SampleEntry {
             finalPrice?: number;
             finalBaseRate?: number;
             moistureValue?: number;
+            sute?: number;
+            suteUnit?: string;
+            finalSute?: number;
+            finalSuteUnit?: string;
             hamali?: number;
             hamaliUnit?: string;
             brokerage?: number;
@@ -355,15 +359,48 @@ const getQualityAttemptsForEntry = (entry: any) => {
     }, []);
     const currentQuality = entry?.qualityParameters;
 
-    if (normalizedBaseAttempts.length > 0) {
-        return normalizedBaseAttempts.map((attempt: any, index: number) => ({
+    const qpAll = (normalizedBaseAttempts.length > 0) 
+        ? normalizedBaseAttempts.map((attempt: any, index: number) => ({
             ...attempt,
             attemptNo: Number(attempt?.attemptNo) || index + 1
-        }));
-    }
+        }))
+        : (currentQuality && hasDisplayableQualitySnapshot(currentQuality) ? [{ ...currentQuality, attemptNo: 1 }] : []);
 
-    if (!currentQuality || !hasDisplayableQualitySnapshot(currentQuality)) return [];
-    return [{ ...currentQuality, attemptNo: 1 }];
+    const _toTime = (v?: string | null) => { if (!v) return 0; const t = new Date(v).getTime(); return Number.isFinite(t) ? t : 0; };
+    const _resampleTimeline = Array.isArray(entry?.resampleCollectedTimeline) ? entry.resampleCollectedTimeline : [];
+    const _resampleHistory = Array.isArray(entry?.resampleCollectedHistory) ? entry.resampleCollectedHistory : [];
+    const _hasResampleCollector = _resampleTimeline.length > 0 || _resampleHistory.length > 0;
+    
+    if (_hasResampleCollector) {
+        let _collectorName = '';
+        let _collectedDate: string | null = null;
+        if (_resampleTimeline.length > 0) {
+            const last = _resampleTimeline[_resampleTimeline.length - 1];
+            if (typeof last === 'string') { _collectorName = last; }
+            else if (last && typeof last === 'object') { _collectorName = last.sampleCollectedBy || last.name || ''; _collectedDate = last.date || null; }
+        } else if (_resampleHistory.length > 0) {
+            const last = _resampleHistory[_resampleHistory.length - 1];
+            _collectorName = typeof last === 'string' ? last : (last?.name || last?.sampleCollectedBy || '');
+        }
+
+        const _resampleStart = _toTime(entry?.resampleStartAt || entry?.resampleTriggeredAt || entry?.resampleDecisionAt || _collectedDate);
+        const _hasPostResampleQuality = qpAll.some((qp: any) => {
+            const qpTime = _toTime(qp?.updatedAt || qp?.createdAt);
+            return qpTime > 0 && _resampleStart > 0 && qpTime >= (_resampleStart - 2000);
+        });
+
+        if (!_hasPostResampleQuality && _collectorName) {
+            const nextAttemptNo = qpAll.length > 0 ? Math.max(...qpAll.map((q: any) => Number(q.attemptNo || 0))) + 1 : 2;
+            qpAll.push({
+                _isPhantomRow: true,
+                attemptNo: nextAttemptNo,
+                reportedBy: _collectorName,
+                updatedAt: _collectedDate,
+                createdAt: _collectedDate,
+            });
+        }
+    }
+    return qpAll;
 };
 
 const getQualityAttemptSmellLabel = (entry: any, attempt?: any, isLatestAttempt = false) => {
@@ -528,9 +565,16 @@ const AdminSampleBook2: React.FC<AdminSampleBook2Props> = ({ entryType, excludeE
         return Array.from(new Set([...extractNames(resampleTimeline), ...extractNames(resampleHistory)]));
     };
     const getCollectedByDisplay = (entry: SampleEntry) => {
-        const collectorLabel = getCollectorLabel(getOriginalCollector(entry) || null);
+        let rawCollector = getOriginalCollector(entry) || '';
+        if (rawCollector.includes('|')) {
+            const parts = rawCollector.split('|').map(s => s.trim());
+            if (parts.length >= 2) {
+                return { primary: getCollectorLabel(parts[1]), secondary: getCollectorLabel(parts[0]), highlightPrimary: false };
+            }
+        }
+        const collectorLabel = getCollectorLabel(rawCollector || null);
         const orderedCollectorNames = buildOrderedCollectorNames([
-            getOriginalCollector(entry),
+            rawCollector,
             ...getResampleCollectorNames(entry),
             entry.sampleCollectedBy
         ]);
@@ -1017,9 +1061,22 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             return Number.isFinite(time) ? time : 0;
         };
 
+        const rows: Array<{ status: string; remarks: string; doneBy: string; doneDate: any; approvedBy: string; approvedDate: any; }> = [];
+
+        // Inject original Pass Without Cooking row if this is a resample from that state
+        if (String((entry as any)?.resampleOriginDecision || '').toUpperCase() === 'PASS_WITHOUT_COOKING') {
+            rows.push({
+                status: 'Pass Without Cooking',
+                remarks: '',
+                doneBy: 'NA',
+                doneDate: null,
+                approvedBy: 'NA',
+                approvedDate: null
+            });
+        }
+
         const historyRaw = Array.isArray(cr?.history) ? cr!.history : [];
         const history = [...historyRaw].sort((a, b) => toTs((a as any)?.date || (a as any)?.updatedAt || (a as any)?.createdAt || '') - toTs((b as any)?.date || (b as any)?.updatedAt || (b as any)?.createdAt || ''));
-        const rows: Array<{ status: string; remarks: string; doneBy: string; doneDate: any; approvedBy: string; approvedDate: any; }> = [];
         let pendingDone: { doneBy: string; doneDate: any; remarks: string } | null = null as { doneBy: string; doneDate: any; remarks: string } | null;
 
         history.forEach((h: any) => {
@@ -1124,15 +1181,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
         if (entry.lotSelectionDecision === 'PASS_WITHOUT_COOKING' && rows.length === 0) {
             return <span style={{ color: '#999', fontSize: '10px' }}>-</span>;
         }
-        const qualityAttempts = getQualityAttemptsForEntry(entry);
-        const shouldPrefixPassWithoutCooking =
-            String(entry.lotSelectionDecision || '').toUpperCase() === 'FAIL'
-            && qualityAttempts.length > 1
-            && rows.length === 1
-            && rows[0]?.status !== 'Pass Without Cooking';
-        const displayRows = shouldPrefixPassWithoutCooking
-            ? [{ status: 'Pass Without Cooking', remarks: '', doneBy: '', doneDate: null, approvedBy: '', approvedDate: null }, ...rows]
-            : rows;
+        const displayRows = rows;
         if (displayRows.length === 0) return null;
 
         return (
@@ -1159,6 +1208,11 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                             <span style={{ background: style.bg, color: style.color, padding: '1px 6px', borderRadius: '10px', fontSize: '9px', fontWeight: '700' }}>
                                 {row.status}
                             </span>
+                            {row.status === 'Pass Without Cooking' && (
+                                <div style={{ fontSize: '9px', fontWeight: '800', color: '#64748b', marginTop: '1px' }}>
+                                    NA | NA
+                                </div>
+                            )}
                             {row.remarks ? (
                                 <button
                                     type="button"
@@ -1227,8 +1281,11 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
         const isRecheckPending = (entry as any).qualityPending === true
             || (entry as any).cookingPending === true
             || (entry as any).recheckRequested === true;
-        const isResampleEntry = String(entry.lotSelectionDecision || '').toUpperCase() === 'FAIL'
+        const isResampleEntry = (String(entry.lotSelectionDecision || '').toUpperCase() === 'FAIL'
+            || String((entry as any).resampleOriginDecision || '').toUpperCase() === 'PASS_WITHOUT_COOKING')
             && String(entry.workflowStatus || '').toUpperCase() !== 'FAILED';
+        
+        // Final decision for view mode: history if multiple attempts/skips exist or special resample states
         setDetailMode(hasQualityHistory || hasCookingHistory || isRecheckPending || isResampleEntry ? 'history' : 'summary');
         setDetailEntry(entry);
     };
@@ -2059,34 +2116,89 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                     return (
                                         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
                                             <h4 style={{ margin: 0, fontSize: '13px', color: '#1e293b', borderBottom: '2px solid #e2e8f0', paddingBottom: '8px', fontWeight: '900' }}>Pricing & Offers</h4>
-                                            {(off?.finalPrice || off?.finalBaseRate) && (
-                                                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '12px' }}>
-                                                    <div style={{ fontSize: '10px', color: '#166534', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Confirmed Final Price</div>
-                                                    <div style={{ fontSize: '20px', fontWeight: '900', color: '#14532d' }}>Rs {toNumberText(off.finalPrice || off.finalBaseRate || 0)}</div>
-                                                    <div style={{ fontSize: '11px', fontWeight: '700', color: '#15803d', marginTop: '4px' }}>{(off.finalBaseRateType || off.baseRateType || '').replace(/_/g, '/')} / {formatRateUnitLabel(off.finalBaseRateUnit || off.baseRateUnit)}</div>
-                                                </div>
-                                            )}
+                                            {(off?.finalPrice || off?.finalBaseRate) && (() => {
+                                                const mergedOff = {
+                                                    ...off,
+                                                    moistureValue: off.moistureValue,
+                                                    sute: off.finalSute ?? off.sute,
+                                                    suteUnit: off.finalSuteUnit ?? off.suteUnit,
+                                                    hamali: off.hamali,
+                                                    hamaliUnit: off.hamaliUnit,
+                                                    brokerage: off.brokerage,
+                                                    brokerageUnit: off.brokerageUnit,
+                                                    lf: off.lf,
+                                                    lfUnit: off.lfUnit
+                                                };
+                                                return (
+                                                    <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '12px' }}>
+                                                        <div style={{ fontSize: '10px', color: '#166534', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Confirmed Final Price</div>
+                                                        <div style={{ fontSize: '20px', fontWeight: '900', color: '#14532d' }}>Rs {toNumberText(off.finalPrice || off.finalBaseRate || 0)}</div>
+                                                        <div style={{ fontSize: '11px', fontWeight: '700', color: '#15803d', marginTop: '4px' }}>{(off.finalBaseRateType || off.baseRateType || '').replace(/_/g, '/')} / {formatRateUnitLabel(off.finalBaseRateUnit || off.baseRateUnit)}</div>
+                                                        
+                                                        {/* Parameter Grid for Final Price */}
+                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '4px', marginTop: '10px', fontSize: '10px', color: '#166534', background: 'rgba(255,255,255,0.5)', padding: '6px', borderRadius: '4px' }}>
+                                                            {mergedOff.moistureValue != null && String(mergedOff.moistureValue) !== '' && Number(mergedOff.moistureValue) !== 0 ? <div><span style={{fontWeight: 800}}>Moisture:</span> {mergedOff.moistureValue}%</div> : null}
+                                                            {mergedOff.sute != null && String(mergedOff.sute) !== '' && Number(mergedOff.sute) !== 0 ? <div><span style={{fontWeight: 800}}>Sute:</span> {mergedOff.sute}</div> : null}
+                                                            {mergedOff.hamali != null && String(mergedOff.hamali) !== '' && Number(mergedOff.hamali) !== 0 ? <div><span style={{fontWeight: 800}}>Hamali:</span> {mergedOff.hamali}</div> : null}
+                                                            {mergedOff.brokerage != null && String(mergedOff.brokerage) !== '' && Number(mergedOff.brokerage) !== 0 ? <div><span style={{fontWeight: 800}}>Brokerage:</span> {mergedOff.brokerage}</div> : null}
+                                                            {mergedOff.lf != null && String(mergedOff.lf) !== '' && Number(mergedOff.lf) !== 0 ? <div><span style={{fontWeight: 800}}>LF:</span> {mergedOff.lf}</div> : null}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
                                             {versions.length > 0 && (
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                                    {versions.map((ov, i) => (
-                                                        <div key={i} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px', minWidth: 0 }}>
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', gap: '6px' }}>
-                                                                <span style={{ fontSize: '10px', fontWeight: '900', background: '#e0f2fe', color: '#0369a1', padding: '2px 6px', borderRadius: '4px', textTransform: 'uppercase' }}>{ov.key}</span>
-                                                                {(ov.finalPrice || ov.finalBaseRate) && <span style={{ fontSize: '10px', fontWeight: '900', background: '#dcfce7', color: '#15803d', padding: '2px 6px', borderRadius: '4px' }}>PASSED</span>}
+                                                    {versions.map((ov, i) => {
+                                                        const mergedOff = {
+                                                            ...off,
+                                                            ...ov,
+                                                            moistureValue: ov.moistureValue ?? off?.moistureValue,
+                                                            sute: ov.sute ?? off?.sute,
+                                                            hamali: ov.hamali ?? off?.hamali,
+                                                            brokerage: ov.brokerage ?? off?.brokerage,
+                                                            lf: ov.lf ?? off?.lf
+                                                        };
+                                                        return (
+                                                            <div key={i} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px', minWidth: 0 }}>
+                                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', gap: '6px' }}>
+                                                                    <span style={{ fontSize: '10px', fontWeight: '900', background: '#e0f2fe', color: '#0369a1', padding: '2px 6px', borderRadius: '4px', textTransform: 'uppercase' }}>{getOfferSlotLabel(ov.key)}</span>
+                                                                    {(ov.finalPrice || ov.finalBaseRate) && <span style={{ fontSize: '10px', fontWeight: '900', background: '#dcfce7', color: '#15803d', padding: '2px 6px', borderRadius: '4px' }}>PASSED</span>}
+                                                                </div>
+                                                                <div style={{ fontSize: '15px', fontWeight: '900', color: '#1e293b' }}>Rs {toNumberText(ov.offerBaseRateValue || ov.offeringPrice || 0)}</div>
+                                                                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>{(ov.baseRateType || '').replace(/_/g, '/')}</div>
+                                                                
+                                                                {/* Parameter Grid for versions */}
+                                                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '4px', marginTop: '10px', fontSize: '10px', color: '#475569', background: '#f1f5f9', padding: '6px', borderRadius: '4px' }}>
+                                                                    {mergedOff.moistureValue != null && String(mergedOff.moistureValue) !== '' && Number(mergedOff.moistureValue) !== 0 ? <div><span style={{fontWeight: 800}}>Moisture:</span> {mergedOff.moistureValue}%</div> : null}
+                                                                    {mergedOff.sute != null && String(mergedOff.sute) !== '' && Number(mergedOff.sute) !== 0 ? <div><span style={{fontWeight: 800}}>Sute:</span> {mergedOff.sute}</div> : null}
+                                                                    {mergedOff.hamali != null && String(mergedOff.hamali) !== '' && Number(mergedOff.hamali) !== 0 ? <div><span style={{fontWeight: 800}}>Hamali:</span> {mergedOff.hamali}</div> : null}
+                                                                    {mergedOff.brokerage != null && String(mergedOff.brokerage) !== '' && Number(mergedOff.brokerage) !== 0 ? <div><span style={{fontWeight: 800}}>Brokerage:</span> {mergedOff.brokerage}</div> : null}
+                                                                    {mergedOff.lf != null && String(mergedOff.lf) !== '' && Number(mergedOff.lf) !== 0 ? <div><span style={{fontWeight: 800}}>LF:</span> {mergedOff.lf}</div> : null}
+                                                                </div>
                                                             </div>
-                                                            <div style={{ fontSize: '15px', fontWeight: '900', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Rs {toNumberText(ov.offerBaseRateValue || ov.offeringPrice || 0)}</div>
-                                                            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(ov.baseRateType || '').replace(/_/g, '/')}</div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                            {versions.length === 0 && (off?.offerBaseRateValue || off?.offeringPrice) && (() => {
+                                                const mergedOff = off;
+                                                return (
+                                                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px' }}>
+                                                        <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', marginBottom: '4px' }}>Active Offer</div>
+                                                        <div style={{ fontSize: '16px', fontWeight: '900', color: '#1e293b' }}>Rs {toNumberText(off.offerBaseRateValue || off.offeringPrice || 0)}</div>
+                                                        <div style={{ fontSize: '11px', color: '#64748b' }}>{(off.baseRateType || '').replace(/_/g, '/')} / {formatRateUnitLabel(off.baseRateUnit)}</div>
+                                                        
+                                                        {/* Parameter Grid for active offer */}
+                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '4px', marginTop: '10px', fontSize: '10px', color: '#475569', background: '#f1f5f9', padding: '6px', borderRadius: '4px' }}>
+                                                            {mergedOff.moistureValue != null && String(mergedOff.moistureValue) !== '' && Number(mergedOff.moistureValue) !== 0 ? <div><span style={{fontWeight: 800}}>Moisture:</span> {mergedOff.moistureValue}%</div> : null}
+                                                            {mergedOff.sute != null && String(mergedOff.sute) !== '' && Number(mergedOff.sute) !== 0 ? <div><span style={{fontWeight: 800}}>Sute:</span> {mergedOff.sute}</div> : null}
+                                                            {mergedOff.hamali != null && String(mergedOff.hamali) !== '' && Number(mergedOff.hamali) !== 0 ? <div><span style={{fontWeight: 800}}>Hamali:</span> {mergedOff.hamali}</div> : null}
+                                                            {mergedOff.brokerage != null && String(mergedOff.brokerage) !== '' && Number(mergedOff.brokerage) !== 0 ? <div><span style={{fontWeight: 800}}>Brokerage:</span> {mergedOff.brokerage}</div> : null}
+                                                            {mergedOff.lf != null && String(mergedOff.lf) !== '' && Number(mergedOff.lf) !== 0 ? <div><span style={{fontWeight: 800}}>LF:</span> {mergedOff.lf}</div> : null}
                                                         </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                            {versions.length === 0 && (off?.offerBaseRateValue || off?.offeringPrice) && (
-                                                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px' }}>
-                                                    <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', marginBottom: '4px' }}>Active Offer</div>
-                                                    <div style={{ fontSize: '16px', fontWeight: '900', color: '#1e293b' }}>Rs {toNumberText(off.offerBaseRateValue || off.offeringPrice || 0)}</div>
-                                                    <div style={{ fontSize: '11px', color: '#64748b' }}>{(off.baseRateType || '').replace(/_/g, '/')} / {formatRateUnitLabel(off.baseRateUnit)}</div>
-                                                </div>
-                                            )}
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                     );
                                 })()}
@@ -2753,6 +2865,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
 
                                         return (
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 320px))', gap: '12px' }}>
                                                 {visibleVersions.map((version, versionIndex) => {
                                                     const pricingVersion = pricingDetail.mode === 'offer'
                                                         ? {
@@ -2762,6 +2875,8 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                                             baseRateType: version.baseRateType || offering.baseRateType,
                                                             baseRateUnit: version.baseRateUnit || offering.baseRateUnit,
                                                             moistureValue: version.moistureValue ?? offering.moistureValue,
+                                                            sute: version.sute ?? offering.sute,
+                                                            suteUnit: version.suteUnit || offering.suteUnit,
                                                             hamali: version.hamali ?? offering.hamali,
                                                             hamaliUnit: version.hamaliUnit || offering.hamaliUnit,
                                                             brokerage: version.brokerage ?? offering.brokerage,
@@ -2781,8 +2896,19 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                                             ...offering,
                                                             finalPrice: version.finalPrice,
                                                             finalBaseRate: version.finalBaseRate,
+                                                            finalSute: version.finalSute ?? version.sute ?? offering.finalSute ?? offering.sute,
+                                                            finalSuteUnit: version.finalSuteUnit ?? version.suteUnit ?? offering.finalSuteUnit ?? offering.suteUnit,
                                                             finalBaseRateType: version.baseRateType || offering.finalBaseRateType || offering.baseRateType,
-                                                            finalBaseRateUnit: version.baseRateUnit || offering.finalBaseRateUnit || offering.baseRateUnit
+                                                            finalBaseRateUnit: version.baseRateUnit || offering.finalBaseRateUnit || offering.baseRateUnit,
+                                                            moistureValue: version.moistureValue ?? offering.moistureValue,
+                                                            sute: version.sute ?? offering.sute,
+                                                            suteUnit: version.suteUnit || offering.suteUnit,
+                                                            hamali: version.hamali ?? offering.hamali,
+                                                            hamaliUnit: version.hamaliUnit || offering.hamaliUnit,
+                                                            brokerage: version.brokerage ?? offering.brokerage,
+                                                            brokerageUnit: version.brokerageUnit || offering.brokerageUnit,
+                                                            lf: version.lf ?? offering.lf,
+                                                            lfUnit: version.lfUnit || offering.lfUnit
                                                         };
                                                     return (
                                                         <div key={`${String(version.key || 'version')}-${versionIndex}`} style={{ border: '1px solid #dfe3e8', borderRadius: '10px', padding: '12px', background: '#fff', minWidth: 0 }}>
@@ -2790,6 +2916,15 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                                                 {pricingDetail.mode === 'offer' ? getOfferSlotLabel(version.key) : (version.key ? `${getOfferSlotLabel(version.key)} Final` : 'Final')}
                                                             </div>
                                                             {renderGrid(getPricingRows(pricingVersion as NonNullable<SampleEntry['offering']>, pricingDetail.mode), `${String(version.key || 'version')}-${versionIndex}`)}
+                                                            
+                                                            {/* Sync: Parameter Summary Grid same as Main Detail Modal */}
+                                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '4px', marginTop: '10px', fontSize: '10.5px', color: '#475569', background: '#f1f5f9', padding: '8px', borderRadius: '6px' }}>
+                                                                {pricingVersion.moistureValue != null && String(pricingVersion.moistureValue) !== '' && Number(pricingVersion.moistureValue) !== 0 ? <div><span style={{fontWeight: 800, color: '#334155'}}>Moisture:</span> {pricingVersion.moistureValue}%</div> : null}
+                                                                {(pricingDetail.mode === 'final' ? (pricingVersion.finalSute ?? pricingVersion.sute) : pricingVersion.sute) != null && String(pricingDetail.mode === 'final' ? (pricingVersion.finalSute ?? pricingVersion.sute) : pricingVersion.sute) !== '' && Number(pricingDetail.mode === 'final' ? (pricingVersion.finalSute ?? pricingVersion.sute) : pricingVersion.sute) !== 0 ? <div><span style={{fontWeight: 800, color: '#334155'}}>Sute:</span> {pricingDetail.mode === 'final' ? (pricingVersion.finalSute ?? pricingVersion.sute) : pricingVersion.sute}</div> : null}
+                                                                {pricingVersion.hamali != null && String(pricingVersion.hamali) !== '' && Number(pricingVersion.hamali) !== 0 ? <div><span style={{fontWeight: 800, color: '#334155'}}>Hamali:</span> {pricingVersion.hamali}</div> : null}
+                                                                {pricingVersion.brokerage != null && String(pricingVersion.brokerage) !== '' && Number(pricingVersion.brokerage) !== 0 ? <div><span style={{fontWeight: 800, color: '#334155'}}>Brokerage:</span> {pricingVersion.brokerage}</div> : null}
+                                                                {pricingVersion.lf != null && String(pricingVersion.lf) !== '' && Number(pricingVersion.lf) !== 0 ? <div><span style={{fontWeight: 800, color: '#334155'}}>LF:</span> {pricingVersion.lf}</div> : null}
+                                                            </div>
                                                             
                                                             <div style={{ 
                                                                 marginTop: '10px', 
@@ -2808,6 +2943,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                                         </div>
                                                     );
                                                 })}
+                                                </div>
                                             </div>
                                         );
                                     })()}
