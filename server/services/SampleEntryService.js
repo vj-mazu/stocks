@@ -2,7 +2,6 @@ const SampleEntryRepository = require('../repositories/SampleEntryRepository');
 const ValidationService = require('./ValidationService');
 const AuditService = require('./AuditService');
 const SampleEntryOffering = require('../models/SampleEntryOffering');
-const UserRepository = require('../repositories/UserRepository');
 
 const OFFER_KEY_PATTERN = /^offer(\d+)$/i;
 const isValidOfferKey = (value) => OFFER_KEY_PATTERN.test(String(value || '').trim());
