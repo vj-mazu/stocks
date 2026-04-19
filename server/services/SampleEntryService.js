@@ -2,6 +2,7 @@ const SampleEntryRepository = require('../repositories/SampleEntryRepository');
 const ValidationService = require('./ValidationService');
 const AuditService = require('./AuditService');
 const SampleEntryOffering = require('../models/SampleEntryOffering');
+const User = require('../models/User');
 
 const OFFER_KEY_PATTERN = /^offer(\d+)$/i;
 const isValidOfferKey = (value) => OFFER_KEY_PATTERN.test(String(value || '').trim());
@@ -849,9 +850,9 @@ class SampleEntryService {
     const existingOffer = offerVersions.find((offerItem) => offerItem.key === slotKey) || {};
     
     // Resolve full names for attribution
-    const currentUser = await UserRepository.findById(userId);
+    const currentUser = await User.findByPk(userId, { attributes: ['id', 'username', 'fullName'] });
     const updatedByFullName = currentUser?.fullName || currentUser?.username || 'System';
-    const createdByFullName = existingOffer.createdByFullName || (existingOffer.createdBy ? (await UserRepository.findById(existingOffer.createdBy))?.fullName : updatedByFullName) || updatedByFullName;
+    const createdByFullName = existingOffer.createdByFullName || (existingOffer.createdBy ? (await User.findByPk(existingOffer.createdBy, { attributes: ['id', 'fullName'] }))?.fullName : updatedByFullName) || updatedByFullName;
 
     const nextOffer = {
       ...buildOfferPayload(priceData, existingOffer, slotKey),
@@ -923,7 +924,7 @@ class SampleEntryService {
       });
     }
 
-    const currentUser = await UserRepository.findById(userId);
+    const currentUser = await User.findByPk(userId, { attributes: ['id', 'username', 'fullName'] });
     const updatedByFullName = currentUser?.fullName || currentUser?.username || 'System';
     const updates = { updatedBy: userId, updatedByFullName };
 
