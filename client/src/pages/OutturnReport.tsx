@@ -718,7 +718,7 @@ const OutturnReport: React.FC = () => {
                   📊 Calculation Summary
                 </div>
 
-                <div style={{
+                <div  className="responsive-grid" style={{
                   display: 'grid',
                   gridTemplateColumns: '1fr auto 1fr auto 1fr',
                   alignItems: 'center',

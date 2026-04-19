@@ -196,6 +196,11 @@ div[style*="overflowX"] {
     display: block !important;
   }
 
+  /* Target inline grid forms explicitly injected with class */
+  .responsive-grid {
+    grid-template-columns: 1fr !important;
+  }
+
   /* FORMS */
   input, select, textarea {
     width: 100%;

@@ -3979,7 +3979,7 @@ const SampleEntryPage: React.FC<{
                 fontSize: '11px',
                 border: '1px solid #c5cae9'
               }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px' }}>
+                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px' }}>
                   <div><strong style={{ color: '#1a237e' }}>Broker:</strong> {toTitleCase(selectedEntry.brokerName)}</div>
                   <div><strong style={{ color: '#1a237e' }}>Variety:</strong> {toTitleCase(selectedEntry.variety)}</div>
                   <div><strong style={{ color: '#1a237e' }}>Party:</strong> {(() => {
@@ -3999,7 +3999,7 @@ const SampleEntryPage: React.FC<{
               <form onSubmit={handleSubmitQualityParametersWithConfirm}>
                 {selectedEntry.entryType === 'RICE_SAMPLE' ? (
                   <>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px 10px', alignItems: 'start', marginBottom: '10px' }}>
+                    <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px 10px', alignItems: 'start', marginBottom: '10px' }}>
                       {/* Row 1: Moisture, Grains Count, Broken (mix) */}
                       <div>
                         <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>Moisture <span style={{ color: '#e53935' }}>*</span></label>
@@ -4162,7 +4162,7 @@ const SampleEntryPage: React.FC<{
                 ) : (
                   <>
                     {/* ── All Fields in one 3-column grid ── */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px 10px', alignItems: 'start', marginBottom: '10px' }}>
+                    <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px 10px', alignItems: 'start', marginBottom: '10px' }}>
                       {/* Row 1: Moisture, Dry Moisture, Grains Count */}
                       <div>
                         <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>Moisture <span style={{ color: '#e53935' }}>*</span></label>
@@ -4325,7 +4325,7 @@ const SampleEntryPage: React.FC<{
                     {/* ── Section 3: WB Parameters ── */}
                     <div style={{ marginBottom: '10px', padding: '10px', backgroundColor: '#f0f7ff', borderRadius: '6px', border: '1px solid #d0e3f7' }}>
                       <div style={{ fontSize: '10px', fontWeight: '700', color: '#1565c0', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px', borderBottom: '1px solid #bbdefb', paddingBottom: '4px' }}>WB Parameters</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px 10px', alignItems: 'start' }}>
+                      <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px 10px', alignItems: 'start' }}>
                         <div>
                           <label style={{ display: 'block', marginBottom: '2px', fontWeight: '600', color: '#333', fontSize: '11px' }}>WB (R) & WB (BK)</label>
                           <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
@@ -4378,7 +4378,7 @@ const SampleEntryPage: React.FC<{
                   </>
                 )}
                 {/* Upload & Sample Collected By */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>
                       Upload Photo <span style={{ color: '#999', fontWeight: '400' }}>(Optional)</span>
@@ -4644,7 +4644,7 @@ const SampleEntryPage: React.FC<{
                   style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#999' }}>✕</button>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+              <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500', color: '#555', fontSize: '12px' }}>Date {requiredMark}</label>
                   <input type="date" value={formData.entryDate} onChange={(e) => setFormData({ ...formData, entryDate: e.target.value })}

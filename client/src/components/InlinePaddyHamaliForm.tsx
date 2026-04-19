@@ -322,7 +322,7 @@ const SplitWorkerForm: React.FC<{
     return (
         <div>
             {splits.map((split, index) => (
-                <div key={index} style={{ 
+                <div key={index}  className="responsive-grid" style={{ 
                     display: 'grid', 
                     gridTemplateColumns: '1fr 1fr auto auto', 
                     gap: '0.5rem', 
@@ -834,7 +834,7 @@ const InlinePaddyHamaliForm: React.FC<Props> = ({ arrival, onClose, onSave }) =>
                     ➕ Other Hamali Works
                 </SummaryTitle>
                 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                     <FormGroup>
                         <Label>Work Type</Label>
                         <Select
@@ -867,7 +867,7 @@ const InlinePaddyHamaliForm: React.FC<Props> = ({ arrival, onClose, onSave }) =>
                     </FormGroup>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                     <FormGroup>
                         <Label>Details (Manual Entry)</Label>
                         <Input

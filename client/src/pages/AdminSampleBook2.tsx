@@ -2026,7 +2026,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                 padding: '16px 20px', borderRadius: '8px 8px 0 0', color: 'white',
                                 position: 'relative'
                             }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginBottom: '4px' }}>
+                                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginBottom: '4px' }}>
                                     <div style={{ fontSize: '13px', fontWeight: '800', opacity: 0.9, textAlign: 'left' }}>
                                         {getEffectiveDate(detailEntry).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
                                     </div>
@@ -2091,7 +2091,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                     );
                                 })()}
                                 {/* Basic Info Grid */}
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '16px', maxWidth: '100%' }}>
+                                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '16px', maxWidth: '100%' }}>
                                     {[
                                         ['Date', getEffectiveDate(detailEntry).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })],
                                         ['Total Bags', detailEntry.bags?.toLocaleString('en-IN')],
@@ -2104,7 +2104,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                         </div>
                                     ))}
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: getPopupSmellSummary(detailEntry as any) ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)', gap: '12px', marginBottom: '24px', maxWidth: '100%' }}>
+                                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: getPopupSmellSummary(detailEntry as any) ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)', gap: '12px', marginBottom: '24px', maxWidth: '100%' }}>
                                     <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                                         <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Party Name</div>
                                         {(() => {
@@ -2591,7 +2591,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
 
                                             {/* Offer History */}
                                             {versions.length > 0 && (
-                                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
+                                                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
                                                     {versions.map((ov, i) => (
                                                         <div key={i} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px' }}>
                                                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
@@ -2737,7 +2737,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                             : versions.filter((version) => version?.finalPrice || version?.finalBaseRate);
 
                                         const renderGrid = (rows: any[], keyPrefix: string) => (
-                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+                                            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
                                                 {rows.map(([label, value]) => (
                                                     <div key={`${keyPrefix}-${String(label)}`} style={{ background: '#f8f9fa', border: '1px solid #dfe3e8', borderRadius: '8px', padding: '10px 12px' }}>
                                                         <div style={{ fontSize: '11px', fontWeight: '700', color: '#5f6368', marginBottom: '4px' }}>{label}</div>

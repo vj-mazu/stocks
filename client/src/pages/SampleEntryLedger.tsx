@@ -728,7 +728,7 @@ const SampleEntryLedger: React.FC = () => {
               {/* Section 1: Sample Entry */}
               <div style={{ marginBottom: '15px' }}>
                 <h4 style={{ margin: '0 0 8px', fontSize: '13px', color: '#1e3a5f', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>📋 Sample Entry Details</h4>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
                   {[{ l: 'Party Name', f: 'partyName' }, { l: 'Broker', f: 'brokerName' }, { l: 'Variety', f: 'variety' }, { l: 'Location', f: 'location' }, { l: 'Bags', f: 'bags', t: 'number' }, { l: 'Lorry No.', f: 'lorryNumber' }, { l: 'Offering ₹', f: 'offeringPrice', t: 'number' }, { l: 'Final ₹', f: 'finalPrice', t: 'number' }, { l: 'Price Type', f: 'priceType' }].map(({ l, f, t }) => (
                     <div key={f}>
                       <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: '#666', marginBottom: '2px' }}>{l}</label>
@@ -743,7 +743,7 @@ const SampleEntryLedger: React.FC = () => {
               {editEntry.qualityParameters && (
                 <div style={{ marginBottom: '15px' }}>
                   <h4 style={{ margin: '0 0 8px', fontSize: '13px', color: '#8e44ad', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>🔬 Quality Parameters</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px' }}>
+                  <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px' }}>
                       {[{ l: 'Moisture%', f: 'moisture' }, { l: 'Cut 1', f: 'cutting1' }, { l: 'Cut 2', f: 'cutting2' }, { l: 'Bend', f: 'bend' }, { l: 'Mix S', f: 'mixS' }, { l: 'Mix L', f: 'mixL' }, { l: 'Mix', f: 'mix' }, { l: 'Kandu', f: 'kandu' }, { l: 'Oil', f: 'oil' }, { l: 'SK', f: 'sk' }, { l: 'Grains', f: 'grainsCount' }, { l: 'WB R', f: 'wbR' }, { l: 'WB Bk', f: 'wbBk' }, { l: 'WB T', f: 'wbT' }, { l: 'Paddy WB', f: 'paddyWb' }].map(({ l, f }) => {
                         const isAlphaField = ['mixS', 'mixL', 'mix', 'kandu', 'oil', 'sk'].includes(f);
                         return (
@@ -770,7 +770,7 @@ const SampleEntryLedger: React.FC = () => {
                   {editForm.physicalInspections.map((insp: any, idx: number) => (
                     <div key={insp.id || idx} style={{ backgroundColor: '#f8faf8', padding: '8px', borderRadius: '4px', marginBottom: '6px', border: '1px solid #e8e8e8' }}>
                       <div style={{ fontSize: '10px', fontWeight: 700, color: '#555', marginBottom: '4px' }}>Trip {idx + 1}</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+                      <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
                         {[{ l: 'Date', f: 'inspectionDate', t: 'date' }, { l: 'Lorry', f: 'lorryNumber' }, { l: 'Bags', f: 'bags', t: 'number' }, { l: 'Cut 1', f: 'cutting1', t: 'number' }, { l: 'Cut 2', f: 'cutting2', t: 'number' }, { l: 'Bend', f: 'bend', t: 'number' }, { l: 'Remarks', f: 'remarks' }].map(({ l, f, t }) => (
                           <div key={f}>
                             <label style={{ display: 'block', fontSize: '9px', fontWeight: 600, color: '#666', marginBottom: '1px' }}>{l}</label>

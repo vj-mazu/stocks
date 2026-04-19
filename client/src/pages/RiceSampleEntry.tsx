@@ -1068,7 +1068,7 @@ const RiceSampleEntry: React.FC<{ defaultTab?: 'RICE_SAMPLE' | 'RICE_BOOK' }> = 
 
 
                 {/* 3. Bags - validation based on packaging */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px', marginBottom: '8px' }}>
+                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px', marginBottom: '8px' }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: '2px', fontWeight: '500', color: '#555', fontSize: '12px' }}>
                       Bags
@@ -1341,7 +1341,7 @@ const RiceSampleEntry: React.FC<{ defaultTab?: 'RICE_SAMPLE' | 'RICE_BOOK' }> = 
                 fontSize: '11px',
                 border: '1px solid #c5cae9'
               }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px' }}>
+                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px' }}>
                   <div><strong style={{ color: '#1a237e' }}>Broker:</strong> {toTitleCase(selectedEntry.brokerName)}</div>
                   <div><strong style={{ color: '#1a237e' }}>Variety:</strong> {toTitleCase(selectedEntry.variety)}</div>
                   <div><strong style={{ color: '#1a237e' }}>Party:</strong> {toTitleCase(selectedEntry.partyName)}</div>
@@ -1351,7 +1351,7 @@ const RiceSampleEntry: React.FC<{ defaultTab?: 'RICE_SAMPLE' | 'RICE_BOOK' }> = 
 
               <form onSubmit={handleSubmitQualityParametersWithConfirm}>
                 {/* ── All Fields in one 3-column grid ── */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px 10px', alignItems: 'start', marginBottom: '10px' }}>
+                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px 10px', alignItems: 'start', marginBottom: '10px' }}>
                   {/* Row 1: Moisture, Grains Count, Broken (mix) */}
                   <div>
                     <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>Moisture <span style={{ color: '#e53935' }}>*</span></label>
@@ -1468,7 +1468,7 @@ const RiceSampleEntry: React.FC<{ defaultTab?: 'RICE_SAMPLE' | 'RICE_BOOK' }> = 
                 </div>
 
                 {/* Upload & Sample Collected By */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>
                       Upload Photo <span style={{ color: '#999', fontWeight: '400' }}>(Optional)</span>
@@ -1616,7 +1616,7 @@ const RiceSampleEntry: React.FC<{ defaultTab?: 'RICE_SAMPLE' | 'RICE_BOOK' }> = 
                   style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#999' }}>✕</button>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500', color: '#555', fontSize: '12px' }}>Date</label>
                   <input type="date" value={formData.entryDate} onChange={(e) => setFormData({ ...formData, entryDate: e.target.value })}

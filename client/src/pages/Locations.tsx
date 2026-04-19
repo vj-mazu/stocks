@@ -1021,7 +1021,7 @@ const Locations: React.FC = () => {
               <SectionTitle>Create New Warehouse</SectionTitle>
             </SectionHeader>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
               {/* Left Column - Creation Form */}
               <div>
                 <FormGroup>
@@ -1093,7 +1093,7 @@ const Locations: React.FC = () => {
               <SectionTitle>Create New Variety</SectionTitle>
             </SectionHeader>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
               {/* Left Column - Creation Form */}
               <div>
                 <FormGroup>
@@ -1165,7 +1165,7 @@ const Locations: React.FC = () => {
               <SectionTitle>Create New KN</SectionTitle>
             </SectionHeader>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
               {/* Left Column - Creation Form */}
               <div>
                 <FormGroup>
@@ -1267,7 +1267,7 @@ const Locations: React.FC = () => {
               <SectionTitle>Rice Variety Management</SectionTitle>
             </SectionHeader>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
               {/* Left Column - Creation Form */}
               <div>
                 <FormGroup>
@@ -1340,7 +1340,7 @@ const Locations: React.FC = () => {
               <SectionTitle>Create Outturn</SectionTitle>
             </SectionHeader>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
               {/* Left Column - Creation Form */}
               <div>
                 <FormGroup>
@@ -1440,7 +1440,7 @@ const Locations: React.FC = () => {
               <SectionTitle>Packaging / Brand Management</SectionTitle>
             </SectionHeader>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
               {/* Left Column - Creation Form */}
               <div>
                 <FormGroup>
@@ -1535,7 +1535,7 @@ const Locations: React.FC = () => {
               <SectionTitle>Rice Stock Location Management</SectionTitle>
             </SectionHeader>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
               {/* Left Column - Creation Form */}
               <div>
                 <FormGroup>
@@ -1644,7 +1644,7 @@ const Locations: React.FC = () => {
               <SectionTitle>Broker Management</SectionTitle>
             </SectionHeader>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
               {/* Left Column - Creation Form */}
               <div>
                 <FormGroup>

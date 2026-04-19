@@ -955,7 +955,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                 padding: '16px 20px', borderRadius: '8px 8px 0 0', color: 'white',
                                 position: 'relative'
                             }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginBottom: '4px' }}>
+                                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginBottom: '4px' }}>
                                     <div style={{ fontSize: '13px', fontWeight: '800', opacity: 0.9, textAlign: 'left' }}>
                                         {new Date(detailEntry.entryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
                                     </div>
@@ -981,7 +981,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                             </div>
                             <div style={{ padding: '24px', backgroundColor: '#fff', borderBottomLeftRadius: '10px', borderBottomRightRadius: '10px', minWidth: detailMode === 'history' ? '1200px' : 'auto', position: 'relative' }}>
                                 {/* Basic Info Grid */}
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '16px', maxWidth: '100%' }}>
+                                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '16px', maxWidth: '100%' }}>
                                     {[
                                         ['Date', new Date(detailEntry.entryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })],
                                         ['Total Bags', detailEntry.bags?.toLocaleString('en-IN')],
@@ -994,7 +994,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                         </div>
                                     ))}
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: getPopupSmellSummary(detailEntry as any) ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)', gap: '12px', marginBottom: '24px', maxWidth: '100%' }}>
+                                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: getPopupSmellSummary(detailEntry as any) ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)', gap: '12px', marginBottom: '24px', maxWidth: '100%' }}>
                                     <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                                         <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Party Name</div>
                                         {(() => {
@@ -1129,7 +1129,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                     </div>
                                 </div>
                                 {/* Horizontal Layout: Quality Parameters / Cooking History */}
-                                <div style={{ display: 'grid', gridTemplateColumns: getQualityAttemptsForEntry(detailEntry as any).length > 1 ? 'minmax(0, 1fr)' : (useWideSummaryLayout ? 'minmax(0, 1fr)' : 'minmax(0, 1fr)'), gap: '20px', marginTop: '20px', alignItems: 'start' }}>
+                                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: getQualityAttemptsForEntry(detailEntry as any).length > 1 ? 'minmax(0, 1fr)' : (useWideSummaryLayout ? 'minmax(0, 1fr)' : 'minmax(0, 1fr)'), gap: '20px', marginTop: '20px', alignItems: 'start' }}>
                                     {/* LEFT SIDE: Quality Parameters */}
                                     <div style={{ minWidth: 0 }}>
                                         <h4 style={{ margin: '0 0 10px', fontSize: '13px', color: '#e67e22', borderBottom: '2px solid #e67e22', paddingBottom: '6px' }}>🔬 Quality Parameters</h4>
@@ -1427,7 +1427,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                                                 </div>
                                                                 <span style={{ fontSize: '9px', fontWeight: '800', background: '#fbbf24', color: '#78350f', padding: '2px 8px', borderRadius: '10px' }}>⏳ Quality Pending</span>
                                                             </div>
-                                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                                            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                                                                 <div style={{ background: '#fffbeb', padding: '8px 10px', borderRadius: '6px', border: '1px solid #fde68a' }}>
                                                                     <div style={{ fontSize: '9px', color: '#92400e', fontWeight: '700', textTransform: 'uppercase', marginBottom: '2px' }}>Sample Collected By</div>
                                                                     <div style={{ fontSize: '13px', fontWeight: '800', color: '#78350f' }}>{toSentenceCase(qp.reportedBy || '-')}</div>
@@ -1641,7 +1641,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
 
                                             {/* Offer History */}
                                             {versions.length > 0 && (
-                                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
+                                                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
                                                     {versions.map((ov: any, i: number) => {
                                                         const actorStr = ov.updatedByRole || ov.createdByRole || (ov.actorType ? (ov.actorType === 'manager' ? 'Manager' : 'Admin') : 'User');
                                                         const timestampStr = ov.updatedAt || ov.createdAt;
@@ -1847,7 +1847,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                         };
 
                                         const renderGrid = (rows: any[], keyPrefix: string) => (
-                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+                                            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
                                                 {rows.map(([label, value]) => (
                                                     <div key={`${keyPrefix}-${String(label)}`} style={{ background: '#f8f9fa', border: '1px solid #dfe3e8', borderRadius: '8px', padding: '10px 12px' }}>
                                                         <div style={{ fontSize: '11px', fontWeight: '700', color: '#5f6368', marginBottom: '4px' }}>{label}</div>

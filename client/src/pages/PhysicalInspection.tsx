@@ -455,7 +455,7 @@ const PhysicalInspection: React.FC = () => {
                             <h3 style={{ marginBottom: '15px', fontSize: '14px', fontWeight: '600', color: '#333' }}>
                               Add New Inspection - Remaining Bags: {progress?.remainingBags || entry.bags}
                             </h3>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
+                            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
                               <div>
                                 <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '600' }}>
                                   Inspection date *

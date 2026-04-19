@@ -1173,7 +1173,7 @@ const KunchinintuLedger: React.FC = () => {
                     marginBottom: '1rem'
                   }}>
                     <h3 style={{ margin: '0 0 1rem 0', color: '#065f46' }}>📊 Add Loose Bags</h3>
-                    <div style={{
+                    <div  className="responsive-grid" style={{
                       display: 'grid',
                       gridTemplateColumns: 'repeat(3, 1fr)',
                       gap: '1rem',

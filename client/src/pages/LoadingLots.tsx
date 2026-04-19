@@ -2100,7 +2100,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                     : '#4caf50',
                 padding: '16px 20px', borderRadius: '8px 8px 0 0', color: 'white', position: 'relative'
               }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginBottom: '4px' }}>
+                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginBottom: '4px' }}>
                   <div style={{ fontSize: '13px', fontWeight: '800', opacity: 0.9, textAlign: 'left' }}>
                     {new Date(qualityModalEntry.entryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
                   </div>
@@ -2128,7 +2128,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
               {/* Body Content */}
               <div style={{ padding: '24px', backgroundColor: '#fff', borderBottomLeftRadius: '10px', borderBottomRightRadius: '10px', position: 'relative' }}>
                  {/* Basic Info Grid - Refined 4x3 alignment to match image */}
-                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '10px' }}>
+                 <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '10px' }}>
                    {[
                      ['Date', new Date(qualityModalEntry.entryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })],
                      ['Bags', qualityModalEntry.bags?.toLocaleString('en-IN')],
@@ -2141,7 +2141,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                      </div>
                    ))}
                  </div>
-                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '20px' }}>
+                 <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '20px' }}>
                    {[
                      ['Party Name', toTitleCase(qualityModalEntry.partyName) || '-'],
                      ['Paddy Location', toTitleCase(qualityModalEntry.location || '-')],
@@ -2217,7 +2217,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                       {qpAll.map((qp: any, idx: number) => (
-                        <div key={`${qualityModalEntry.id}-${qp.attemptNo || idx}-cards`} style={{ display: 'grid', gridTemplateColumns: '160px minmax(0, 1fr)', gap: '16px', alignItems: 'start' }}>
+                        <div key={`${qualityModalEntry.id}-${qp.attemptNo || idx}-cards`}  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '160px minmax(0, 1fr)', gap: '16px', alignItems: 'start' }}>
                           <div style={{ background: '#fff7ed', border: '1px solid #fdba74', borderRadius: '10px', minHeight: '62px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: '900', color: '#9a3412' }}>
                             {getAttemptLabelPopup(qp.attemptNo, idx)}
                           </div>
@@ -2250,23 +2250,23 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
 
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+                      <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
                         <QItem label="Moisture" value={displayVal((qp as any).moistureRaw, (qp as any).moisture) ? `${displayVal((qp as any).moistureRaw, (qp as any).moisture)}%` : '-'} />
                         <QItem label="Cutting" value={(() => { const c1 = displayVal((qp as any).cutting1Raw, (qp as any).cutting1); const c2 = displayVal((qp as any).cutting2Raw, (qp as any).cutting2); return c1 && c2 ? `${c1}×${c2}` : '-'; })()} />
                         <QItem label="Bend" value={(() => { const b1 = displayVal((qp as any).bend1Raw, (qp as any).bend1); const b2 = displayVal((qp as any).bend2Raw, (qp as any).bend2); return b1 && b2 ? `${b1}×${b2}` : '-'; })()} />
                         <QItem label="Grains Count" value={displayVal((qp as any).grainsCountRaw, (qp as any).grainsCount) ? `(${displayVal((qp as any).grainsCountRaw, (qp as any).grainsCount)})` : '-'} />
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                      <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
                         <QItem label="Mix" value={displayVal((qp as any).mixRaw, (qp as any).mix) || '-'} />
                         <QItem label="S Mix" value={displayVal((qp as any).mixSRaw, (qp as any).mixS, smixOn) || '-'} />
                         <QItem label="L Mix" value={displayVal((qp as any).mixLRaw, (qp as any).mixL, lmixOn) || '-'} />
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                      <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
                         <QItem label="Kandu" value={displayVal((qp as any).kanduRaw, (qp as any).kandu) || '-'} />
                         <QItem label="Oil" value={displayVal((qp as any).oilRaw, (qp as any).oil) || '-'} />
                         <QItem label="SK" value={displayVal((qp as any).skRaw, (qp as any).sk) || '-'} />
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                      <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
                         <QItem label="WB-R" value={displayVal((qp as any).wbRRaw, (qp as any).wbR, wbOn) || '-'} />
                         <QItem label="WB-BK" value={displayVal((qp as any).wbBkRaw, (qp as any).wbBk, wbOn) || '-'} />
                         <QItem label="WB-T" value={displayVal((qp as any).wbTRaw, (qp as any).wbT, wbOn) || '-'} />
@@ -2491,7 +2491,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px', marginBottom: '14px' }}>
+            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px', marginBottom: '14px' }}>
               <div style={modalHasEgb && modalEgbMissing ? modalEditableCardStyle : modalCardStyle}>
                 <span style={modalTagStyle(modalHasEgb && modalEgbMissing)}>{modalHasEgb ? (modalEgbMissing ? 'Manager Add' : modalOfferActorMeta.label) : 'Not Applicable'}</span>
                 <label style={modalLabelStyle}>EGB</label>

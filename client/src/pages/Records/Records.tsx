@@ -3268,7 +3268,7 @@ const Records: React.FC = () => {
               </div>
 
               {/* Movement rows with checkboxes */}
-              <div style={{ display: 'grid', gap: '0.5rem' }}>
+              <div  className="responsive-grid" style={{ display: 'grid', gap: '0.5rem' }}>
                 {pendingMovements.map((movement: any) => (
                   <div key={movement.id} style={{
                     background: selectedMovementIds.has(movement.id) ? '#ecfccb' : 'white',
@@ -4406,7 +4406,7 @@ const Records: React.FC = () => {
                       }}>
 
                         {/* Top Row: Rice left, Vertical stack right */}
-                        <div style={{
+                        <div  className="responsive-grid" style={{
                           display: 'grid',
                           gridTemplateColumns: '1fr 20px 1fr',
                           gap: '0',
@@ -4442,7 +4442,7 @@ const Records: React.FC = () => {
                                     </div>
 
                                     {/* Column Headers */}
-                                    <div style={{
+                                    <div  className="responsive-grid" style={{
                                       display: 'grid',
                                       gridTemplateColumns: '60px 80px 1fr 120px 100px 60px',
                                       gap: '8px',
@@ -4684,7 +4684,7 @@ const Records: React.FC = () => {
                                                     return (
                                                       <React.Fragment key={`bifurcation-${productType}-${idx}`}>
                                                         {/* Main Opening Stock Entry - Highlighted Yellow if has Palti splits */}
-                                                        <div style={{
+                                                        <div  className="responsive-grid" style={{
                                                           display: 'grid',
                                                           gridTemplateColumns: '60px 80px 1fr 120px 100px 60px',
                                                           gap: '8px',
@@ -4748,7 +4748,7 @@ const Records: React.FC = () => {
                                                             overflow: 'hidden'
                                                           }}>
                                                             {splits.map((split: any, splitIdx: number) => (
-                                                              <div key={`split-${splitIdx}`} style={{
+                                                              <div key={`split-${splitIdx}`}  className="responsive-grid" style={{
                                                                 display: 'grid',
                                                                 gridTemplateColumns: '60px 80px 1fr 120px 100px 60px',
                                                                 gap: '8px',
@@ -4776,7 +4776,7 @@ const Records: React.FC = () => {
 
                                                             {/* Total shortage row - Matching Red reference style */}
                                                             {totalShortage > 0 && (
-                                                              <div style={{
+                                                              <div  className="responsive-grid" style={{
                                                                 display: 'grid',
                                                                 gridTemplateColumns: '60px 80px 1fr 120px 100px 60px',
                                                                 gap: '8px',
@@ -4808,7 +4808,7 @@ const Records: React.FC = () => {
 
                                             {/* Opening Stock */}
                                             {hasData && openingGroups[productType]?.length > 0 && (
-                                              <div style={{
+                                              <div  className="responsive-grid" style={{
                                                 display: 'grid',
                                                 gridTemplateColumns: '60px 80px 1fr 120px 100px 60px',
                                                 gap: '8px',
@@ -4836,7 +4836,7 @@ const Records: React.FC = () => {
                                                 }
                                               };
                                               return (
-                                                <div key={`${productType}-${idx}`} style={{
+                                                <div key={`${productType}-${idx}`}  className="responsive-grid" style={{
                                                   display: 'grid',
                                                   gridTemplateColumns: '60px 80px 1fr 120px 100px 60px',
                                                   gap: '8px',
@@ -4863,7 +4863,7 @@ const Records: React.FC = () => {
 
                                             {/* Closing Stock */}
                                             {hasData && (
-                                              <div style={{
+                                              <div  className="responsive-grid" style={{
                                                 display: 'grid',
                                                 gridTemplateColumns: '60px 80px 1fr 120px 100px 60px',
                                                 gap: '8px',
@@ -4926,7 +4926,7 @@ const Records: React.FC = () => {
                                     </div>
 
                                     {/* Column Headers */}
-                                    <div style={{
+                                    <div  className="responsive-grid" style={{
                                       display: 'grid',
                                       gridTemplateColumns: '50px 60px 1fr 100px 80px 50px',
                                       gap: '6px',
@@ -5036,7 +5036,7 @@ const Records: React.FC = () => {
 
                                               return (
                                                 <React.Fragment key={`bifurcation-${productType}-${idx}`}>
-                                                  <div style={{
+                                                  <div  className="responsive-grid" style={{
                                                     display: 'grid',
                                                     gridTemplateColumns: '50px 60px 1fr 100px 80px 50px',
                                                     gap: '6px',
@@ -5100,7 +5100,7 @@ const Records: React.FC = () => {
                                                       overflow: 'hidden'
                                                     }}>
                                                       {splits.map((split: any, splitIdx: number) => (
-                                                        <div key={`split-${splitIdx}`} style={{
+                                                        <div key={`split-${splitIdx}`}  className="responsive-grid" style={{
                                                           display: 'grid',
                                                           gridTemplateColumns: '50px 60px 1fr 100px 80px 50px',
                                                           gap: '6px',
@@ -5128,7 +5128,7 @@ const Records: React.FC = () => {
 
                                                       {/* Total shortage row - Matching Red reference style */}
                                                       {totalShortage > 0 && (
-                                                        <div style={{
+                                                        <div  className="responsive-grid" style={{
                                                           display: 'grid',
                                                           gridTemplateColumns: '50px 60px 1fr 100px 80px 50px',
                                                           gap: '6px',
@@ -5160,7 +5160,7 @@ const Records: React.FC = () => {
 
                                       {/* Opening Stock */}
                                       {hasData && openingGroups[productType]?.length > 0 && (
-                                        <div style={{
+                                        <div  className="responsive-grid" style={{
                                           display: 'grid',
                                           gridTemplateColumns: '50px 60px 1fr 100px 80px 50px',
                                           gap: '6px',
@@ -5213,7 +5213,7 @@ const Records: React.FC = () => {
                                           };
 
                                           return (
-                                            <div key={`${productType.toLowerCase().replace(/\s+/g, '-')}-prod-${idx}`} style={{
+                                            <div key={`${productType.toLowerCase().replace(/\s+/g, '-')}-prod-${idx}`}  className="responsive-grid" style={{
                                               display: 'grid',
                                               gridTemplateColumns: '50px 60px 1fr 100px 80px 50px',
                                               gap: '6px',
@@ -5282,7 +5282,7 @@ const Records: React.FC = () => {
 
                                       {/* Closing Stock */}
                                       {hasData && (
-                                        <div style={{
+                                        <div  className="responsive-grid" style={{
                                           display: 'grid',
                                           gridTemplateColumns: '50px 60px 1fr 100px 80px 50px',
                                           gap: '6px',
@@ -5327,7 +5327,7 @@ const Records: React.FC = () => {
                         </div>
 
                         {/* Bottom Row: Horizontal Product Types */}
-                        <div style={{
+                        <div  className="responsive-grid" style={{
                           display: 'grid',
                           gridTemplateColumns: 'repeat(3, 1fr)',
                           gap: '8px'
@@ -5358,7 +5358,7 @@ const Records: React.FC = () => {
                                   </div>
 
                                   {/* Column Headers */}
-                                  <div style={{
+                                  <div  className="responsive-grid" style={{
                                     display: 'grid',
                                     gridTemplateColumns: '50px 60px 1fr 100px 80px 50px',
                                     gap: '6px',
@@ -5460,7 +5460,7 @@ const Records: React.FC = () => {
 
                                             return (
                                               <React.Fragment key={`bifurcation-${productType}-${idx}`}>
-                                                <div style={{
+                                                <div  className="responsive-grid" style={{
                                                   display: 'grid',
                                                   gridTemplateColumns: '50px 60px 1fr 100px 80px 50px',
                                                   gap: '6px',
@@ -5524,7 +5524,7 @@ const Records: React.FC = () => {
                                                     overflow: 'hidden'
                                                   }}>
                                                     {splits.map((split: any, splitIdx: number) => (
-                                                      <div key={`split-${splitIdx}`} style={{
+                                                      <div key={`split-${splitIdx}`}  className="responsive-grid" style={{
                                                         display: 'grid',
                                                         gridTemplateColumns: '50px 60px 1fr 100px 80px 50px',
                                                         gap: '6px',
@@ -5552,7 +5552,7 @@ const Records: React.FC = () => {
 
                                                     {/* Total shortage row - Matching Red reference style */}
                                                     {totalShortage > 0 && (
-                                                      <div style={{
+                                                      <div  className="responsive-grid" style={{
                                                         display: 'grid',
                                                         gridTemplateColumns: '50px 60px 1fr 100px 80px 50px',
                                                         gap: '6px',
@@ -5584,7 +5584,7 @@ const Records: React.FC = () => {
 
                                     {/* Opening Stock */}
                                     {hasData && openingGroups[productType]?.length > 0 && (
-                                      <div style={{
+                                      <div  className="responsive-grid" style={{
                                         display: 'grid',
                                         gridTemplateColumns: '50px 60px 1fr 100px 80px 50px',
                                         gap: '6px',
@@ -5636,7 +5636,7 @@ const Records: React.FC = () => {
                                         };
 
                                         return (
-                                          <div key={`${productType.toLowerCase().replace(/\s+/g, '-')}-prod-${idx}`} style={{
+                                          <div key={`${productType.toLowerCase().replace(/\s+/g, '-')}-prod-${idx}`}  className="responsive-grid" style={{
                                             display: 'grid',
                                             gridTemplateColumns: '50px 60px 1fr 100px 80px 50px',
                                             gap: '6px',
@@ -5673,7 +5673,7 @@ const Records: React.FC = () => {
 
                                     {/* Closing Stock */}
                                     {hasData && (
-                                      <div style={{
+                                      <div  className="responsive-grid" style={{
                                         display: 'grid',
                                         gridTemplateColumns: '50px 60px 1fr 100px 80px 50px',
                                         gap: '6px',
@@ -5929,7 +5929,7 @@ const Records: React.FC = () => {
                 </h3>
 
                 {/* Horizontal Form Grid - Row 1 */}
-                <div style={{
+                <div  className="responsive-grid" style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(4, 1fr)',
                   gap: '1rem',
@@ -6036,7 +6036,7 @@ const Records: React.FC = () => {
                       📊 CALCULATION SUMMARY
                     </div>
 
-                    <div style={{
+                    <div  className="responsive-grid" style={{
                       display: 'grid',
                       gridTemplateColumns: '1fr auto 1fr auto 1fr',
                       alignItems: 'center',
@@ -6098,7 +6098,7 @@ const Records: React.FC = () => {
                 )}
 
                 {/* Horizontal Form Grid - Row 2 */}
-                <div style={{
+                <div  className="responsive-grid" style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(3, 1fr)',
                   gap: '1rem',
@@ -6162,7 +6162,7 @@ const Records: React.FC = () => {
               </div>
 
               {/* BELOW: Two Column Layout - Table Left, Summary Right */}
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem', marginTop: '2rem' }}>
+              <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem', marginTop: '2rem' }}>
                 {/* LEFT: Excel-style By-Products Table */}
                 <div>
                   <h3 style={{ marginBottom: '1rem', textAlign: 'center', fontWeight: 'bold' }}>By-Products Record</h3>
@@ -7054,7 +7054,7 @@ const Records: React.FC = () => {
                         return (
                           <>
                             {/* Two column layout: Left = Kunchinittu-wise (full width), Right = Variety-wise summary */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '20px' }}>
+                            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '20px' }}>
                               {/* LEFT COLUMN: Kunchinittu-wise bifurcation */}
                               <div>
 
@@ -8440,7 +8440,7 @@ const Records: React.FC = () => {
                                         <h4 style={{ color: '#10b981', margin: '0 0 1rem 0' }}>
                                           ✓ Hamali Already Added
                                         </h4>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+                                        <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
                                           {paddyHamaliEntries[record.id].hasLoadingHamali && (
                                             <div style={{ padding: '0.75rem', background: 'white', borderRadius: '6px' }}>
                                               <strong>Loading Hamali:</strong> ₹{paddyHamaliEntries[record.id].loadingTotal}
@@ -9445,7 +9445,7 @@ const Records: React.FC = () => {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+              <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: '4px', fontWeight: '600' }}>Bags</label>
                   <input
@@ -9533,7 +9533,7 @@ const Records: React.FC = () => {
 
               {/* Bill/Lorry Numbers - Only for Sale/Purchase */}
               {(editingRiceMovement.movementType === 'sale' || editingRiceMovement.movementType === 'purchase') && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: '4px', fontWeight: '600' }}>Bill Number</label>
                     <input
@@ -9579,7 +9579,7 @@ const Records: React.FC = () => {
                   border: '1px solid #c4b5fd'
                 }}>
                   <div style={{ fontWeight: '600', color: '#7c3aed', marginBottom: '8px' }}>🔄 Palti Details</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.9rem' }}>
+                  <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.9rem' }}>
                     <div>
                       <span style={{ color: '#6b7280' }}>From:</span> {editingRiceMovement.from_location || editingRiceMovement.fromLocation || 'N/A'}
                     </div>

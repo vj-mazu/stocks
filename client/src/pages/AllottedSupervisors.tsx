@@ -802,7 +802,7 @@ const AllottedSupervisors: React.FC = () => {
               Bags: <b>{editValuesEntry.bags}</b> | Variety: <b>{editValuesEntry.variety}</b> | Location: <b>{editValuesEntry.location}</b>
             </div>
             {/* Form fields */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '6px' }}>
+            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '6px' }}>
               <div>
                 <label style={{ fontSize: '10px', fontWeight: 700, display: 'block', marginBottom: '2px' }}>Final Base Rate</label>
                 <input type="number" step="0.01" value={editValuesData.finalBaseRate}
@@ -820,7 +820,7 @@ const AllottedSupervisors: React.FC = () => {
                 </select>
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '6px' }}>
+            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '6px' }}>
               <div>
                 <label style={{ fontSize: '10px', fontWeight: 700, display: 'block', marginBottom: '2px' }}>Sute</label>
                 <div style={{ display: 'flex', gap: '3px' }}>
@@ -841,7 +841,7 @@ const AllottedSupervisors: React.FC = () => {
                   style={{ width: '100%', padding: '4px 6px', fontSize: '11px', border: '1px solid #3498db', borderRadius: '3px', boxSizing: 'border-box' }} />
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', marginBottom: '6px' }}>
+            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', marginBottom: '6px' }}>
               <div>
                 <label style={{ fontSize: '10px', fontWeight: 700, display: 'block', marginBottom: '2px' }}>Hamali</label>
                 <div style={{ display: 'flex', gap: '3px' }}>

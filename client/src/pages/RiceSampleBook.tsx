@@ -495,7 +495,7 @@ const RiceSampleBook: React.FC = () => {
                             </div>
                             <div style={{ padding: '16px 20px' }}>
                                 {/* Entry Details */}
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '8px' }}>
+                                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '8px' }}>
                                     {[
                                         ['Date', new Date(detailEntry.entryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })],
                                         ['Bags', detailEntry.bags?.toLocaleString('en-IN')],
@@ -508,7 +508,7 @@ const RiceSampleBook: React.FC = () => {
                                         </div>
                                     ))}
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '16px' }}>
+                                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '16px' }}>
                                     {[
                                         ['Party Name', toTitleCase(detailEntry.partyName) || (detailEntry.entryType === 'DIRECT_LOADED_VEHICLE' ? detailEntry.lorryNumber?.toUpperCase() : '')],
                                         ['Paddy Location', detailEntry.location],
@@ -589,7 +589,7 @@ const RiceSampleBook: React.FC = () => {
                                             {row1.length > 0 && <div style={{ display: 'grid', gridTemplateColumns: `repeat(${row1.length}, 1fr)`, gap: '8px', marginBottom: '8px' }}>{row1.map(item => <QItem key={item.label} label={item.label} value={item.value} />)}</div>}
                                             {row2.length > 0 && <div style={{ display: 'grid', gridTemplateColumns: `repeat(${row2.length}, 1fr)`, gap: '8px', marginBottom: '8px' }}>{row2.map(item => <QItem key={item.label} label={item.label} value={item.value} />)}</div>}
                                             {showRow3 && (
-                                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '8px' }}>
+                                                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '8px' }}>
                                                     {hasKandu ? <QItem label="Kandu" value={fmtB(qp.kandu)!} /> : <div />}
                                                     {hasOil ? <QItem label="Oil" value={fmtB(qp.oil)!} /> : <div />}
                                                     {hasSK ? <QItem label="SK" value={fmtB(qp.sk)!} /> : <div />}

@@ -611,13 +611,13 @@ const AdminSampleBook: React.FC = () => {
                                 )}
 
                                 {/* Entry Details — Date, Bags, Pack, Variety, Party, Location, Lorry, Sample Collected By */}
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '8px' }}>
+                                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '8px' }}>
                                     <DetailItem label="Date" value={new Date(selectedEntry.entryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} />
                                     <DetailItem label="Bags" value={String(selectedEntry.bags)} />
                                     <DetailItem label="Packaging" value={`${selectedEntry.packaging || '75'} Kg`} />
                                     <DetailItem label="Variety" value={selectedEntry.variety} />
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '0px' }}>
+                                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '0px' }}>
                                     <DetailItem label="Party Name" value={selectedEntry.partyName || '-'} />
                                     <DetailItem label="Paddy Location" value={selectedEntry.location || '-'} />
                                     <DetailItem label="Lorry Number" value={(selectedEntry as any).lorryNumber || '-'} />
@@ -769,13 +769,13 @@ const AdminSampleBook: React.FC = () => {
                                                         {attemptLabel}
                                                     </div>
                                                 )}
-                                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '8px' }}>
+                                                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '8px' }}>
                                                     {row1.map(item => <DetailItem key={item.label} label={item.label} value={item.value} />)}
                                                 </div>
-                                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '8px' }}>
+                                                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '8px' }}>
                                                     {row2.map(item => <DetailItem key={item.label} label={item.label} value={item.value} />)}
                                                 </div>
-                                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '8px' }}>
+                                                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '8px' }}>
                                                     {row3.map(item => <DetailItem key={item.label} label={item.label} value={item.value} />)}
                                                 </div>
                                                 {hasPaddyWb && (
@@ -820,7 +820,7 @@ const AdminSampleBook: React.FC = () => {
                                                 borderRadius: '8px', 
                                                 padding: '12px'
                                             }}>
-                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
+                                                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
                                                     <DetailItem label="Status" value={selectedEntry.cookingReport.status === 'MEDIUM' ? 'PASS' : (selectedEntry.cookingReport.status || '-')} />
                                                     <DetailItem label="Cooking Result" value={selectedEntry.cookingReport.cookingResult || '-'} />
                                                     <DetailItem label="Recheck Count" value={selectedEntry.cookingReport.recheckCount ? String(selectedEntry.cookingReport.recheckCount) : '-'} />
@@ -851,7 +851,7 @@ const AdminSampleBook: React.FC = () => {
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+                                                    <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
                                                         {(selectedEntry.offering.finalSute || selectedEntry.offering.sute) && (
                                                             <DetailItem label="Sute" value={`${selectedEntry.offering.finalSute || selectedEntry.offering.sute} ${(selectedEntry.offering.finalSuteUnit || selectedEntry.offering.suteUnit) === 'per_ton' ? '/Ton' : (selectedEntry.offering.finalSuteUnit || selectedEntry.offering.suteUnit) === 'per_quintal' ? '/Qtl' : '/Bag'}`} />
                                                         )}
@@ -870,7 +870,7 @@ const AdminSampleBook: React.FC = () => {
                                         {/* Workflow Status */}
                                         <div style={{ marginTop: '16px' }}>
                                             <h4 style={{ margin: '0 0 10px', fontSize: '13px', color: '#c62828', borderBottom: '2px solid #c62828', paddingBottom: '6px' }}>📊 Workflow Status</h4>
-                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                                            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
                                                 <DetailItem label="Current Status" value={selectedEntry.workflowStatus.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c: string) => c.toUpperCase())} />
                                                 <DetailItem label="Lot Decision" value={selectedEntry.lotSelectionDecision?.replace(/_/g, ' ') || '-'} />
                                                 <DetailItem label="Supervisor" value={(selectedEntry as any).supervisorName || '-'} />

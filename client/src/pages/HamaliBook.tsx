@@ -644,7 +644,7 @@ const HamaliBook: React.FC = () => {
               color: '#0c4a6e'
             }}>
               <div style={{ fontWeight: '600', marginBottom: '0.5rem' }}>🎉 Enhanced Hamali Features Active:</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
+              <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
                 <div>
                   <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#0284c7' }}>
                     {summary.mainRiceHamaliEntries.length}
