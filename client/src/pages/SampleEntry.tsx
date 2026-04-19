@@ -2410,74 +2410,7 @@ const SampleEntryPage: React.FC<{
         overflowX: 'auto',
         backgroundColor: 'white'
       }}>
-        <style>{`
-          .responsive-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 12px;
-            table-layout: fixed;
-            border: 1px solid #000;
-          }
-          .responsive-table th, .responsive-table td {
-            border: 1px solid #000;
-            padding: 3px 4px;
-          }
-          @media (max-width: 768px) {
-            .table-container {
-               overflowX: 'visible';
-            }
-            .responsive-table, .responsive-table thead, .responsive-table tbody, .responsive-table th, .responsive-table td, .responsive-table tr { 
-              display: block; 
-            }
-            .responsive-table thead tr { 
-              position: absolute;
-              top: -9999px;
-              left: -9999px;
-            }
-            .responsive-table tr { border: 1px solid #ccc; margin-bottom: 10px; border-radius: 6px; overflow: hidden; }
-            .responsive-table td { 
-              border: none;
-              border-bottom: 1px solid #eee; 
-              position: relative;
-              padding-left: 50% !important; 
-              text-align: right !important;
-              min-height: 28px;
-            }
-            .responsive-table td:before { 
-              position: absolute;
-              top: 4px;
-              left: 6px;
-              width: 45%; 
-              padding-right: 10px; 
-              white-space: nowrap;
-              text-align: left;
-              font-weight: 600;
-              color: #555;
-            }
-            
-            /* Label mapping for MS/RS/LS/RL variants */
-            .responsive-table td:nth-of-type(1):before { content: "SL No"; }
-            
-             /* When "Type" column is present (Paddy) */
-            .has-type-col td:nth-of-type(2):before { content: "Type"; }
-            .has-type-col td:nth-of-type(3):before { content: "Bags"; }
-            .has-type-col td:nth-of-type(4):before { content: "Pkg"; }
-            .has-type-col td:nth-of-type(5):before { content: "Party Name"; }
-            .has-type-col td:nth-of-type(6):before { content: "Location"; }
-            .has-type-col td:nth-of-type(7):before { content: "Variety"; }
-            .has-type-col td:nth-of-type(8):before { content: "Sample Reports"; }
-            .has-type-col td:nth-of-type(9):before { content: "Collected By"; }
 
-             /* When "Type" column is MISSING (Rice) */
-            .no-type-col td:nth-of-type(2):before { content: "Bags"; }
-            .no-type-col td:nth-of-type(3):before { content: "Pkg"; }
-            .no-type-col td:nth-of-type(4):before { content: "Party Name"; }
-            .no-type-col td:nth-of-type(5):before { content: "Location"; }
-            .no-type-col td:nth-of-type(6):before { content: "Variety"; }
-            .no-type-col td:nth-of-type(7):before { content: "Sample Reports"; }
-            .no-type-col td:nth-of-type(8):before { content: "Collected By"; }
-          }
-        `}</style>
         {(() => {
           const { grouped, totalCount } = groupedEntries;
 
