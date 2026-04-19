@@ -64,7 +64,7 @@ const HamburgerButton = styled.button`
 
 const MobileOverlay = styled.div<{ $open: boolean }>`
   display: none;
-  @media (max-width: 768px) {
+  @media (max-width: 1024px) {
     display: ${props => props.$open ? 'block' : 'none'};
     position: fixed;
     top: 0;
