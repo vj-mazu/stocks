@@ -1135,8 +1135,11 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
         headers: { Authorization: `Bearer ${token}` }
       });
       const d: any = res.data;
+      const versions = normalizeOfferVersions(d);
+      setOfferVersions(versions);
       if (d) {
         const activeOffer = getActiveOffer(d) || {} as any;
+        setActiveOfferKey(activeOffer?.key || getLatestOffer(d)?.key || 'offer1');
         setFinalData({
           finalSute: d.finalSute?.toString() || activeOffer.sute?.toString() || d.sute?.toString() || '',
           finalSuteUnit: d.finalSuteUnit || activeOffer.suteUnit || d.suteUnit || 'per_ton',
@@ -1197,6 +1200,46 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
       setPaddySupervisors([]);
     }
     setShowFinalPriceModal(true);
+  };
+
+  const handleSelectFinalOffer = (slotKey: string) => {
+    const slotOffer = offerVersions.find((offer) => offer.key === slotKey);
+    if (!slotOffer) return;
+
+    setActiveOfferKey(slotKey);
+    setFinalData({
+      ...finalData,
+      finalSute: (slotOffer.sute ?? '').toString(),
+      finalSuteUnit: slotOffer.suteUnit || 'per_ton',
+      finalBaseRate: (slotOffer.offerBaseRateValue ?? '').toString(),
+      baseRateType: slotOffer.baseRateType || 'PD_WB',
+      baseRateUnit: slotOffer.baseRateUnit || 'per_bag',
+      suteEnabled: slotOffer.sute != null && Number(slotOffer.sute) !== 0,
+      moistureEnabled: slotOffer.moistureValue != null && Number(slotOffer.moistureValue) !== 0,
+      hamaliEnabled: !!slotOffer.hamaliEnabled,
+      brokerageEnabled: !!slotOffer.brokerageEnabled,
+      lfEnabled: !!slotOffer.lfEnabled,
+      moistureValue: (slotOffer.moistureValue ?? '').toString(),
+      hamali: toOptionalInputValue(slotOffer.hamali),
+      hamaliUnit: slotOffer.hamaliUnit || 'per_bag',
+      brokerage: toOptionalInputValue(slotOffer.brokerage),
+      brokerageUnit: slotOffer.brokerageUnit || 'per_bag',
+      lf: toOptionalInputValue(slotOffer.lf),
+      lfUnit: slotOffer.lfUnit || 'per_bag',
+      egbValue: slotOffer.egbValue?.toString() || '0',
+      egbType: (slotOffer.egbType as 'mill' | 'purchase') || 'mill',
+      customDivisor: (slotOffer.customDivisor ?? '').toString(),
+      cdEnabled: !!slotOffer.cdEnabled,
+      cdValue: toOptionalInputValue(slotOffer.cdValue),
+      cdUnit: slotOffer.cdUnit || 'percentage',
+      bankLoanEnabled: !!slotOffer.bankLoanEnabled,
+      bankLoanValue: toOptionalInputValue(slotOffer.bankLoanValue),
+      bankLoanUnit: slotOffer.bankLoanUnit || 'per_bag',
+      paymentConditionEnabled: slotOffer.paymentConditionEnabled != null ? !!slotOffer.paymentConditionEnabled : true,
+      paymentConditionValue: (slotOffer.paymentConditionValue ?? '15').toString(),
+      paymentConditionUnit: slotOffer.paymentConditionUnit || 'days',
+      remarks: slotOffer.remarks || finalData.remarks
+    });
   };
 
   const handleSubmitFinal = async (e: React.FormEvent) => {
@@ -2479,9 +2522,24 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
               {/* Entry Info - one line */}
               <div style={{
                 backgroundColor: '#e8f8f5', padding: '6px 8px', borderRadius: '6px',
-                marginBottom: '6px', fontSize: '10px', textAlign: 'center', lineHeight: '1.4'
+                marginBottom: '6px', fontSize: '10px', textAlign: 'center', lineHeight: '1.4',
+                display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px'
               }}>
-                Bags: <b>{selectedEntry.bags?.toLocaleString('en-IN')}</b> | Pkg: <b>{selectedEntry.packaging || '75'} Kg</b> | Party: <b>{getPartyDisplay(selectedEntry)}</b> | <b>{selectedEntry.location}</b> | <b>{selectedEntry.variety}</b>
+                <div>Bags: <b>{selectedEntry.bags?.toLocaleString('en-IN')}</b> | Pkg: <b>{selectedEntry.packaging || '75'} Kg</b> | Party: <b>{getPartyDisplay(selectedEntry)}</b></div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: '#444', fontWeight: '700' }}>Final Rate Uses:</span>
+                  <select
+                    value={activeOfferKey}
+                    onChange={(e) => handleSelectFinalOffer(e.target.value)}
+                    style={{ ...inputStyle, width: '130px', padding: '4px 6px', fontSize: '11px', border: '1px solid #27ae60', background: '#fff' }}
+                  >
+                    {[...offerVersions].sort((a,b) => getOfferIndex(a.key) - getOfferIndex(b.key)).map((offer) => (
+                      <option key={offer.key} value={offer.key}>
+                        {getOfferLabel(offer.key)} {offer.offerBaseRateValue ? `(₹${toNumberText(offer.offerBaseRateValue)})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <form onSubmit={handleSubmitFinal}>
