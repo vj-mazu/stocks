@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { SampleEntryDetailModal } from '../components/SampleEntryDetailModal';
@@ -519,6 +520,53 @@ const hasCurrentCycleQualityData = (entry: SampleEntry) => {
   const qualityUpdatedAt = getTimeValue(qualityUpdatedValue);
   return qualityUpdatedAt >= resampleStartAt;
 };
+const hasFullQualitySnapshot = (attempt: any) => {
+  const hasNumericValue = (rawVal: any, valueVal: any) => {
+    const raw = rawVal !== null && rawVal !== undefined ? String(rawVal).trim() : '';
+    if (raw !== '') return true;
+    const num = Number(valueVal);
+    return Number.isFinite(num) && num > 0;
+  };
+  const hasAlphaOrPositiveValue = (value: any) => {
+    if (value === null || value === undefined || value === '') return false;
+    const raw = String(value).trim();
+    if (!raw) return false;
+    if (/[a-zA-Z]/.test(raw)) return true;
+    const num = Number(raw);
+    return Number.isFinite(num) && num !== 0;
+  };
+  const hasAlphaValue = (rawVal: any, valueVal: any) => {
+    const raw = rawVal !== null && rawVal !== undefined ? String(rawVal).trim() : '';
+    if (raw !== '') return true;
+    return hasAlphaOrPositiveValue(valueVal);
+  };
+
+  return (
+    hasNumericValue(attempt?.moistureRaw, attempt?.moisture)
+    && hasNumericValue(attempt?.grainsCountRaw, attempt?.grainsCount)
+    && hasNumericValue(attempt?.cutting1Raw, attempt?.cutting1)
+    && hasNumericValue(attempt?.cutting2Raw, attempt?.cutting2)
+    && hasNumericValue(attempt?.bend1Raw, attempt?.bend1)
+    && hasNumericValue(attempt?.bend2Raw, attempt?.bend2)
+    && hasAlphaValue(attempt?.mixRaw, attempt?.mix)
+    && hasAlphaValue(attempt?.kanduRaw, attempt?.kandu)
+    && hasAlphaValue(attempt?.oilRaw, attempt?.oil)
+    && hasAlphaValue(attempt?.skRaw, attempt?.sk)
+  );
+};
+const getCurrentCycleQualitySnapshot = (entry: SampleEntry) => {
+  const attempts = getQualityAttemptsForEntry(entry);
+  if (attempts.length > 1) {
+    return attempts[attempts.length - 1];
+  }
+
+  const currentQuality = entry?.qualityParameters;
+  if (hasQualitySnapshot(currentQuality) || hasResampleWbActivationSnapshot(currentQuality)) {
+    return currentQuality;
+  }
+
+  return null;
+};
 const canUseIndependentResampleCookingFlow = (entry: SampleEntry) => {
   if (!isResampleWorkflowEntry(entry)) return false;
   const history = Array.isArray(entry.cookingReport?.history) ? entry.cookingReport?.history || [] : [];
@@ -568,6 +616,7 @@ interface CookingReportProps {
 const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryType, forceStaffMode = false }) => {
   const { user } = useAuth();
   const { showNotification } = useNotification();
+  const navigate = useNavigate();
   const createEmptyCookingData = () => ({
     status: '',
     remarks: '',
@@ -902,6 +951,17 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
         setCookingData(prev => ({ ...prev, cookingDoneBy: currentUserName }));
       }
     }
+  };
+
+  const handleOpenQualityCompletion = (entry: SampleEntry) => {
+    navigate('/sample-entry', {
+      state: {
+        openQualityEntry: {
+          entry,
+          intent: 'edit'
+        }
+      }
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1273,12 +1333,26 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
     const currentCycleHistory = hasResampleSplit ? historyAfterResample : (useWholeHistoryForLegacyResample ? history : []);
     const currentCycleStaffHistory = currentCycleHistory.filter((item: any) => !!item?.cookingDoneBy && !item?.status);
     const currentCycleAdminHistory = currentCycleHistory.filter((item: any) => !!item?.status);
+    const resampleCycleStartAt = getTimeValue(
+      (entry as any)?.resampleDecisionAt
+      || (entry as any)?.resampleTriggeredAt
+      || (entry as any)?.resampleStartAt
+      || entry?.lotSelectionAt
+      || null
+    );
+    const statusHistoryAfterResampleStart = history.filter((item: any) => {
+      if (!item?.status) return false;
+      const itemTime = getTimeValue(item?.date || item?.updatedAt || item?.createdAt || null);
+      return resampleCycleStartAt > 0 ? itemTime >= resampleCycleStartAt : true;
+    });
     const lastCurrentCycleStaff = currentCycleStaffHistory[currentCycleStaffHistory.length - 1];
     const lastCurrentCycleAdmin = currentCycleAdminHistory[currentCycleAdminHistory.length - 1];
+    const lastStatusAfterResampleStart = statusHistoryAfterResampleStart[statusHistoryAfterResampleStart.length - 1];
     const lastCurrentCycleStaffAt = getTimeValue(lastCurrentCycleStaff?.date);
     const lastCurrentCycleAdminAt = getTimeValue(lastCurrentCycleAdmin?.date);
     const waitingAdminCurrentCycle = !!lastCurrentCycleStaff && (!lastCurrentCycleAdmin || lastCurrentCycleStaffAt > lastCurrentCycleAdminAt);
     const latestCurrentCycleAdminStatus = normalizeStatus(lastCurrentCycleAdmin?.status || null);
+    const latestResampleAdminStatus = normalizeStatus(lastStatusAfterResampleStart?.status || null);
     const hasSecondSamplingStarted = currentCycleStaffHistory.length > 0;
     const needsSecondSampling = !hasSecondSamplingStarted;
     const needsRecheckRetry = latestCurrentCycleAdminStatus === 'RECHECK' && lastCurrentCycleAdminAt >= lastCurrentCycleStaffAt;
@@ -1302,6 +1376,10 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
       if (!lastCurrentCycleStaff || lastCurrentCycleAdminAt >= lastCurrentCycleStaffAt) {
         return { canAdd: true, reason: '' };
       }
+    }
+
+    if (['PASS', 'MEDIUM', 'FAIL'].includes(latestResampleAdminStatus)) {
+      return { canAdd: false, reason: 'Locked' };
     }
 
     if (waitingAdminCurrentCycle) return { canAdd: false, reason: 'Admin want to approve' };
@@ -1345,6 +1423,24 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
     const currentCycleHistory = hasSplit ? historyAfterResample : history;
     const waitingAdminCurrentCycle = getLatestUnmatchedCookingDone(currentCycleHistory);
     return waitingAdminCurrentCycle ? { canAdd: true, reason: '' } : { canAdd: false, reason: 'Awaiting Cooking Done By' };
+  };
+  const shouldShowCompleteQualityAction = (entry: SampleEntry) => {
+    const normalizedRole = String(user?.role || '').toLowerCase();
+    const assignedUser = String(entry.sampleCollectedBy || '').trim().toLowerCase();
+    const currentUser = String(user?.username || '').trim().toLowerCase();
+    const isPrivilegedQualityUser = ['admin', 'manager', 'owner'].includes(normalizedRole);
+    const isAssignedQualityUser = ['staff', 'quality_supervisor', 'paddy_supervisor', 'physical_supervisor'].includes(normalizedRole)
+      && !!assignedUser
+      && assignedUser === currentUser;
+    if (!(isPrivilegedQualityUser || isAssignedQualityUser)) return false;
+
+    const currentCycleQuality = getCurrentCycleQualitySnapshot(entry);
+    if (!currentCycleQuality) return false;
+
+    return activeTab === 'RESAMPLE_COOKING_REPORT'
+      && isResampleWorkflowEntry(entry)
+      && Boolean((entry as any).resampleTriggerRequired || String((entry as any).resampleOriginDecision || '').toUpperCase() === 'PASS_WITH_COOKING')
+      && !hasFullQualitySnapshot(currentCycleQuality);
   };
 
   const renderSampleReportByWithDate = (entry: any) => {
@@ -1868,22 +1964,38 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                                         <td className="action-col" style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>
                                           {(() => {
                                             const actionState = canOpenCookingActionForEntry(entry);
-                                            if (actionState.canAdd) {
-                                              return (
-                                                <button
-                                                  onClick={() => handleOpenModal(entry)}
-                                                  style={{
-                                                    fontSize: '9px', padding: '4px 10px',
-                                                    backgroundColor: '#3498db', color: 'white', border: 'none',
-                                                    borderRadius: '10px', cursor: 'pointer', fontWeight: '600'
-                                                  }}
-                                                >
-                                                  {isCookingStaffRole ? 'Add Cooking Done By' : 'Add Report'}
-                                                </button>
-                                              );
-                                            } else {
+                                            const showQualityAction = shouldShowCompleteQualityAction(entry);
+                                            if (!actionState.canAdd && !showQualityAction) {
                                               return <span style={{ fontSize: '11px', color: '#999', fontStyle: 'italic' }}>{actionState.reason || 'Locked'}</span>;
                                             }
+                                            return (
+                                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                                                {actionState.canAdd && (
+                                                  <button
+                                                    onClick={() => handleOpenModal(entry)}
+                                                    style={{
+                                                      fontSize: '9px', padding: '4px 10px',
+                                                      backgroundColor: '#3498db', color: 'white', border: 'none',
+                                                      borderRadius: '10px', cursor: 'pointer', fontWeight: '600'
+                                                    }}
+                                                  >
+                                                    {isCookingStaffRole ? 'Add Cooking Done By' : 'Add Report'}
+                                                  </button>
+                                                )}
+                                                {showQualityAction && (
+                                                  <button
+                                                    onClick={() => handleOpenQualityCompletion(entry)}
+                                                    style={{
+                                                      fontSize: '9px', padding: '4px 10px',
+                                                      backgroundColor: '#e67e22', color: 'white', border: 'none',
+                                                      borderRadius: '10px', cursor: 'pointer', fontWeight: '700'
+                                                    }}
+                                                  >
+                                                    Complete Quality
+                                                  </button>
+                                                )}
+                                              </div>
+                                            );
                                           })()}
                                         </td>
                                       )}
@@ -2032,21 +2144,38 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                                         <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>
                                           {(() => {
                                             const actionState = canOpenCookingActionForEntry(entry);
-                                            if (actionState.canAdd) {
-                                              return (
-                                                <button
-                                                  onClick={() => handleOpenModal(entry)}
-                                                  style={{
-                                                    fontSize: '9px', padding: '4px 10px',
-                                                    backgroundColor: '#3498db', color: 'white', border: 'none',
-                                                    borderRadius: '10px', cursor: 'pointer', fontWeight: '600'
-                                                  }}
-                                                >
-                                                  {isCookingStaffRole ? 'Add Cooking Done By' : 'Add Report'}
-                                                </button>
-                                              );
+                                            const showQualityAction = shouldShowCompleteQualityAction(entry);
+                                            if (!actionState.canAdd && !showQualityAction) {
+                                              return <span style={{ fontSize: '11px', color: '#999', fontStyle: 'italic' }}>{actionState.reason || 'Locked'}</span>;
                                             }
-                                            return <span style={{ fontSize: '11px', color: '#999', fontStyle: 'italic' }}>{actionState.reason || 'Locked'}</span>;
+                                            return (
+                                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                                                {actionState.canAdd && (
+                                                  <button
+                                                    onClick={() => handleOpenModal(entry)}
+                                                    style={{
+                                                      fontSize: '9px', padding: '4px 10px',
+                                                      backgroundColor: '#3498db', color: 'white', border: 'none',
+                                                      borderRadius: '10px', cursor: 'pointer', fontWeight: '600'
+                                                    }}
+                                                  >
+                                                    {isCookingStaffRole ? 'Add Cooking Done By' : 'Add Report'}
+                                                  </button>
+                                                )}
+                                                {showQualityAction && (
+                                                  <button
+                                                    onClick={() => handleOpenQualityCompletion(entry)}
+                                                    style={{
+                                                      fontSize: '9px', padding: '4px 10px',
+                                                      backgroundColor: '#e67e22', color: 'white', border: 'none',
+                                                      borderRadius: '10px', cursor: 'pointer', fontWeight: '700'
+                                                    }}
+                                                  >
+                                                    Complete Quality
+                                                  </button>
+                                                )}
+                                              </div>
+                                            );
                                           })()}
                                         </td>
                                       )}

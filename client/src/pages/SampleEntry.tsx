@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { sampleEntryApi } from '../utils/sampleEntryApi';
 import type { SampleEntry, EntryType } from '../types/sampleEntry';
 import { useAuth } from '../contexts/AuthContext';
@@ -18,6 +19,8 @@ const SampleEntryPage: React.FC<{
 }> = ({ defaultTab, filterEntryType, excludeEntryType, showGps }) => {
   const { user } = useAuth();
   const { showNotification } = useNotification();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [showModal, setShowModal] = useState(false);
   const [showQualityModal, setShowQualityModal] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<SampleEntry | null>(null);
@@ -67,6 +70,7 @@ const SampleEntryPage: React.FC<{
   const loadDropdownDataRef = useRef<() => Promise<void>>(() => Promise.resolve());
   const loadEntriesRef = useRef<() => Promise<void>>(() => Promise.resolve());
   const qualityModalPrefillKeyRef = useRef<string | null>(null);
+  const handledOpenQualityRouteRef = useRef<string | null>(null);
   const [locationResampleCount, setLocationResampleCount] = useState<number>(0);
 
   // Sample Collected By — radio state
@@ -429,6 +433,19 @@ const SampleEntryPage: React.FC<{
     const c2 = rawOrEmpty(qp?.cutting2Raw, qp?.cutting2);
     const b1 = rawOrEmpty(qp?.bend1Raw, qp?.bend1);
     const b2 = rawOrEmpty(qp?.bend2Raw, qp?.bend2);
+    const isResampleEntry = !!entry
+      && String(entry?.entryType || '').toUpperCase() !== 'RICE_SAMPLE'
+      && isResampleWorkflowEntry(entry as any);
+    const hasAttemptSmell = Boolean(qp?.smellHas) || Boolean(String(qp?.smellType || '').trim());
+    const smellPrefill = isResampleEntry
+      ? {
+          has: hasAttemptSmell ? Boolean(qp?.smellHas) : false,
+          type: hasAttemptSmell ? String(qp?.smellType || '').trim() : ''
+        }
+      : {
+          has: qp?.smellHas ?? entry?.smellHas ?? false,
+          type: qp?.smellType ?? entry?.smellType ?? ''
+        };
 
     return {
       qualityData: {
@@ -451,8 +468,8 @@ const SampleEntryPage: React.FC<{
         wbT: rawOrEmpty(qp?.wbTRaw, qp?.wbT),
         paddyWb: rawOrEmpty(qp?.paddyWbRaw, qp?.paddyWb),
         dryMoisture: rawOrEmpty(qp?.dryMoistureRaw, qp?.dryMoisture),
-        smellHas: qp?.smellHas ?? entry?.smellHas ?? false,
-        smellType: qp?.smellType ?? entry?.smellType ?? '',
+        smellHas: smellPrefill.has,
+        smellType: smellPrefill.type,
         reportedBy: qp?.reportedBy || '',
         gramsReport: qp?.gramsReport || '10gms',
         uploadFile: null,
@@ -1457,6 +1474,9 @@ const SampleEntryPage: React.FC<{
   const resetQualityForm = (entry?: SampleEntry, options?: { defaultResampleSmellNo?: boolean }) => {
     const determinePriorSmell = () => {
         if (!entry) return { has: false, type: '' };
+        if (options?.defaultResampleSmellNo) {
+            return { has: false, type: '' };
+        }
         const attempts = Array.isArray((entry as any).qualityAttemptDetails) ? (entry as any).qualityAttemptDetails : [];
         for (let i = attempts.length - 1; i >= 0; i--) {
             const att = attempts[i];
@@ -1682,6 +1702,32 @@ const SampleEntryPage: React.FC<{
       openQualityEntryUi(entry, { preservePrefilledQuality: false });
     }
   };
+  useEffect(() => {
+    const openRequest = (location.state as any)?.openQualityEntry;
+    if (!openRequest?.entry) return;
+
+    const requestKey = `${openRequest.entry?.id}:${openRequest.intent || 'next'}`;
+    if (handledOpenQualityRouteRef.current === requestKey) return;
+    handledOpenQualityRouteRef.current = requestKey;
+
+    let cancelled = false;
+    const openRequestedQuality = async () => {
+      try {
+        if (cancelled) return;
+        await handleViewEntry(openRequest.entry as SampleEntry, openRequest.intent === 'edit' ? 'edit' : 'next');
+      } finally {
+        if (!cancelled) {
+          qualityOpenRouteOptionsRef.current = {};
+          navigate(location.pathname, { replace: true, state: null });
+        }
+      }
+    };
+
+    openRequestedQuality();
+    return () => {
+      cancelled = true;
+    };
+  }, [handleViewEntry, location.pathname, location.state, navigate, showNotification]);
   const openDetailEntry = async (entry: SampleEntry) => {
     try {
       const token = localStorage.getItem('token');
