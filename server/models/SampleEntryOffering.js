@@ -276,6 +276,16 @@ const SampleEntryOffering = sequelize.define('SampleEntryOffering', {
         allowNull: true,
         field: 'final_remarks'
     },
+    finalReportedBy: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+        field: 'final_reported_by'
+    },
+    finalReportedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        field: 'final_reported_at'
+    },
     isFinalized: {
         type: DataTypes.BOOLEAN,
         allowNull: false,

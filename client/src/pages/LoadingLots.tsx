@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
@@ -453,11 +453,33 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
   const tableMinWidth = isRiceMode ? '100%' : '2500px';
   const pageSize = 100;
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const topScrollRef = useRef<HTMLDivElement | null>(null);
+  const tableScrollRef = useRef<HTMLDivElement | null>(null);
+  const syncScrollSourceRef = useRef<'top' | 'table' | null>(null);
 
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const syncHorizontalScroll = useCallback((source: 'top' | 'table') => {
+    const topNode = topScrollRef.current;
+    const tableNode = tableScrollRef.current;
+    if (!topNode || !tableNode) return;
+
+    if (syncScrollSourceRef.current && syncScrollSourceRef.current !== source) return;
+    syncScrollSourceRef.current = source;
+
+    const sourceNode = source === 'top' ? topNode : tableNode;
+    const targetNode = source === 'top' ? tableNode : topNode;
+    targetNode.scrollLeft = sourceNode.scrollLeft;
+
+    window.requestAnimationFrame(() => {
+      syncScrollSourceRef.current = null;
+    });
   }, []);
 
   const [entries, setEntries] = useState<SampleEntry[]>([]);
@@ -1532,21 +1554,12 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     border: editable ? '1px solid #f9d976' : modalOfferActorMeta.style.border
   });
   const getFrozenCellStyle = (
-    columnIndex: number,
     baseStyle: React.CSSProperties,
-    rowBackground: string,
-    isHeader = false
+    rowBackground?: string
   ): React.CSSProperties => {
-    if (isRiceMode || isMobile || columnIndex >= frozenPaddyColumnCount) {
-      return baseStyle;
-    }
     return {
       ...baseStyle,
-      position: 'sticky',
-      left: `${frozenPaddyLeftOffsets[columnIndex] || 0}px`,
-      zIndex: isHeader ? 4 : 1,
-      background: isHeader ? '#1a237e' : (baseStyle.background || rowBackground),
-      boxShadow: columnIndex === frozenPaddyColumnCount - 1 ? '2px 0 0 rgba(15, 23, 42, 0.18)' : undefined
+      background: baseStyle.background || rowBackground
     };
   };
 
@@ -1627,7 +1640,29 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
             <span style={{ fontSize: '14px', color: '#666' }}>Showing {filteredEntries.length} lots (of {total} total passed lots)</span>
       </div>
 
-      <div style={{ overflowX: 'auto', borderRadius: '6px' }}>
+      {!isRiceMode && !isMobile && (
+        <div
+          ref={topScrollRef}
+          onScroll={() => syncHorizontalScroll('top')}
+          style={{
+            overflowX: 'auto',
+            overflowY: 'hidden',
+            borderRadius: '6px 6px 0 0',
+            border: '1px solid #cbd5e1',
+            borderBottom: 'none',
+            background: '#f8fafc',
+            height: '18px',
+            marginTop: '6px'
+          }}
+        >
+          <div style={{ width: tableMinWidth, height: '1px' }} />
+        </div>
+      )}
+      <div
+        ref={tableScrollRef}
+        onScroll={() => syncHorizontalScroll('table')}
+        style={{ overflowX: 'auto', borderRadius: !isRiceMode && !isMobile ? '0 0 6px 6px' : '6px' }}
+      >
             {loading ? <div style={{ textAlign: 'center', padding: '30px', color: '#888' }}>Loading...</div> : filteredEntries.length === 0 ? <div style={{ textAlign: 'center', padding: '30px', color: '#888' }}>No loading lots found in this tab</div> : Object.entries(groupedByDateBroker).map(([dateStr, brokerGroups]) => {
               let brokerSeq = 0;
               return (
@@ -1667,14 +1702,14 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                               {(isRiceMode ? ['SL', 'Type', 'Bags', 'Pkg', 'Party Name', 'Rice Location', 'Variety', 'Final Rate', 'Sute', 'Mst%', 'Hamali', 'Bkrg', 'LF', 'Status', 'Action'] : ['SL No', 'Type', 'Bags', 'Pkg', 'Party Name', 'Paddy Location', 'Variety', 'Sample Collected By', 'Sample Report By', 'Quality Report', 'Cooking Report', 'Final Rate', 'Sute', 'Moist', 'Brokerage', 'LF', 'Hamali', 'CD', 'EGB', 'Bank Loan', 'Payment', 'Status', 'Action']).map((header, headerIndex) => (
                                 <th
                                   key={header}
-                                  style={getFrozenCellStyle(headerIndex, {
+                                  style={getFrozenCellStyle({
                                     border: '1px solid #000',
                                     padding: '3px 4px',
                                     textAlign: ['Status', 'Action', 'EGB', 'Sute', 'Moist', 'Mst%'].includes(header) ? 'center' : 'left',
                                     fontWeight: 700,
                                     whiteSpace: 'nowrap',
                                     fontSize: '12px'
-                                  }, '#1a237e', true)}
+                                  }, '#1a237e')}
                                 >
                                   {header}
                                 </th>
@@ -1812,11 +1847,11 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
 
                               return (
                                 <tr key={entry.id} style={{ background: rowBg }}>
-                                  <td style={getFrozenCellStyle(0, { border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontWeight: 700, background: rowBg }, rowBg)}>{index + 1}</td>
-                                  <td style={getFrozenCellStyle(1, { border: '1px solid #000', padding: '3px 4px', textAlign: 'center', background: rowBg }, rowBg)}><span style={{ display: 'inline-block', minWidth: '28px', padding: '1px 4px', borderRadius: '3px', fontSize: '10px', fontWeight: 800, color: typeCode === 'RL' || typeCode === 'LS' ? '#fff' : '#333', backgroundColor: typeCode === 'RL' ? '#1565c0' : typeCode === 'LS' ? '#e67e22' : '#fff', border: typeCode === 'MS' ? '1px solid #ccc' : 'none' }}>{typeCode}</span></td>
-                                  <td style={getFrozenCellStyle(2, { border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontWeight: 700, fontSize: '13px', background: rowBg }, rowBg)}>{entry.bags?.toLocaleString('en-IN') || '-'}</td>
-                                  <td style={getFrozenCellStyle(3, { border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontSize: '13px', background: rowBg }, rowBg)}>{entry.packaging || '-'}</td>
-                                  <td style={getFrozenCellStyle(4, { border: '1px solid #000', padding: '3px 5px', textAlign: 'left', fontSize: '14px', lineHeight: '1.35', wordBreak: 'break-word', background: rowBg }, rowBg)}>
+                                  <td style={getFrozenCellStyle({ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontWeight: 700, background: rowBg }, rowBg)}>{index + 1}</td>
+                                  <td style={getFrozenCellStyle({ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', background: rowBg }, rowBg)}><span style={{ display: 'inline-block', minWidth: '28px', padding: '1px 4px', borderRadius: '3px', fontSize: '10px', fontWeight: 800, color: typeCode === 'RL' || typeCode === 'LS' ? '#fff' : '#333', backgroundColor: typeCode === 'RL' ? '#1565c0' : typeCode === 'LS' ? '#e67e22' : '#fff', border: typeCode === 'MS' ? '1px solid #ccc' : 'none' }}>{typeCode}</span></td>
+                                  <td style={getFrozenCellStyle({ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontWeight: 700, fontSize: '13px', background: rowBg }, rowBg)}>{entry.bags?.toLocaleString('en-IN') || '-'}</td>
+                                  <td style={getFrozenCellStyle({ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontSize: '13px', background: rowBg }, rowBg)}>{entry.packaging || '-'}</td>
+                                  <td style={getFrozenCellStyle({ border: '1px solid #000', padding: '3px 5px', textAlign: 'left', fontSize: '14px', lineHeight: '1.35', wordBreak: 'break-word', background: rowBg }, rowBg)}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                       <button
                                         type="button"
@@ -1830,9 +1865,9 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                       ) : null}
                                     </div>
                                   </td>
-                                  <td style={getFrozenCellStyle(5, { border: '1px solid #000', padding: '3px 5px', textAlign: 'left', fontSize: '13px', wordBreak: 'break-word', background: rowBg }, rowBg)}>{toTitleCase(entry.location) || '-'}</td>
-                                  <td style={getFrozenCellStyle(6, { border: '1px solid #000', padding: '3px 5px', textAlign: 'left', fontSize: '13px', wordBreak: 'break-word', background: rowBg }, rowBg)}>{toTitleCase(entry.variety) || '-'}</td>
-                                  <td style={getFrozenCellStyle(7, { border: '1px solid #000', padding: '3px 5px', textAlign: 'left', fontSize: '13px', lineHeight: '1.35', wordBreak: 'break-word', background: rowBg }, rowBg)}>
+                                  <td style={getFrozenCellStyle({ border: '1px solid #000', padding: '3px 5px', textAlign: 'left', fontSize: '13px', wordBreak: 'break-word', background: rowBg }, rowBg)}>{toTitleCase(entry.location) || '-'}</td>
+                                  <td style={getFrozenCellStyle({ border: '1px solid #000', padding: '3px 5px', textAlign: 'left', fontSize: '13px', wordBreak: 'break-word', background: rowBg }, rowBg)}>{toTitleCase(entry.variety) || '-'}</td>
+                                  <td style={getFrozenCellStyle({ border: '1px solid #000', padding: '3px 5px', textAlign: 'left', fontSize: '13px', lineHeight: '1.35', wordBreak: 'break-word', background: rowBg }, rowBg)}>
                                     {(() => {
                                       const collectedByDisplay = getCollectedByDisplay(entry);
                                       if (collectedByDisplay.secondary) {
@@ -1855,12 +1890,12 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                       );
                                     })()}
                                   </td>
-                                  <td style={getFrozenCellStyle(8, { border: '1px solid #000', padding: '3px 5px', textAlign: 'left', fontSize: '13px', lineHeight: '1.35', wordBreak: 'break-word', background: rowBg }, rowBg)}>
+                                  <td style={getFrozenCellStyle({ border: '1px solid #000', padding: '3px 5px', textAlign: 'left', fontSize: '13px', lineHeight: '1.35', wordBreak: 'break-word', background: rowBg }, rowBg)}>
                                     {sampleReportNames.length === 0 ? '-' : (
                                       renderIndexedNames(sampleReportNames, getCollectorLabel)
                                     )}
                                   </td>
-                                  <td style={getFrozenCellStyle(9, { border: '1px solid #000', padding: '4px 5px', textAlign: 'left', fontSize: '10px', lineHeight: '1.2', background: rowBg }, rowBg)}>
+                                  <td style={getFrozenCellStyle({ border: '1px solid #000', padding: '4px 5px', textAlign: 'left', fontSize: '10px', lineHeight: '1.2', background: rowBg }, rowBg)}>
                                     {(() => {
                                       const smellType = entry.smellType || (entry.qualityParameters as any)?.smellType;
                                       const smellHasVal = entry.smellHas ?? (entry.qualityParameters as any)?.smellHas;
@@ -1920,7 +1955,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                       )}
                                     </div>
                                   </td>
-                                  <td style={getFrozenCellStyle(10, { border: '1px solid #000', padding: '4px 5px', textAlign: 'left', fontSize: '10px', lineHeight: '1.2', background: rowBg }, rowBg)}>
+                                  <td style={getFrozenCellStyle({ border: '1px solid #000', padding: '4px 5px', textAlign: 'left', fontSize: '10px', lineHeight: '1.2', background: rowBg }, rowBg)}>
                                     {(() => {
                                       const displayRows = cookingRows;
 

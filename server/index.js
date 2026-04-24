@@ -1648,6 +1648,15 @@ const startServer = async () => {
         console.log('Migration 124 warning:', error.message);
       }
 
+      // Migration 125: Add final report tracking fields to offerings
+      try {
+        const addFinalReportTracking = require('./migrations/125_add_final_report_tracking_to_offerings');
+        await addFinalReportTracking.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('✅ Migration 125: final report tracking fields added');
+      } catch (error) {
+        console.log('⚠️ Migration 125 warning:', error.message);
+      }
+
     // Default warehouses removed - users should create their own warehouses
 
     // Create default users if they don't exist

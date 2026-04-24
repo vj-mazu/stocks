@@ -928,6 +928,12 @@ class SampleEntryService {
     const updatedByFullName = currentUser?.fullName || currentUser?.username || 'System';
     const updates = { updatedBy: userId, updatedByFullName };
 
+    // Update final reported info if being finalized
+    if (finalData.isFinalized === true && !offering.isFinalized) {
+      updates.finalReportedBy = updatedByFullName;
+      updates.finalReportedAt = new Date();
+    }
+
     if (userRole === 'admin' || userRole === 'owner') {
       if (finalData.hamaliEnabled !== undefined) updates.hamaliEnabled = finalData.hamaliEnabled;
       if (finalData.brokerageEnabled !== undefined) updates.brokerageEnabled = finalData.brokerageEnabled;
