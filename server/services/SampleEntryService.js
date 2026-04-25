@@ -927,6 +927,42 @@ class SampleEntryService {
     const currentUser = await User.findByPk(userId, { attributes: ['id', 'username', 'fullName'] });
     const updatedByFullName = currentUser?.fullName || currentUser?.username || 'System';
     const updates = { updatedBy: userId, updatedByFullName };
+    const isManagerMissingValueRequest = userRole === 'manager' && finalData?.fillMissingValues === true;
+
+    if (isManagerMissingValueRequest) {
+      const pendingData = {};
+      const pendingFieldKeys = [
+        'finalSute', 'finalSuteUnit',
+        'moistureValue',
+        'hamali', 'hamaliUnit',
+        'brokerage', 'brokerageUnit',
+        'lf', 'lfUnit',
+        'egbValue', 'egbType',
+        'cdEnabled', 'cdValue', 'cdUnit',
+        'bankLoanEnabled', 'bankLoanValue', 'bankLoanUnit',
+        'paymentConditionValue', 'paymentConditionUnit',
+        'isFinalized'
+      ];
+
+      for (const key of pendingFieldKeys) {
+        if (finalData[key] !== undefined) {
+          pendingData[key] = finalData[key];
+        }
+      }
+
+      await offering.update({
+        updatedBy: userId,
+        updatedByFullName,
+        pendingManagerValueApprovalStatus: 'pending',
+        pendingManagerValueApprovalData: pendingData,
+        pendingManagerValueApprovalRequestedBy: userId,
+        pendingManagerValueApprovalRequestedAt: new Date(),
+        pendingManagerValueApprovalApprovedBy: null,
+        pendingManagerValueApprovalApprovedAt: null
+      });
+
+      return this.formatOfferingPayload(offering);
+    }
 
     // Update final reported info if being finalized
     if (finalData.isFinalized === true && !offering.isFinalized) {
@@ -952,6 +988,9 @@ class SampleEntryService {
       if (finalData.brokerageUnit !== undefined) updates.brokerageUnit = finalData.brokerageUnit;
       if (finalData.lf !== undefined) updates.lf = finalData.lf;
       if (finalData.lfUnit !== undefined) updates.lfUnit = finalData.lfUnit;
+      if (finalData.hamali !== undefined || finalData.hamaliUnit !== undefined) updates.hamaliBy = userRole;
+      if (finalData.brokerage !== undefined || finalData.brokerageUnit !== undefined) updates.brokerageBy = userRole;
+      if (finalData.lf !== undefined || finalData.lfUnit !== undefined) updates.lfBy = userRole;
       if (finalData.moistureValue !== undefined) updates.moistureValue = finalData.moistureValue;
       if (finalData.egbValue !== undefined) updates.egbValue = finalData.egbValue;
       if (finalData.egbType !== undefined) updates.egbType = finalData.egbType;
@@ -975,6 +1014,9 @@ class SampleEntryService {
       if (finalData.brokerageUnit !== undefined) updates.brokerageUnit = finalData.brokerageUnit;
       if (finalData.lf !== undefined) updates.lf = finalData.lf;
       if (finalData.lfUnit !== undefined) updates.lfUnit = finalData.lfUnit;
+      if (finalData.hamali !== undefined || finalData.hamaliUnit !== undefined) updates.hamaliBy = userRole;
+      if (finalData.brokerage !== undefined || finalData.brokerageUnit !== undefined) updates.brokerageBy = userRole;
+      if (finalData.lf !== undefined || finalData.lfUnit !== undefined) updates.lfBy = userRole;
       if (finalData.finalPrice !== undefined) updates.finalPrice = finalData.finalPrice;
       if (finalData.finalSute !== undefined) updates.finalSute = finalData.finalSute;
       if (finalData.finalSuteUnit !== undefined) updates.finalSuteUnit = finalData.finalSuteUnit;

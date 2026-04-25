@@ -455,6 +455,8 @@ const getPopupSmellSummary = (entry: any) => {
 interface AdminSampleBook2Props {
     entryType?: string;
     excludeEntryType?: string;
+    approvalMode?: 'hidden' | 'embedded' | 'only';
+    onApprovalCountChange?: (count: number) => void;
 }
 
 type PricingDetailState = {
@@ -467,14 +469,14 @@ type SupervisorUser = {
     fullName?: string | null;
 };
 
-const AdminSampleBook2: React.FC<AdminSampleBook2Props> = ({ entryType, excludeEntryType }) => {
+const AdminSampleBook2: React.FC<AdminSampleBook2Props> = ({ entryType, excludeEntryType, approvalMode = 'hidden', onApprovalCountChange }) => {
     const isRiceBook = entryType === 'RICE_SAMPLE';
     const tableMinWidth = isRiceBook ? '100%' : '1500px';
     const [entries, setEntries] = useState<SampleEntry[]>([]);
     const [approvalEntries, setApprovalEntries] = useState<SampleEntry[]>([]);
     const [loading, setLoading] = useState(false);
     const [supervisors, setSupervisors] = useState<SupervisorUser[]>([]);
-    const [activeView, setActiveView] = useState<'sample-book' | 'edit-approvals'>('sample-book');
+    const [activeView, setActiveView] = useState<'sample-book' | 'edit-approvals'>(approvalMode === 'only' ? 'edit-approvals' : 'sample-book');
 
     // Pagination
     const [page, setPage] = useState(1);
@@ -655,16 +657,22 @@ const AdminSampleBook2: React.FC<AdminSampleBook2Props> = ({ entryType, excludeE
     }, []);
 
     useEffect(() => {
-        loadEntries();
+        if (approvalMode !== 'only') {
+            loadEntries();
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [page]);
+    }, [page, approvalMode]);
 
     useEffect(() => {
-        if (activeView === 'edit-approvals') {
+        if (approvalMode === 'only' || activeView === 'edit-approvals') {
             loadApprovalEntries();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeView]);
+    }, [activeView, approvalMode]);
+
+    useEffect(() => {
+        setActiveView(approvalMode === 'only' ? 'edit-approvals' : 'sample-book');
+    }, [approvalMode]);
 
     const normalizeCollectedByFilter = (value: string) => {
         const raw = String(value || '').trim();
@@ -1292,6 +1300,9 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             setDetailLoadingId(null);
         }
     };
+    useEffect(() => {
+        onApprovalCountChange?.(approvalEntries.length);
+    }, [approvalEntries.length, onApprovalCountChange]);
 
     const getWorkflowStatusMeta = (status?: string | null) => {
         const key = String(status || '').trim().toUpperCase();
@@ -1563,22 +1574,25 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
 
     return (
         <div>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
-                <button
-                    onClick={() => setActiveView('sample-book')}
-                    style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '13px', background: activeView === 'sample-book' ? '#1565c0' : '#cbd5e1', color: activeView === 'sample-book' ? '#fff' : '#1e293b' }}
-                >
-                    Paddy Sample Book
-                </button>
-                <button
-                    onClick={() => setActiveView('edit-approvals')}
-                    style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '13px', background: activeView === 'edit-approvals' ? '#7c3aed' : '#cbd5e1', color: activeView === 'edit-approvals' ? '#fff' : '#1e293b' }}
-                >
-                    Approval For Edit
-                    {renderTabBadge(approvalEntries.length, '#6d28d9')}
-                </button>
-            </div>
+            {approvalMode === 'embedded' ? (
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                    <button
+                        onClick={() => setActiveView('sample-book')}
+                        style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '13px', background: activeView === 'sample-book' ? '#1565c0' : '#cbd5e1', color: activeView === 'sample-book' ? '#fff' : '#1e293b' }}
+                    >
+                        Paddy Sample Book
+                    </button>
+                    <button
+                        onClick={() => setActiveView('edit-approvals')}
+                        style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '13px', background: activeView === 'edit-approvals' ? '#7c3aed' : '#cbd5e1', color: activeView === 'edit-approvals' ? '#fff' : '#1e293b' }}
+                    >
+                        Approval For Edit
+                        {renderTabBadge(approvalEntries.length, '#6d28d9')}
+                    </button>
+                </div>
+            ) : null}
             {/* Filter Bar */}
+            {activeView === 'sample-book' ? (
             <div style={{ marginBottom: '0px' }}>
                 <button onClick={() => setFiltersVisible(!filtersVisible)}
                     style={{ padding: '7px 16px', backgroundColor: filtersVisible ? '#e74c3c' : '#3498db', color: 'white', border: 'none', borderRadius: '4px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1681,6 +1695,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                     </div>
                 )}
             </div>
+            ) : null}
 
             {activeView === 'edit-approvals' ? (
                 <div style={{ overflowX: 'auto', backgroundColor: 'white', border: '1px solid #000', marginTop: '12px' }}>

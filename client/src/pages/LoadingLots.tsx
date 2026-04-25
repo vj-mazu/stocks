@@ -523,7 +523,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     hamaliUnit: 'per_bag',
     brokerageEnabled: false,
     brokerageValue: '',
-    brokerageUnit: 'per_bag',
+    brokerageUnit: 'per_quintal',
     lfEnabled: false,
     lfValue: '',
     lfUnit: 'per_bag',
@@ -555,7 +555,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     hamali: '',
     hamaliUnit: 'per_bag',
     brokerage: '',
-    brokerageUnit: 'per_bag',
+    brokerageUnit: 'per_quintal',
     lf: '',
     lfUnit: 'per_bag',
     egbValue: '',
@@ -576,7 +576,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
   });
   const [managerData, setManagerData] = useState({
     sute: '', suteUnit: 'per_ton', moistureValue: '', hamali: '', hamaliUnit: 'per_bag',
-    brokerage: '', brokerageUnit: 'per_bag', lf: '', lfUnit: 'per_bag',
+    brokerage: '', brokerageUnit: 'per_quintal', lf: '', lfUnit: 'per_bag',
     finalBaseRate: '', baseRateType: 'PD_LOOSE', egbValue: '', egbType: 'mill',
     cdValue: '', cdUnit: 'percentage', bankLoanValue: '', bankLoanUnit: 'per_bag',
     paymentConditionEnabled: false,
@@ -586,7 +586,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
   const [paddySupervisors, setPaddySupervisors] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<Record<string, string>>({});
   const isAdminOrOwner = ['admin', 'owner'].includes(String(user?.role || '').toLowerCase());
-  const canEditOffer = ['admin', 'owner', 'manager'].includes(String(user?.role || '').toLowerCase());
+  const canEditOffer = ['admin', 'owner'].includes(String(user?.role || '').toLowerCase());
 
   const fetchSupervisors = async () => {
     try {
@@ -655,11 +655,16 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
   useEffect(() => { fetchEntries(); }, [fetchEntries]);
 
   const handleUpdateClick = (entry: SampleEntry) => {
+    if (String(entry.offering?.pendingManagerValueApprovalStatus || '').toLowerCase() === 'pending') {
+      showNotification('Manager values approval is already pending in Approvals.', 'info');
+      return;
+    }
     if (entry.entryType !== 'RICE_SAMPLE' && !entry.qualityParameters?.id && !entry.qualityParameters?.reportedBy) {
       showNotification('Add quality report before filling manager values.', 'error');
       return;
     }
     const o = entry.offering || {};
+    const isBrokerageMissing = o.brokerageEnabled === false && !parseFloat(o.brokerage ?? '');
     setSelectedEntry(entry);
     setManagerData({
       sute: o.finalSute?.toString() ?? o.sute?.toString() ?? '',
@@ -668,7 +673,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
       hamali: toOptionalInputValue(o.hamali),
       hamaliUnit: o.hamaliUnit || 'per_bag',
       brokerage: toOptionalInputValue(o.brokerage),
-      brokerageUnit: o.brokerageUnit || 'per_bag',
+      brokerageUnit: isBrokerageMissing ? 'per_quintal' : (o.brokerageUnit || 'per_quintal'),
       lf: toOptionalInputValue(o.lf),
       lfUnit: o.lfUnit || 'per_bag',
       finalBaseRate: o.finalBaseRate?.toString() ?? o.offerBaseRateValue?.toString() ?? '',
@@ -713,7 +718,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
       hamaliUnit: o.hamaliUnit || 'per_bag',
       brokerageEnabled: !!o.brokerageEnabled,
       brokerageValue: toOptionalInputValue(o.brokerage),
-      brokerageUnit: o.brokerageUnit || 'per_bag',
+      brokerageUnit: o.brokerageUnit || 'per_quintal',
       lfEnabled: !!o.lfEnabled,
       lfValue: toOptionalInputValue(o.lf),
       lfUnit: o.lfUnit || 'per_bag',
@@ -753,7 +758,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
       hamali: toOptionalInputValue(o.hamali),
       hamaliUnit: o.hamaliUnit || 'per_bag',
       brokerage: toOptionalInputValue(o.brokerage),
-      brokerageUnit: o.brokerageUnit || 'per_bag',
+      brokerageUnit: o.brokerageUnit || 'per_quintal',
       lf: toOptionalInputValue(o.lf),
       lfUnit: o.lfUnit || 'per_bag',
       egbValue: o.egbValue != null ? String(o.egbValue) : '',
@@ -911,7 +916,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
         hamali: managerData.hamali ? parseFloat(managerData.hamali) : (o.hamali ?? null),
         hamaliUnit: managerData.hamaliUnit || o.hamaliUnit || 'per_bag',
         brokerage: managerData.brokerage ? parseFloat(managerData.brokerage) : (o.brokerage ?? null),
-        brokerageUnit: managerData.brokerageUnit || o.brokerageUnit || 'per_bag',
+        brokerageUnit: managerData.brokerageUnit || o.brokerageUnit || 'per_quintal',
         lf: hasLf ? (managerData.lf ? parseFloat(managerData.lf) : (o.lf ?? null)) : 0,
         lfUnit: managerData.lfUnit || o.lfUnit || 'per_bag',
         egbValue: hasEgb && managerData.egbType !== 'mill' ? (managerData.egbValue ? parseFloat(managerData.egbValue) : (o.egbValue ?? 0)) : 0,
@@ -927,11 +932,11 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
         paymentConditionUnit: managerData.paymentConditionUnit || o.paymentConditionUnit || 'days',
         isFinalized: true
       };
-      await axios.post(`${API_URL}/sample-entries/${selectedEntry.id}/final-price`, payload, { headers: { Authorization: `Bearer ${token}` } });
+      const response = await axios.post(`${API_URL}/sample-entries/${selectedEntry.id}/final-price`, payload, { headers: { Authorization: `Bearer ${token}` } });
       setShowModal(false);
       setSelectedEntry(null);
       fetchEntries();
-      showNotification('Values saved successfully. Lot moved to Pending Allotting Supervisor', 'success');
+      showNotification(response.data?.message || 'Values saved successfully', 'success');
     } catch (error: any) {
       showNotification(error.response?.data?.error || 'Failed to save values', 'error');
     } finally {
@@ -1484,7 +1489,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
   const modalBaseRateUnit = modalOffering.baseRateUnit || 'per_bag';
   const modalSuteUnit = managerData.suteUnit || modalOffering.finalSuteUnit || modalOffering.suteUnit;
   const modalHamaliUnit = managerData.hamaliUnit || modalOffering.hamaliUnit || 'per_bag';
-  const modalBrokerageUnit = managerData.brokerageUnit || modalOffering.brokerageUnit || 'per_bag';
+  const modalBrokerageUnit = managerData.brokerageUnit || modalOffering.brokerageUnit || 'per_quintal';
   const modalLfUnit = managerData.lfUnit || modalOffering.lfUnit || 'per_bag';
   const modalCdUnit = managerData.cdUnit || modalOffering.cdUnit || 'percentage';
   const modalBankLoanUnit = managerData.bankLoanUnit || modalOffering.bankLoanUnit || 'per_bag';
@@ -1541,6 +1546,22 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
   const editBottomAmountInputStyle: React.CSSProperties = { flex: '1 1 0', minWidth: 0, width: '100%', padding: '6px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '12px' };
   const editBottomUnitSelectStyle: React.CSSProperties = { width: '84px', minWidth: '84px', flex: '0 0 84px', padding: '6px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '11px' };
   const modalOfferActorMeta = getOfferActorMeta(modalOffering);
+  const modalAdminAddedMeta = {
+    label: 'Admin Added',
+    style: {
+      background: '#dcfce7',
+      color: '#15803d',
+      border: '1px solid #bbf7d0'
+    }
+  };
+  const modalManagerAddedMeta = {
+    label: 'Manager Added',
+    style: {
+      background: '#ffedd5',
+      color: '#9a3412',
+      border: '1px solid #fdba74'
+    }
+  };
   const modalTagStyle = (editable: boolean): React.CSSProperties => ({
     display: 'inline-flex',
     alignItems: 'center',
@@ -1553,6 +1574,37 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     color: editable ? '#8a6400' : modalOfferActorMeta.style.color,
     border: editable ? '1px solid #f9d976' : modalOfferActorMeta.style.border
   });
+  const modalManagerTagStyle = (editable: boolean): React.CSSProperties => ({
+    display: 'inline-flex',
+    alignItems: 'center',
+    fontSize: '10px',
+    fontWeight: 700,
+    padding: '2px 6px',
+    borderRadius: '999px',
+    marginBottom: '6px',
+    background: editable ? '#fff3cd' : modalManagerAddedMeta.style.background,
+    color: editable ? '#8a6400' : modalManagerAddedMeta.style.color,
+    border: editable ? '1px solid #f9d976' : modalManagerAddedMeta.style.border
+  });
+  const modalFixedAdminTagStyle = (editable: boolean): React.CSSProperties => ({
+    display: 'inline-flex',
+    alignItems: 'center',
+    fontSize: '10px',
+    fontWeight: 700,
+    padding: '2px 6px',
+    borderRadius: '999px',
+    marginBottom: '6px',
+    background: editable ? '#fff3cd' : modalAdminAddedMeta.style.background,
+    color: editable ? '#8a6400' : modalAdminAddedMeta.style.color,
+    border: editable ? '1px solid #f9d976' : modalAdminAddedMeta.style.border
+  });
+  const getManagerFieldActorMeta = (role?: string | null) => {
+    const normalized = String(role || '').trim().toLowerCase();
+    return normalized === 'manager' ? modalManagerAddedMeta : modalAdminAddedMeta;
+  };
+  const modalHamaliActorMeta = getManagerFieldActorMeta((modalOffering as any).hamaliBy);
+  const modalBrokerageActorMeta = getManagerFieldActorMeta((modalOffering as any).brokerageBy);
+  const modalLfActorMeta = getManagerFieldActorMeta((modalOffering as any).lfBy);
   const getFrozenCellStyle = (
     baseStyle: React.CSSProperties,
     rowBackground?: string
@@ -1731,6 +1783,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                               const bankLoanMissing = !!o.bankLoanEnabled && !parseFloat(o.bankLoanValue);
                               const paymentMissing = !(o.paymentConditionValue == null || o.paymentConditionValue === '') && !parseInt(o.paymentConditionValue, 10);
                               const needsFill = suteMissing || mstMissing || hamaliMissing || bkrgMissing || lfMissing || cdMissing || bankLoanMissing || paymentMissing;
+                              const managerApprovalPending = String(o.pendingManagerValueApprovalStatus || '').toLowerCase() === 'pending';
                               const missingFieldLabels = [
                                 suteMissing ? 'Sute' : '',
                                 mstMissing ? 'Moist' : '',
@@ -1835,10 +1888,10 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                     <td style={cellStyle(hamaliMissing)}>{hamaliMissing ? 'Need' : (hasValue(effectiveHamaliValue) ? fmtVal(effectiveHamaliValue, o.hamaliUnit) : o.hamaliEnabled === false ? 'Pending' : '-')}</td>
                                     <td style={cellStyle(bkrgMissing)}>{bkrgMissing ? 'Need' : (o.brokerage ? fmtVal(o.brokerage, o.brokerageUnit) : o.brokerageEnabled === false ? 'Pending' : '-')}</td>
                                     <td style={cellStyle(lfMissing)}>{lfMissing ? 'Need' : (o.lf ? fmtVal(o.lf, o.lfUnit) : o.lfEnabled === false ? 'Pending' : '-')}</td>
-                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}><div><span style={{ padding: '2px 6px', borderRadius: '10px', fontSize: '10px', fontWeight: 700, background: '#d4edda', color: '#155724', whiteSpace: 'nowrap', display: 'inline-block', marginBottom: '2px', border: '1px solid #c3e6cb' }}>Admin Added</span></div><div><span style={{ padding: '2px 6px', borderRadius: '10px', fontSize: '10px', fontWeight: 700, background: needsFill ? '#fff3cd' : '#d4edda', color: needsFill ? '#856404' : '#155724', whiteSpace: 'nowrap', display: 'inline-block', marginBottom: '2px', border: needsFill ? '1px solid #ffeeba' : '1px solid #c3e6cb' }}>{needsFill ? 'Manager Missing' : 'Manager Added'}</span></div></td>
+                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}><div><span style={{ padding: '2px 6px', borderRadius: '10px', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap', display: 'inline-block', marginBottom: '2px', border: offerActorMeta.style.border, background: offerActorMeta.style.backgroundColor, color: offerActorMeta.style.color }}>{offerActorMeta.label}</span></div><div><span style={{ padding: '2px 6px', borderRadius: '10px', fontSize: '10px', fontWeight: 700, background: managerApprovalPending ? '#ede9fe' : (needsFill ? '#fff3cd' : '#d4edda'), color: managerApprovalPending ? '#6d28d9' : (needsFill ? '#856404' : '#155724'), whiteSpace: 'nowrap', display: 'inline-block', marginBottom: '2px', border: managerApprovalPending ? '1px solid #c4b5fd' : (needsFill ? '1px solid #ffeeba' : '1px solid #c3e6cb') }}>{managerApprovalPending ? 'Pending Approval' : (needsFill ? 'Manager Missing' : 'Manager Added')}</span></div></td>
                                     <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
                                       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'center' }}>
-                                        {isManagerOrOwner && <button onClick={() => handleUpdateClick(entry)} style={{ padding: '3px 4px', background: needsFill ? '#e67e22' : '#3498db', color: 'white', border: 'none', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: 700, whiteSpace: 'nowrap' }}>{needsFill ? 'Fill Values' : 'View/Edit'}</button>}
+                                        {isManagerOrOwner && <button onClick={() => handleUpdateClick(entry)} disabled={managerApprovalPending} style={{ padding: '3px 4px', background: managerApprovalPending ? '#94a3b8' : (needsFill ? '#e67e22' : '#3498db'), color: 'white', border: 'none', borderRadius: '4px', fontSize: '11px', cursor: managerApprovalPending ? 'not-allowed' : 'pointer', fontWeight: 700, whiteSpace: 'nowrap' }}>{managerApprovalPending ? 'Approval Pending' : (needsFill ? 'Fill Values' : 'View/Edit')}</button>}
                                       </div>
                                     </td>
                                   </tr>
@@ -2036,8 +2089,8 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                   <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center', background: '#fafcff' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'stretch' }}>
                                       <div style={{ fontSize: '10px', fontWeight: 800, borderRadius: '4px', padding: '2px 4px', ...offerActorMeta.style }}>{offerActorMeta.label}</div>
-                                      <div style={{ fontSize: '10px', fontWeight: 700, color: needsFill ? '#856404' : '#155724', background: needsFill ? '#fff3cd' : '#d4edda', border: needsFill ? '1px solid #ffeeba' : '1px solid #c3e6cb', borderRadius: '4px', padding: '2px 4px', lineHeight: '1.25' }}>
-                                        {needsFill ? `Missing: ${compactStatusText(missingFieldLabels)}` : 'Manager Added'}
+                                      <div style={{ fontSize: '10px', fontWeight: 700, color: managerApprovalPending ? '#6d28d9' : (needsFill ? '#856404' : '#155724'), background: managerApprovalPending ? '#ede9fe' : (needsFill ? '#fff3cd' : '#d4edda'), border: managerApprovalPending ? '1px solid #c4b5fd' : (needsFill ? '1px solid #ffeeba' : '1px solid #c3e6cb'), borderRadius: '4px', padding: '2px 4px', lineHeight: '1.25' }}>
+                                        {managerApprovalPending ? 'Manager Added Pending Approval' : (needsFill ? `Missing: ${compactStatusText(missingFieldLabels)}` : 'Manager Added')}
                                       </div>
                                     </div>
                                   </td>
@@ -2046,20 +2099,20 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                       {isManagerOrOwner && (
                                         <button
                                           onClick={() => handleUpdateClick(entry)}
-                                          disabled={!hasQualityReport}
+                                          disabled={!hasQualityReport || managerApprovalPending}
                                           style={{
                                             padding: '3px 8px',
-                                            background: !hasQualityReport ? '#b0bec5' : (needsFill ? '#e67e22' : '#3498db'),
+                                            background: (!hasQualityReport || managerApprovalPending) ? '#b0bec5' : (needsFill ? '#e67e22' : '#3498db'),
                                             color: 'white',
                                             border: 'none',
                                             borderRadius: '4px',
                                             fontSize: '11px',
-                                            cursor: !hasQualityReport ? 'not-allowed' : 'pointer',
+                                            cursor: (!hasQualityReport || managerApprovalPending) ? 'not-allowed' : 'pointer',
                                             fontWeight: 700,
                                             whiteSpace: 'nowrap'
                                           }}
                                         >
-                                          {!hasQualityReport ? 'Quality Pending' : (needsFill ? 'Fill Values' : 'View/Edit')}
+                                          {!hasQualityReport ? 'Quality Pending' : (managerApprovalPending ? 'Approval Pending' : (needsFill ? 'Fill Values' : 'View/Edit'))}
                                         </button>
                                       )}
                                       {canEditOffer && (
@@ -2413,24 +2466,11 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                   {modalMissingFields.length > 0 ? modalMissingFields.join('  |  ') : 'This lot already has all manager-side values.'}
                 </div>
               </div>
-              {(() => {
-                const role = modalOffering.createdByRole;
-                if (role === 'manager') {
-                  return (
-                    <div style={{ padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 800, backgroundColor: '#ffedd5', color: '#9a3412', border: '1px solid #fdba74', whiteSpace: 'nowrap' }}>
-                      Manager Added
-                    </div>
-                  );
-                }
-                if (role === 'admin' || role === 'owner') {
-                  return (
-                    <div style={{ padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 800, backgroundColor: '#dcfce7', color: '#15803d', border: '1px solid #bbf7d0', whiteSpace: 'nowrap' }}>
-                      Admin Added
-                    </div>
-                  );
-                }
-                return null;
-              })()}
+              {modalOfferActorMeta ? (
+                <div style={{ padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 800, whiteSpace: 'nowrap', ...modalOfferActorMeta.style }}>
+                  {modalOfferActorMeta.label}
+                </div>
+              ) : null}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1.2fr) repeat(2, minmax(160px, 1fr))', gap: '10px', marginBottom: '10px' }}>
@@ -2441,7 +2481,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                 <div style={modalReadonlyValueStyle}>{formatManagerRateValue(modalOffering.finalBaseRate ?? modalOffering.offerBaseRateValue, modalBaseRateUnit)}</div>
               </div>
               <div style={modalSuteMissing ? modalEditableCardStyle : modalCardStyle}>
-                <span style={modalTagStyle(modalSuteMissing)}>{modalSuteMissing ? 'Manager Add' : modalOfferActorMeta.label}</span>
+                <span style={modalFixedAdminTagStyle(modalSuteMissing)}>{modalSuteMissing ? 'Manager Add' : modalAdminAddedMeta.label}</span>
                 <label style={modalLabelStyle}>Sute</label>
                 <div style={modalMetaStyle}>{formatSuteUnitLabel(modalSuteUnit)}</div>
                 {modalSuteMissing ? (
@@ -2451,7 +2491,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                 )}
               </div>
               <div style={modalMoistureMissing ? modalEditableCardStyle : modalCardStyle}>
-                <span style={modalTagStyle(modalMoistureMissing)}>{modalMoistureMissing ? 'Manager Add' : modalOfferActorMeta.label}</span>
+                <span style={modalFixedAdminTagStyle(modalMoistureMissing)}>{modalMoistureMissing ? 'Manager Add' : modalAdminAddedMeta.label}</span>
                 <label style={modalLabelStyle}>Moisture</label>
                 <div style={modalMetaStyle}>Percent</div>
                 {modalMoistureMissing ? (
@@ -2464,7 +2504,12 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(160px, 1fr))', gap: '10px', marginBottom: '10px' }}>
               <div style={modalHamaliMissing ? modalEditableCardStyle : modalCardStyle}>
-                <span style={modalTagStyle(modalHamaliMissing)}>{modalHamaliMissing ? 'Manager Add' : modalOfferActorMeta.label}</span>
+                <span style={modalHamaliMissing ? modalManagerTagStyle(true) : {
+                  ...modalManagerTagStyle(false),
+                  background: modalHamaliActorMeta.style.background,
+                  color: modalHamaliActorMeta.style.color,
+                  border: modalHamaliActorMeta.style.border
+                }}>{modalHamaliMissing ? 'Manager Add' : modalHamaliActorMeta.label}</span>
                 <label style={modalLabelStyle}>Hamali</label>
                 <div style={modalMetaStyle}>{modalOffering.hamaliEnabled === false ? `Pending from manager | ${formatChargeUnitLabel(modalHamaliUnit)}` : formatChargeUnitLabel(modalHamaliUnit)}</div>
                 {modalHamaliMissing ? (
@@ -2480,7 +2525,12 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                 )}
               </div>
               <div style={modalBrokerageMissing ? modalEditableCardStyle : modalCardStyle}>
-                <span style={modalTagStyle(modalBrokerageMissing)}>{modalBrokerageMissing ? 'Manager Add' : modalOfferActorMeta.label}</span>
+                <span style={modalBrokerageMissing ? modalManagerTagStyle(true) : {
+                  ...modalManagerTagStyle(false),
+                  background: modalBrokerageActorMeta.style.background,
+                  color: modalBrokerageActorMeta.style.color,
+                  border: modalBrokerageActorMeta.style.border
+                }}>{modalBrokerageMissing ? 'Manager Add' : modalBrokerageActorMeta.label}</span>
                 <label style={modalLabelStyle}>Brokerage</label>
                 <div style={modalMetaStyle}>{modalOffering.brokerageEnabled === false ? `Pending from manager | ${formatChargeUnitLabel(modalBrokerageUnit)}` : formatChargeUnitLabel(modalBrokerageUnit)}</div>
                 {modalBrokerageMissing ? (
@@ -2497,7 +2547,14 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                 )}
               </div>
               <div style={modalHasLf ? (modalLfMissing ? modalEditableCardStyle : modalCardStyle) : modalCardStyle}>
-                <span style={modalTagStyle(modalHasLf && modalLfMissing)}>{modalHasLf ? (modalLfMissing ? 'Manager Add' : modalOfferActorMeta.label) : 'Not Applicable'}</span>
+                <span style={modalHasLf ? ((modalLfMissing
+                  ? modalManagerTagStyle(true)
+                  : {
+                      ...modalManagerTagStyle(false),
+                      background: modalLfActorMeta.style.background,
+                      color: modalLfActorMeta.style.color,
+                      border: modalLfActorMeta.style.border
+                    })) : modalFixedAdminTagStyle(false)}>{modalHasLf ? (modalLfMissing ? 'Manager Add' : modalLfActorMeta.label) : 'Not Applicable'}</span>
                 <label style={modalLabelStyle}>LF</label>
                 <div style={modalMetaStyle}>{modalHasLf ? (modalOffering.lfEnabled === false ? `Pending from manager | ${formatChargeUnitLabel(modalLfUnit)}` : formatChargeUnitLabel(modalLfUnit)) : 'Not applicable for MD/WB'}</div>
                 {modalHasLf ? (
@@ -2521,7 +2578,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
             {!isRiceMode && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(160px, 1fr))', gap: '10px', marginBottom: '10px' }}>
                 <div style={modalCdMissing ? modalEditableCardStyle : modalCardStyle}>
-                  <span style={modalTagStyle(modalCdMissing)}>{modalCdMissing ? 'Manager Add' : modalOfferActorMeta.label}</span>
+                  <span style={modalFixedAdminTagStyle(modalCdMissing)}>{modalCdMissing ? 'Manager Add' : modalAdminAddedMeta.label}</span>
                   <label style={modalLabelStyle}>CD</label>
                   <div style={modalMetaStyle}>{modalOffering.cdEnabled ? formatChargeUnitLabel(modalCdUnit) : 'No'}</div>
                   {modalCdMissing ? (
@@ -2537,7 +2594,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                   )}
                 </div>
                 <div style={modalBankLoanMissing ? modalEditableCardStyle : modalCardStyle}>
-                  <span style={modalTagStyle(modalBankLoanMissing)}>{modalBankLoanMissing ? 'Manager Add' : modalOfferActorMeta.label}</span>
+                  <span style={modalFixedAdminTagStyle(modalBankLoanMissing)}>{modalBankLoanMissing ? 'Manager Add' : modalAdminAddedMeta.label}</span>
                   <label style={modalLabelStyle}>Bank Loan</label>
                   <div style={modalMetaStyle}>{modalOffering.bankLoanEnabled ? formatChargeUnitLabel(modalBankLoanUnit) : 'No'}</div>
                   {modalBankLoanMissing ? (
@@ -2553,7 +2610,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                   )}
                 </div>
                 <div style={modalPaymentMissing ? modalEditableCardStyle : modalCardStyle}>
-                  <span style={modalTagStyle(modalPaymentMissing)}>{modalPaymentMissing ? 'Manager Add' : modalOfferActorMeta.label}</span>
+                  <span style={modalFixedAdminTagStyle(modalPaymentMissing)}>{modalPaymentMissing ? 'Manager Add' : modalAdminAddedMeta.label}</span>
                   <label style={modalLabelStyle}>Payment Condition</label>
                   <div style={modalMetaStyle}>{modalPaymentEnabled ? (modalPaymentUnit === 'month' ? 'Month' : 'Days') : 'No'}</div>
                   {modalPaymentMissing ? (
@@ -2573,7 +2630,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
 
             <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px', marginBottom: '14px' }}>
               <div style={modalHasEgb && modalEgbMissing ? modalEditableCardStyle : modalCardStyle}>
-                <span style={modalTagStyle(modalHasEgb && modalEgbMissing)}>{modalHasEgb ? (modalEgbMissing ? 'Manager Add' : modalOfferActorMeta.label) : 'Not Applicable'}</span>
+                <span style={modalFixedAdminTagStyle(modalHasEgb && modalEgbMissing)}>{modalHasEgb ? (modalEgbMissing ? 'Manager Add' : modalAdminAddedMeta.label) : 'Not Applicable'}</span>
                 <label style={modalLabelStyle}>EGB</label>
                 <div style={modalMetaStyle}>
                   {!modalHasEgb

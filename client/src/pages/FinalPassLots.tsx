@@ -424,7 +424,7 @@ const DEFAULT_PADDY_OFFER: OfferingData = {
   moistureValue: '',
   brokerageValue: '',
   brokerageEnabled: false,
-  brokerageUnit: 'per_bag',
+  brokerageUnit: 'per_quintal',
   lfValue: '',
   lfEnabled: false,
   lfUnit: 'per_bag',
@@ -457,7 +457,7 @@ const DEFAULT_FINAL_DATA: FinalPriceFormData = {
   hamali: '',
   hamaliUnit: 'per_bag',
   brokerage: '',
-  brokerageUnit: 'per_bag',
+  brokerageUnit: 'per_quintal',
   lf: '',
   lfUnit: 'per_bag',
   egbValue: '0',
@@ -644,7 +644,7 @@ const buildOfferFormData = (offer?: Partial<OfferVersionData> | null): OfferingD
     moistureValue: (offer?.moistureValue ?? '').toString(),
     brokerageEnabled: !!offer?.brokerageEnabled,
     brokerageValue: toOptionalInputValue(offer?.brokerage),
-    brokerageUnit: offer?.brokerageUnit || 'per_bag',
+    brokerageUnit: offer?.brokerageUnit || 'per_quintal',
     lfEnabled: !!offer?.lfEnabled,
     lfValue: toOptionalInputValue(offer?.lf),
     lfUnit: offer?.lfUnit || 'per_bag',
@@ -1139,39 +1139,41 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
       setOfferVersions(versions);
       if (d) {
         const activeOffer = getActiveOffer(d) || {} as any;
-        setActiveOfferKey(activeOffer?.key || getLatestOffer(d)?.key || 'offer1');
+        const latestOffer = getLatestOffer(d) || activeOffer;
+        const selectedOffer = latestOffer || activeOffer;
+        setActiveOfferKey(selectedOffer?.key || activeOffer?.key || 'offer1');
         setFinalData({
-          finalSute: d.finalSute?.toString() || activeOffer.sute?.toString() || d.sute?.toString() || '',
-          finalSuteUnit: d.finalSuteUnit || activeOffer.suteUnit || d.suteUnit || 'per_ton',
-          finalBaseRate: d.finalBaseRate?.toString() || activeOffer.offerBaseRateValue?.toString() || d.offerBaseRateValue?.toString() || '',
-          baseRateType: activeOffer.baseRateType || d.baseRateType || 'PD_WB',
-          baseRateUnit: activeOffer.baseRateUnit || d.baseRateUnit || 'per_bag',
-          suteEnabled: activeOffer.suteEnabled !== false,
-          moistureEnabled: activeOffer.moistureEnabled !== false,
-          hamaliEnabled: activeOffer.hamaliEnabled || false,
-          brokerageEnabled: activeOffer.brokerageEnabled || false,
-          lfEnabled: activeOffer.lfEnabled || false,
-          moistureValue: activeOffer.moistureValue?.toString() || '',
-          hamali: toOptionalInputValue(d.hamali ?? activeOffer.hamali ?? activeOffer.hamaliValue),
-          hamaliUnit: activeOffer.hamaliUnit || activeOffer.baseRateUnit || 'per_bag',
-          brokerage: toOptionalInputValue(d.brokerage ?? activeOffer.brokerage ?? activeOffer.brokerageValue),
-          brokerageUnit: activeOffer.brokerageUnit || activeOffer.baseRateUnit || 'per_bag',
-          lf: toOptionalInputValue(d.lf ?? activeOffer.lf ?? activeOffer.lfValue),
-          lfUnit: activeOffer.lfUnit || activeOffer.baseRateUnit || 'per_bag',
-          egbValue: activeOffer.egbValue?.toString() || d.egbValue?.toString() || '',
-          egbType: (activeOffer.egbType as 'mill' | 'purchase') || ((activeOffer.egbValue && parseFloat(activeOffer.egbValue.toString()) > 0) ? 'purchase' : 'mill'),
-          customDivisor: activeOffer.customDivisor?.toString() || d.customDivisor?.toString() || '',
-          cdEnabled: activeOffer.cdEnabled || false,
-          cdValue: toOptionalInputValue(activeOffer.cdValue),
-          cdUnit: activeOffer.cdUnit || 'percentage',
-          bankLoanEnabled: activeOffer.bankLoanEnabled || false,
-          bankLoanValue: toOptionalInputValue(activeOffer.bankLoanValue),
-          bankLoanUnit: activeOffer.bankLoanUnit || 'per_bag',
-          paymentConditionEnabled: activeOffer.paymentConditionEnabled != null
-            ? !!activeOffer.paymentConditionEnabled
+          finalSute: d.finalSute?.toString() || selectedOffer.sute?.toString() || d.sute?.toString() || '',
+          finalSuteUnit: d.finalSuteUnit || selectedOffer.suteUnit || d.suteUnit || 'per_ton',
+          finalBaseRate: d.finalBaseRate?.toString() || selectedOffer.offerBaseRateValue?.toString() || d.offerBaseRateValue?.toString() || '',
+          baseRateType: selectedOffer.baseRateType || d.baseRateType || 'PD_WB',
+          baseRateUnit: selectedOffer.baseRateUnit || d.baseRateUnit || 'per_bag',
+          suteEnabled: selectedOffer.suteEnabled !== false,
+          moistureEnabled: selectedOffer.moistureEnabled !== false,
+          hamaliEnabled: selectedOffer.hamaliEnabled || false,
+          brokerageEnabled: selectedOffer.brokerageEnabled || false,
+          lfEnabled: selectedOffer.lfEnabled || false,
+          moistureValue: selectedOffer.moistureValue?.toString() || '',
+          hamali: toOptionalInputValue(d.hamali ?? selectedOffer.hamali ?? selectedOffer.hamaliValue),
+          hamaliUnit: selectedOffer.hamaliUnit || selectedOffer.baseRateUnit || 'per_bag',
+          brokerage: toOptionalInputValue(d.brokerage ?? selectedOffer.brokerage ?? selectedOffer.brokerageValue),
+          brokerageUnit: selectedOffer.brokerageUnit || 'per_quintal',
+          lf: toOptionalInputValue(d.lf ?? selectedOffer.lf ?? selectedOffer.lfValue),
+          lfUnit: selectedOffer.lfUnit || selectedOffer.baseRateUnit || 'per_bag',
+          egbValue: selectedOffer.egbValue?.toString() || d.egbValue?.toString() || '',
+          egbType: (selectedOffer.egbType as 'mill' | 'purchase') || ((selectedOffer.egbValue && parseFloat(selectedOffer.egbValue.toString()) > 0) ? 'purchase' : 'mill'),
+          customDivisor: selectedOffer.customDivisor?.toString() || d.customDivisor?.toString() || '',
+          cdEnabled: selectedOffer.cdEnabled || false,
+          cdValue: toOptionalInputValue(selectedOffer.cdValue),
+          cdUnit: selectedOffer.cdUnit || 'percentage',
+          bankLoanEnabled: selectedOffer.bankLoanEnabled || false,
+          bankLoanValue: toOptionalInputValue(selectedOffer.bankLoanValue),
+          bankLoanUnit: selectedOffer.bankLoanUnit || 'per_bag',
+          paymentConditionEnabled: selectedOffer.paymentConditionEnabled != null
+            ? !!selectedOffer.paymentConditionEnabled
             : true,
-          paymentConditionValue: activeOffer.paymentConditionValue?.toString() || d.paymentConditionValue?.toString() || '15',
-          paymentConditionUnit: activeOffer.paymentConditionUnit || d.paymentConditionUnit || 'days',
+          paymentConditionValue: selectedOffer.paymentConditionValue?.toString() || d.paymentConditionValue?.toString() || '15',
+          paymentConditionUnit: selectedOffer.paymentConditionUnit || d.paymentConditionUnit || 'days',
           finalPrice: d.finalPrice?.toString() || entry.finalPrice?.toString() || '',
           remarks: d.finalRemarks || ''
         });
@@ -1223,7 +1225,7 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
       hamali: toOptionalInputValue(slotOffer.hamali),
       hamaliUnit: slotOffer.hamaliUnit || 'per_bag',
       brokerage: toOptionalInputValue(slotOffer.brokerage),
-      brokerageUnit: slotOffer.brokerageUnit || 'per_bag',
+      brokerageUnit: slotOffer.brokerageUnit || 'per_quintal',
       lf: toOptionalInputValue(slotOffer.lf),
       lfUnit: slotOffer.lfUnit || 'per_bag',
       egbValue: slotOffer.egbValue?.toString() || '0',
@@ -2242,11 +2244,11 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                       <div style={{ display: 'flex', gap: '6px', fontSize: '11px', flexWrap: 'wrap' }}>
                         <label style={radioLabelStyle}>
                           <input type="radio" name="baseRateUnit" checked={offerData.baseRateUnit === 'per_bag'}
-                            onChange={() => setOfferData({ ...offerData, baseRateUnit: 'per_bag', hamaliUnit: 'per_bag', brokerageUnit: 'per_bag', lfUnit: 'per_bag', customDivisor: '' })} /> Per Bag
+                            onChange={() => setOfferData({ ...offerData, baseRateUnit: 'per_bag', hamaliUnit: 'per_bag', brokerageUnit: offerData.brokerageUnit || 'per_quintal', lfUnit: 'per_bag', customDivisor: '' })} /> Per Bag
                         </label>
                         <label style={radioLabelStyle}>
                           <input type="radio" name="baseRateUnit" checked={offerData.baseRateUnit === 'per_quintal'}
-                            onChange={() => setOfferData({ ...offerData, baseRateUnit: 'per_quintal', hamaliUnit: 'per_quintal', brokerageUnit: 'per_quintal', lfUnit: 'per_quintal', customDivisor: '' })} /> Per Qtl
+                            onChange={() => setOfferData({ ...offerData, baseRateUnit: 'per_quintal', hamaliUnit: 'per_quintal', brokerageUnit: offerData.brokerageUnit || 'per_quintal', lfUnit: 'per_quintal', customDivisor: '' })} /> Per Qtl
                         </label>
                         {!isRiceMode && (
                           <label style={radioLabelStyle}>
@@ -2564,11 +2566,11 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                       <div style={{ display: 'flex', gap: '6px', fontSize: '11px', flexWrap: 'wrap' }}>
                         <label style={radioLabelStyle}>
                           <input type="radio" name="finalBaseRateUnit" checked={finalData.baseRateUnit === 'per_bag'}
-                            onChange={() => setFinalData({ ...finalData, baseRateUnit: 'per_bag', hamaliUnit: 'per_bag', brokerageUnit: 'per_bag', lfUnit: 'per_bag', customDivisor: '' })} /> Per Bag
+                            onChange={() => setFinalData({ ...finalData, baseRateUnit: 'per_bag', hamaliUnit: 'per_bag', brokerageUnit: finalData.brokerageUnit || 'per_quintal', lfUnit: 'per_bag', customDivisor: '' })} /> Per Bag
                         </label>
                         <label style={radioLabelStyle}>
                           <input type="radio" name="finalBaseRateUnit" checked={finalData.baseRateUnit === 'per_quintal'}
-                            onChange={() => setFinalData({ ...finalData, baseRateUnit: 'per_quintal', hamaliUnit: 'per_quintal', brokerageUnit: 'per_quintal', lfUnit: 'per_quintal', customDivisor: '' })} /> Per Qtl
+                            onChange={() => setFinalData({ ...finalData, baseRateUnit: 'per_quintal', hamaliUnit: 'per_quintal', brokerageUnit: finalData.brokerageUnit || 'per_quintal', lfUnit: 'per_quintal', customDivisor: '' })} /> Per Qtl
                         </label>
                         {!isRiceMode && (
                           <label style={radioLabelStyle}>
@@ -2955,4 +2957,3 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
 };
 
 export default FinalPassLots;
-

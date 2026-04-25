@@ -1657,6 +1657,14 @@ const startServer = async () => {
         console.log('⚠️ Migration 125 warning:', error.message);
       }
 
+      try {
+        const addManagerValueApproval = require('./migrations/126_add_manager_value_approval_to_offerings');
+        await addManagerValueApproval.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('Migration 126: manager value approval workflow added');
+      } catch (error) {
+        console.log('Migration 126 warning:', error.message);
+      }
+
     // Default warehouses removed - users should create their own warehouses
 
     // Create default users if they don't exist

@@ -225,10 +225,10 @@ const hasAnyDetailedQuality = (attempt: any) => (
   || isProvidedAlphaValue(attempt?.oilRaw, attempt?.oil)
   || isProvidedAlphaValue(attempt?.skRaw, attempt?.sk)
 );
-const hasResampleWbActivationSnapshot = (attempt: any) => (
-  isProvidedNumericValue(attempt?.wbRRaw, attempt?.wbR)
+const hasResample100gSnapshot = (attempt: any) => (
+  isProvidedNumericValue(attempt?.moistureRaw, attempt?.moisture)
+  && isProvidedNumericValue(attempt?.wbRRaw, attempt?.wbR)
   && isProvidedNumericValue(attempt?.wbBkRaw, attempt?.wbBk)
-  && !isProvidedNumericValue(attempt?.moistureRaw, attempt?.moisture)
   && !isProvidedNumericValue(attempt?.grainsCountRaw, attempt?.grainsCount)
   && !hasAnyDetailedQuality(attempt)
 );
@@ -498,11 +498,11 @@ const hasCurrentCycleQualityData = (entry: SampleEntry) => {
   if (!isResampleWorkflowEntry(entry)) return hasQualitySnapshot(attempts[attempts.length - 1]);
   if (attempts.length > 1) {
     const latestAttempt = attempts[attempts.length - 1];
-    return hasQualitySnapshot(latestAttempt) || hasResampleWbActivationSnapshot(latestAttempt);
+    return hasQualitySnapshot(latestAttempt) || hasResample100gSnapshot(latestAttempt);
   }
 
   const currentQuality = entry.qualityParameters;
-  if (!hasQualitySnapshot(currentQuality) && !hasResampleWbActivationSnapshot(currentQuality)) return false;
+  if (!hasQualitySnapshot(currentQuality) && !hasResample100gSnapshot(currentQuality)) return false;
 
   const resampleStartValue = (entry as any)?.resampleTriggeredAt
     || (entry as any)?.resampleStartAt
@@ -519,6 +519,30 @@ const hasCurrentCycleQualityData = (entry: SampleEntry) => {
   const resampleStartAt = getTimeValue(resampleStartValue);
   const qualityUpdatedAt = getTimeValue(qualityUpdatedValue);
   return qualityUpdatedAt >= resampleStartAt;
+};
+const isCurrentCycleQualitySnapshot = (entry: SampleEntry, attempt: any) => {
+  if (!attempt) return false;
+  if (!isResampleWorkflowEntry(entry)) {
+    return hasQualitySnapshot(attempt) || hasResample100gSnapshot(attempt);
+  }
+
+  if (!hasQualitySnapshot(attempt) && !hasResample100gSnapshot(attempt)) {
+    return false;
+  }
+
+  const resampleStartValue = (entry as any)?.resampleTriggeredAt
+    || (entry as any)?.resampleStartAt
+    || entry?.lotSelectionAt
+    || null;
+  const qualityUpdatedValue = attempt?.updatedAt
+    || attempt?.createdAt
+    || null;
+
+  if (!resampleStartValue || !qualityUpdatedValue) {
+    return false;
+  }
+
+  return getTimeValue(qualityUpdatedValue) >= getTimeValue(resampleStartValue);
 };
 const hasFullQualitySnapshot = (attempt: any) => {
   const hasNumericValue = (rawVal: any, valueVal: any) => {
@@ -557,11 +581,12 @@ const hasFullQualitySnapshot = (attempt: any) => {
 const getCurrentCycleQualitySnapshot = (entry: SampleEntry) => {
   const attempts = getQualityAttemptsForEntry(entry);
   if (attempts.length > 1) {
-    return attempts[attempts.length - 1];
+    const latestAttempt = attempts[attempts.length - 1];
+    return isCurrentCycleQualitySnapshot(entry, latestAttempt) ? latestAttempt : null;
   }
 
   const currentQuality = entry?.qualityParameters;
-  if (hasQualitySnapshot(currentQuality) || hasResampleWbActivationSnapshot(currentQuality)) {
+  if (isCurrentCycleQualitySnapshot(entry, currentQuality)) {
     return currentQuality;
   }
 
@@ -623,11 +648,19 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
     cookingDoneBy: '',
     cookingApprovedBy: ''
   });
+  const createEmptyResamplePrepData = () => ({
+    moisture: '',
+    wbR: '',
+    wbBk: ''
+  });
   const [entries, setEntries] = useState<SampleEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<SampleEntry | null>(null);
   const [cookingData, setCookingData] = useState(createEmptyCookingData);
+  const [showResamplePrepModal, setShowResamplePrepModal] = useState(false);
+  const [resamplePrepEntry, setResamplePrepEntry] = useState<SampleEntry | null>(null);
+  const [resamplePrepData, setResamplePrepData] = useState(createEmptyResamplePrepData);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submissionLocksRef = useRef<Set<string>>(new Set());
   const [supervisors, setSupervisors] = useState<SupervisorUser[]>([]);
@@ -669,6 +702,12 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
     setApprovalType('owner');
     setManualApprovalName('');
     setManualDate(new Date().toISOString().split('T')[0]);
+  };
+
+  const resetResamplePrepState = () => {
+    setShowResamplePrepModal(false);
+    setResamplePrepEntry(null);
+    setResamplePrepData(createEmptyResamplePrepData());
   };
 
   const closeReportModal = () => {
@@ -962,6 +1001,85 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
         }
       }
     });
+  };
+
+  const handleOpenResamplePrep = (entry: SampleEntry) => {
+    const currentCycleQuality = getCurrentCycleQualitySnapshot(entry) as any;
+    const rawOrEmpty = (rawVal: any, valueVal: any) => {
+      const raw = rawVal !== null && rawVal !== undefined ? String(rawVal).trim() : '';
+      if (raw !== '') return raw;
+      if (valueVal === null || valueVal === undefined) return '';
+      const text = String(valueVal).trim();
+      if (!text) return '';
+      const num = Number(text);
+      return Number.isFinite(num) && num === 0 ? '' : text;
+    };
+
+    setResamplePrepEntry(entry);
+    setResamplePrepData({
+      moisture: rawOrEmpty(currentCycleQuality?.moistureRaw, currentCycleQuality?.moisture),
+      wbR: rawOrEmpty(currentCycleQuality?.wbRRaw, currentCycleQuality?.wbR),
+      wbBk: rawOrEmpty(currentCycleQuality?.wbBkRaw, currentCycleQuality?.wbBk)
+    });
+    setShowResamplePrepModal(true);
+  };
+
+  const handleResamplePrepInput = (field: 'moisture' | 'wbR' | 'wbBk', value: string) => {
+    const cleaned = value.replace(/[^0-9.]/g, '');
+    if (cleaned.length > 5) return;
+    setResamplePrepData((prev) => ({ ...prev, [field]: cleaned }));
+  };
+
+  const handleSubmitResamplePrep = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resamplePrepEntry || isSubmitting) return;
+
+    const moisture = String(resamplePrepData.moisture || '').trim();
+    const wbR = String(resamplePrepData.wbR || '').trim();
+    const wbBk = String(resamplePrepData.wbBk || '').trim();
+
+    if (!moisture) {
+      showNotification('Moisture is required', 'error');
+      return;
+    }
+    if (!wbR || !wbBk) {
+      showNotification('WB-R and WB-BK are required', 'error');
+      return;
+    }
+
+    const lockKey = `resample-prep-${resamplePrepEntry.id}`;
+    if (!acquireSubmissionLock(lockKey)) return;
+
+    try {
+      setIsSubmitting(true);
+      const formData = new FormData();
+      formData.append('moisture', moisture);
+      formData.append('wbR', wbR);
+      formData.append('wbBk', wbBk);
+      formData.append('wbEnabled', 'true');
+      formData.append('is100Grams', 'true');
+      formData.append('resampleCookingPrepOnly', 'true');
+      formData.append('qualityEntryIntent', 'next');
+
+      await axios.post(
+        `${API_URL}/sample-entries/${resamplePrepEntry.id}/quality-parameters`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
+        }
+      );
+
+      showNotification('Resample 100gms saved successfully', 'success');
+      resetResamplePrepState();
+      loadEntries();
+    } catch (error: any) {
+      showNotification(error.response?.data?.error || 'Failed to save resample 100gms', 'error');
+    } finally {
+      setIsSubmitting(false);
+      releaseSubmissionLock(lockKey);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1373,7 +1491,10 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
     }
 
     if (!hasResampleSplit && canUseIndependentResampleCookingFlow(entry) && workflow === 'COOKING_REPORT' && decision === 'PASS_WITH_COOKING') {
-      if (!lastCurrentCycleStaff || lastCurrentCycleAdminAt >= lastCurrentCycleStaffAt) {
+      const currentCycleCompleted =
+        ['PASS', 'MEDIUM', 'FAIL'].includes(latestCurrentCycleAdminStatus)
+        && lastCurrentCycleAdminAt >= lastCurrentCycleStaffAt;
+      if (!currentCycleCompleted && (!lastCurrentCycleStaff || latestCurrentCycleAdminStatus === 'RECHECK' || lastCurrentCycleAdminAt >= lastCurrentCycleStaffAt)) {
         return { canAdd: true, reason: '' };
       }
     }
@@ -1441,6 +1562,19 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
       && isResampleWorkflowEntry(entry)
       && Boolean((entry as any).resampleTriggerRequired || String((entry as any).resampleOriginDecision || '').toUpperCase() === 'PASS_WITH_COOKING')
       && !hasFullQualitySnapshot(currentCycleQuality);
+  };
+  const shouldShowResamplePrepAction = (entry: SampleEntry) => {
+    if (activeTab !== 'RESAMPLE_COOKING_REPORT') return false;
+    if (!isResampleWorkflowEntry(entry)) return false;
+    if (entry.entryType === 'RICE_SAMPLE') return false;
+    if (!(entry as any).resampleTriggerRequired && String((entry as any).resampleOriginDecision || '').toUpperCase() !== 'PASS_WITH_COOKING') {
+      return false;
+    }
+
+    const actionState = canOpenCookingActionForEntry(entry);
+    if (actionState.canAdd) return false;
+    if (String(actionState.reason || '').toUpperCase() !== 'AWAITING QUALITY') return false;
+    return !hasCurrentCycleQualityData(entry);
   };
 
   const renderSampleReportByWithDate = (entry: any) => {
@@ -1965,11 +2099,24 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                                           {(() => {
                                             const actionState = canOpenCookingActionForEntry(entry);
                                             const showQualityAction = shouldShowCompleteQualityAction(entry);
-                                            if (!actionState.canAdd && !showQualityAction) {
+                                            const showResamplePrepAction = shouldShowResamplePrepAction(entry);
+                                            if (!actionState.canAdd && !showQualityAction && !showResamplePrepAction) {
                                               return <span style={{ fontSize: '11px', color: '#999', fontStyle: 'italic' }}>{actionState.reason || 'Locked'}</span>;
                                             }
                                             return (
                                               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                                                {showResamplePrepAction && (
+                                                  <button
+                                                    onClick={() => handleOpenResamplePrep(entry)}
+                                                    style={{
+                                                      fontSize: '9px', padding: '4px 10px',
+                                                      backgroundColor: '#8e24aa', color: 'white', border: 'none',
+                                                      borderRadius: '10px', cursor: 'pointer', fontWeight: '700'
+                                                    }}
+                                                  >
+                                                    Add 100gms
+                                                  </button>
+                                                )}
                                                 {actionState.canAdd && (
                                                   <button
                                                     onClick={() => handleOpenModal(entry)}
@@ -2145,11 +2292,24 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                                           {(() => {
                                             const actionState = canOpenCookingActionForEntry(entry);
                                             const showQualityAction = shouldShowCompleteQualityAction(entry);
-                                            if (!actionState.canAdd && !showQualityAction) {
+                                            const showResamplePrepAction = shouldShowResamplePrepAction(entry);
+                                            if (!actionState.canAdd && !showQualityAction && !showResamplePrepAction) {
                                               return <span style={{ fontSize: '11px', color: '#999', fontStyle: 'italic' }}>{actionState.reason || 'Locked'}</span>;
                                             }
                                             return (
                                               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                                                {showResamplePrepAction && (
+                                                  <button
+                                                    onClick={() => handleOpenResamplePrep(entry)}
+                                                    style={{
+                                                      fontSize: '9px', padding: '4px 10px',
+                                                      backgroundColor: '#8e24aa', color: 'white', border: 'none',
+                                                      borderRadius: '10px', cursor: 'pointer', fontWeight: '700'
+                                                    }}
+                                                  >
+                                                    Add 100gms
+                                                  </button>
+                                                )}
                                                 {actionState.canAdd && (
                                                   <button
                                                     onClick={() => handleOpenModal(entry)}
@@ -2408,6 +2568,103 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
           </div>
         )
       }
+
+      {showResamplePrepModal && resamplePrepEntry && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.55)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1001,
+          padding: '20px'
+        }}>
+          <div style={{
+            width: '100%',
+            maxWidth: '420px',
+            backgroundColor: '#fff',
+            borderRadius: '10px',
+            boxShadow: '0 14px 36px rgba(0,0,0,0.28)',
+            overflow: 'hidden',
+            border: '1px solid #d9d9d9'
+          }}>
+            <div style={{
+              background: 'linear-gradient(135deg, #8e24aa 0%, #5e35b1 100%)',
+              color: '#fff',
+              padding: '16px 18px'
+            }}>
+              <div style={{ fontSize: '18px', fontWeight: 800, marginBottom: '6px' }}>Add Resample 100gms</div>
+              <div style={{ fontSize: '13px', lineHeight: 1.5, opacity: 0.95 }}>
+                <div><strong>Party:</strong> {getPartyLabel(resamplePrepEntry)}</div>
+                <div><strong>Variety:</strong> {toTitleCase(resamplePrepEntry.variety)}</div>
+                <div><strong>Only save:</strong> Moisture, WB-R, WB-BK</div>
+              </div>
+            </div>
+            <form onSubmit={handleSubmitResamplePrep} style={{ padding: '18px' }}>
+              <div style={{ display: 'grid', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 700, color: '#333' }}>
+                    Moisture
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={resamplePrepData.moisture}
+                    onChange={(e) => handleResamplePrepInput('moisture', e.target.value)}
+                    style={{ width: '100%', padding: '9px 10px', borderRadius: '6px', border: '1px solid #bbb', fontSize: '13px' }}
+                  />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 700, color: '#333' }}>
+                      WB-R
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={resamplePrepData.wbR}
+                      onChange={(e) => handleResamplePrepInput('wbR', e.target.value)}
+                      style={{ width: '100%', padding: '9px 10px', borderRadius: '6px', border: '1px solid #bbb', fontSize: '13px' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 700, color: '#333' }}>
+                      WB-BK
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={resamplePrepData.wbBk}
+                      onChange={(e) => handleResamplePrepInput('wbBk', e.target.value)}
+                      style={{ width: '100%', padding: '9px 10px', borderRadius: '6px', border: '1px solid #bbb', fontSize: '13px' }}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '18px' }}>
+                <button
+                  type="button"
+                  onClick={resetResamplePrepState}
+                  style={{ padding: '9px 16px', borderRadius: '6px', border: '1px solid #999', backgroundColor: '#fff', cursor: 'pointer', fontWeight: 700, color: '#555' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  style={{ padding: '9px 16px', borderRadius: '6px', border: 'none', backgroundColor: isSubmitting ? '#b39ddb' : '#6a1b9a', color: '#fff', cursor: isSubmitting ? 'not-allowed' : 'pointer', fontWeight: 700 }}
+                >
+                  {isSubmitting ? 'Saving...' : 'Save 100gms'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       
       {detailEntry && (

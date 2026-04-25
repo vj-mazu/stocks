@@ -305,15 +305,15 @@ const SampleEntryPage: React.FC<{
     && isProvidedNumericValue(attempt?.grainsCountRaw, attempt?.grainsCount)
     && (hasFullQualitySnapshot(attempt) || !hasAnyDetailedQuality(attempt))
   );
-  const hasResampleWbActivationSnapshot = (attempt: any) => (
-    isProvidedNumericValue(attempt?.wbRRaw, attempt?.wbR)
+  const hasResample100gSnapshot = (attempt: any) => (
+    isProvidedNumericValue(attempt?.moistureRaw, attempt?.moisture)
+    && isProvidedNumericValue(attempt?.wbRRaw, attempt?.wbR)
     && isProvidedNumericValue(attempt?.wbBkRaw, attempt?.wbBk)
-    && !isProvidedNumericValue(attempt?.moistureRaw, attempt?.moisture)
     && !isProvidedNumericValue(attempt?.grainsCountRaw, attempt?.grainsCount)
     && !hasAnyDetailedQuality(attempt)
   );
   const hasDisplayableQualitySnapshot = (attempt: any) => (
-    hasQualitySnapshot(attempt) || hasResampleWbActivationSnapshot(attempt)
+    hasQualitySnapshot(attempt) || hasResample100gSnapshot(attempt)
   );
   const hasMeaningfulQualityFormData = (data: any) => {
     if (!data) return false;
@@ -1748,8 +1748,12 @@ const SampleEntryPage: React.FC<{
     const isMissing = (val: any) => String(val ?? '').trim() === '';
     const isProvided = (val: any) => !isMissing(val);
     if (allowResampleWbOnlySave) {
+      if (isMissing(qualityData.moisture)) {
+        showNotification('Moisture is required', 'error');
+        return;
+      }
       if (!wbEnabled || isMissing(qualityData.wbR) || isMissing(qualityData.wbBk)) {
-        showNotification('WB-R and WB-BK are required', 'error');
+        showNotification('Moisture, WB-R and WB-BK are required', 'error');
         return;
       }
       setShowQualitySaveConfirm(true);
@@ -1854,7 +1858,7 @@ const SampleEntryPage: React.FC<{
       formDataToSend.append('wbT', toFormValue(qualityData.wbT));
       formDataToSend.append('paddyWb', paddyWbEnabled ? toFormValue(qualityData.paddyWb) : '');
       formDataToSend.append('dryMoisture', dryMoistureEnabled ? toFormValue(qualityData.dryMoisture) : '');
-      if (useExplicitResampleSmellInput) {
+      if (useExplicitResampleSmellInput && !allowResampleWbOnlySave) {
         if (!qualitySmellAnswered) {
           showNotification('Please choose smell Yes or No for resample quality', 'error');
           setIsSubmitting(false);
@@ -1978,11 +1982,11 @@ const SampleEntryPage: React.FC<{
     && selectedEntry.entryType !== 'RICE_SAMPLE'
     && qualityModalIntent === 'next'
     && isResampleWorkflowEntry(selectedEntry as any, selectedEntryAttempts)
+    && isProvidedQualityValue(qualityData.moisture)
     && wbEnabled
     && isProvidedQualityValue(qualityData.wbR)
     && isProvidedQualityValue(qualityData.wbBk)
     && ![
-      qualityData.moisture,
       qualityData.grainsCount,
       qualityData.cutting1,
       qualityData.cutting2,
@@ -2642,7 +2646,7 @@ const SampleEntryPage: React.FC<{
                               && !baseHasQuality;
                             const baseHasResampleWbActivation = entry.entryType !== 'RICE_SAMPLE'
                               && !!latestQualityAttempt
-                              && hasResampleWbActivationSnapshot(latestQualityAttempt)
+                              && hasResample100gSnapshot(latestQualityAttempt)
                               && !baseHasQuality
                               && !baseHas100Grams;
                             const suppressOriginalQualityStatus = isPaddyResampleWorkflow && !resampleQualitySaved;

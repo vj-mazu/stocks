@@ -292,6 +292,36 @@ const SampleEntryOffering = sequelize.define('SampleEntryOffering', {
         defaultValue: false,
         field: 'is_finalized'
     },
+    pendingManagerValueApprovalStatus: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+        field: 'pending_manager_value_approval_status'
+    },
+    pendingManagerValueApprovalData: {
+        type: DataTypes.JSONB,
+        allowNull: true,
+        field: 'pending_manager_value_approval_data'
+    },
+    pendingManagerValueApprovalRequestedBy: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        field: 'pending_manager_value_approval_requested_by'
+    },
+    pendingManagerValueApprovalRequestedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        field: 'pending_manager_value_approval_requested_at'
+    },
+    pendingManagerValueApprovalApprovedBy: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        field: 'pending_manager_value_approval_approved_by'
+    },
+    pendingManagerValueApprovalApprovedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        field: 'pending_manager_value_approval_approved_at'
+    },
     // === TRACKING ===
     createdBy: {
         type: DataTypes.INTEGER,
