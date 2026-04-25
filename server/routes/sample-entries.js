@@ -1978,8 +1978,11 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
 
         await hydrateSampleEntryWorkflowState(sampleEntry);
 
+        const isResampleCookingPrepOnlyRequest = parseBoolFlag(req.body.resampleCookingPrepOnly) === true;
+
         // Location staff can edit own LOCATION_SAMPLE entries OR assigned resample lots.
-        if (userRole === 'physical_supervisor' && sampleEntry.entryType === 'LOCATION_SAMPLE') {
+        // Resample 100gms from Cooking Book is a separate supervisor flow and is allowed for the broader paddy supervisor set.
+        if (userRole === 'physical_supervisor' && sampleEntry.entryType === 'LOCATION_SAMPLE' && !isResampleCookingPrepOnlyRequest) {
           const canEdit = await canLocationStaffEditQuality(sampleEntry, req.user);
           if (!canEdit) {
             return res.status(403).json({
@@ -2343,8 +2346,11 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
 
         await hydrateSampleEntryWorkflowState(sampleEntry);
 
+        const isResampleCookingPrepOnlyRequest = parseBoolFlag(req.body.resampleCookingPrepOnly) === true;
+
         // Location staff can edit own LOCATION_SAMPLE entries OR assigned resample lots.
-        if (userRole === 'physical_supervisor' && sampleEntry.entryType === 'LOCATION_SAMPLE') {
+        // Resample 100gms from Cooking Book is a separate supervisor flow and is allowed for the broader paddy supervisor set.
+        if (userRole === 'physical_supervisor' && sampleEntry.entryType === 'LOCATION_SAMPLE' && !isResampleCookingPrepOnlyRequest) {
           const canEdit = await canLocationStaffEditQuality(sampleEntry, req.user);
           if (!canEdit) {
             return res.status(403).json({
