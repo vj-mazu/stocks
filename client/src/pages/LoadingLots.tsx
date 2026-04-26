@@ -659,29 +659,39 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
       return;
     }
     const o = entry.offering || {};
-    const isBrokerageMissing = o.brokerageEnabled === false && !parseFloat(o.brokerage ?? '');
-    setSelectedEntry(entry);
+    const pendingApprovalData = String(o.pendingManagerValueApprovalStatus || '').toLowerCase() === 'pending'
+      ? (o.pendingManagerValueApprovalData || {})
+      : {};
+    const effectiveOffering = {
+      ...o,
+      ...pendingApprovalData
+    };
+    const isBrokerageMissing = effectiveOffering.brokerageEnabled === false && !parseFloat(effectiveOffering.brokerage ?? '');
+    setSelectedEntry({
+      ...entry,
+      offering: effectiveOffering
+    });
     setManagerData({
-      sute: o.finalSute?.toString() ?? o.sute?.toString() ?? '',
-      suteUnit: o.finalSuteUnit || o.suteUnit || 'per_ton',
-      moistureValue: o.moistureValue?.toString() ?? '',
-      hamali: toOptionalInputValue(o.hamali),
-      hamaliUnit: o.hamaliUnit || 'per_bag',
-      brokerage: toOptionalInputValue(o.brokerage),
-      brokerageUnit: isBrokerageMissing ? 'per_quintal' : (o.brokerageUnit || 'per_quintal'),
-      lf: toOptionalInputValue(o.lf),
-      lfUnit: o.lfUnit || 'per_bag',
-      finalBaseRate: o.finalBaseRate?.toString() ?? o.offerBaseRateValue?.toString() ?? '',
-      baseRateType: o.baseRateType || 'PD_WB',
-      egbValue: o.egbValue?.toString() ?? '',
-      egbType: o.egbType || ((o.egbValue && parseFloat(o.egbValue) > 0) ? 'purchase' : 'mill'),
-      cdValue: toOptionalInputValue(o.cdValue),
-      cdUnit: o.cdUnit || 'percentage',
-      bankLoanValue: toOptionalInputValue(o.bankLoanValue),
-      bankLoanUnit: o.bankLoanUnit || 'per_bag',
-      paymentConditionEnabled: !(o.paymentConditionValue == null || o.paymentConditionValue === ''),
-      paymentConditionValue: o.paymentConditionValue?.toString() ?? '15',
-      paymentConditionUnit: o.paymentConditionUnit || 'days'
+      sute: effectiveOffering.finalSute?.toString() ?? effectiveOffering.sute?.toString() ?? '',
+      suteUnit: effectiveOffering.finalSuteUnit || effectiveOffering.suteUnit || 'per_ton',
+      moistureValue: effectiveOffering.moistureValue?.toString() ?? '',
+      hamali: toOptionalInputValue(effectiveOffering.hamali),
+      hamaliUnit: effectiveOffering.hamaliUnit || 'per_bag',
+      brokerage: toOptionalInputValue(effectiveOffering.brokerage),
+      brokerageUnit: isBrokerageMissing ? 'per_quintal' : (effectiveOffering.brokerageUnit || 'per_quintal'),
+      lf: toOptionalInputValue(effectiveOffering.lf),
+      lfUnit: effectiveOffering.lfUnit || 'per_bag',
+      finalBaseRate: effectiveOffering.finalBaseRate?.toString() ?? effectiveOffering.offerBaseRateValue?.toString() ?? '',
+      baseRateType: effectiveOffering.baseRateType || 'PD_WB',
+      egbValue: effectiveOffering.egbValue?.toString() ?? '',
+      egbType: effectiveOffering.egbType || ((effectiveOffering.egbValue && parseFloat(effectiveOffering.egbValue) > 0) ? 'purchase' : 'mill'),
+      cdValue: toOptionalInputValue(effectiveOffering.cdValue),
+      cdUnit: effectiveOffering.cdUnit || 'percentage',
+      bankLoanValue: toOptionalInputValue(effectiveOffering.bankLoanValue),
+      bankLoanUnit: effectiveOffering.bankLoanUnit || 'per_bag',
+      paymentConditionEnabled: !(effectiveOffering.paymentConditionValue == null || effectiveOffering.paymentConditionValue === ''),
+      paymentConditionValue: effectiveOffering.paymentConditionValue?.toString() ?? '15',
+      paymentConditionUnit: effectiveOffering.paymentConditionUnit || 'days'
     });
     setShowModal(true);
   };

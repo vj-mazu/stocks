@@ -272,6 +272,7 @@ const hasFullQualitySnapshot = (attempt = {}) => {
 const hasSampleBookReadySnapshot = (attempt = {}) => {
   const hasMoisture = isProvidedNumericValue(attempt.moistureRaw, attempt.moisture);
   const hasGrains = isProvidedNumericValue(attempt.grainsCountRaw, attempt.grainsCount);
+  if (hasResampleCookingPrepSnapshot(attempt)) return true;
   if (!hasMoisture || !hasGrains) return false;
   if (hasFullQualitySnapshot(attempt)) return true;
   return !hasAnyDetailedQuality(attempt);
@@ -2054,20 +2055,7 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
 
         const hasAnyFullDetail = hasCutting1 || hasCutting2 || hasBend1 || hasBend2 || hasMix || hasKandu || hasOil || hasSk;
         const is100gOnly = hasMoisture && hasGrains && !hasAnyFullDetail;
-        const isResampleWbActivationOnly =
-          String(req.body.qualityEntryIntent || '').toLowerCase() === 'next'
-          && sampleEntry?.entryType !== 'RICE_SAMPLE'
-          && isResampleWorkflowMarker(sampleEntry)
-          && wbEnabled
-          && hasWbR
-          && hasWbBk
-          && !hasMoisture
-          && !hasGrains
-          && !hasAnyFullDetail
-          && !hasPaddyWb
-          && !hasDryMoisture
-          && !hasSmix
-          && !hasLmix;
+        const isResampleWbActivationOnly = false;
         const isValidResampleCookingPrepOnly =
           isResampleCookingPrepOnly
           && wbEnabled
@@ -2080,15 +2068,27 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
           && !hasDryMoisture
           && !hasSmix
           && !hasLmix;
+        const isValidPaddy100gThreeFieldOnly =
+          sampleEntry?.entryType !== 'RICE_SAMPLE'
+          && hasMoisture
+          && wbEnabled
+          && hasWbR
+          && hasWbBk
+          && !hasGrains
+          && !hasAnyFullDetail
+          && !hasPaddyWb
+          && !hasDryMoisture
+          && !hasSmix
+          && !hasLmix;
         const rawReportedByValue = typeof req.body.reportedBy === 'string' ? req.body.reportedBy.trim() : '';
-        const reportedByValue = isValidResampleCookingPrepOnly
+        const reportedByValue = (isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly)
           ? rawReportedByValue
-          : (rawReportedByValue || (isResampleWbActivationOnly ? String(req.user?.username || '').trim() : ''));
-        if ((!isValidResampleCookingPrepOnly && !reportedByValue) || reportedByValue.toLowerCase() === 'unknown') {
+          : rawReportedByValue;
+        if ((!isValidResampleCookingPrepOnly && !isValidPaddy100gThreeFieldOnly && !reportedByValue) || reportedByValue.toLowerCase() === 'unknown') {
           return res.status(400).json({ error: 'Sample Reported By is required' });
         }
 
-        if (!is100gOnly && !isResampleWbActivationOnly && !isValidResampleCookingPrepOnly) {
+        if (!is100gOnly && !isValidResampleCookingPrepOnly && !isValidPaddy100gThreeFieldOnly) {
           if (!hasMoisture) return res.status(400).json({ error: 'Moisture is required' });
           if (!hasGrains) return res.status(400).json({ error: 'Grains Count is required' });
           if (!hasCutting1 || !hasCutting2) return res.status(400).json({ error: 'Cutting is required' });
@@ -2248,7 +2248,7 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
               existingQuality.id,
               {
                 ...qualityData,
-                is100Grams: req.body.is100Grams === 'true' || req.body.is100Grams === true || isResampleWbActivationOnly || isValidResampleCookingPrepOnly,
+                is100Grams: req.body.is100Grams === 'true' || req.body.is100Grams === true || isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly,
                 reportedByUserId: req.user.userId
               },
               req.user.userId,
@@ -2279,7 +2279,7 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
               existingQuality.id,
               {
                 ...qualityData,
-                is100Grams: req.body.is100Grams === 'true' || req.body.is100Grams === true || isResampleWbActivationOnly || isValidResampleCookingPrepOnly,
+                is100Grams: req.body.is100Grams === 'true' || req.body.is100Grams === true || isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly,
                 reportedByUserId: req.user.userId
               },
               req.user.userId,
@@ -2303,7 +2303,7 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
         const quality = await QualityParametersService.addQualityParameters(
           {
             ...qualityData,
-            is100Grams: req.body.is100Grams === 'true' || req.body.is100Grams === true || isResampleWbActivationOnly || isValidResampleCookingPrepOnly
+            is100Grams: req.body.is100Grams === 'true' || req.body.is100Grams === true || isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly
           },
           req.user.userId,
           getWorkflowRole(req.user)
@@ -2413,27 +2413,7 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
         const wbEnabled = wbEnabledFlag !== null ? wbEnabledFlag : (hasWbR || hasWbBk);
         const paddyWbEnabled = paddyWbEnabledFlag !== null ? paddyWbEnabledFlag : hasPaddyWb;
         const dryMoistureEnabled = dryMoistureEnabledFlag !== null ? dryMoistureEnabledFlag : hasDryMoisture;
-        const isResampleWbActivationOnly =
-          String(req.body.qualityEntryIntent || '').toLowerCase() === 'next'
-          && sampleEntry?.entryType !== 'RICE_SAMPLE'
-          && isResampleWorkflowMarker(sampleEntry)
-          && wbEnabled
-          && hasWbR
-          && hasWbBk
-          && normalizeRaw(req.body.moisture) === null
-          && normalizeRaw(req.body.grainsCount) === null
-          && !hasMix
-          && !hasKandu
-          && !hasOil
-          && !hasSk
-          && !hasSmix
-          && !hasLmix
-          && normalizeRaw(req.body.cutting1) === null
-          && normalizeRaw(req.body.cutting2) === null
-          && normalizeRaw(req.body.bend1) === null
-          && normalizeRaw(req.body.bend2) === null
-          && !hasPaddyWb
-          && !hasDryMoisture;
+        const isResampleWbActivationOnly = false;
         const isResampleCookingPrepOnly =
           parseBoolFlag(req.body.resampleCookingPrepOnly) === true
           && sampleEntry?.entryType !== 'RICE_SAMPLE'
@@ -2457,11 +2437,30 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
           && normalizeRaw(req.body.bend2) === null
           && !hasPaddyWb
           && !hasDryMoisture;
+        const isValidPaddy100gThreeFieldOnly =
+          sampleEntry?.entryType !== 'RICE_SAMPLE'
+          && normalizeRaw(req.body.moisture) !== null
+          && wbEnabled
+          && hasWbR
+          && hasWbBk
+          && normalizeRaw(req.body.grainsCount) === null
+          && !hasMix
+          && !hasKandu
+          && !hasOil
+          && !hasSk
+          && !hasSmix
+          && !hasLmix
+          && normalizeRaw(req.body.cutting1) === null
+          && normalizeRaw(req.body.cutting2) === null
+          && normalizeRaw(req.body.bend1) === null
+          && normalizeRaw(req.body.bend2) === null
+          && !hasPaddyWb
+          && !hasDryMoisture;
         const rawReportedByValue = typeof req.body.reportedBy === 'string' ? req.body.reportedBy.trim() : '';
-        const reportedByValue = isValidResampleCookingPrepOnly
+        const reportedByValue = (isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly)
           ? rawReportedByValue
-          : (rawReportedByValue || (isResampleWbActivationOnly ? String(existing?.reportedBy || req.user?.username || '').trim() : ''));
-        if ((!isValidResampleCookingPrepOnly && !reportedByValue) || reportedByValue.toLowerCase() === 'unknown') {
+          : rawReportedByValue;
+        if ((!isValidResampleCookingPrepOnly && !isValidPaddy100gThreeFieldOnly && !reportedByValue) || reportedByValue.toLowerCase() === 'unknown') {
           return res.status(400).json({ error: 'Sample Reported By is required' });
         }
 
@@ -2472,7 +2471,7 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
         // Prepare update data
         const updates = {
           sampleEntryId,
-          is100Grams: req.body.is100Grams === 'true' || req.body.is100Grams === true || isResampleWbActivationOnly || isValidResampleCookingPrepOnly,
+          is100Grams: req.body.is100Grams === 'true' || req.body.is100Grams === true || isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly,
           moisture: parseFloatSafe(req.body.moisture, existing.moisture),
           dryMoisture: dryMoistureEnabled ? parseFloatSafe(req.body.dryMoisture, existing.dryMoisture) : null,
           cutting1: parseFloatSafe(req.body.cutting1, existing.cutting1),

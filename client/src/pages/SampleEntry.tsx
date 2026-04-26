@@ -301,9 +301,12 @@ const SampleEntryPage: React.FC<{
     && isProvidedAlphaValue(attempt?.skRaw, attempt?.sk)
   );
   const hasSampleBookReadySnapshot = (attempt: any) => (
-    isProvidedNumericValue(attempt?.moistureRaw, attempt?.moisture)
-    && isProvidedNumericValue(attempt?.grainsCountRaw, attempt?.grainsCount)
-    && (hasFullQualitySnapshot(attempt) || !hasAnyDetailedQuality(attempt))
+    hasResample100gSnapshot(attempt)
+    || (
+      isProvidedNumericValue(attempt?.moistureRaw, attempt?.moisture)
+      && isProvidedNumericValue(attempt?.grainsCountRaw, attempt?.grainsCount)
+      && (hasFullQualitySnapshot(attempt) || !hasAnyDetailedQuality(attempt))
+    )
   );
   const hasResample100gSnapshot = (attempt: any) => (
     isProvidedNumericValue(attempt?.moistureRaw, attempt?.moisture)
@@ -1747,7 +1750,7 @@ const SampleEntryPage: React.FC<{
     if (isSubmitting) return;
     const isMissing = (val: any) => String(val ?? '').trim() === '';
     const isProvided = (val: any) => !isMissing(val);
-    if (allowResampleWbOnlySave) {
+    if (allowPaddy100gThreeFieldSave) {
       if (isMissing(qualityData.moisture)) {
         showNotification('Moisture is required', 'error');
         return;
@@ -1762,9 +1765,9 @@ const SampleEntryPage: React.FC<{
     if (isMissing(qualityData.moisture)) { showNotification('Moisture is required', 'error'); return; }
 
     const reportedByValue = qualityData.reportedBy || '';
-    if (!reportedByValue || reportedByValue.trim() === '') { showNotification('Sample Reported By is required', 'error'); return; }
+    if (!allowPaddy100gThreeFieldSave && (!reportedByValue || reportedByValue.trim() === '')) { showNotification('Sample Reported By is required', 'error'); return; }
     // Smell validation removed as it's read-only from entry
-    if (isMissing(qualityData.grainsCount)) { showNotification('Grains count is required', 'error'); return; }
+    if (!allowPaddy100gThreeFieldSave && isMissing(qualityData.grainsCount)) { showNotification('Grains count is required', 'error'); return; }
 
     if (selectedEntry?.entryType === 'RICE_SAMPLE') {
       // All fields mandatory for Rice except toggles
@@ -1777,9 +1780,7 @@ const SampleEntryPage: React.FC<{
       if (isMissing(qualityData.oil)) { showNotification('Oil is required', 'error'); return; }
       if (isMissing(qualityData.gramsReport)) { showNotification('Grams Report is required', 'error'); return; }
     } else {
-      // 100g save = moisture + grainsCount only for Paddy
-      if (isMissing(qualityData.grainsCount)) { showNotification('Grains Count is required', 'error'); return; }
-      const has100g = isProvided(qualityData.moisture) && isProvided(qualityData.grainsCount);
+      const has100g = allowPaddy100gThreeFieldSave || (isProvided(qualityData.moisture) && isProvided(qualityData.grainsCount));
       const qualityFields = (
         isProvided(qualityData.cutting1) || isProvided(qualityData.cutting2)
         || isProvided(qualityData.bend1) || isProvided(qualityData.bend2)
@@ -1800,7 +1801,7 @@ const SampleEntryPage: React.FC<{
         if (isMissing(qualityData.kandu)) { showNotification('Kandu is required', 'error'); return; }
         if (isMissing(qualityData.oil)) { showNotification('Oil is required', 'error'); return; }
         if (isMissing(qualityData.sk)) { showNotification('SK is required', 'error'); return; }
-        if (isMissing(qualityData.grainsCount)) { showNotification('Grains Count is required', 'error'); return; }
+        if (!allowPaddy100gThreeFieldSave && isMissing(qualityData.grainsCount)) { showNotification('Grains Count is required', 'error'); return; }
       }
     }
     setShowQualitySaveConfirm(true);
@@ -1829,7 +1830,7 @@ const SampleEntryPage: React.FC<{
         || isProvided(qualityData.bend1) || isProvided(qualityData.bend2)
         || isProvided(qualityData.mix) || isProvided(qualityData.mixS) || isProvided(qualityData.mixL)
         || isProvided(qualityData.kandu) || isProvided(qualityData.oil) || isProvided(qualityData.sk));
-    const is100GramsSave = selectedEntry.entryType === 'RICE_SAMPLE' ? false : (has100gOnly || allowResampleWbOnlySave);
+    const is100GramsSave = selectedEntry.entryType === 'RICE_SAMPLE' ? false : (has100gOnly || allowPaddy100gThreeFieldSave);
 
     try {
       setIsSubmitting(true);
@@ -1858,7 +1859,7 @@ const SampleEntryPage: React.FC<{
       formDataToSend.append('wbT', toFormValue(qualityData.wbT));
       formDataToSend.append('paddyWb', paddyWbEnabled ? toFormValue(qualityData.paddyWb) : '');
       formDataToSend.append('dryMoisture', dryMoistureEnabled ? toFormValue(qualityData.dryMoisture) : '');
-      if (useExplicitResampleSmellInput && !allowResampleWbOnlySave) {
+      if (useExplicitResampleSmellInput && !allowPaddy100gThreeFieldSave) {
         if (!qualitySmellAnswered) {
           showNotification('Please choose smell Yes or No for resample quality', 'error');
           setIsSubmitting(false);
@@ -1896,9 +1897,8 @@ const SampleEntryPage: React.FC<{
       formDataToSend.append('paddyWbEnabled', paddyWbEnabled ? 'true' : 'false');
       formDataToSend.append('dryMoistureEnabled', dryMoistureEnabled ? 'true' : 'false');
       const reportedByValue = qualityData.reportedBy || '';
-      const fallbackReportedBy = String((user as any)?.fullName || user?.username || '').trim();
-      const effectiveReportedByValue = reportedByValue || (allowResampleWbOnlySave ? fallbackReportedBy : '');
-      if (!effectiveReportedByValue) {
+      const effectiveReportedByValue = reportedByValue;
+      if (!allowPaddy100gThreeFieldSave && !effectiveReportedByValue) {
         showNotification('Sample Reported By is required', 'error');
         setIsSubmitting(false);
         releaseSubmissionLock(lockKey);
@@ -1907,6 +1907,9 @@ const SampleEntryPage: React.FC<{
       formDataToSend.append('reportedBy', effectiveReportedByValue);
       if (is100GramsSave) {
         formDataToSend.append('is100Grams', 'true');
+      }
+      if (allowResampleWbOnlySave) {
+        formDataToSend.append('resampleCookingPrepOnly', 'true');
       }
       if (qualityData.gpsCoordinates) {
         formDataToSend.append('gpsCoordinates', qualityData.gpsCoordinates);
@@ -1978,10 +1981,8 @@ const SampleEntryPage: React.FC<{
   const useExplicitResampleSmellInput = !!selectedEntry
     && selectedEntry.entryType !== 'RICE_SAMPLE';
   const isProvidedQualityValue = (value: any) => String(value ?? '').trim() !== '';
-  const allowResampleWbOnlySave = !!selectedEntry
+  const allowPaddy100gThreeFieldSave = !!selectedEntry
     && selectedEntry.entryType !== 'RICE_SAMPLE'
-    && qualityModalIntent === 'next'
-    && isResampleWorkflowEntry(selectedEntry as any, selectedEntryAttempts)
     && isProvidedQualityValue(qualityData.moisture)
     && wbEnabled
     && isProvidedQualityValue(qualityData.wbR)
@@ -2001,6 +2002,11 @@ const SampleEntryPage: React.FC<{
       qualityData.paddyWb,
       qualityData.dryMoisture
     ].some(isProvidedQualityValue);
+  const allowResampleWbOnlySave = !!selectedEntry
+    && selectedEntry.entryType !== 'RICE_SAMPLE'
+    && qualityModalIntent === 'next'
+    && isResampleWorkflowEntry(selectedEntry as any, selectedEntryAttempts)
+    && allowPaddy100gThreeFieldSave;
   const forceFreshResampleAdd = qualityModalIntent === 'next';
   const forceQualityEdit = qualityModalIntent === 'edit';
   const showQualityAsUpdate = shouldShowQualityUpdateMode({
@@ -2636,23 +2642,33 @@ const SampleEntryPage: React.FC<{
                                 'FINAL_REVIEW',
                                 'COMPLETED'
                               ].includes(normalizedWorkflowStatus);
-                            const inferredNormalQualityComplete = !isPaddyResampleWorkflow
-                              && (hasPersistedQualityAttempt || hasPersistedCookingHistory || hasProgressedBeyondQuality);
-                            const baseHasQuality = (!!latestQualityAttempt && hasFullQualitySnapshot(latestQualityAttempt))
-                              || inferredNormalQualityComplete;
-                            const baseHas100Grams = entry.entryType !== 'RICE_SAMPLE'
+                            const latestHasFullQuality = !!latestQualityAttempt && hasFullQualitySnapshot(latestQualityAttempt);
+                            const latestHas100Grams = entry.entryType !== 'RICE_SAMPLE'
                               && !!latestQualityAttempt
                               && hasSampleBookReadySnapshot(latestQualityAttempt)
-                              && !baseHasQuality;
-                            const baseHasResampleWbActivation = entry.entryType !== 'RICE_SAMPLE'
+                              && !latestHasFullQuality;
+                            const latestHasResample100gPrep = entry.entryType !== 'RICE_SAMPLE'
                               && !!latestQualityAttempt
                               && hasResample100gSnapshot(latestQualityAttempt)
+                              && !latestHasFullQuality
+                              && !latestHas100Grams;
+                            const inferredNormalQualityComplete = !isPaddyResampleWorkflow
+                              && !latestHas100Grams
+                              && !latestHasResample100gPrep
+                              && (
+                                hasPersistedCookingHistory
+                                || hasProgressedBeyondQuality
+                                || (!latestQualityAttempt && hasPersistedQualityAttempt)
+                              );
+                            const baseHasQuality = latestHasFullQuality || inferredNormalQualityComplete;
+                            const baseHas100Grams = latestHas100Grams && !baseHasQuality;
+                            const baseHasResample100gPrep = latestHasResample100gPrep
                               && !baseHasQuality
                               && !baseHas100Grams;
                             const suppressOriginalQualityStatus = isPaddyResampleWorkflow && !resampleQualitySaved;
                             const hasQuality = isQualityRecheckPending ? false : (!suppressOriginalQualityStatus && baseHasQuality);
                             const has100Grams = isQualityRecheckPending ? false : (!suppressOriginalQualityStatus && baseHas100Grams);
-                            const hasResampleWbActivation = isQualityRecheckPending ? false : (isPaddyResampleWorkflow && !resampleQualitySaved && baseHasResampleWbActivation);
+                            const hasResample100gPrep = isQualityRecheckPending ? false : (isPaddyResampleWorkflow && !resampleQualitySaved && baseHasResample100gPrep);
                             const showResampleQualityCompleted = isPaddyResampleWorkflow && resampleQualitySaved && hasQuality;
                             const showResample100GramsCompleted = isPaddyResampleWorkflow && resampleQualitySaved && has100Grams;
                             const showDetailedQualityStatus = false;
@@ -2842,7 +2858,7 @@ const SampleEntryPage: React.FC<{
                                   {entry.workflowStatus === 'FAILED' && <span style={{ marginLeft: '3px', color: '#e74c3c', fontSize: '11px' }} title="Failed">❌</span>}
                                   {hasQuality && <span style={{ marginLeft: '3px', color: '#27ae60', fontSize: '11px' }} title="Quality Completed">✅</span>}
                                   {has100Grams && <span style={{ marginLeft: '3px', color: '#e65100', fontSize: '11px' }} title="100g Completed">⚡</span>}
-                                  {hasResampleWbActivation && <span style={{ marginLeft: '3px', color: '#7c3aed', fontSize: '11px' }} title="WB saved for resample cooking">⚡</span>}
+                                  {hasResample100gPrep && <span style={{ marginLeft: '3px', color: '#7c3aed', fontSize: '11px' }} title="Moisture, WB-R and WB-BK saved for resample cooking">⚡</span>}
                                 </td>
                                 <td style={{ padding: '0px 2px', textAlign: 'left', lineHeight: '1.1', border: '1px solid #000' }}>
                                   <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-start' }}>
@@ -3004,7 +3020,7 @@ const SampleEntryPage: React.FC<{
                                         ) : null}
                                         {renderUploadButton()}
                                       </div>
-                                    ) : hasResampleWbActivation ? (
+                                    ) : hasResample100gPrep ? (
                                       <>
                                         <span
                                           onClick={() => canEditQuality ? setExpandedEntryId(expandedEntryId === entry.id ? null : entry.id) : null}
@@ -4016,12 +4032,12 @@ const SampleEntryPage: React.FC<{
                       {/* Row 1: Moisture, Grains Count, Broken (mix) */}
                       <div>
                         <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>Moisture <span style={{ color: '#e53935' }}>*</span></label>
-                        <input type="number" step="0.01" required={!allowResampleWbOnlySave} value={qualityData.moisture}
+                        <input type="number" step="0.01" required={!allowPaddy100gThreeFieldSave} value={qualityData.moisture}
                           onChange={(e) => handleQualityInput('moisture', e.target.value)}
                           style={{ width: '100%', padding: '6px', border: '1.5px solid #bbb', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} />
                       </div>
                       <div>
-                        <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>Grains Count <span style={{ color: '#e53935' }}>*</span></label>
+                        <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>Grains Count {!allowPaddy100gThreeFieldSave ? <span style={{ color: '#e53935' }}>*</span> : null}</label>
                         <input type="number" value={qualityData.grainsCount}
                           onChange={(e) => handleQualityInput('grainsCount', e.target.value)}
                           style={{ width: '100%', padding: '6px', border: '1.5px solid #bbb', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} />
@@ -4199,7 +4215,7 @@ const SampleEntryPage: React.FC<{
                           style={{ width: '100%', padding: '6px', border: '1.5px solid #bbb', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box', visibility: dryMoistureEnabled ? 'visible' : 'hidden' }} />
                       </div>
                       <div>
-                        <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>Grains Count <span style={{ color: '#e53935' }}>*</span></label>
+                        <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>Grains Count {!allowPaddy100gThreeFieldSave ? <span style={{ color: '#e53935' }}>*</span> : null}</label>
                         <input type="number" value={qualityData.grainsCount}
                           onChange={(e) => handleQualityInput('grainsCount', e.target.value)}
                           style={{ width: '100%', padding: '6px', border: '1.5px solid #bbb', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} />
@@ -4402,7 +4418,7 @@ const SampleEntryPage: React.FC<{
                   </div>
                   <div>
                     <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>
-                      Sample Reported By {!allowResampleWbOnlySave ? <span style={{ color: '#e53935' }}>*</span> : null}
+                      Sample Reported By {!allowPaddy100gThreeFieldSave ? <span style={{ color: '#e53935' }}>*</span> : null}
                     </label>
                       <select
                         value={(() => {
