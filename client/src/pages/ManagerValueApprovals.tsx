@@ -65,6 +65,7 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
   const [entries, setEntries] = useState<ApprovalEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
+  const canManageApprovals = ['admin', 'owner'].includes(String(user?.role || '').toLowerCase());
 
   const loadEntries = useCallback(async () => {
     try {
@@ -82,14 +83,16 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
   }, [showNotification]);
 
   useEffect(() => {
-    if (user?.role === 'admin') {
+    if (canManageApprovals) {
       loadEntries();
+    } else {
+      setEntries([]);
     }
-  }, [loadEntries, user?.role]);
+  }, [canManageApprovals, loadEntries]);
 
   useEffect(() => {
-    onCountChange?.(user?.role === 'admin' ? entries.length : 0);
-  }, [entries.length, onCountChange, user?.role]);
+    onCountChange?.(canManageApprovals ? entries.length : 0);
+  }, [canManageApprovals, entries.length, onCountChange]);
 
   const pendingCountBadge = useMemo(() => (
     entries.length > 0 ? (
@@ -122,7 +125,7 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
         headers: { Authorization: `Bearer ${token}` }
       });
       showNotification((response.data as any)?.message || `Request ${decision}d`, 'success');
-      loadEntries();
+      setEntries((current) => current.filter((entry) => entry.id !== entryId));
     } catch (error: any) {
       showNotification(error.response?.data?.error || 'Failed to update manager approval', 'error');
     } finally {
@@ -130,10 +133,10 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
     }
   };
 
-  if (user?.role !== 'admin') {
+  if (!canManageApprovals) {
     return (
       <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #dbeafe', padding: '24px', color: '#475569', fontWeight: 600 }}>
-        Manager value approvals are available only for admin.
+        Manager value approvals are available only for admin and owner.
       </div>
     );
   }

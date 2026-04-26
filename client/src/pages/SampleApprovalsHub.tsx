@@ -19,12 +19,34 @@ interface ApprovalTabConfig {
 const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excludeEntryType, onPendingCountChange }) => {
   const [editApprovalCount, setEditApprovalCount] = useState(0);
   const [managerApprovalCount, setManagerApprovalCount] = useState(0);
-  const tabs = useMemo<ApprovalTabConfig[]>(() => ([
-    { key: 'approval-for-edits', label: 'Approval For Edits', color: '#8e44ad' },
-    { key: 'approval-for-manager', label: 'Approval For Manager', color: '#16a34a' }
-  ]), []);
+  const currentUser = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || 'null');
+    } catch {
+      return null;
+    }
+  }, []);
+  const canAccessManagerApprovals = ['admin', 'owner'].includes(String(currentUser?.role || '').toLowerCase());
+  const tabs = useMemo<ApprovalTabConfig[]>(() => {
+    const baseTabs: ApprovalTabConfig[] = [
+      { key: 'approval-for-edits', label: 'Approval For Edits', color: '#8e44ad' }
+    ];
+    if (canAccessManagerApprovals) {
+      baseTabs.push({ key: 'approval-for-manager', label: 'Approval For Manager', color: '#16a34a' });
+    }
+    return baseTabs;
+  }, [canAccessManagerApprovals]);
   const [activeTab, setActiveTab] = useState<ApprovalTabKey>('approval-for-edits');
-  const totalPendingCount = editApprovalCount + managerApprovalCount;
+  const totalPendingCount = editApprovalCount + (canAccessManagerApprovals ? managerApprovalCount : 0);
+
+  useEffect(() => {
+    if (!canAccessManagerApprovals) {
+      setManagerApprovalCount(0);
+      if (activeTab === 'approval-for-manager') {
+        setActiveTab('approval-for-edits');
+      }
+    }
+  }, [activeTab, canAccessManagerApprovals]);
 
   useEffect(() => {
     onPendingCountChange?.(totalPendingCount);
@@ -93,7 +115,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
         {activeTab === 'approval-for-edits' && (
           <SampleEditApprovals entryType={entryType} excludeEntryType={excludeEntryType} onCountChange={setEditApprovalCount} />
         )}
-        {activeTab === 'approval-for-manager' && <ManagerValueApprovals onCountChange={setManagerApprovalCount} />}
+        {canAccessManagerApprovals && activeTab === 'approval-for-manager' && <ManagerValueApprovals onCountChange={setManagerApprovalCount} />}
       </div>
     </div>
   );
