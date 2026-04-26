@@ -493,6 +493,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
   const [selectedEntry, setSelectedEntry] = useState<SampleEntry | null>(null);
   const [detailModalEntry, setDetailModalEntry] = useState<SampleEntry | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [managerModalMode, setManagerModalMode] = useState<'view' | 'edit'>('view');
   const [showOfferEditModal, setShowOfferEditModal] = useState(false);
   const [showFinalEditModal, setShowFinalEditModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -653,7 +654,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
 
   useEffect(() => { fetchEntries(); }, [fetchEntries]);
 
-  const handleUpdateClick = (entry: SampleEntry) => {
+  const handleManagerValuesModalOpen = (entry: SampleEntry, mode: 'view' | 'edit') => {
     if (entry.entryType !== 'RICE_SAMPLE' && !entry.qualityParameters?.id && !entry.qualityParameters?.reportedBy) {
       showNotification('Add quality report before filling manager values.', 'error');
       return;
@@ -693,6 +694,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
       paymentConditionValue: effectiveOffering.paymentConditionValue?.toString() ?? '15',
       paymentConditionUnit: effectiveOffering.paymentConditionUnit || 'days'
     });
+    setManagerModalMode(mode);
     setShowModal(true);
   };
 
@@ -1509,15 +1511,16 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
   const modalBankLoanMissing = !!selectedEntry && !!modalOffering.bankLoanEnabled && !parseFloat(modalOffering.bankLoanValue ?? '');
   const modalPaymentMissing = !!selectedEntry && modalPaymentEnabled && !parseInt(modalOffering.paymentConditionValue ?? '', 10);
   const modalEgbMissing = !!selectedEntry && modalHasEgb && modalOffering.egbType === 'purchase' && !parseFloat(modalOffering.egbValue ?? '');
-  const modalCanEditSute = !!selectedEntry && isAdminOrOwner;
-  const modalCanEditMoisture = !!selectedEntry && isAdminOrOwner;
-  const modalCanEditHamali = !!selectedEntry && isManagerOrOwner;
-  const modalCanEditBrokerage = !!selectedEntry && isManagerOrOwner;
-  const modalCanEditLf = !!selectedEntry && modalHasLf && isManagerOrOwner;
-  const modalCanEditCd = !!selectedEntry && isAdminOrOwner;
-  const modalCanEditBankLoan = !!selectedEntry && isAdminOrOwner;
-  const modalCanEditPayment = !!selectedEntry && isAdminOrOwner;
-  const modalCanEditEgb = !!selectedEntry && modalHasEgb && modalOffering.egbType === 'purchase' && isAdminOrOwner;
+  const modalEditMode = managerModalMode === 'edit';
+  const modalCanEditSute = !!selectedEntry && modalEditMode && isAdminOrOwner;
+  const modalCanEditMoisture = !!selectedEntry && modalEditMode && isAdminOrOwner;
+  const modalCanEditHamali = !!selectedEntry && modalEditMode && isManagerOrOwner;
+  const modalCanEditBrokerage = !!selectedEntry && modalEditMode && isManagerOrOwner;
+  const modalCanEditLf = !!selectedEntry && modalHasLf && modalEditMode && isManagerOrOwner;
+  const modalCanEditCd = !!selectedEntry && modalEditMode && isAdminOrOwner;
+  const modalCanEditBankLoan = !!selectedEntry && modalEditMode && isAdminOrOwner;
+  const modalCanEditPayment = !!selectedEntry && modalEditMode && isAdminOrOwner;
+  const modalCanEditEgb = !!selectedEntry && modalHasEgb && modalOffering.egbType === 'purchase' && modalEditMode && isAdminOrOwner;
   const modalHasEditableFields = [
     modalCanEditSute,
     modalCanEditMoisture,
@@ -1611,7 +1614,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     color: editable ? '#8a6400' : modalManagerAddedMeta.style.color,
     border: editable ? '1px solid #f9d976' : modalManagerAddedMeta.style.border
   });
-  const modalFixedAdminTagStyle = (editable: boolean): React.CSSProperties => ({
+  const modalFixedAdminTagStyle = (warning: boolean): React.CSSProperties => ({
     display: 'inline-flex',
     alignItems: 'center',
     fontSize: '10px',
@@ -1619,9 +1622,9 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     padding: '2px 6px',
     borderRadius: '999px',
     marginBottom: '6px',
-    background: editable ? '#fff3cd' : modalAdminAddedMeta.style.background,
-    color: editable ? '#8a6400' : modalAdminAddedMeta.style.color,
-    border: editable ? '1px solid #f9d976' : modalAdminAddedMeta.style.border
+    background: warning ? '#fff3cd' : modalAdminAddedMeta.style.background,
+    color: warning ? '#8a6400' : modalAdminAddedMeta.style.color,
+    border: warning ? '1px solid #f9d976' : modalAdminAddedMeta.style.border
   });
   const getManagerFieldActorMeta = (role?: string | null) => {
     const normalized = String(role || '').trim().toLowerCase();
@@ -1630,6 +1633,17 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
   const modalHamaliActorMeta = getManagerFieldActorMeta((modalOffering as any).hamaliBy);
   const modalBrokerageActorMeta = getManagerFieldActorMeta((modalOffering as any).brokerageBy);
   const modalLfActorMeta = getManagerFieldActorMeta((modalOffering as any).lfBy);
+  const modalActionButtonStyle = (tone: 'view' | 'edit'): React.CSSProperties => ({
+    padding: '3px 8px',
+    background: tone === 'view' ? '#3498db' : '#e67e22',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '11px',
+    cursor: 'pointer',
+    fontWeight: 700,
+    whiteSpace: 'nowrap'
+  });
   const getFrozenCellStyle = (
     baseStyle: React.CSSProperties,
     rowBackground?: string
@@ -1916,7 +1930,12 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                     <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}><div><span style={{ padding: '2px 6px', borderRadius: '10px', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap', display: 'inline-block', marginBottom: '2px', border: offerActorMeta.style.border, background: offerActorMeta.style.backgroundColor, color: offerActorMeta.style.color }}>{offerActorMeta.label}</span></div><div><span style={{ padding: '2px 6px', borderRadius: '10px', fontSize: '10px', fontWeight: 700, background: managerApprovalPending ? '#ede9fe' : (needsFill ? '#fff3cd' : '#d4edda'), color: managerApprovalPending ? '#6d28d9' : (needsFill ? '#856404' : '#155724'), whiteSpace: 'nowrap', display: 'inline-block', marginBottom: '2px', border: managerApprovalPending ? '1px solid #c4b5fd' : (needsFill ? '1px solid #ffeeba' : '1px solid #c3e6cb') }}>{managerApprovalPending ? 'Pending Approval' : (needsFill ? 'Manager Missing' : 'Manager Added')}</span></div></td>
                                     <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
                                       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'center' }}>
-                                        {isManagerOrOwner && <button onClick={() => handleUpdateClick(entry)} style={{ padding: '3px 4px', background: managerApprovalPending ? '#7c3aed' : (needsFill ? '#e67e22' : '#3498db'), color: 'white', border: 'none', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: 700, whiteSpace: 'nowrap' }}>{managerApprovalPending ? 'View/Edit Pending' : (needsFill ? 'Fill Values' : 'View/Edit')}</button>}
+                                        {isManagerOrOwner && (
+                                          <>
+                                            <button onClick={() => handleManagerValuesModalOpen(entry, 'view')} style={modalActionButtonStyle('view')}>View</button>
+                                            <button onClick={() => handleManagerValuesModalOpen(entry, 'edit')} style={modalActionButtonStyle('edit')}>{managerApprovalPending ? 'Edit Pending' : (needsFill ? 'Fill Values' : 'Edit')}</button>
+                                          </>
+                                        )}
                                       </div>
                                     </td>
                                   </tr>
@@ -2122,23 +2141,30 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                   <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
                                       {isManagerOrOwner && (
-                                        <button
-                                          onClick={() => handleUpdateClick(entry)}
-                                          disabled={!hasQualityReport}
-                                          style={{
-                                            padding: '3px 8px',
-                                            background: !hasQualityReport ? '#b0bec5' : (managerApprovalPending ? '#7c3aed' : (needsFill ? '#e67e22' : '#3498db')),
-                                            color: 'white',
-                                            border: 'none',
-                                            borderRadius: '4px',
-                                            fontSize: '11px',
-                                            cursor: !hasQualityReport ? 'not-allowed' : 'pointer',
-                                            fontWeight: 700,
-                                            whiteSpace: 'nowrap'
-                                          }}
-                                        >
-                                          {!hasQualityReport ? 'Quality Pending' : (managerApprovalPending ? 'View/Edit Pending' : (needsFill ? 'Fill Values' : 'View/Edit'))}
-                                        </button>
+                                        <>
+                                          <button
+                                            onClick={() => handleManagerValuesModalOpen(entry, 'view')}
+                                            disabled={!hasQualityReport}
+                                            style={{
+                                              ...modalActionButtonStyle('view'),
+                                              background: !hasQualityReport ? '#b0bec5' : modalActionButtonStyle('view').background,
+                                              cursor: !hasQualityReport ? 'not-allowed' : 'pointer'
+                                            }}
+                                          >
+                                            {!hasQualityReport ? 'Quality Pending' : 'View'}
+                                          </button>
+                                          <button
+                                            onClick={() => handleManagerValuesModalOpen(entry, 'edit')}
+                                            disabled={!hasQualityReport}
+                                            style={{
+                                              ...modalActionButtonStyle('edit'),
+                                              background: !hasQualityReport ? '#b0bec5' : (managerApprovalPending ? '#7c3aed' : String(modalActionButtonStyle('edit').background)),
+                                              cursor: !hasQualityReport ? 'not-allowed' : 'pointer'
+                                            }}
+                                          >
+                                            {!hasQualityReport ? 'Quality Pending' : (managerApprovalPending ? 'Edit Pending' : (needsFill ? 'Fill Values' : 'Edit'))}
+                                          </button>
+                                        </>
                                       )}
                                       {isAdminOrOwner && (
                                         <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -2475,12 +2501,14 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
               Bags: <b>{selectedEntry.bags}</b> | Pkg: <b>{selectedEntry.packaging || '75'} Kg</b> | Party: <b>{toTitleCase(selectedEntry.partyName) || (selectedEntry.entryType === 'DIRECT_LOADED_VEHICLE' ? selectedEntry.lorryNumber?.toUpperCase() : '')}</b> | Paddy Location: <b>{selectedEntry.location || '-'}</b> | Variety: <b>{selectedEntry.variety}</b> | Collected By: <b>{getCollectedByDisplay(selectedEntry).primary}</b>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', gap: '10px' }}>
-              <div style={{ flex: 1, background: modalMissingFields.length > 0 ? '#fff7db' : '#e8f5e9', border: modalMissingFields.length > 0 ? '1px solid #f3d37b' : '1px solid #c8e6c9', borderRadius: '8px', padding: '9px 10px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 800, color: modalMissingFields.length > 0 ? '#8a6400' : '#2e7d32', marginBottom: '4px' }}>
-                  {modalMissingFields.length > 0 ? 'Manager Missing Fields' : 'All Values Already Added'}
+              <div style={{ flex: 1, background: modalEditMode ? (modalMissingFields.length > 0 ? '#fff7db' : '#e8f5e9') : '#eff6ff', border: modalEditMode ? (modalMissingFields.length > 0 ? '1px solid #f3d37b' : '1px solid #c8e6c9') : '1px solid #bfdbfe', borderRadius: '8px', padding: '9px 10px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 800, color: modalEditMode ? (modalMissingFields.length > 0 ? '#8a6400' : '#2e7d32') : '#1d4ed8', marginBottom: '4px' }}>
+                  {modalEditMode ? (modalMissingFields.length > 0 ? 'Manager Missing Fields' : 'All Values Already Added') : 'View Loading Lot Values'}
                 </div>
                 <div style={{ fontSize: '12px', color: '#334155', lineHeight: '1.4' }}>
-                  {modalMissingFields.length > 0 ? modalMissingFields.join('  |  ') : 'This lot already has all manager-side values.'}
+                  {modalEditMode
+                    ? (modalMissingFields.length > 0 ? modalMissingFields.join('  |  ') : 'This lot already has all manager-side values.')
+                    : 'Read-only view of final and manager-side values.'}
                 </div>
               </div>
               {modalOfferActorMeta ? (
@@ -2498,7 +2526,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                 <div style={modalReadonlyValueStyle}>{formatManagerRateValue(modalOffering.finalBaseRate ?? modalOffering.offerBaseRateValue, modalBaseRateUnit)}</div>
               </div>
               <div style={modalCanEditSute ? modalEditableCardStyle : modalCardStyle}>
-                <span style={modalFixedAdminTagStyle(modalCanEditSute)}>{modalSuteMissing ? 'Manager Add' : modalAdminAddedMeta.label}</span>
+                <span style={modalFixedAdminTagStyle(modalSuteMissing)}>{modalSuteMissing ? 'Manager Add' : modalAdminAddedMeta.label}</span>
                 <label style={modalLabelStyle}>Sute</label>
                 <div style={modalMetaStyle}>{formatSuteUnitLabel(modalSuteUnit)}</div>
                 {modalCanEditSute ? (
@@ -2508,7 +2536,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                 )}
               </div>
               <div style={modalCanEditMoisture ? modalEditableCardStyle : modalCardStyle}>
-                <span style={modalFixedAdminTagStyle(modalCanEditMoisture)}>{modalMoistureMissing ? 'Manager Add' : modalAdminAddedMeta.label}</span>
+                <span style={modalFixedAdminTagStyle(modalMoistureMissing)}>{modalMoistureMissing ? 'Manager Add' : modalAdminAddedMeta.label}</span>
                 <label style={modalLabelStyle}>Moisture</label>
                 <div style={modalMetaStyle}>Percent</div>
                 {modalCanEditMoisture ? (
@@ -2595,7 +2623,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
             {!isRiceMode && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(160px, 1fr))', gap: '10px', marginBottom: '10px' }}>
                 <div style={modalCanEditCd ? modalEditableCardStyle : modalCardStyle}>
-                  <span style={modalFixedAdminTagStyle(modalCanEditCd)}>{modalCdMissing ? 'Manager Add' : modalAdminAddedMeta.label}</span>
+                  <span style={modalFixedAdminTagStyle(modalCdMissing)}>{modalCdMissing ? 'Manager Add' : modalAdminAddedMeta.label}</span>
                   <label style={modalLabelStyle}>CD</label>
                   <div style={modalMetaStyle}>{modalOffering.cdEnabled ? formatChargeUnitLabel(modalCdUnit) : 'No'}</div>
                   {modalCanEditCd ? (
@@ -2611,7 +2639,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                   )}
                 </div>
                 <div style={modalCanEditBankLoan ? modalEditableCardStyle : modalCardStyle}>
-                  <span style={modalFixedAdminTagStyle(modalCanEditBankLoan)}>{modalBankLoanMissing ? 'Manager Add' : modalAdminAddedMeta.label}</span>
+                  <span style={modalFixedAdminTagStyle(modalBankLoanMissing)}>{modalBankLoanMissing ? 'Manager Add' : modalAdminAddedMeta.label}</span>
                   <label style={modalLabelStyle}>Bank Loan</label>
                   <div style={modalMetaStyle}>{modalOffering.bankLoanEnabled ? formatChargeUnitLabel(modalBankLoanUnit) : 'No'}</div>
                   {modalCanEditBankLoan ? (
@@ -2627,7 +2655,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                   )}
                 </div>
                 <div style={modalCanEditPayment ? modalEditableCardStyle : modalCardStyle}>
-                  <span style={modalFixedAdminTagStyle(modalCanEditPayment)}>{modalPaymentMissing ? 'Manager Add' : modalAdminAddedMeta.label}</span>
+                  <span style={modalFixedAdminTagStyle(modalPaymentMissing)}>{modalPaymentMissing ? 'Manager Add' : modalAdminAddedMeta.label}</span>
                   <label style={modalLabelStyle}>Payment Condition</label>
                   <div style={modalMetaStyle}>{modalPaymentEnabled ? (modalPaymentUnit === 'month' ? 'Month' : 'Days') : 'No'}</div>
                   {modalCanEditPayment ? (
@@ -2647,7 +2675,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
 
             <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px', marginBottom: '14px' }}>
               <div style={modalCanEditEgb ? modalEditableCardStyle : modalCardStyle}>
-                <span style={modalFixedAdminTagStyle(modalCanEditEgb)}>{modalHasEgb ? (modalEgbMissing ? 'Manager Add' : modalAdminAddedMeta.label) : 'Not Applicable'}</span>
+                <span style={modalFixedAdminTagStyle(modalHasEgb && modalEgbMissing)}>{modalHasEgb ? (modalEgbMissing ? 'Manager Add' : modalAdminAddedMeta.label) : 'Not Applicable'}</span>
                 <label style={modalLabelStyle}>EGB</label>
                 <div style={modalMetaStyle}>
                   {!modalHasEgb
@@ -2672,8 +2700,8 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-              <button onClick={() => setShowModal(false)} disabled={isSubmitting} style={{ padding: '8px 16px', borderRadius: '6px', background: 'white', cursor: isSubmitting ? 'not-allowed' : 'pointer', fontSize: '13px' }}>Cancel</button>
-              {modalHasEditableFields && (
+              <button onClick={() => setShowModal(false)} disabled={isSubmitting} style={{ padding: '8px 16px', borderRadius: '6px', background: 'white', cursor: isSubmitting ? 'not-allowed' : 'pointer', fontSize: '13px' }}>{modalEditMode ? 'Cancel' : 'Close'}</button>
+              {modalEditMode && modalHasEditableFields && (
                 <button onClick={handleSaveValues} disabled={isSubmitting} style={{ padding: '8px 24px', border: 'none', borderRadius: '6px', background: isSubmitting ? '#95a5a6' : 'linear-gradient(135deg, #27ae60, #2ecc71)', color: 'white', fontWeight: 700, cursor: isSubmitting ? 'not-allowed' : 'pointer', fontSize: '13px' }}>{isSubmitting ? 'Saving...' : 'Save Values'}</button>
               )}
             </div>
