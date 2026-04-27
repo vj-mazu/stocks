@@ -775,8 +775,9 @@ class SampleEntryService {
           if (updates[field] === undefined) return false;
           return hasChanged(field, updates[field], currentEntry[field]);
         });
+        const isResampleEntryEdit = isResampleWorkflowEntry(currentEntry);
 
-        if (changedFields.length > 0) {
+        if (changedFields.length > 0 && !isResampleEntryEdit) {
           const allowedEntryEdits = Math.max(1, Number(currentEntry.staffEntryEditAllowance || 1));
           if (Number(currentEntry.staffPartyNameEdits || 0) >= allowedEntryEdits) {
             throw new Error('This entry can only be edited once by staff. Please contact admin/manager for further changes.');

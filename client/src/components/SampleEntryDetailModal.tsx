@@ -295,6 +295,20 @@ const hasQualitySnapshot = (attempt: any) => {
 
   return (hasMoisture && (hasGrains || hasDetailedQuality)) || hasDetailedQuality || hasSmell;
 };
+const hasPaddy100gSnapshot = (attempt: any) => (
+    isProvidedNumeric(attempt?.moistureRaw, attempt?.moisture)
+    && isProvidedNumeric(attempt?.wbRRaw, attempt?.wbR)
+    && isProvidedNumeric(attempt?.wbBkRaw, attempt?.wbBk)
+    && isProvidedNumeric(attempt?.grainsCountRaw, attempt?.grainsCount)
+    && !isProvidedNumeric(attempt?.cutting1Raw, attempt?.cutting1)
+    && !isProvidedNumeric(attempt?.bend1Raw, attempt?.bend1)
+    && !isProvidedAlpha(attempt?.mixRaw, attempt?.mix)
+    && !isProvidedAlpha(attempt?.mixSRaw, attempt?.mixS)
+    && !isProvidedAlpha(attempt?.mixLRaw, attempt?.mixL)
+    && !isProvidedAlpha(attempt?.kanduRaw, attempt?.kandu)
+    && !isProvidedAlpha(attempt?.oilRaw, attempt?.oil)
+    && !isProvidedAlpha(attempt?.skRaw, attempt?.sk)
+);
 
 const getResampleRoundLabel = (attempts: number) => {
     if (attempts <= 1) return '';
@@ -676,7 +690,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             || isProvidedAlpha((attempt as any).mixRaw, attempt.mix)
             || isProvidedAlpha((attempt as any).mixSRaw, attempt.mixS)
             || isProvidedAlpha((attempt as any).mixLRaw, attempt.mixL);
-        const has100g = isProvidedNumeric((attempt as any).grainsCountRaw, attempt.grainsCount);
+        const has100g = hasPaddy100gSnapshot(attempt);
         if (hasFullQuality) return 'Done';
         if (has100g) return '100-Gms';
         return 'Pending';

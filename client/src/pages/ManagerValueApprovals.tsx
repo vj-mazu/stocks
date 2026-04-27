@@ -18,6 +18,7 @@ interface ApprovalEntry {
   offering?: {
     pendingManagerValueApprovalRequestedAt?: string | null;
     pendingManagerValueApprovalData?: Record<string, any> | null;
+    [key: string]: any;
   };
 }
 
@@ -40,19 +41,89 @@ const formatChargeUnit = (unit?: string) => unit === 'per_quintal'
             ? 'Month'
             : unit || '';
 
-const buildPendingSummary = (data?: Record<string, any> | null) => {
-  if (!data) return ['-'];
-  const rows: string[] = [];
-  if (data.finalSute !== undefined) rows.push(`Sute: ${toDisplayNumber(data.finalSute)} ${formatChargeUnit(data.finalSuteUnit)}`.trim());
-  if (data.moistureValue !== undefined) rows.push(`Moisture: ${toDisplayNumber(data.moistureValue)}%`);
-  if (data.hamali !== undefined) rows.push(`Hamali: ${toDisplayNumber(data.hamali)} ${formatChargeUnit(data.hamaliUnit)}`.trim());
-  if (data.brokerage !== undefined) rows.push(`Brokerage: ${toDisplayNumber(data.brokerage)} ${formatChargeUnit(data.brokerageUnit)}`.trim());
-  if (data.lf !== undefined) rows.push(`LF: ${toDisplayNumber(data.lf)} ${formatChargeUnit(data.lfUnit)}`.trim());
-  if (data.cdValue !== undefined) rows.push(`CD: ${toDisplayNumber(data.cdValue)} ${formatChargeUnit(data.cdUnit)}`.trim());
-  if (data.bankLoanValue !== undefined) rows.push(`Bank Loan: ${toDisplayNumber(data.bankLoanValue)} ${formatChargeUnit(data.bankLoanUnit)}`.trim());
-  if (data.paymentConditionValue !== undefined) rows.push(`Payment: ${toDisplayNumber(data.paymentConditionValue)} ${formatChargeUnit(data.paymentConditionUnit)}`.trim());
-  if (data.egbValue !== undefined) rows.push(`EGB: ${toDisplayNumber(data.egbValue)}${data.egbType ? ` (${toTitleCase(data.egbType)})` : ''}`);
-  return rows.length > 0 ? rows : ['-'];
+type PendingSummaryRow = {
+  key: string;
+  label: string;
+  value: string;
+  tone: {
+    background: string;
+    border: string;
+    labelBackground: string;
+    labelColor: string;
+    textColor: string;
+  };
+};
+
+const managerPendingFieldTone: PendingSummaryRow['tone'] = {
+  background: '#fff7ed',
+  border: '#fdba74',
+  labelBackground: '#ffedd5',
+  labelColor: '#c2410c',
+  textColor: '#9a3412'
+};
+
+const standardPendingFieldTone: PendingSummaryRow['tone'] = {
+  background: '#eff6ff',
+  border: '#bfdbfe',
+  labelBackground: '#dbeafe',
+  labelColor: '#1d4ed8',
+  textColor: '#1e3a8a'
+};
+
+const managerHighlightedFieldKeys = new Set(['hamali', 'brokerage', 'lf']);
+
+const normalizeComparableValue = (value: any) => {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  const text = String(value).trim();
+  if (text === '') return '';
+  const numeric = Number(text);
+  if (Number.isFinite(numeric)) return String(numeric);
+  return text.toLowerCase();
+};
+
+const pendingComparisonKeysMap: Record<string, string[]> = {
+  finalSute: ['finalSute', 'finalSuteUnit'],
+  moistureValue: ['moistureValue'],
+  hamali: ['hamali', 'hamaliUnit'],
+  brokerage: ['brokerage', 'brokerageUnit'],
+  lf: ['lf', 'lfUnit'],
+  cdValue: ['cdValue', 'cdUnit', 'cdEnabled'],
+  bankLoanValue: ['bankLoanValue', 'bankLoanUnit', 'bankLoanEnabled'],
+  paymentConditionValue: ['paymentConditionValue', 'paymentConditionUnit'],
+  egbValue: ['egbValue', 'egbType']
+};
+
+const hasPendingFieldChanged = (offering: Record<string, any> | undefined, pendingData: Record<string, any> | null | undefined, rowKey: string) => {
+  const compareKeys = pendingComparisonKeysMap[rowKey] || [rowKey];
+  return compareKeys.some((key) => {
+    if (!pendingData || !(key in pendingData)) return false;
+    return normalizeComparableValue(pendingData[key]) !== normalizeComparableValue(offering?.[key]);
+  });
+};
+
+const buildPendingSummary = (data?: Record<string, any> | null, offering?: Record<string, any>): PendingSummaryRow[] => {
+  if (!data) return [];
+  const rows: PendingSummaryRow[] = [];
+  const pushRow = (key: string, label: string, value: string) => {
+    const shouldHighlight = managerHighlightedFieldKeys.has(key) && hasPendingFieldChanged(offering, data, key);
+    rows.push({
+      key,
+      label,
+      value,
+      tone: shouldHighlight ? managerPendingFieldTone : standardPendingFieldTone
+    });
+  };
+  if (data.finalSute !== undefined) pushRow('finalSute', 'Sute', `${toDisplayNumber(data.finalSute)} ${formatChargeUnit(data.finalSuteUnit)}`.trim());
+  if (data.moistureValue !== undefined) pushRow('moistureValue', 'Moisture', `${toDisplayNumber(data.moistureValue)}%`);
+  if (data.hamali !== undefined) pushRow('hamali', 'Hamali', `${toDisplayNumber(data.hamali)} ${formatChargeUnit(data.hamaliUnit)}`.trim());
+  if (data.brokerage !== undefined) pushRow('brokerage', 'Brokerage', `${toDisplayNumber(data.brokerage)} ${formatChargeUnit(data.brokerageUnit)}`.trim());
+  if (data.lf !== undefined) pushRow('lf', 'LF', `${toDisplayNumber(data.lf)} ${formatChargeUnit(data.lfUnit)}`.trim());
+  if (data.cdValue !== undefined) pushRow('cdValue', 'CD', `${toDisplayNumber(data.cdValue)} ${formatChargeUnit(data.cdUnit)}`.trim());
+  if (data.bankLoanValue !== undefined) pushRow('bankLoanValue', 'Bank Loan', `${toDisplayNumber(data.bankLoanValue)} ${formatChargeUnit(data.bankLoanUnit)}`.trim());
+  if (data.paymentConditionValue !== undefined) pushRow('paymentConditionValue', 'Payment', `${toDisplayNumber(data.paymentConditionValue)} ${formatChargeUnit(data.paymentConditionUnit)}`.trim());
+  if (data.egbValue !== undefined) pushRow('egbValue', 'EGB', `${toDisplayNumber(data.egbValue)}${data.egbType ? ` (${toTitleCase(data.egbType)})` : ''}`);
+  return rows;
 };
 
 interface ManagerValueApprovalsProps {
@@ -163,7 +234,7 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
             </thead>
             <tbody>
               {entries.map((entry, index) => {
-                const summaryRows = buildPendingSummary(entry.offering?.pendingManagerValueApprovalData);
+                const summaryRows = buildPendingSummary(entry.offering?.pendingManagerValueApprovalData, entry.offering);
                 return (
                   <tr key={entry.id} style={{ background: index % 2 === 0 ? '#fff7ed' : '#fffbeb' }}>
                     <td style={{ padding: '10px 12px', border: '1px solid #e2e8f0', fontWeight: 700 }}>{index + 1}</td>
@@ -190,15 +261,42 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
                     <td style={{ padding: '10px 12px', border: '1px solid #e2e8f0' }}>{entry.bags || '-'} | {entry.packaging || '-'}</td>
                     <td style={{ padding: '10px 12px', border: '1px solid #e2e8f0' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {summaryRows.map((row) => (
-                          <div key={row} style={{
+                        {summaryRows.length === 0 ? (
+                          <div style={{
                             fontSize: '12px',
-                            color: '#7c2d12',
-                            background: '#fff7ed',
-                            border: '1px solid #fed7aa',
+                            color: '#64748b',
+                            background: '#f8fafc',
+                            border: '1px solid #e2e8f0',
                             borderRadius: '6px',
-                            padding: '4px 6px'
-                          }}>{row}</div>
+                            padding: '6px 8px'
+                          }}>-</div>
+                        ) : summaryRows.map((row) => (
+                          <div key={row.key} style={{
+                            fontSize: '12px',
+                            color: row.tone.textColor,
+                            background: row.tone.background,
+                            border: `1px solid ${row.tone.border}`,
+                            borderRadius: '8px',
+                            padding: '6px 8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            flexWrap: 'wrap'
+                          }}>
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              minWidth: '70px',
+                              padding: '2px 8px',
+                              borderRadius: '999px',
+                              background: row.tone.labelBackground,
+                              color: row.tone.labelColor,
+                              fontSize: '10px',
+                              fontWeight: 800
+                            }}>{row.label}</span>
+                            <span style={{ fontWeight: 700, color: row.tone.textColor }}>{row.value}</span>
+                          </div>
                         ))}
                       </div>
                     </td>

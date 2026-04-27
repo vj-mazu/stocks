@@ -290,8 +290,10 @@ const hasQualitySnapshot = (attempt: any) => {
   return hasMoisture && (hasGrains || hasDetailedQuality);
 };
 const hasResampleWbActivationSnapshot = (attempt: any) =>
-    isProvidedNumeric(attempt?.wbRRaw, attempt?.wbR)
-    && isProvidedNumeric(attempt?.wbBkRaw, attempt?.wbBk);
+    isProvidedNumeric(attempt?.moistureRaw, attempt?.moisture)
+    && isProvidedNumeric(attempt?.wbRRaw, attempt?.wbR)
+    && isProvidedNumeric(attempt?.wbBkRaw, attempt?.wbBk)
+    && isProvidedNumeric(attempt?.grainsCountRaw, attempt?.grainsCount);
 const hasExplicitDetailedQualityRaw = (attempt: any) =>
     String(attempt?.cutting1Raw ?? '').trim() !== ''
     || String(attempt?.bend1Raw ?? '').trim() !== ''
@@ -896,7 +898,7 @@ const AdminSampleBook2: React.FC<AdminSampleBook2Props> = ({ entryType, excludeE
             || isProvidedAlpha((attempt as any).mixRaw, attempt.mix)
             || isProvidedAlpha((attempt as any).mixSRaw, attempt.mixS)
             || isProvidedAlpha((attempt as any).mixLRaw, attempt.mixL);
-        const has100g = isProvidedNumeric((attempt as any).grainsCountRaw, attempt.grainsCount);
+        const has100g = hasResampleWbActivationSnapshot(attempt);
         if (hasWbOnlyResampleActivation) return { label: '100-Gms', variant: 'resample-wb' };
         if (hasFullQuality) return { label: 'Done', variant: 'default' };
         if (hasResampleWbActivationSnapshot(attempt)) return { label: '100-Gms', variant: 'resample-wb' };
@@ -957,14 +959,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
         const hasCompleteResampleQuality = hasCurrentResampleQuality && attemptsSorted.length >= 2 && (() => {
             const latestAttempt = attemptsSorted[attemptsSorted.length - 1];
             return isProvidedNumeric((latestAttempt as any).moistureRaw, latestAttempt.moisture)
-                && isProvidedNumeric((latestAttempt as any).grainsCountRaw, latestAttempt.grainsCount)
-                && (
-                    isProvidedNumeric((latestAttempt as any).cutting1Raw, latestAttempt.cutting1)
-                    || isProvidedNumeric((latestAttempt as any).bend1Raw, latestAttempt.bend1)
-                    || isProvidedAlpha((latestAttempt as any).mixRaw, latestAttempt.mix)
-                    || isProvidedAlpha((latestAttempt as any).mixSRaw, latestAttempt.mixS)
-                    || isProvidedAlpha((latestAttempt as any).mixLRaw, latestAttempt.mixL)
-                );
+                && hasResampleWbActivationSnapshot(latestAttempt);
         })();
         
         const rows = attemptsSorted.map((attempt: any, idx: number) => {

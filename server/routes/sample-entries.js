@@ -281,7 +281,8 @@ const hasResampleCookingPrepSnapshot = (attempt = {}) => (
   isProvidedNumericValue(attempt.moistureRaw, attempt.moisture)
   && isProvidedNumericValue(attempt.wbRRaw, attempt.wbR)
   && isProvidedNumericValue(attempt.wbBkRaw, attempt.wbBk)
-  && !isProvidedNumericValue(attempt.grainsCountRaw, attempt.grainsCount)
+  && isProvidedNumericValue(attempt.paddyWbRaw, attempt.paddyWb)
+  && isProvidedNumericValue(attempt.grainsCountRaw, attempt.grainsCount)
   && !hasAnyDetailedQuality(attempt)
 );
 const normalizeAttemptValue = (value = '') => String(value ?? '').trim().toLowerCase();
@@ -2062,9 +2063,8 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
           && hasMoisture
           && hasWbR
           && hasWbBk
-          && !hasGrains
+          && hasGrains
           && !hasAnyFullDetail
-          && !hasPaddyWb
           && !hasDryMoisture
           && !hasSmix
           && !hasLmix;
@@ -2074,17 +2074,15 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
           && wbEnabled
           && hasWbR
           && hasWbBk
-          && !hasGrains
+          && hasGrains
           && !hasAnyFullDetail
-          && !hasPaddyWb
           && !hasDryMoisture
           && !hasSmix
           && !hasLmix;
         const rawReportedByValue = typeof req.body.reportedBy === 'string' ? req.body.reportedBy.trim() : '';
-        const reportedByValue = (isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly)
-          ? rawReportedByValue
-          : rawReportedByValue;
-        if ((!isValidResampleCookingPrepOnly && !isValidPaddy100gThreeFieldOnly && !reportedByValue) || reportedByValue.toLowerCase() === 'unknown') {
+        const reportedByValue = rawReportedByValue;
+        const is100gSave = isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly || is100gOnly;
+        if ((!is100gSave && !reportedByValue) || reportedByValue.toLowerCase() === 'unknown') {
           return res.status(400).json({ error: 'Sample Reported By is required' });
         }
 
@@ -2211,7 +2209,7 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
 
           // Staff one-time edit check: if already used their available chances, block
           const qualityEditAllowance = Math.max(1, Number(sampleEntry?.staffQualityEditAllowance || 1));
-          const isLimitedStaffRole = ['staff', 'physical_supervisor', 'paddy_supervisor'].includes(String(getWorkflowRole(req.user) || '').toLowerCase());
+          const isLimitedStaffRole = ['staff', 'quality_supervisor', 'physical_supervisor', 'paddy_supervisor'].includes(String(getWorkflowRole(req.user) || '').toLowerCase());
           if (isLimitedStaffRole && Number(sampleEntry?.staffBagsEdits || 0) >= qualityEditAllowance && !isRecheckQualityPending && !isResampleQualityPending) {
             return res.status(403).json({ error: 'Quality parameters can only be edited once by staff.' });
           }
@@ -2256,7 +2254,7 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
               { createNewAttempt: shouldCreateNewResampleAttempt }
             );
             // Increment the edit counter to lock future edits
-            if (sampleEntry) {
+            if (sampleEntry && !isResampleQualityPending) {
               await sampleEntry.update({
                 staffBagsEdits: (sampleEntry.staffBagsEdits || 0) + 1,
                 qualityEditApprovalStatus: null,
@@ -2388,7 +2386,7 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
 
         // Admin/Manager edit only. Staff can edit quality only up to their approved allowance.
         const qualityEditAllowance = Math.max(1, Number(sampleEntry.staffQualityEditAllowance || 1));
-        const isLimitedStaffRole = ['staff', 'physical_supervisor', 'paddy_supervisor'].includes(String(getWorkflowRole(req.user) || '').toLowerCase());
+        const isLimitedStaffRole = ['staff', 'quality_supervisor', 'physical_supervisor', 'paddy_supervisor'].includes(String(getWorkflowRole(req.user) || '').toLowerCase());
         if (isLimitedStaffRole && Number(sampleEntry.staffBagsEdits || 0) >= qualityEditAllowance && !isRecheckQualityPending && !isResampleQualityPending) {
           return res.status(403).json({ error: 'Quality parameters can only be edited once by staff. Please contact admin/manager for further changes.' });
         }
@@ -2424,7 +2422,7 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
           && hasWbR
           && hasWbBk
           && normalizeRaw(req.body.moisture) !== null
-          && normalizeRaw(req.body.grainsCount) === null
+          && normalizeRaw(req.body.grainsCount) !== null
           && !hasMix
           && !hasKandu
           && !hasOil
@@ -2435,7 +2433,6 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
           && normalizeRaw(req.body.cutting2) === null
           && normalizeRaw(req.body.bend1) === null
           && normalizeRaw(req.body.bend2) === null
-          && !hasPaddyWb
           && !hasDryMoisture;
         const isValidPaddy100gThreeFieldOnly =
           sampleEntry?.entryType !== 'RICE_SAMPLE'
@@ -2443,7 +2440,7 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
           && wbEnabled
           && hasWbR
           && hasWbBk
-          && normalizeRaw(req.body.grainsCount) === null
+          && normalizeRaw(req.body.grainsCount) !== null
           && !hasMix
           && !hasKandu
           && !hasOil
@@ -2454,13 +2451,11 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
           && normalizeRaw(req.body.cutting2) === null
           && normalizeRaw(req.body.bend1) === null
           && normalizeRaw(req.body.bend2) === null
-          && !hasPaddyWb
           && !hasDryMoisture;
         const rawReportedByValue = typeof req.body.reportedBy === 'string' ? req.body.reportedBy.trim() : '';
-        const reportedByValue = (isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly)
-          ? rawReportedByValue
-          : rawReportedByValue;
-        if ((!isValidResampleCookingPrepOnly && !isValidPaddy100gThreeFieldOnly && !reportedByValue) || reportedByValue.toLowerCase() === 'unknown') {
+        const reportedByValue = rawReportedByValue;
+        const is100gSave = isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly;
+        if ((!is100gSave && !reportedByValue) || reportedByValue.toLowerCase() === 'unknown') {
           return res.status(400).json({ error: 'Sample Reported By is required' });
         }
 
@@ -2564,15 +2559,17 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
 
         // Increment edit counter for staff to prevent further changes (skip during recheck)
         if (isLimitedStaffRole && !isRecheckQualityPending) {
-          await sampleEntry.update({
-            staffBagsEdits: (sampleEntry.staffBagsEdits || 0) + 1,
-            qualityEditApprovalStatus: null,
-            qualityEditApprovalReason: null,
-            qualityEditApprovalRequestedBy: null,
-            qualityEditApprovalRequestedAt: null,
-            qualityEditApprovalApprovedBy: null,
-            qualityEditApprovalApprovedAt: null
-          });
+          if (!isResampleQualityPending) {
+            await sampleEntry.update({
+              staffBagsEdits: (sampleEntry.staffBagsEdits || 0) + 1,
+              qualityEditApprovalStatus: null,
+              qualityEditApprovalReason: null,
+              qualityEditApprovalRequestedBy: null,
+              qualityEditApprovalRequestedAt: null,
+              qualityEditApprovalApprovedBy: null,
+              qualityEditApprovalApprovedAt: null
+            });
+          }
         }
 
         invalidateSampleEntryTabCaches();

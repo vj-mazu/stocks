@@ -1973,7 +1973,7 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                                       ) : <span>{o?.finalPrice || entry.finalPrice ? `Rs ${toNumberText(o?.finalPrice || entry.finalPrice)}` : '-'}</span>}
                                     </td>
                                     <td style={{ border: '1px solid #000', padding: '3px', textAlign: 'center' }}>
-                                      {(isAdmin || isManager) && entry.lotSelectionDecision !== 'FAIL' && (
+                                      {(isAdmin || isManager) && entry.lotSelectionDecision !== 'FAIL' && !isResampleActive && (
                                         isRiceMode
                                           ? entry.workflowStatus === 'LOT_SELECTION'
                                           : ['LOT_SELECTION', 'FINAL_REPORT'].includes(entry.workflowStatus)

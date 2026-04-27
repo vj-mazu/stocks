@@ -670,7 +670,9 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     const isBrokerageMissing = effectiveOffering.brokerageEnabled === false && !parseFloat(effectiveOffering.brokerage ?? '');
     setSelectedEntry({
       ...entry,
-      offering: effectiveOffering
+      offering: effectiveOffering,
+      originalOffering: o,
+      pendingManagerValueApprovalData: pendingApprovalData
     });
     setManagerData({
       sute: effectiveOffering.finalSute?.toString() ?? effectiveOffering.sute?.toString() ?? '',
@@ -1490,6 +1492,9 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
   const qualityModalHasCookingHistory = hasCookingActivity(qualityModalEntry);
 
   const modalOffering = selectedEntry?.offering || {};
+  const modalOriginalOffering = (selectedEntry as any)?.originalOffering || modalOffering;
+  const modalPendingApprovalData = (selectedEntry as any)?.pendingManagerValueApprovalData || {};
+  const modalManagerApprovalPending = String(modalOriginalOffering.pendingManagerValueApprovalStatus || '').toLowerCase() === 'pending';
   const modalRateType = managerData.baseRateType || modalOffering.baseRateType || 'PD_LOOSE';
   const modalHasLf = hasLfForRateType(modalRateType);
   const modalHasEgb = hasEgbForRateType(modalRateType);
@@ -1630,9 +1635,16 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     const normalized = String(role || '').trim().toLowerCase();
     return normalized === 'manager' ? modalManagerAddedMeta : modalAdminAddedMeta;
   };
-  const modalHamaliActorMeta = getManagerFieldActorMeta((modalOffering as any).hamaliBy);
-  const modalBrokerageActorMeta = getManagerFieldActorMeta((modalOffering as any).brokerageBy);
-  const modalLfActorMeta = getManagerFieldActorMeta((modalOffering as any).lfBy);
+  const hasPendingManagerField = (valueKey: string, unitKey?: string) => (
+    modalManagerApprovalPending
+    && (modalPendingApprovalData[valueKey] !== undefined || (unitKey ? modalPendingApprovalData[unitKey] !== undefined : false))
+  );
+  const modalHamaliPending = hasPendingManagerField('hamali', 'hamaliUnit');
+  const modalBrokeragePending = hasPendingManagerField('brokerage', 'brokerageUnit');
+  const modalLfPending = hasPendingManagerField('lf', 'lfUnit');
+  const modalHamaliActorMeta = modalHamaliPending ? modalManagerAddedMeta : getManagerFieldActorMeta((modalOriginalOffering as any).hamaliBy);
+  const modalBrokerageActorMeta = modalBrokeragePending ? modalManagerAddedMeta : getManagerFieldActorMeta((modalOriginalOffering as any).brokerageBy);
+  const modalLfActorMeta = modalLfPending ? modalManagerAddedMeta : getManagerFieldActorMeta((modalOriginalOffering as any).lfBy);
   const modalActionButtonStyle = (tone: 'view' | 'edit'): React.CSSProperties => ({
     padding: '3px 8px',
     background: tone === 'view' ? '#3498db' : '#e67e22',

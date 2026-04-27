@@ -244,11 +244,8 @@ const hasQualitySnapshot = (attempt: any) => {
     attempt?.smellHas === false;
   const hasLegacyToggleOnlyFullSave =
     hasMoisture && (hasDetailedQuality || hasOptionalResampleSignals);
-  const hasWbActivation =
-    isProvidedAlphaValue(attempt?.wbRRaw, attempt?.wbR) &&
-    isProvidedAlphaValue(attempt?.wbBkRaw, attempt?.wbBk);
 
-  return (hasMoisture && (hasGrains || hasDetailedQuality)) || hasLegacyToggleOnlyFullSave || hasWbActivation;
+  return (hasMoisture && (hasGrains || hasDetailedQuality)) || hasLegacyToggleOnlyFullSave || hasResample100gSnapshot(attempt);
 };
 const normalizeAttemptValue = (value: any) => {
   if (value === null || value === undefined) return '';
@@ -650,6 +647,7 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
   });
   const createEmptyResamplePrepData = () => ({
     moisture: '',
+    grainsCount: '',
     wbR: '',
     wbBk: ''
   });
@@ -689,7 +687,7 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
   }, [entryType, excludeEntryType]);
 
   // Custom states for Admin/Manager 'Cooking Approved by' toggles
-  const [approvalType, setApprovalType] = useState<'owner' | 'manager' | 'admin' | 'manual'>('owner');
+  const [approvalType, setApprovalType] = useState<'' | 'owner' | 'manager' | 'admin' | 'manual'>('');
   const [manualApprovalName, setManualApprovalName] = useState('');
   const [manualDate, setManualDate] = useState(new Date().toISOString().split('T')[0]);
   const isCookingStaffRole = (['staff', 'quality_supervisor', 'paddy_supervisor'].includes(String(user?.role || '').toLowerCase())) || forceStaffMode;
@@ -699,7 +697,7 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
     setManualCookingName('');
     setUseManualEntry(false);
     setShowRemarksInput(false);
-    setApprovalType('owner');
+    setApprovalType('');
     setManualApprovalName('');
     setManualDate(new Date().toISOString().split('T')[0]);
   };
@@ -1018,13 +1016,14 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
     setResamplePrepEntry(entry);
     setResamplePrepData({
       moisture: rawOrEmpty(currentCycleQuality?.moistureRaw, currentCycleQuality?.moisture),
+      grainsCount: rawOrEmpty(currentCycleQuality?.grainsCountRaw, currentCycleQuality?.grainsCount),
       wbR: rawOrEmpty(currentCycleQuality?.wbRRaw, currentCycleQuality?.wbR),
       wbBk: rawOrEmpty(currentCycleQuality?.wbBkRaw, currentCycleQuality?.wbBk)
     });
     setShowResamplePrepModal(true);
   };
 
-  const handleResamplePrepInput = (field: 'moisture' | 'wbR' | 'wbBk', value: string) => {
+  const handleResamplePrepInput = (field: 'moisture' | 'grainsCount' | 'wbR' | 'wbBk', value: string) => {
     const cleaned = value.replace(/[^0-9.]/g, '');
     if (cleaned.length > 5) return;
     setResamplePrepData((prev) => ({ ...prev, [field]: cleaned }));
@@ -1035,11 +1034,16 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
     if (!resamplePrepEntry || isSubmitting) return;
 
     const moisture = String(resamplePrepData.moisture || '').trim();
+    const grainsCount = String(resamplePrepData.grainsCount || '').trim();
     const wbR = String(resamplePrepData.wbR || '').trim();
     const wbBk = String(resamplePrepData.wbBk || '').trim();
 
     if (!moisture) {
       showNotification('Moisture is required', 'error');
+      return;
+    }
+    if (!grainsCount) {
+      showNotification('Grains Count is required', 'error');
       return;
     }
     if (!wbR || !wbBk) {
@@ -1054,6 +1058,7 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
       setIsSubmitting(true);
       const formData = new FormData();
       formData.append('moisture', moisture);
+      formData.append('grainsCount', grainsCount);
       formData.append('wbR', wbR);
       formData.append('wbBk', wbBk);
       formData.append('wbEnabled', 'true');
@@ -1103,6 +1108,11 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
     // Determine cookingApprovedBy value (Admin/Manager overrides, staff preserves existing)
     let finalCookingApprovedBy = selectedEntry.cookingReport?.cookingApprovedBy || '';
     if (!isCookingStaffRole) {
+      if (!approvalType) {
+        showNotification('Please select Cooking Approved by', 'error');
+        releaseSubmissionLock(lockKey);
+        return;
+      }
       if (approvalType === 'owner') finalCookingApprovedBy = 'Harish';
       else if (approvalType === 'manager') finalCookingApprovedBy = 'Guru';
       else if (approvalType === 'admin') finalCookingApprovedBy = 'MK Subbu';
@@ -2601,7 +2611,7 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
               <div style={{ fontSize: '13px', lineHeight: 1.5, opacity: 0.95 }}>
                 <div><strong>Party:</strong> {getPartyLabel(resamplePrepEntry)}</div>
                 <div><strong>Variety:</strong> {toTitleCase(resamplePrepEntry.variety)}</div>
-                <div><strong>Only save:</strong> Moisture, WB-R, WB-BK</div>
+                <div><strong>Only save:</strong> Moisture, Grains Count, WB-R, WB-BK</div>
               </div>
             </div>
             <form onSubmit={handleSubmitResamplePrep} style={{ padding: '18px' }}>
@@ -2615,6 +2625,18 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                     step="0.01"
                     value={resamplePrepData.moisture}
                     onChange={(e) => handleResamplePrepInput('moisture', e.target.value)}
+                    style={{ width: '100%', padding: '9px 10px', borderRadius: '6px', border: '1px solid #bbb', fontSize: '13px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 700, color: '#333' }}>
+                    Grains Count
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={resamplePrepData.grainsCount}
+                    onChange={(e) => handleResamplePrepInput('grainsCount', e.target.value)}
                     style={{ width: '100%', padding: '9px 10px', borderRadius: '6px', border: '1px solid #bbb', fontSize: '13px' }}
                   />
                 </div>
