@@ -1515,6 +1515,9 @@ const SampleEntryPage: React.FC<{
     if (isResampleWorkflowEntry(entry as any)) return '';
     return String(user?.fullName || user?.username || '').trim();
   };
+  const shouldLockReportedByForTakenByEntry = (entry?: SampleEntry | null) => (
+    Boolean(getDefaultReportedByForTakenByEntry(entry))
+  );
 
   const getSavedGpsCoordinates = (entry?: SampleEntry | any) => {
     const attempts = entry ? getQualityAttemptsForEntry(entry as any) : [];
@@ -1968,7 +1971,9 @@ const SampleEntryPage: React.FC<{
       formDataToSend.append('paddyWbEnabled', paddyWbEnabled ? 'true' : 'false');
       formDataToSend.append('dryMoistureEnabled', dryMoistureEnabled ? 'true' : 'false');
       const reportedByValue = qualityData.reportedBy || '';
-      const effectiveReportedByValue = reportedByValue;
+      const effectiveReportedByValue = shouldLockReportedByForTakenByEntry(selectedEntry) && !isOptionalReportedBy100g
+        ? (getDefaultReportedByForTakenByEntry(selectedEntry) || reportedByValue)
+        : reportedByValue;
       if (!isOptionalReportedBy100g && !effectiveReportedByValue) {
         showNotification('Sample Reported By is required', 'error');
         setIsSubmitting(false);
@@ -4541,12 +4546,15 @@ const SampleEntryPage: React.FC<{
                       <select
                         value={(() => {
                           const options = isRiceQualityEntry ? riceReportedByOptions : qualityUsers;
-                          const current = qualityData.reportedBy || '';
+                          const current = shouldLockReportedByForTakenByEntry(selectedEntry) && !isOptionalReportedBy100g
+                            ? (getDefaultReportedByForTakenByEntry(selectedEntry) || qualityData.reportedBy || '')
+                            : (qualityData.reportedBy || '');
                           const match = options.find((name) => String(name).toLowerCase() === String(current).toLowerCase());
                           return match || current;
                         })()}
                         onChange={(e) => setQualityData({ ...qualityData, reportedBy: e.target.value })}
-                        style={{ width: '100%', padding: '6px', border: '1.5px solid #bbb', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box', fontWeight: '600' }}
+                        disabled={shouldLockReportedByForTakenByEntry(selectedEntry) && !isOptionalReportedBy100g}
+                        style={{ width: '100%', padding: '6px', border: '1.5px solid #bbb', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box', fontWeight: '600', backgroundColor: shouldLockReportedByForTakenByEntry(selectedEntry) && !isOptionalReportedBy100g ? '#f5f5f5' : '#fff', color: shouldLockReportedByForTakenByEntry(selectedEntry) && !isOptionalReportedBy100g ? '#555' : '#000', cursor: shouldLockReportedByForTakenByEntry(selectedEntry) && !isOptionalReportedBy100g ? 'not-allowed' : 'pointer' }}
                       >
                         <option value="">-- Select --</option>
                         {(isRiceQualityEntry ? riceReportedByOptions : qualityUsers).map((qName, idx) => (
