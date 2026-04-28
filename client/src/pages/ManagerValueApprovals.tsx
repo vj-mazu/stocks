@@ -103,7 +103,10 @@ const hasPendingFieldChanged = (offering: Record<string, any> | undefined, pendi
 };
 
 const buildPendingSummary = (data?: Record<string, any> | null, offering?: Record<string, any>): PendingSummaryRow[] => {
-  if (!data) return [];
+  const mergedData = {
+    ...(offering || {}),
+    ...(data || {})
+  };
   const rows: PendingSummaryRow[] = [];
   const pushRow = (key: string, label: string, value: string) => {
     const shouldHighlight = managerHighlightedFieldKeys.has(key) && hasPendingFieldChanged(offering, data, key);
@@ -114,15 +117,40 @@ const buildPendingSummary = (data?: Record<string, any> | null, offering?: Recor
       tone: shouldHighlight ? managerPendingFieldTone : standardPendingFieldTone
     });
   };
-  if (data.finalSute !== undefined) pushRow('finalSute', 'Sute', `${toDisplayNumber(data.finalSute)} ${formatChargeUnit(data.finalSuteUnit)}`.trim());
-  if (data.moistureValue !== undefined) pushRow('moistureValue', 'Moisture', `${toDisplayNumber(data.moistureValue)}%`);
-  if (data.hamali !== undefined) pushRow('hamali', 'Hamali', `${toDisplayNumber(data.hamali)} ${formatChargeUnit(data.hamaliUnit)}`.trim());
-  if (data.brokerage !== undefined) pushRow('brokerage', 'Brokerage', `${toDisplayNumber(data.brokerage)} ${formatChargeUnit(data.brokerageUnit)}`.trim());
-  if (data.lf !== undefined) pushRow('lf', 'LF', `${toDisplayNumber(data.lf)} ${formatChargeUnit(data.lfUnit)}`.trim());
-  if (data.cdValue !== undefined) pushRow('cdValue', 'CD', `${toDisplayNumber(data.cdValue)} ${formatChargeUnit(data.cdUnit)}`.trim());
-  if (data.bankLoanValue !== undefined) pushRow('bankLoanValue', 'Bank Loan', `${toDisplayNumber(data.bankLoanValue)} ${formatChargeUnit(data.bankLoanUnit)}`.trim());
-  if (data.paymentConditionValue !== undefined) pushRow('paymentConditionValue', 'Payment', `${toDisplayNumber(data.paymentConditionValue)} ${formatChargeUnit(data.paymentConditionUnit)}`.trim());
-  if (data.egbValue !== undefined) pushRow('egbValue', 'EGB', `${toDisplayNumber(data.egbValue)}${data.egbType ? ` (${toTitleCase(data.egbType)})` : ''}`);
+  if (mergedData.finalSute !== undefined && mergedData.finalSute !== null && mergedData.finalSute !== '') {
+    pushRow('finalSute', 'Sute', `${toDisplayNumber(mergedData.finalSute)} ${formatChargeUnit(mergedData.finalSuteUnit)}`.trim());
+  }
+  if (mergedData.moistureValue !== undefined && mergedData.moistureValue !== null && mergedData.moistureValue !== '') {
+    pushRow('moistureValue', 'Moisture', `${toDisplayNumber(mergedData.moistureValue)}%`);
+  }
+  if (mergedData.hamali !== undefined && mergedData.hamali !== null && mergedData.hamali !== '') {
+    pushRow('hamali', 'Hamali', `${toDisplayNumber(mergedData.hamali)} ${formatChargeUnit(mergedData.hamaliUnit)}`.trim());
+  }
+  if (mergedData.brokerage !== undefined && mergedData.brokerage !== null && mergedData.brokerage !== '') {
+    pushRow('brokerage', 'Brokerage', `${toDisplayNumber(mergedData.brokerage)} ${formatChargeUnit(mergedData.brokerageUnit)}`.trim());
+  }
+  if (mergedData.lf !== undefined && mergedData.lf !== null && mergedData.lf !== '') {
+    pushRow('lf', 'LF', `${toDisplayNumber(mergedData.lf)} ${formatChargeUnit(mergedData.lfUnit)}`.trim());
+  }
+  if (mergedData.cdEnabled === true || mergedData.cdValue !== undefined) {
+    pushRow('cdValue', 'CD', mergedData.cdEnabled === true
+      ? `${toDisplayNumber(mergedData.cdValue)} ${formatChargeUnit(mergedData.cdUnit)}`.trim()
+      : 'No');
+  }
+  if (mergedData.bankLoanEnabled === true || mergedData.bankLoanValue !== undefined) {
+    pushRow('bankLoanValue', 'Bank Loan', mergedData.bankLoanEnabled === true
+      ? `${toDisplayNumber(mergedData.bankLoanValue)} ${formatChargeUnit(mergedData.bankLoanUnit)}`.trim()
+      : 'No');
+  }
+  if (mergedData.paymentConditionValue !== undefined && mergedData.paymentConditionValue !== null && mergedData.paymentConditionValue !== '') {
+    pushRow('paymentConditionValue', 'Payment', `${toDisplayNumber(mergedData.paymentConditionValue)} ${formatChargeUnit(mergedData.paymentConditionUnit)}`.trim());
+  }
+  if (mergedData.egbType !== undefined || mergedData.egbValue !== undefined) {
+    const egbValue = mergedData.egbType === 'mill'
+      ? `${toDisplayNumber(mergedData.egbValue ?? 0)} (Mill)`
+      : `${toDisplayNumber(mergedData.egbValue)}${mergedData.egbType ? ` (${toTitleCase(mergedData.egbType)})` : ''}`;
+    pushRow('egbValue', 'EGB', egbValue);
+  }
   return rows;
 };
 

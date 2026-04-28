@@ -929,24 +929,39 @@ class SampleEntryService {
     const updatedByFullName = currentUser?.fullName || currentUser?.username || 'System';
     const updates = { updatedBy: userId, updatedByFullName };
     const isManagerMissingValueRequest = userRole === 'manager' && finalData?.fillMissingValues === true;
+    const normalizeComparableValue = (value) => {
+      if (value === undefined || value === null || value === '') return null;
+      if (typeof value === 'boolean') return value;
+      const raw = String(value).trim();
+      if (!raw) return null;
+      const numericValue = Number(raw);
+      return Number.isFinite(numericValue) ? numericValue : raw.toLowerCase();
+    };
+    const hasMeaningfulChange = (key, nextValue) => (
+      normalizeComparableValue(nextValue) !== normalizeComparableValue(offering[key])
+    );
 
     if (isManagerMissingValueRequest) {
       const pendingData = {};
-      const pendingFieldKeys = [
-        'finalSute', 'finalSuteUnit',
-        'moistureValue',
-        'hamali', 'hamaliUnit',
-        'brokerage', 'brokerageUnit',
-        'lf', 'lfUnit',
-        'egbValue', 'egbType',
-        'cdEnabled', 'cdValue', 'cdUnit',
-        'bankLoanEnabled', 'bankLoanValue', 'bankLoanUnit',
-        'paymentConditionValue', 'paymentConditionUnit',
-        'isFinalized'
+      const pendingFieldGroups = [
+        ['finalSute', 'finalSuteUnit'],
+        ['moistureValue'],
+        ['hamali', 'hamaliUnit'],
+        ['brokerage', 'brokerageUnit'],
+        ['lf', 'lfUnit'],
+        ['egbValue', 'egbType'],
+        ['cdEnabled', 'cdValue', 'cdUnit'],
+        ['bankLoanEnabled', 'bankLoanValue', 'bankLoanUnit'],
+        ['paymentConditionValue', 'paymentConditionUnit'],
+        ['isFinalized']
       ];
 
-      for (const key of pendingFieldKeys) {
-        if (finalData[key] !== undefined) {
+      for (const fieldGroup of pendingFieldGroups) {
+        const providedKeys = fieldGroup.filter((key) => finalData[key] !== undefined);
+        if (providedKeys.length === 0) continue;
+        const groupHasChange = providedKeys.some((key) => hasMeaningfulChange(key, finalData[key]));
+        if (!groupHasChange) continue;
+        for (const key of providedKeys) {
           pendingData[key] = finalData[key];
         }
       }
