@@ -1160,41 +1160,68 @@ const SampleEntryPage: React.FC<{
     const cleaned = String(value || '').trim().replace(/\s+/g, '');
     const match = cleaned.match(/^(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/);
     if (!match) return null;
+    const latitude = Number(match[1]);
+    const longitude = Number(match[2]);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+    if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null;
     return `${match[1]},${match[2]}`;
   };
 
   const extractCoordinatesFromMapLink = (value: string) => {
     const raw = String(value || '').trim();
-    if (!raw) return null;
+    if (!raw) return { coordinates: null, error: '' };
 
     const directCoordinates = normalizeGpsCoordinates(raw);
-    if (directCoordinates) return directCoordinates;
+    if (directCoordinates) return { coordinates: directCoordinates, error: '' };
 
-    const decoded = decodeURIComponent(raw);
-    const patterns = [
-      /[?&](?:q|query)=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/i,
-      /@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/i,
-      /!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/i,
-      /ll=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/i
-    ];
-
-    for (const pattern of patterns) {
-      const match = decoded.match(pattern);
-      if (match) return `${match[1]},${match[2]}`;
+    let decoded = raw;
+    try {
+      decoded = decodeURIComponent(raw);
+    } catch {
+      decoded = raw;
     }
 
-    return null;
+    const exactPatterns = [
+      /[?&](?:q|query)=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)(?:[&#]|$)/i,
+      /!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/i
+    ];
+
+    for (const pattern of exactPatterns) {
+      const match = decoded.match(pattern);
+      if (!match) continue;
+      const coordinates = normalizeGpsCoordinates(`${match[1]},${match[2]}`);
+      if (coordinates) return { coordinates, error: '' };
+    }
+
+    if (/[?&]ll=|@-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?/i.test(decoded)) {
+      return {
+        coordinates: null,
+        error: 'This map link shows map center only, not exact pin coordinates. Use Add GPS or paste Latitude,Longitude.'
+      };
+    }
+
+    if (/maps\.app\.goo\.gl|goo\.gl\/maps|google\.com\/maps\/place|google\.com\/maps\/dir/i.test(decoded)) {
+      return {
+        coordinates: null,
+        error: 'This shared map link does not contain exact coordinates directly. Use Add GPS or paste Latitude,Longitude.'
+      };
+    }
+
+    return {
+      coordinates: null,
+      error: 'Map link is not valid. Paste exact coordinates or a Google Maps link that contains exact pin coordinates.'
+    };
   };
 
   const applyGpsLocationInput = (value: string, notifyOnInvalid = false) => {
     setGpsLocationInput(value);
-    const extractedCoordinates = extractCoordinatesFromMapLink(value);
-    if (extractedCoordinates) {
-      setFormData(prev => ({ ...prev, gpsCoordinates: extractedCoordinates }));
+    const { coordinates, error } = extractCoordinatesFromMapLink(value);
+    if (coordinates) {
+      setFormData(prev => ({ ...prev, gpsCoordinates: coordinates }));
       return true;
     }
     if (notifyOnInvalid && String(value || '').trim() !== '') {
-      showNotification('Map link is not valid. Paste a Google Maps location link or coordinates.', 'error');
+      showNotification(error || 'Map link is not valid. Paste exact coordinates or use Add GPS.', 'error');
     }
     return false;
   };
