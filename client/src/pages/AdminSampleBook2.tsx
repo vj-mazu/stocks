@@ -148,6 +148,14 @@ interface SampleEntry {
 }
 
 const toTitleCase = (str: string) => str ? str.replace(/\b\w/g, c => c.toUpperCase()) : '';
+const buildMapHref = (value: any) => {
+    const raw = typeof value === 'object' && value !== null
+        ? `${value.lat},${value.lng}`
+        : String(value || '').trim();
+    if (!raw) return '';
+    if (/^https?:\/\//i.test(raw)) return raw;
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(raw)}`;
+};
 const toSentenceCase = (value: string) => {
     const normalized = String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
     if (!normalized) return '';
@@ -1917,7 +1925,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                                                         const query = typeof gps === 'object' ? `${gps.lat},${gps.lng}` : gps;
                                                                         return (
                                                                             <a 
-                                                                                href={`https://www.google.com/maps/search/?api=1&query=${query}`}
+                                                                                href={buildMapHref(query)}
                                                                                 target="_blank"
                                                                                 rel="noopener noreferrer"
                                                                                 title="View on Map"

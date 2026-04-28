@@ -765,7 +765,6 @@ const SampleEntryPage: React.FC<{
   const [godownImage, setGodownImage] = useState<File | null>(null);
   const [paddyLotImage, setPaddyLotImage] = useState<File | null>(null);
   const [isCapturingGps, setIsCapturingGps] = useState(false);
-  const [gpsLocationInput, setGpsLocationInput] = useState('');
 
   // Quality parameters form — cutting & bend use single-column format: e.g. "32×24"
   const [qualityData, setQualityData] = useState({
@@ -1167,63 +1166,13 @@ const SampleEntryPage: React.FC<{
     return `${match[1]},${match[2]}`;
   };
 
-  const extractCoordinatesFromMapLink = (value: string) => {
-    const raw = String(value || '').trim();
-    if (!raw) return { coordinates: null, error: '' };
-
-    const directCoordinates = normalizeGpsCoordinates(raw);
-    if (directCoordinates) return { coordinates: directCoordinates, error: '' };
-
-    let decoded = raw;
-    try {
-      decoded = decodeURIComponent(raw);
-    } catch {
-      decoded = raw;
-    }
-
-    const exactPatterns = [
-      /[?&](?:q|query)=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)(?:[&#]|$)/i,
-      /!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/i
-    ];
-
-    for (const pattern of exactPatterns) {
-      const match = decoded.match(pattern);
-      if (!match) continue;
-      const coordinates = normalizeGpsCoordinates(`${match[1]},${match[2]}`);
-      if (coordinates) return { coordinates, error: '' };
-    }
-
-    if (/[?&]ll=|@-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?/i.test(decoded)) {
-      return {
-        coordinates: null,
-        error: 'This map link shows map center only, not exact pin coordinates. Use Add GPS or paste Latitude,Longitude.'
-      };
-    }
-
-    if (/maps\.app\.goo\.gl|goo\.gl\/maps|google\.com\/maps\/place|google\.com\/maps\/dir/i.test(decoded)) {
-      return {
-        coordinates: null,
-        error: 'This shared map link does not contain exact coordinates directly. Use Add GPS or paste Latitude,Longitude.'
-      };
-    }
-
-    return {
-      coordinates: null,
-      error: 'Map link is not valid. Paste exact coordinates or a Google Maps link that contains exact pin coordinates.'
-    };
-  };
-
-  const applyGpsLocationInput = (value: string, notifyOnInvalid = false) => {
-    setGpsLocationInput(value);
-    const { coordinates, error } = extractCoordinatesFromMapLink(value);
-    if (coordinates) {
-      setFormData(prev => ({ ...prev, gpsCoordinates: coordinates }));
-      return true;
-    }
-    if (notifyOnInvalid && String(value || '').trim() !== '') {
-      showNotification(error || 'Map link is not valid. Paste exact coordinates or use Add GPS.', 'error');
-    }
-    return false;
+  const buildMapHref = (value: any) => {
+    const raw = typeof value === 'object' && value !== null
+      ? `${value.lat},${value.lng}`
+      : String(value || '').trim();
+    if (!raw) return '';
+    if (/^https?:\/\//i.test(raw)) return raw;
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(raw)}`;
   };
 
   const handleCaptureGps = () => {
@@ -1238,7 +1187,6 @@ const SampleEntryPage: React.FC<{
         const { latitude, longitude } = position.coords;
         const coords = `${latitude},${longitude}`;
         setFormData(prev => ({ ...prev, gpsCoordinates: coords }));
-        setGpsLocationInput('');
         setIsCapturingGps(false);
         showNotification('GPS coordinates captured successfully', 'success');
       },
@@ -2197,12 +2145,6 @@ const SampleEntryPage: React.FC<{
   };
 
   useEffect(() => {
-    if (!showModal && !showEditModal) {
-      setGpsLocationInput('');
-    }
-  }, [showModal, showEditModal]);
-
-  useEffect(() => {
     if (!showQualityModal || !selectedEntry) {
       qualityModalPrefillKeyRef.current = null;
       return;
@@ -2962,7 +2904,7 @@ const SampleEntryPage: React.FC<{
                                     const query = typeof gps === 'object' ? `${gps.lat},${gps.lng}` : gps;
                                     return (
                                       <a 
-                                        href={`https://www.google.com/maps/search/?api=1&query=${query}`}
+                                        href={buildMapHref(query)}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         title="View on Map"
@@ -3642,32 +3584,22 @@ const SampleEntryPage: React.FC<{
                       <input
                         type="text"
                         value={formData.gpsCoordinates}
-                        onChange={(e) => setFormData(prev => ({ ...prev, gpsCoordinates: e.target.value.trim() }))}
-                        placeholder="Latitude,Longitude"
+                        onChange={(e) => setFormData(prev => ({ ...prev, gpsCoordinates: e.target.value }))}
+                        placeholder="Latitude,Longitude or Google Maps link"
                         style={{ flex: 1, minWidth: '160px', padding: '6px 8px', border: '1px solid #ddd', borderRadius: '4px', fontSize: '11px' }}
                       />
                       {formData.gpsCoordinates && (
                         <a 
-                          href={`https://www.google.com/maps/search/?api=1&query=${formData.gpsCoordinates}`}
+                          href={buildMapHref(formData.gpsCoordinates)}
                           target="_blank"
                           rel="noopener noreferrer"
                           style={{ color: '#3498db', textDecoration: 'underline', fontSize: '11px', fontWeight: '600' }}
                         >
-                          Map Exact Location
+                          Open Map
                         </a>
                       )}
                     </div>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '8px', flexWrap: 'wrap' }}>
-                      <input
-                        type="text"
-                        value={gpsLocationInput}
-                        onChange={(e) => applyGpsLocationInput(e.target.value)}
-                        onBlur={(e) => applyGpsLocationInput(e.target.value, true)}
-                        placeholder="Paste Google Maps link / exact location URL"
-                        style={{ flex: 1, minWidth: '220px', padding: '6px 8px', border: '1px solid #ddd', borderRadius: '4px', fontSize: '11px' }}
-                      />
-                      <span style={{ fontSize: '10px', color: '#64748b' }}>Auto fills coordinates</span>
-                    </div>
+                    <div style={{ marginTop: '8px', fontSize: '10px', color: '#64748b' }}>Enter either exact coordinates or a shared Google Maps link.</div>
                     </>
                   )}
                 </div>
@@ -4966,32 +4898,22 @@ const SampleEntryPage: React.FC<{
                       <input
                         type="text"
                         value={formData.gpsCoordinates}
-                        onChange={(e) => setFormData(prev => ({ ...prev, gpsCoordinates: e.target.value.trim() }))}
-                        placeholder="Latitude,Longitude"
+                        onChange={(e) => setFormData(prev => ({ ...prev, gpsCoordinates: e.target.value }))}
+                        placeholder="Latitude,Longitude or Google Maps link"
                         style={{ flex: 1, minWidth: '160px', padding: '6px 8px', border: '1px solid #ddd', borderRadius: '4px', fontSize: '11px' }}
                       />
                       {formData.gpsCoordinates && (
                         <a 
-                          href={`https://www.google.com/maps/search/?api=1&query=${formData.gpsCoordinates}`}
+                          href={buildMapHref(formData.gpsCoordinates)}
                           target="_blank"
                           rel="noopener noreferrer"
                           style={{ color: '#3498db', textDecoration: 'underline', fontSize: '11px', fontWeight: '600' }}
                         >
-                          Map Exact Location
+                          Open Map
                         </a>
                       )}
                     </div>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '8px', flexWrap: 'wrap' }}>
-                      <input
-                        type="text"
-                        value={gpsLocationInput}
-                        onChange={(e) => applyGpsLocationInput(e.target.value)}
-                        onBlur={(e) => applyGpsLocationInput(e.target.value, true)}
-                        placeholder="Paste Google Maps link / exact location URL"
-                        style={{ flex: 1, minWidth: '220px', padding: '6px 8px', border: '1px solid #ddd', borderRadius: '4px', fontSize: '11px' }}
-                      />
-                      <span style={{ fontSize: '10px', color: '#64748b' }}>Auto fills coordinates</span>
-                    </div>
+                    <div style={{ marginTop: '8px', fontSize: '10px', color: '#64748b' }}>Enter either exact coordinates or a shared Google Maps link.</div>
                     </>
                   )}
                 </div>
