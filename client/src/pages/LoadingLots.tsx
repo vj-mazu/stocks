@@ -244,6 +244,18 @@ const getOfferActorMeta = (offering: any) => {
     }
   };
 };
+const getFinalRateActorMeta = (offering: any) => {
+  const hasFinalRate = hasValue(offering?.finalBaseRate) || hasValue(offering?.offerBaseRateValue);
+  if (!hasFinalRate) return null;
+  return {
+    label: 'Admin Added',
+    style: {
+      color: '#155724',
+      background: '#d4edda',
+      border: '1px solid #c3e6cb'
+    }
+  };
+};
 const toTs = (value?: string | null) => {
   const ts = value ? new Date(value).getTime() : 0;
   return Number.isFinite(ts) ? ts : 0;
@@ -1579,6 +1591,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
   const editBottomAmountInputStyle: React.CSSProperties = { flex: '1 1 0', minWidth: 0, width: '100%', padding: '6px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '12px' };
   const editBottomUnitSelectStyle: React.CSSProperties = { width: '84px', minWidth: '84px', flex: '0 0 84px', padding: '6px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '11px' };
   const modalOfferActorMeta = getOfferActorMeta(modalOffering);
+  const modalFinalRateActorMeta = getFinalRateActorMeta(modalOffering) || modalOfferActorMeta;
   const modalAdminAddedMeta = {
     label: 'Admin Added',
     style: {
@@ -1618,6 +1631,15 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     background: editable ? '#fff3cd' : modalManagerAddedMeta.style.background,
     color: editable ? '#8a6400' : modalManagerAddedMeta.style.color,
     border: editable ? '1px solid #f9d976' : modalManagerAddedMeta.style.border
+  });
+  const modalReadonlyManagerTagStyle = (
+    actorMeta: { style: React.CSSProperties },
+    needsManagerAdd: boolean
+  ): React.CSSProperties => ({
+    ...modalManagerTagStyle(false),
+    background: needsManagerAdd ? modalManagerAddedMeta.style.background : actorMeta.style.background,
+    color: needsManagerAdd ? modalManagerAddedMeta.style.color : actorMeta.style.color,
+    border: needsManagerAdd ? modalManagerAddedMeta.style.border : actorMeta.style.border
   });
   const modalFixedAdminTagStyle = (warning: boolean): React.CSSProperties => ({
     display: 'inline-flex',
@@ -1890,6 +1912,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                               const finalRateUnit = unitLabel(o.baseRateUnit || 'per_bag');
                               const cellStyle = (missing: boolean): React.CSSProperties => ({ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', background: missing ? '#fff3cd' : rowBg, color: missing ? '#856404' : '#333', fontWeight: missing ? '700' : '400', fontSize: '12px' });
                               const offerActorMeta = getOfferActorMeta(o);
+                              const finalRateActorMeta = getFinalRateActorMeta(o) || offerActorMeta;
 
                               if (isRiceMode) {
                                 return (
@@ -1939,7 +1962,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                     <td style={cellStyle(hamaliMissing)}>{hamaliMissing ? 'Need' : (hasValue(effectiveHamaliValue) ? fmtVal(effectiveHamaliValue, o.hamaliUnit) : o.hamaliEnabled === false ? 'Pending' : '-')}</td>
                                     <td style={cellStyle(bkrgMissing)}>{bkrgMissing ? 'Need' : (o.brokerage ? fmtVal(o.brokerage, o.brokerageUnit) : o.brokerageEnabled === false ? 'Pending' : '-')}</td>
                                     <td style={cellStyle(lfMissing)}>{lfMissing ? 'Need' : (o.lf ? fmtVal(o.lf, o.lfUnit) : o.lfEnabled === false ? 'Pending' : '-')}</td>
-                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}><div><span style={{ padding: '2px 6px', borderRadius: '10px', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap', display: 'inline-block', marginBottom: '2px', border: offerActorMeta.style.border, background: offerActorMeta.style.backgroundColor, color: offerActorMeta.style.color }}>{offerActorMeta.label}</span></div><div><span style={{ padding: '2px 6px', borderRadius: '10px', fontSize: '10px', fontWeight: 700, background: managerApprovalPending ? '#ede9fe' : (needsFill ? '#fff3cd' : '#d4edda'), color: managerApprovalPending ? '#6d28d9' : (needsFill ? '#856404' : '#155724'), whiteSpace: 'nowrap', display: 'inline-block', marginBottom: '2px', border: managerApprovalPending ? '1px solid #c4b5fd' : (needsFill ? '1px solid #ffeeba' : '1px solid #c3e6cb') }}>{managerApprovalPending ? 'Pending Approval' : (needsFill ? 'Manager Missing' : 'Manager Added')}</span></div></td>
+                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}><div><span style={{ padding: '2px 6px', borderRadius: '10px', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap', display: 'inline-block', marginBottom: '2px', border: finalRateActorMeta.style.border, background: finalRateActorMeta.style.background, color: finalRateActorMeta.style.color }}>{finalRateActorMeta.label}</span></div><div><span style={{ padding: '2px 6px', borderRadius: '10px', fontSize: '10px', fontWeight: 700, background: managerApprovalPending ? '#ede9fe' : (needsFill ? '#fff3cd' : '#d4edda'), color: managerApprovalPending ? '#6d28d9' : (needsFill ? '#856404' : '#155724'), whiteSpace: 'nowrap', display: 'inline-block', marginBottom: '2px', border: managerApprovalPending ? '1px solid #c4b5fd' : (needsFill ? '1px solid #ffeeba' : '1px solid #c3e6cb') }}>{managerApprovalPending ? 'Pending Approval' : (needsFill ? 'Manager Missing' : 'Manager Added')}</span></div></td>
                                     <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
                                       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'center' }}>
                                         {isManagerOrOwner && (
@@ -2144,7 +2167,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                   {/* Disabled resample block */}
                                   <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center', background: '#fafcff' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'stretch' }}>
-                                      <div style={{ fontSize: '10px', fontWeight: 800, borderRadius: '4px', padding: '2px 4px', ...offerActorMeta.style }}>{offerActorMeta.label}</div>
+                                      <div style={{ fontSize: '10px', fontWeight: 800, borderRadius: '4px', padding: '2px 4px', ...finalRateActorMeta.style }}>{finalRateActorMeta.label}</div>
                                       <div style={{ fontSize: '10px', fontWeight: 700, color: managerApprovalPending ? '#6d28d9' : (needsFill ? '#856404' : '#155724'), background: managerApprovalPending ? '#ede9fe' : (needsFill ? '#fff3cd' : '#d4edda'), border: managerApprovalPending ? '1px solid #c4b5fd' : (needsFill ? '1px solid #ffeeba' : '1px solid #c3e6cb'), borderRadius: '4px', padding: '2px 4px', lineHeight: '1.25' }}>
                                         {managerApprovalPending ? 'Manager Added Pending Approval' : (needsFill ? `Missing: ${compactStatusText(missingFieldLabels)}` : 'Manager Added')}
                                       </div>
@@ -2523,16 +2546,16 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                     : 'Read-only view of final and manager-side values.'}
                 </div>
               </div>
-              {modalOfferActorMeta ? (
-                <div style={{ padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 800, whiteSpace: 'nowrap', ...modalOfferActorMeta.style }}>
-                  {modalOfferActorMeta.label}
+              {modalFinalRateActorMeta ? (
+                <div style={{ padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 800, whiteSpace: 'nowrap', ...modalFinalRateActorMeta.style }}>
+                  {modalFinalRateActorMeta.label}
                 </div>
               ) : null}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1.2fr) repeat(2, minmax(160px, 1fr))', gap: '10px', marginBottom: '10px' }}>
               <div style={modalCardStyle}>
-                <span style={modalTagStyle(false)}>{modalOfferActorMeta.label}</span>
+                <span style={{ ...modalTagStyle(false), background: modalFinalRateActorMeta.style.background, color: modalFinalRateActorMeta.style.color, border: modalFinalRateActorMeta.style.border }}>{modalFinalRateActorMeta.label}</span>
                 <label style={modalLabelStyle}>Final Rate</label>
                 <div style={modalMetaStyle}>{formatRateTypeLabel(modalRateType)} | {formatRateUnitLabel(modalBaseRateUnit)}</div>
                 <div style={modalReadonlyValueStyle}>{formatManagerRateValue(modalOffering.finalBaseRate ?? modalOffering.offerBaseRateValue, modalBaseRateUnit)}</div>
@@ -2561,12 +2584,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(160px, 1fr))', gap: '10px', marginBottom: '10px' }}>
               <div style={modalCanEditHamali ? modalEditableCardStyle : modalCardStyle}>
-                <span style={modalCanEditHamali ? modalManagerTagStyle(true) : {
-                  ...modalManagerTagStyle(false),
-                  background: modalHamaliActorMeta.style.background,
-                  color: modalHamaliActorMeta.style.color,
-                  border: modalHamaliActorMeta.style.border
-                }}>{modalHamaliMissing ? 'Manager Add' : modalHamaliActorMeta.label}</span>
+                <span style={modalCanEditHamali ? modalManagerTagStyle(true) : modalReadonlyManagerTagStyle(modalHamaliActorMeta, modalHamaliMissing)}>{modalHamaliMissing ? 'Manager Add' : modalHamaliActorMeta.label}</span>
                 <label style={modalLabelStyle}>Hamali</label>
                 <div style={modalMetaStyle}>{modalOffering.hamaliEnabled === false ? `Pending from manager | ${formatChargeUnitLabel(modalHamaliUnit)}` : formatChargeUnitLabel(modalHamaliUnit)}</div>
                 {modalCanEditHamali ? (
@@ -2582,12 +2600,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                 )}
               </div>
               <div style={modalCanEditBrokerage ? modalEditableCardStyle : modalCardStyle}>
-                <span style={modalCanEditBrokerage ? modalManagerTagStyle(true) : {
-                  ...modalManagerTagStyle(false),
-                  background: modalBrokerageActorMeta.style.background,
-                  color: modalBrokerageActorMeta.style.color,
-                  border: modalBrokerageActorMeta.style.border
-                }}>{modalBrokerageMissing ? 'Manager Add' : modalBrokerageActorMeta.label}</span>
+                <span style={modalCanEditBrokerage ? modalManagerTagStyle(true) : modalReadonlyManagerTagStyle(modalBrokerageActorMeta, modalBrokerageMissing)}>{modalBrokerageMissing ? 'Manager Add' : modalBrokerageActorMeta.label}</span>
                 <label style={modalLabelStyle}>Brokerage</label>
                 <div style={modalMetaStyle}>{modalOffering.brokerageEnabled === false ? `Pending from manager | ${formatChargeUnitLabel(modalBrokerageUnit)}` : formatChargeUnitLabel(modalBrokerageUnit)}</div>
                 {modalCanEditBrokerage ? (
@@ -2604,14 +2617,9 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                 )}
               </div>
               <div style={modalHasLf ? (modalCanEditLf ? modalEditableCardStyle : modalCardStyle) : modalCardStyle}>
-                <span style={modalHasLf ? ((modalCanEditLf
+                <span style={modalHasLf ? (modalCanEditLf
                   ? modalManagerTagStyle(true)
-                  : {
-                      ...modalManagerTagStyle(false),
-                      background: modalLfActorMeta.style.background,
-                      color: modalLfActorMeta.style.color,
-                      border: modalLfActorMeta.style.border
-                    })) : modalFixedAdminTagStyle(false)}>{modalHasLf ? (modalLfMissing ? 'Manager Add' : modalLfActorMeta.label) : 'Not Applicable'}</span>
+                  : modalReadonlyManagerTagStyle(modalLfActorMeta, modalLfMissing)) : modalFixedAdminTagStyle(false)}>{modalHasLf ? (modalLfMissing ? 'Manager Add' : modalLfActorMeta.label) : 'Not Applicable'}</span>
                 <label style={modalLabelStyle}>LF</label>
                 <div style={modalMetaStyle}>{modalHasLf ? (modalOffering.lfEnabled === false ? `Pending from manager | ${formatChargeUnitLabel(modalLfUnit)}` : formatChargeUnitLabel(modalLfUnit)) : 'Not applicable for MD/WB'}</div>
                 {modalHasLf ? (
