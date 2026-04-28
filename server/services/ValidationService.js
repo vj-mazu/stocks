@@ -244,11 +244,6 @@ class ValidationService {
       requiredFields.push('lorryNumber');
     }
 
-    // Location sample should include GPS coordinates (photos optional, smell optional)
-    if (entryData.entryType === 'LOCATION_SAMPLE') {
-      requiredFields.push('gpsCoordinates');
-    }
-
     const requiredValidation = this.validateRequiredFields(entryData, requiredFields);
     if (!requiredValidation.valid) {
       return requiredValidation;

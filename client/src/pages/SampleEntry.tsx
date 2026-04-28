@@ -906,8 +906,6 @@ const SampleEntryPage: React.FC<{
     if (isEmpty(data.packaging)) return 'Packaging is required';
     if (isEmpty(data.sampleCollectedBy)) return 'Sample Collected By is required';
     if (entryType === 'DIRECT_LOADED_VEHICLE' && isEmpty(data.lorryNumber)) return 'Lorry Number is required';
-    const savedGps = String(existingEntry?.gpsCoordinates || '').trim();
-    if (entryType === 'LOCATION_SAMPLE' && isEmpty(data.gpsCoordinates) && !savedGps) return 'GPS coordinates are required';
     if (data.smellHas && isEmpty(data.smellType)) return 'Smell type is required';
     return '';
   };

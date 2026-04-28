@@ -900,9 +900,6 @@ const validateRequiredEntryFields = (entryType, data) => {
   }
 
   if (data.smellHas === true && isEmpty(data.smellType)) return 'Smell type is required';
-  if (entryType === 'LOCATION_SAMPLE') {
-    if (isEmpty(data.gpsCoordinates)) return 'GPS coordinates are required';
-  }
 
   return null;
 };
