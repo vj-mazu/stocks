@@ -268,23 +268,23 @@ const getEntrySmellColor = (entry: any) => {
     const attempt = attempts[idx];
     if (attempt?.smellHas && attempt?.smellType) {
       const smellType = String(attempt.smellType).toUpperCase();
-      if (smellType === 'DARK') return '#dc2626';
-      if (smellType === 'MEDIUM') return '#ea580c';
-      if (smellType === 'LIGHT') return '#ca8a04';
+      if (smellType === 'DARK') return '#991b1b';
+      if (smellType === 'MEDIUM') return '#b91c1c';
+      if (smellType === 'LIGHT') return '#dc2626';
     }
   }
   const quality = entry?.qualityParameters;
   if (quality?.smellHas && quality?.smellType) {
     const smellType = String(quality.smellType).toUpperCase();
-    if (smellType === 'DARK') return '#dc2626';
-    if (smellType === 'MEDIUM') return '#ea580c';
-    if (smellType === 'LIGHT') return '#ca8a04';
+    if (smellType === 'DARK') return '#991b1b';
+    if (smellType === 'MEDIUM') return '#b91c1c';
+    if (smellType === 'LIGHT') return '#dc2626';
   }
   if (entry?.smellHas && entry?.smellType) {
     const smellType = String(entry.smellType).toUpperCase();
-    if (smellType === 'DARK') return '#dc2626';
-    if (smellType === 'MEDIUM') return '#ea580c';
-    if (smellType === 'LIGHT') return '#ca8a04';
+    if (smellType === 'DARK') return '#991b1b';
+    if (smellType === 'MEDIUM') return '#b91c1c';
+    if (smellType === 'LIGHT') return '#dc2626';
   }
   return '#2e7d32';
 };
@@ -292,6 +292,15 @@ const toSentenceCase = (value: string) => {
   const normalized = String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
   if (!normalized) return '';
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};
+
+const formatPackagingLabel = (value?: string | number | null) => {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '75 Kg';
+  const lower = raw.toLowerCase();
+  if (lower === '0' || lower === 'loose') return 'Loose';
+  if (lower.includes('kg') || lower.includes('ton')) return raw.replace(/\bkg\b/i, 'Kg');
+  return `${raw} Kg`;
 };
 
 const getCollectorLabel = (value?: string | null, supervisors?: { username: string; fullName?: string | null }[]) => {
@@ -1716,15 +1725,15 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                             const isLightSmell = smellLabel === 'Light';
                             const isDarkMediumSmell = smellLabel === 'Dark' || smellLabel === 'Medium';
                             const rowBgColor = isDarkMediumSmell
-                              ? '#ffebee'
+                              ? '#fee2e2'
                               : isLightSmell
-                                ? '#fffde7'
+                                ? '#fef2f2'
                                 : isResampleActive
                                   ? '#fff7e6'
                                   : entry.entryType === 'DIRECT_LOADED_VEHICLE'
                                     ? '#e3f2fd'
                                     : entry.entryType === 'LOCATION_SAMPLE'
-                                      ? '#ffe0b2'
+                                      ? '#ffd9b3'
                                       : '#ffffff';
                             return (
                               <tr key={entry.id} style={{ backgroundColor: rowBgColor }}>
@@ -1736,11 +1745,11 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                                     </td>
                                     <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontWeight: '700', whiteSpace: 'nowrap', color: getEntryTypeTextColor(rowType) }}>
                                       {isConvertedResampleType(entry)
-                                        ? <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0px' }}><span style={{ fontSize: '8px', color: '#888' }}>{getOriginalEntryTypeCode(entry)}</span><span style={{ color: getEntryTypeTextColor(getOriginalEntryTypeCode(entry)) }}>{getConvertedEntryTypeCode(entry)}</span></div>
+                                        ? <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px', minWidth: '38px' }}><span style={{ fontSize: '11px', color: getEntryTypeTextColor(getOriginalEntryTypeCode(entry)), fontWeight: 800 }}>{getOriginalEntryTypeCode(entry)}</span><span style={{ fontSize: '14px', fontWeight: 900, color: getEntryTypeTextColor(getConvertedEntryTypeCode(entry)) }}>{getConvertedEntryTypeCode(entry)}</span></div>
                                         : rowType}
                                     </td>
                                     <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontWeight: '600', fontSize: '13px', whiteSpace: 'nowrap' }}>{entry.bags?.toLocaleString('en-IN') || '0'}</td>
-                                    <td style={{ border: '1px solid #000', padding: '3px 4px', fontSize: '13px', textAlign: 'center', whiteSpace: 'nowrap' }}>{entry.packaging || '-'}</td>
+                                    <td style={{ border: '1px solid #000', padding: '3px 4px', fontSize: '13px', textAlign: 'center', whiteSpace: 'nowrap' }}>{formatPackagingLabel(entry.packaging)}</td>
                                     <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#1565c0', whiteSpace: 'nowrap' }}>{getPartyNode(entry, () => openDetailEntry(entry))}</td>
                                     <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '13px', whiteSpace: 'nowrap' }}>{toTitleCase(entry.location) || '-'}</td>
                                     <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '13px', whiteSpace: 'nowrap' }}>{toTitleCase(entry.variety) || '-'}</td>
@@ -1784,11 +1793,11 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                                     </td>
                                     <td style={{ border: '1px solid #000', padding: '3px', textAlign: 'center', fontWeight: '700', color: getEntryTypeTextColor(rowType) }}>
                                       {isConvertedResampleType(entry)
-                                        ? <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0px' }}><span style={{ fontSize: '8px', color: '#888' }}>{getOriginalEntryTypeCode(entry)}</span><span style={{ color: getEntryTypeTextColor(getOriginalEntryTypeCode(entry)) }}>{getConvertedEntryTypeCode(entry)}</span></div>
+                                        ? <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px', minWidth: '38px' }}><span style={{ fontSize: '11px', color: getEntryTypeTextColor(getOriginalEntryTypeCode(entry)), fontWeight: 800 }}>{getOriginalEntryTypeCode(entry)}</span><span style={{ fontSize: '14px', fontWeight: 900, color: getEntryTypeTextColor(getConvertedEntryTypeCode(entry)) }}>{getConvertedEntryTypeCode(entry)}</span></div>
                                         : rowType}
                                     </td>
                                     <td style={{ border: '1px solid #000', padding: '3px', textAlign: 'center', fontWeight: '600' }}>{entry.bags?.toLocaleString('en-IN') || '0'}</td>
-                                    <td style={{ border: '1px solid #000', padding: '3px', textAlign: 'center' }}>{entry.packaging || '-'}</td>
+                                    <td style={{ border: '1px solid #000', padding: '3px', textAlign: 'center' }}>{formatPackagingLabel(entry.packaging)}</td>
                                     <td style={{ border: '1px solid #000', padding: '3px 5px', textAlign: 'left', fontWeight: '600', color: '#0d47a1' }}>{getPartyNode(entry, () => openDetailEntry(entry))}</td>
                                     <td style={{ border: '1px solid #000', padding: '3px 5px', textAlign: 'left' }}>{toTitleCase(entry.location) || '-'}</td>
                                     <td style={{ border: '1px solid #000', padding: '3px 5px', textAlign: 'left' }}>{toTitleCase(entry.variety) || '-'}</td>
@@ -2116,7 +2125,7 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                 backgroundColor: '#eaf2f8', padding: '6px 8px', borderRadius: '6px',
                 marginBottom: '6px', fontSize: '10px', textAlign: 'center', lineHeight: '1.4'
               }}>
-                Bags: <b>{selectedEntry.bags?.toLocaleString('en-IN')}</b> | Pkg: <b>{selectedEntry.packaging || '75'} Kg</b> | Party: <b>{getPartyDisplay(selectedEntry)}</b> | <b>{selectedEntry.location}</b> | <b>{selectedEntry.variety}</b>
+                Bags: <b>{selectedEntry.bags?.toLocaleString('en-IN')}</b> | Pkg: <b>{formatPackagingLabel(selectedEntry.packaging || '75')}</b> | Party: <b>{getPartyDisplay(selectedEntry)}</b> | <b>{selectedEntry.location}</b> | <b>{selectedEntry.variety}</b>
               </div>
 
               {!isRiceMode && (
@@ -2527,7 +2536,7 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                 marginBottom: '6px', fontSize: '10px', textAlign: 'center', lineHeight: '1.4',
                 display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px'
               }}>
-                <div>Bags: <b>{selectedEntry.bags?.toLocaleString('en-IN')}</b> | Pkg: <b>{selectedEntry.packaging || '75'} Kg</b> | Party: <b>{getPartyDisplay(selectedEntry)}</b></div>
+                <div>Bags: <b>{selectedEntry.bags?.toLocaleString('en-IN')}</b> | Pkg: <b>{formatPackagingLabel(selectedEntry.packaging || '75')}</b> | Party: <b>{getPartyDisplay(selectedEntry)}</b></div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ color: '#444', fontWeight: '700' }}>Final Rate Uses:</span>
                   <select

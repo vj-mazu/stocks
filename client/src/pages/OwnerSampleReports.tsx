@@ -35,7 +35,7 @@ const baseTabs: TabConfig[] = [
   { key: 'pending-lots', label: 'Pending (Sample Selection)', icon: '\u{1F4CB}', color: '#3498db' },
   { key: 'cooking-report', label: 'Cooking Book', icon: '\u{1F35A}', color: '#e67e22' },
   { key: 'lots-passed', label: 'Final Pass Lots', icon: '\u{2705}', color: '#27ae60' },
-  { key: 'loading-lots', label: 'Loading Lots', icon: '\u{1F69A}', color: '#f39c12' },
+  { key: 'loading-lots', label: 'Pending Loading Lots', icon: '\u{1F69A}', color: '#f39c12' },
   { key: 'completed-lots', label: 'Completed Lots', icon: '\u{1F4E6}', color: '#e74c3c' },
 ];
 
@@ -70,14 +70,7 @@ const OwnerSampleReports: React.FC = () => {
   }, [user?.role]);
 
   const tabs = useMemo<TabConfig[]>(() => {
-    const completedIndex = baseTabs.findIndex((tab) => tab.key === 'completed-lots');
-    const baseTabsWithApprovals = completedIndex === -1
-      ? [...baseTabs, ...approvalTabs]
-      : [
-          ...baseTabs.slice(0, completedIndex),
-          ...approvalTabs,
-          ...baseTabs.slice(completedIndex)
-        ];
+    const baseTabsWithApprovals = [...baseTabs, ...approvalTabs];
 
     if (!isManager) {
       return baseTabsWithApprovals;

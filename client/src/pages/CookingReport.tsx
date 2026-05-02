@@ -66,6 +66,18 @@ const formatDateInputValue = (value: Date) => {
 };
 
 const toTitleCase = (str: string) => str ? str.replace(/\b\w/g, c => c.toUpperCase()) : '';
+const formatPackagingLabel = (value?: string | number | null) => {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '-';
+  const normalized = raw.toLowerCase();
+  if (normalized === '0' || normalized === 'loose') return 'Loose';
+  if (normalized === '75' || normalized === '75 kg') return '75 Kg';
+  if (normalized === '40' || normalized === '40 kg') return '40 Kg';
+  if (normalized === '26' || normalized === '26 kg') return '26 Kg';
+  if (normalized === '50' || normalized === '50 kg') return '50 Kg';
+  if (normalized.includes('kg') || normalized.includes('tons')) return raw;
+  return `${raw} Kg`;
+};
 const getCollectorLabel = (value: string | null | undefined, supervisors: SupervisorUser[]) => {
   const raw = typeof value === 'string' ? value.trim() : '';
   if (!raw) return '-';
@@ -1982,10 +1994,10 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                             )}
                             <div style={{
                               background: '#e8eaf6',
-                              color: '#000', padding: '4px 10px', fontWeight: '700', fontSize: '13.5px',
+                              color: '#000', padding: '3px 8px', fontWeight: '700', fontSize: '12px',
                               display: 'flex', alignItems: 'center', gap: '4px'
                             }}>
-                              <span style={{ fontSize: '13.5px', fontWeight: '800' }}>{brokerSeq}.</span> {brokerName}
+                              <span style={{ fontSize: '12px', fontWeight: '800' }}>{brokerSeq}.</span> {brokerName}
                             </div>
                             <table className="responsive-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', tableLayout: 'fixed', border: '1px solid #000' }}>
                               <thead>
@@ -1994,9 +2006,9 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                                   {(activeTab as string) !== 'RICE_COOKING_REPORT' && (
                                     <th style={{ border: '1px solid #000', padding: '1px 3px', fontWeight: '600', fontSize: '12px', textAlign: 'center', width: '3%' }}>Type</th>
                                   )}
-                                  <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', width: '4%' }}>Bags</th>
-                                  <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', width: '4%' }}>Pkg</th>
-                                  <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '11%' }}>Party Name</th>
+                                  <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', width: '3.5%' }}>Bags</th>
+                                  <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', width: '3.5%' }}>Pkg</th>
+                                  <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '9.5%' }}>Party Name</th>
                                   <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '9%' }}>Location</th>
                                   <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '7%' }}>Variety</th>
                                   <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', width: '4%' }}>Quality</th>
@@ -2031,7 +2043,7 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                                   }
 
                                   return (
-                                    <tr key={entry.id} style={{ backgroundColor: (() => { const smellType = String((entry as any).smellType || '').toUpperCase(); const isLightSmell = (entry as any).smellHas && smellType === 'LIGHT'; const isDarkMediumSmell = (entry as any).smellHas && (smellType === 'DARK' || smellType === 'MEDIUM'); const isResampleRow = entry.lotSelectionDecision === 'FAIL'; if (isDarkMediumSmell) return '#ffebee'; if (isLightSmell) return '#fffde7'; if (isResampleRow) return '#fff3e0'; return entry.entryType === 'DIRECT_LOADED_VEHICLE' ? '#e3f2fd' : entry.entryType === 'LOCATION_SAMPLE' ? '#ffe0b2' : '#ffffff'; })() }}>
+                                    <tr key={entry.id} style={{ backgroundColor: (() => { const smellType = String((entry as any).smellType || '').toUpperCase(); const isLightSmell = (entry as any).smellHas && smellType === 'LIGHT'; const isDarkMediumSmell = (entry as any).smellHas && (smellType === 'DARK' || smellType === 'MEDIUM'); const resamplePassDecision = String((entry as any)?.resampleOriginDecision || '').toUpperCase(); const isResamplePassFlow = resamplePassDecision === 'PASS_WITH_COOKING' || resamplePassDecision === 'PASS_WITHOUT_COOKING'; const isResampleRow = entry.lotSelectionDecision === 'FAIL'; if (smellType === 'DARK') return '#fecaca'; if (smellType === 'MEDIUM') return '#fee2e2'; if (isLightSmell) return '#fef2f2'; if (isResamplePassFlow) return '#fff3e0'; if (isResampleRow) return '#fff3e0'; return entry.entryType === 'DIRECT_LOADED_VEHICLE' ? '#e3f2fd' : entry.entryType === 'LOCATION_SAMPLE' ? '#ffd9b3' : '#ffffff'; })(), border: (() => { const resamplePassDecision = String((entry as any)?.resampleOriginDecision || '').toUpperCase(); return resamplePassDecision === 'PASS_WITH_COOKING' || resamplePassDecision === 'PASS_WITHOUT_COOKING' ? '2px solid #dc2626' : undefined; })() }}>
                                       <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontWeight: '600', fontSize: '13px' }}>{slNo}</td>
                                       {(activeTab as string) !== 'RICE_COOKING_REPORT' && (
                                         <td style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center', verticalAlign: 'middle' }}>
@@ -2040,19 +2052,19 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                                             if (isConvertedResampleType(entry)) {
                                               const originalTypeCode = getOriginalEntryTypeCode(entry);
                                               const convertedTypeCode = getConvertedEntryTypeCode(entry);
-                                              return <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0px' }}><span style={{ fontSize: '8px', color: '#888' }}>{originalTypeCode}</span><span style={{ fontSize: '12px', fontWeight: 800, color: getEntryTypeTextColor(originalTypeCode) }}>{convertedTypeCode}</span></div>;
+                                              return <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px', minWidth: '38px' }}><span style={{ fontSize: '11px', color: getEntryTypeTextColor(originalTypeCode), fontWeight: 800 }}>{originalTypeCode}</span><span style={{ fontSize: '14px', fontWeight: 900, color: getEntryTypeTextColor(convertedTypeCode) }}>{convertedTypeCode}</span></div>;
                                             }
                                             const originalLabel = entry.entryType === 'DIRECT_LOADED_VEHICLE' ? 'RL' : entry.entryType === 'LOCATION_SAMPLE' ? 'LS' : entry.entryType === 'RICE_SAMPLE' ? 'RS' : 'MS';
-                                            const bgColor = entry.entryType === 'DIRECT_LOADED_VEHICLE' ? '#1565c0' : entry.entryType === 'LOCATION_SAMPLE' ? '#e67e22' : '#fff';
-                                            const textColor = entry.entryType === 'DIRECT_LOADED_VEHICLE' || entry.entryType === 'LOCATION_SAMPLE' ? 'white' : '#2e7d32';
-                                            const border = entry.entryType !== 'DIRECT_LOADED_VEHICLE' && entry.entryType !== 'LOCATION_SAMPLE' ? '1px solid #ccc' : 'none';
+                                            const bgColor = entry.entryType === 'DIRECT_LOADED_VEHICLE' ? '#1565c0' : entry.entryType === 'LOCATION_SAMPLE' ? '#c2410c' : '#fff';
+                                            const textColor = entry.entryType === 'DIRECT_LOADED_VEHICLE' || entry.entryType === 'LOCATION_SAMPLE' ? 'white' : '#166534';
+                                            const border = entry.entryType !== 'DIRECT_LOADED_VEHICLE' && entry.entryType !== 'LOCATION_SAMPLE' ? '1px solid #166534' : 'none';
                                             return <span style={{ color: textColor, backgroundColor: bgColor, padding: '1px 4px', borderRadius: '3px', fontSize: '12px', fontWeight: 800, border }}>{originalLabel}</span>;
                                           })()}
                                         </td>
                                       )}
                                       <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontWeight: '600', fontSize: '13px' }}>{entry.bags?.toLocaleString('en-IN') || '0'}</td>
-                                      <td style={{ border: '1px solid #000', padding: '3px 4px', fontSize: '13px', textAlign: 'center' }}>{entry.packaging || '-'}</td>
-                                      <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#1565c0' }}>
+                                      <td style={{ border: '1px solid #000', padding: '3px 4px', fontSize: '11px', textAlign: 'center' }}>{formatPackagingLabel(entry.packaging)}</td>
+                                      <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '13px', fontWeight: '600', color: '#1565c0' }}>
                                         {(() => {
                                           const partyDisplay = getPartyDisplayParts(entry);
                                           return (
@@ -2060,12 +2072,12 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                                               <button
                                                 type="button"
                                                 onClick={() => handleOpenDetail(entry)}
-                                                style={{ background: 'transparent', border: 'none', color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', fontWeight: '700', fontSize: '14px', padding: 0, textAlign: 'left' }}
+                                                style={{ background: 'transparent', border: 'none', color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', fontWeight: '700', fontSize: '13px', padding: 0, textAlign: 'left' }}
                                               >
                                                 {partyDisplay.label}
                                               </button>
                                               {partyDisplay.showLorrySecondLine ? (
-                                                <div style={{ fontSize: '13px', color: '#1565c0', fontWeight: '600' }}>{partyDisplay.lorry}</div>
+                                                <div style={{ fontSize: '12px', color: '#1565c0', fontWeight: '600' }}>{partyDisplay.lorry}</div>
                                               ) : null}
                                             </div>
                                           );
@@ -2223,15 +2235,15 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                               color: '#000', padding: '4px 10px', fontWeight: '700', fontSize: '13.5px',
                               display: 'flex', alignItems: 'center', gap: '4px'
                             }}>
-                              <span style={{ fontSize: '13.5px', fontWeight: '800' }}>{brokerSeq}.</span> {brokerName}
+                              <span style={{ fontSize: '12px', fontWeight: '800' }}>{brokerSeq}.</span> {brokerName}
                             </div>
                             <table className="responsive-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', tableLayout: 'fixed', border: '1px solid #000' }}>
                               <thead>
                                 <tr style={{ backgroundColor: '#4a148c', color: 'white' }}>
                                   <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', width: '3%' }}>SL No</th>
-                                  <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', width: '6%' }}>Bags</th>
-                                  <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', width: '6%' }}>Pkg</th>
-                                  <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '16%' }}>Party Name</th>
+                                  <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', width: '5%' }}>Bags</th>
+                                  <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', width: '5%' }}>Pkg</th>
+                                  <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '13%' }}>Party Name</th>
                                   <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '12%' }}>Location</th>
                                   <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '8%' }}>Variety</th>
                                   <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', width: '10%' }}>Sample Report By</th>
@@ -2253,14 +2265,8 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                                     <tr key={entry.id}>
                                       <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontWeight: '600', fontSize: '13px' }}>{slNo}</td>
                                       <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontWeight: '700', fontSize: '13px', color: '#1565c0' }}>{entry.bags?.toLocaleString('en-IN') || '0'}</td>
-                                      <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontSize: '11px' }}>{(() => {
-                                        let pkg = String(entry.packaging || '75');
-                                        if (pkg.toLowerCase() === '0' || pkg.toLowerCase() === 'loose') return 'Loose';
-                                        if (pkg.toLowerCase().includes('kg')) return pkg;
-                                        if (pkg.toLowerCase().includes('tons')) return pkg;
-                                        return `${pkg} kg`;
-                                      })()}</td>
-                                      <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#1565c0' }}>
+                                      <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontSize: '11px' }}>{formatPackagingLabel(entry.packaging)}</td>
+                                      <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '13px', fontWeight: '600', color: '#1565c0' }}>
                                         {(() => {
                                           const partyDisplay = getPartyDisplayParts(entry);
                                           return (
@@ -2268,12 +2274,12 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                                               <button
                                                 type="button"
                                                 onClick={() => handleOpenHistory(entry, 'all')}
-                                                style={{ background: 'transparent', border: 'none', color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', fontWeight: '700', fontSize: '14px', padding: 0, textAlign: 'left' }}
+                                                style={{ background: 'transparent', border: 'none', color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', fontWeight: '700', fontSize: '13px', padding: 0, textAlign: 'left' }}
                                               >
                                                 {partyDisplay.label}
                                               </button>
                                               {partyDisplay.showLorrySecondLine ? (
-                                                <div style={{ fontSize: '13px', color: '#1565c0', fontWeight: '600' }}>{partyDisplay.lorry}</div>
+                                                <div style={{ fontSize: '12px', color: '#1565c0', fontWeight: '600' }}>{partyDisplay.lorry}</div>
                                               ) : null}
                                             </div>
                                           );

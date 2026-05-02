@@ -36,11 +36,11 @@ const tabs: TabConfig[] = [
     { key: 'sample-book-2', label: 'Paddy Sample Book', icon: '\u{1F4D7}', color: '#1565c0' },
     { key: 'pending-lots', label: 'Pending (Sample Selection)', icon: '\u{1F4CB}', color: '#3498db' },
     { key: 'cooking-report', label: 'Cooking Book', icon: '\u{1F35A}', color: '#e67e22' },
-    { key: 'loading-lots', label: 'Loading Lots', icon: '\u{1F69A}', color: '#f39c12' },
-    { key: 'approvals', label: 'Approvals', icon: '\u{1F4DD}', color: '#8e44ad' },
+    { key: 'loading-lots', label: 'Pending Loading Lots', icon: '\u{1F69A}', color: '#f39c12' },
     { key: 'assigning-supervisor', label: 'Assigning (Loading)', icon: '\u{1F477}', color: '#d35400' },
     { key: 'allotted-supervisors', label: 'Allotted Supervisors', icon: '\u{1F482}', color: '#2980b9' },
     { key: 'completed-lots', label: 'Completed Lots', icon: '\u{1F4E6}', color: '#e74c3c' },
+    { key: 'approvals', label: 'Approvals', icon: '\u{1F4DD}', color: '#8e44ad' },
 ];
 
 const ManagerSampleReports: React.FC = () => {
