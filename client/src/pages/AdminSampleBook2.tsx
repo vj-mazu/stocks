@@ -148,6 +148,18 @@ interface SampleEntry {
 }
 
 const toTitleCase = (str: string) => str ? str.replace(/\b\w/g, c => c.toUpperCase()) : '';
+const formatPackagingLabel = (value?: string | number | null) => {
+    const raw = String(value ?? '').trim();
+    if (!raw) return '-';
+    const normalized = raw.toLowerCase();
+    if (normalized === '0' || normalized === 'loose') return 'Loose';
+    if (normalized === '75' || normalized === '75 kg') return '75 Kg';
+    if (normalized === '40' || normalized === '40 kg') return '40 Kg';
+    if (normalized === '26' || normalized === '26 kg') return '26 Kg';
+    if (normalized === '50' || normalized === '50 kg') return '50 Kg';
+    if (normalized.includes('kg') || normalized.includes('tons')) return raw;
+    return `${raw} Kg`;
+};
 const buildMapHref = (value: any) => {
     const raw = typeof value === 'object' && value !== null
         ? `${value.lat},${value.lng}`
@@ -445,7 +457,7 @@ const getPopupSmellSummary = (entry: any) => {
         return {
             label: 'Smell',
             value: smellLabel,
-            tone: String(smellLabel || '').trim().toUpperCase() === 'LIGHT' ? '#e67e22' : '#c62828'
+            tone: String(smellLabel || '').trim().toUpperCase() === 'LIGHT' ? '#dc2626' : '#991b1b'
         };
     }
 
@@ -1729,11 +1741,11 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                             <td style={{ border: '1px solid #000', padding: '8px 10px', textAlign: 'center', verticalAlign: 'middle', fontWeight: 700 }}>{index + 1}</td>
                                             <td style={{ border: '1px solid #000', padding: '8px 10px', textAlign: 'center', verticalAlign: 'middle', fontWeight: '700', color: isConvertedResampleType(entry) ? getEntryTypeTextColor(getDisplayedEntryTypeCode(entry)) : undefined }}>
                                                 {isConvertedResampleType(entry)
-                                                    ? <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0px' }}><span style={{ fontSize: '10px', color: '#888' }}>{getOriginalEntryTypeCode(entry)}</span><span style={{ color: getEntryTypeTextColor(getOriginalEntryTypeCode(entry)) }}>{getConvertedEntryTypeCode(entry)}</span></div>
+                                                    ? <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px', minWidth: '38px' }}><span style={{ fontSize: '11px', color: getEntryTypeTextColor(getOriginalEntryTypeCode(entry)), fontWeight: 800 }}>{getOriginalEntryTypeCode(entry)}</span><span style={{ fontSize: '14px', fontWeight: 900, color: getEntryTypeTextColor(getConvertedEntryTypeCode(entry)) }}>{getConvertedEntryTypeCode(entry)}</span></div>
                                                     : getDisplayedEntryTypeCode(entry)}
                                             </td>
                                             <td style={{ border: '1px solid #000', padding: '8px 10px', textAlign: 'center', verticalAlign: 'middle' }}>{entry.bags}</td>
-                                            <td style={{ border: '1px solid #000', padding: '8px 10px', textAlign: 'center', verticalAlign: 'middle' }}>{entry.packaging}</td>
+                                            <td style={{ border: '1px solid #000', padding: '8px 10px', textAlign: 'center', verticalAlign: 'middle' }}>{formatPackagingLabel(entry.packaging)}</td>
                                             <td style={{ border: '1px solid #000', padding: '8px 10px', verticalAlign: 'middle', minWidth: '180px' }}>
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                                     <button
@@ -1840,23 +1852,30 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                                         const cookingStatusKey = String(cr?.status || '').toUpperCase();
                                                         const isCancelled = entry.workflowStatus === 'CANCELLED';
                                                         const isFailedSmell = entry.workflowStatus === 'FAILED' && entry.failRemarks && entry.failRemarks.toLowerCase().includes('smell');
-                                                        const isLightSmell = entry.smellHas && String(entry.smellType || '').toUpperCase() === 'LIGHT';
+                                                        const smellKey = String(entry.smellType || '').toUpperCase();
+                                                        const isLightSmell = entry.smellHas && smellKey === 'LIGHT';
                                                         const isResampleRow =
                                                             entry.lotSelectionDecision === 'FAIL'
                                                             && entry.workflowStatus !== 'FAILED'
                                                             && !['PASS', 'MEDIUM'].includes(cookingStatusKey)
                                                             && !entry.offering?.finalPrice;
+                                                        const resamplePassDecision = String((entry as any).resampleOriginDecision || '').toUpperCase();
+                                                        const isResamplePassFlow = resamplePassDecision === 'PASS_WITH_COOKING' || resamplePassDecision === 'PASS_WITHOUT_COOKING';
                                                         const rowBg = isCancelled
                                                             ? '#f8bbd0'
-                                                            : isFailedSmell
-                                                                ? '#ffebee'
-                                                                : isLightSmell
-                                                                    ? '#fff9c4'
-                                                                    : isResampleRow
+                                                            : isFailedSmell || smellKey === 'DARK'
+                                                                ? '#fecaca'
+                                                                : smellKey === 'MEDIUM'
+                                                                    ? '#fee2e2'
+                                                                    : isLightSmell
+                                                                        ? '#fef2f2'
+                                                                        : isResamplePassFlow
                                                                         ? '#fff3e0'
-                                                                        : cookingFail
-                                                                            ? '#fff0f0'
-                                                                            : entry.entryType === 'DIRECT_LOADED_VEHICLE' ? '#e3f2fd' : entry.entryType === 'LOCATION_SAMPLE' ? '#ffe0b2' : '#ffffff';
+                                                                        : isResampleRow
+                                                                            ? '#fff3e0'
+                                                                            : cookingFail
+                                                                                ? '#fff0f0'
+                                                                                : entry.entryType === 'DIRECT_LOADED_VEHICLE' ? '#e3f2fd' : entry.entryType === 'LOCATION_SAMPLE' ? '#ffd9b3' : '#ffffff';
 
                                                         const fallback = entryType === 'RICE_SAMPLE' ? '--' : '-';
                                                         const fmtVal = (v: any, forceDecimal = false, precision = 2) => {
@@ -1875,18 +1894,18 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                                             || isProvidedAlpha((qp as any).mixLRaw, qp.mixL)
                                                         );
                                                         return (
-                                                            <tr key={entry.id} style={{ backgroundColor: rowBg }}>
+                                                            <tr key={entry.id} style={{ backgroundColor: rowBg, border: isResamplePassFlow ? '2px solid #dc2626' : undefined }}>
                                                                 <td style={{ border: '1px solid #000', padding: '3px 4px', fontSize: '13px', fontWeight: '600', textAlign: 'center', whiteSpace: 'nowrap' }}>{idx + 1}</td>
                                                                 {!isRiceBook && (
                                                                     <td style={{ border: '1px solid #000', padding: '3px 4px', fontSize: '13px', fontWeight: '700', textAlign: 'center', whiteSpace: 'nowrap' }}>
                                                                         {isConvertedResampleType(entry)
-                                                                            ? <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0px' }}><span style={{ fontSize: '10px', color: '#888' }}>{getOriginalEntryTypeCode(entry)}</span><span style={{ color: getEntryTypeTextColor(getOriginalEntryTypeCode(entry)) }}>{getConvertedEntryTypeCode(entry)}</span></div>
+                                                                            ? <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px', minWidth: '38px' }}><span style={{ fontSize: '11px', color: getEntryTypeTextColor(getOriginalEntryTypeCode(entry)), fontWeight: 800 }}>{getOriginalEntryTypeCode(entry)}</span><span style={{ fontSize: '14px', fontWeight: 900, color: getEntryTypeTextColor(getConvertedEntryTypeCode(entry)) }}>{getConvertedEntryTypeCode(entry)}</span></div>
                                                                             : <span style={{ color: getEntryTypeTextColor(getDisplayedEntryTypeCode(entry)) }}>{getDisplayedEntryTypeCode(entry)}</span>}
                                                                     </td>
                                                                 )}
                                                                 <td style={{ border: '1px solid #000', padding: '3px 4px', fontSize: '13px', fontWeight: '700', textAlign: 'center', whiteSpace: 'nowrap' }}>{entry.bags || '0'}</td>
-                                                                <td style={{ border: '1px solid #000', padding: '3px 4px', fontSize: '13px', textAlign: 'center', whiteSpace: 'nowrap' }}>{Number(entry.packaging) === 0 ? 'Loose' : `${entry.packaging || '75'} kg`}</td>
-                                                                <td style={{ border: '1px solid #000', padding: '3px 4px', fontSize: '14px', color: '#1565c0', fontWeight: '600', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                <td style={{ border: '1px solid #000', padding: '3px 4px', fontSize: '12px', textAlign: 'center', whiteSpace: 'nowrap' }}>{formatPackagingLabel(entry.packaging)}</td>
+                                                                <td style={{ border: '1px solid #000', padding: '3px 4px', fontSize: '13px', color: '#1565c0', fontWeight: '600', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                     {(() => {
                                                                         const partyDisplay = getPartyDisplayParts(entry);
                                                                         return (
@@ -1966,7 +1985,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                                                         const smellHasVal = entry.smellHas ?? (entry.qualityParameters as any)?.smellHas;
                                                                         const isSmellFail = String(entry.failRemarks || '').toLowerCase().includes('smell');
                                                                         if (smellHasVal && smellType && !isSmellFail) {
-                                                                            const smellColor = smellType.toUpperCase() === 'DARK' ? '#dc2626' : smellType.toUpperCase() === 'MEDIUM' ? '#ea580c' : '#ca8a04';
+                                                                            const smellColor = smellType.toUpperCase() === 'DARK' ? '#991b1b' : smellType.toUpperCase() === 'MEDIUM' ? '#b91c1c' : '#dc2626';
                                                                             return (
                                                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                                                                     <div style={{ fontSize: '8px', color: smellColor, fontWeight: '700' }}>{toTitleCase(smellType)} Smell</div>

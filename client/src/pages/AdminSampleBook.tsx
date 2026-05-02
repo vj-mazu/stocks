@@ -120,8 +120,8 @@ const AdminSampleBook: React.FC = () => {
     const getDecisionBadge = (decision: string) => {
         if (!decision) return '-';
         const map: Record<string, { label: string; bg: string; color: string }> = {
-            PASS_WITH_COOKING: { label: 'Pass + Cooking', bg: '#ffe0b2', color: '#e65100' },
-            PASS_WITHOUT_COOKING: { label: 'Pass', bg: '#e8f5e9', color: '#2e7d32' },
+            PASS_WITH_COOKING: { label: 'Pass + Cooking', bg: '#fff3e0', color: '#c2410c' },
+            PASS_WITHOUT_COOKING: { label: 'Pass', bg: '#fff3e0', color: '#c2410c' },
             FAIL: { label: 'Fail', bg: '#ffcdd2', color: '#b71c1c' },
             SOLDOUT: { label: 'Sold Out', bg: '#800000', color: '#ffffff' },
         };
@@ -255,14 +255,17 @@ const AdminSampleBook: React.FC = () => {
                                 (offer.brokerageEnabled === false && !parseFloat(offer.brokerage)) ||
                                 (offer.lfEnabled === false && !parseFloat(offer.lf))
                             );
-                            const isLightSmell = e.smellHas && String(e.smellType || '').toUpperCase() === 'LIGHT';
+                            const smellKey = String(e.smellType || '').toUpperCase();
+                            const isLightSmell = e.smellHas && smellKey === 'LIGHT';
                             const isResampleActive = e.lotSelectionDecision === 'FAIL' && e.workflowStatus !== 'FAILED';
                             const isHardFail = e.workflowStatus === 'FAILED' || (cr && String(cr.status).toUpperCase() === 'FAIL');
+                            const resamplePassDecision = String((e as any).resampleOriginDecision || '').toUpperCase();
+                            const isResamplePassFlow = resamplePassDecision === 'PASS_WITH_COOKING' || resamplePassDecision === 'PASS_WITHOUT_COOKING';
                             return (
-                                <tr key={e.id} style={{ background: isLightSmell ? '#fff9c4' : e.lotSelectionDecision === 'SOLDOUT' ? '#fff0f0' : isHardFail ? '#fff0f0' : isResampleActive ? '#fff3e0' : e.workflowStatus === 'COMPLETED' ? '#f0fff0' : e.entryType === 'DIRECT_LOADED_VEHICLE' ? '#e3f2fd' : e.entryType === 'LOCATION_SAMPLE' ? '#ffe0b2' : '#ffffff', borderLeft: isHardFail ? '4px solid #e74c3c' : isResampleActive ? '4px solid #f59e0b' : e.workflowStatus === 'COMPLETED' ? '4px solid #27ae60' : 'none' }}>
+                                <tr key={e.id} style={{ background: smellKey === 'DARK' ? '#fecaca' : smellKey === 'MEDIUM' ? '#fee2e2' : isLightSmell ? '#fef2f2' : e.lotSelectionDecision === 'SOLDOUT' ? '#fff0f0' : isHardFail ? '#fff0f0' : isResamplePassFlow ? '#fff3e0' : isResampleActive ? '#fff3e0' : e.workflowStatus === 'COMPLETED' ? '#f0fff0' : e.entryType === 'DIRECT_LOADED_VEHICLE' ? '#e3f2fd' : e.entryType === 'LOCATION_SAMPLE' ? '#ffd9b3' : '#ffffff', borderLeft: isHardFail ? '4px solid #e74c3c' : isResamplePassFlow ? '4px solid #dc2626' : isResampleActive ? '4px solid #f59e0b' : e.workflowStatus === 'COMPLETED' ? '4px solid #27ae60' : 'none' }}>
                                     <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap' }}>{e.serialNo || '-'}</td>
                                     <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontWeight: '700', fontSize: '11px', whiteSpace: 'nowrap' }}>{e.bags || '0'}</td>
-                                    <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontSize: '11px', whiteSpace: 'nowrap' }}>{Number(e.packaging) === 0 ? 'Loose' : `${e.packaging || '75'} kg`}</td>
+                                    <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontSize: '11px', whiteSpace: 'nowrap' }}>{Number(e.packaging) === 0 ? 'Loose' : `${e.packaging || '75'} Kg`}</td>
                                     <td style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'left', fontSize: '9px', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
                                         {new Date(e.entryDate).toLocaleDateString('en-IN')}
                                     </td>
