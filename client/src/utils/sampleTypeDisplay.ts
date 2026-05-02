@@ -9,8 +9,8 @@ export const getEntryTypeCode = (entryType?: string | null) => {
 export const getEntryTypeTextColor = (typeCode?: string | null) => {
   const normalized = String(typeCode || '').toUpperCase();
   if (normalized === 'RL') return '#1565c0';
-  if (normalized === 'MS' || normalized === 'RS') return '#2e7d32';
-  return '#e67e22';
+  if (normalized === 'MS' || normalized === 'RS') return '#166534';
+  return '#c2410c';
 };
 
 export const isConvertedResampleType = (entry: any) => {
@@ -21,7 +21,8 @@ export const isConvertedResampleType = (entry: any) => {
   }
 
   return (
-    String(entry?.lotSelectionDecision || '').toUpperCase() === 'FAIL'
+    String(entry?.resampleOriginDecision || '').toUpperCase() === 'PASS_WITH_COOKING'
+    || String(entry?.resampleOriginDecision || '').toUpperCase() === 'PASS_WITHOUT_COOKING'
     || Number(entry?.qualityReportAttempts || 0) > 1
     || (Array.isArray(entry?.qualityAttemptDetails) && entry.qualityAttemptDetails.length > 1)
     || (Array.isArray(entry?.resampleCollectedTimeline) && entry.resampleCollectedTimeline.length > 0)

@@ -42,7 +42,7 @@ const SampleEntryPage: React.FC<{
   const [showQualitySaveConfirm, setShowQualitySaveConfirm] = useState(false);
   const [showGpsPrompt, setShowGpsPrompt] = useState(false);
   const [gpsPromptEntry, setGpsPromptEntry] = useState<SampleEntry | null>(null);
-  const [preserveQualityFormOnGpsPrompt, setPreserveQualityFormOnGpsPrompt] = useState(false);
+  const [gpsPromptValue, setGpsPromptValue] = useState('');
   const [pendingSubmitEvent, setPendingSubmitEvent] = useState<React.FormEvent | null>(null);
   const [editingEntry, setEditingEntry] = useState<SampleEntry | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -680,9 +680,12 @@ const SampleEntryPage: React.FC<{
       }
       if (activeTab === 'SAMPLE_BOOK' && filterEntryType !== 'RICE_SAMPLE') {
         const qualityAttempts = getQualityAttemptsForEntry(entry as any);
+        const latestQualityAttempt = qualityAttempts[qualityAttempts.length - 1] || null;
         const isConvertedLocationResample = String(entry.entryType || '').toUpperCase() === 'LOCATION_SAMPLE'
           && !!String((entry as any)?.originalEntryType || '').trim()
           && String((entry as any)?.originalEntryType || '').toUpperCase() !== 'LOCATION_SAMPLE';
+        const isAssignedResampleLocationFlow = isResampleWorkflowEntry(entry as any)
+          && getResampleCollectorNames(entry as any).length > 0;
         const hasMatchingParentRow = entries.some((candidate) => {
           if (candidate.id === entry.id) return false;
           const candidateConverted = String(candidate.entryType || '').toUpperCase() === 'LOCATION_SAMPLE'
@@ -697,6 +700,9 @@ const SampleEntryPage: React.FC<{
             && Number(candidate.bags || 0) === Number(entry.bags || 0);
         });
         const isClosedWorkflowRow = entry.workflowStatus === 'FAILED' || entry.workflowStatus === 'CANCELLED';
+        if (isAssignedResampleLocationFlow && qualityAttempts.length > 1 && !hasFullQualitySnapshot(latestQualityAttempt) && !isClosedWorkflowRow) {
+          return false;
+        }
         if (isConvertedLocationResample && qualityAttempts.length > 1 && hasMatchingParentRow && !isClosedWorkflowRow) {
           return false;
         }
@@ -716,13 +722,15 @@ const SampleEntryPage: React.FC<{
     });
 
     const grouped: Record<string, Record<string, SampleEntry[]>> = {};
-    filtered.forEach(entry => {
+    [...filtered]
+      .sort((left, right) => getEffectiveDate(right).getTime() - getEffectiveDate(left).getTime())
+      .forEach(entry => {
       const dateKey = getEffectiveDate(entry).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
       const brokerKey = entry.brokerName || 'Unknown';
       if (!grouped[dateKey]) grouped[dateKey] = {};
       if (!grouped[dateKey][brokerKey]) grouped[dateKey][brokerKey] = [];
       grouped[dateKey][brokerKey].push(entry);
-    });
+      });
     return { grouped, totalCount: filtered.length };
   }, [entries, activeTab, filterEntryType]);
   const isAssignedResampleLocationEntry = (entry: SampleEntry) => {
@@ -1127,10 +1135,17 @@ const SampleEntryPage: React.FC<{
 
       // Fetch reported-by users for quality entry
       try {
-        const usersResponse = await axios.get<{ success: boolean, users: Array<{ qualityName?: string | null, username?: string | null, fullName?: string | null, role?: string, isActive?: boolean }> }>(`${API_URL}/admin/users`, { headers });
+        const usersResponse = await axios.get<{ success: boolean, users: Array<{ qualityName?: string | null, username?: string | null, fullName?: string | null, role?: string, staffType?: string | null, isActive?: boolean }> }>(`${API_URL}/admin/users`, { headers });
         if (usersResponse.data.success) {
           const qNames = usersResponse.data.users
-            .filter((u: any) => u.isActive !== false)
+            .filter((u: any) => {
+              if (u.isActive === false) return false;
+              const normalizedRole = String(u.role || '').trim().toLowerCase();
+              const normalizedStaffType = String(u.staffType || '').trim().toLowerCase();
+              const isLocationStaff = normalizedRole === 'physical_supervisor'
+                || ((normalizedRole === 'staff' || normalizedRole === 'paddy_supervisor') && normalizedStaffType === 'location');
+              return isLocationStaff || normalizedRole === 'manager';
+            })
             .map((u: any) => String(u.qualityName || u.fullName || u.username || '').trim())
             .filter((name: string) => name !== '' && name.toLowerCase() !== 'admin')
             .sort((a: string, b: string) => a.localeCompare(b));
@@ -1187,6 +1202,30 @@ const SampleEntryPage: React.FC<{
         const { latitude, longitude } = position.coords;
         const coords = `${latitude},${longitude}`;
         setFormData(prev => ({ ...prev, gpsCoordinates: coords }));
+        setIsCapturingGps(false);
+        showNotification('GPS coordinates captured successfully', 'success');
+      },
+      (error) => {
+        console.error('GPS error:', error);
+        setIsCapturingGps(false);
+        showNotification('Failed to capture GPS location. Please ensure location permissions are enabled.', 'error');
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
+
+  const handleCaptureQualityGps = () => {
+    if (!navigator.geolocation) {
+      showNotification('Geolocation is not supported by your browser', 'error');
+      return;
+    }
+
+    setIsCapturingGps(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const coords = `${latitude},${longitude}`;
+        setQualityData(prev => ({ ...prev, gpsCoordinates: coords }));
         setIsCapturingGps(false);
         showNotification('GPS coordinates captured successfully', 'success');
       },
@@ -1267,7 +1306,7 @@ const SampleEntryPage: React.FC<{
       setShowModal(false);
       showNotification('Sample entry created successfully', 'success');
       setActiveTab(selectedEntryType === 'LOCATION_SAMPLE' ? 'LOCATION_SAMPLE' : 'MILL_SAMPLE');
-      setSampleCollectType('broker');
+      setSampleCollectType(selectedEntryType === 'DIRECT_LOADED_VEHICLE' ? 'supervisor' : 'broker');
       setFormData({
         entryDate: new Date().toISOString().split('T')[0],
         brokerName: '',
@@ -1277,7 +1316,9 @@ const SampleEntryPage: React.FC<{
         bags: '',
         lorryNumber: '',
         packaging: selectedEntryType === 'RICE_SAMPLE' ? '26 kg' : '75',
-        sampleCollectedBy: 'Broker Office Sample',
+        sampleCollectedBy: selectedEntryType === 'DIRECT_LOADED_VEHICLE'
+          ? toTitleCase(user.fullName || user.username || '')
+          : 'Broker Office Sample',
         sampleGivenToOffice: false,
         smellHas: false,
         smellType: '',
@@ -1467,6 +1508,10 @@ const SampleEntryPage: React.FC<{
 
   // Title case handler
   const handleInputChange = (field: string, value: string) => {
+    if (field === 'lorryNumber') {
+      setFormData(prev => ({ ...prev, [field]: value.toUpperCase() }));
+      return;
+    }
     if (field === 'partyName') {
       setFormData(prev => ({ ...prev, [field]: value }));
       return;
@@ -1502,6 +1547,22 @@ const SampleEntryPage: React.FC<{
     return gpsCandidates
       .map((value) => String(value || '').trim())
       .find((value) => value !== '') || '';
+  };
+
+  const persistEntryGpsCoordinates = async (entryId: number, gpsCoordinates: string) => {
+    const trimmedGps = String(gpsCoordinates || '').trim();
+    if (!entryId || !trimmedGps) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const gpsFormData = new FormData();
+      gpsFormData.append('gpsCoordinates', trimmedGps);
+      await axios.put(`${API_URL}/sample-entries/${entryId}`, gpsFormData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+    } catch (err: any) {
+      console.error('[GPS SAVE] Failed to save GPS immediately:', err);
+    }
   };
 
   const resetQualityForm = (entry?: SampleEntry, options?: { defaultResampleSmellNo?: boolean }) => {
@@ -1551,12 +1612,12 @@ const SampleEntryPage: React.FC<{
       wbT: '',
       paddyWb: '',
       dryMoisture: '',
+      gpsCoordinates: '',
       smellHas: priorSmell.has,
       smellType: priorSmell.type,
       reportedBy: defaultReportedBy,
       gramsReport: '10gms',
-      uploadFile: null,
-      gpsCoordinates: ''
+      uploadFile: null
     });
     setQualitySmellAnswered(priorSmell.has || Boolean(options?.defaultResampleSmellNo));
     setHasExistingQualityData(false);
@@ -1567,21 +1628,7 @@ const SampleEntryPage: React.FC<{
     setDryMoistureEnabled(false);
   };
 
-  const openQualityEntryUi = (entry: SampleEntry, options?: { preservePrefilledQuality?: boolean }) => {
-    const isResampleFlow = entry.lotSelectionDecision === 'FAIL'
-      && entry.workflowStatus !== 'FAILED'
-      && entry.entryType !== 'RICE_SAMPLE';
-    const savedGpsCoordinates = getSavedGpsCoordinates(entry);
-    const hasSavedGps = savedGpsCoordinates !== '';
-
-    if (entry.entryType === 'LOCATION_SAMPLE' && !hasSavedGps) {
-      setGpsPromptEntry(entry);
-      setPreserveQualityFormOnGpsPrompt(Boolean(options?.preservePrefilledQuality));
-      setShowGpsPrompt(true);
-      return;
-    }
-
-    setPreserveQualityFormOnGpsPrompt(false);
+  const openQualityEntryUi = (entry: SampleEntry, _options?: { preservePrefilledQuality?: boolean }) => {
     setShowQualityModal(true);
   };
 
@@ -1698,12 +1745,12 @@ const SampleEntryPage: React.FC<{
           wbT: rawOrEmpty(qp.wbTRaw, qp.wbT),
           paddyWb: rawOrEmpty(qp.paddyWbRaw, qp.paddyWb),
           dryMoisture: rawOrEmpty(qp.dryMoistureRaw, qp.dryMoisture),
+          gpsCoordinates: qp.gpsCoordinates || (detailedEntry as any).gpsCoordinates || '',
           smellHas: (qp as any).smellHas ?? (detailedEntry as any).smellHas ?? false,
           smellType: (qp as any).smellType ?? (detailedEntry as any).smellType ?? '',
           reportedBy: qp.reportedBy || '',
           gramsReport: qp.gramsReport || '10gms',
-          uploadFile: null,
-          gpsCoordinates: qp.gpsCoordinates || (detailedEntry as any).gpsCoordinates || ''
+          uploadFile: null
         });
         setQualitySmellAnswered(true);
         setHasExistingQualityData(true);
@@ -2085,63 +2132,55 @@ const SampleEntryPage: React.FC<{
     isPaddyResampleModal: forceFreshResampleAdd ? true : isPaddyResampleModal,
     hasSavedResampleAttempt: selectedResampleAttemptSaved
   });
-  const handleGpsNo = () => {
+  const openGpsPrompt = (entry: SampleEntry) => {
+    setGpsPromptEntry(entry);
+    setGpsPromptValue(getSavedGpsCoordinates(entry));
+    setShowGpsPrompt(true);
+  };
+
+  const closeGpsPrompt = () => {
     setShowGpsPrompt(false);
-    if (!preserveQualityFormOnGpsPrompt) {
-      resetQualityForm(gpsPromptEntry as SampleEntry, {
-        defaultResampleSmellNo: shouldDefaultResampleSmellNo(gpsPromptEntry as SampleEntry, qualityModalIntent)
-      });
-      setQualityRecordExists(true);
+    setGpsPromptEntry(null);
+    setGpsPromptValue('');
+  };
+
+  const handleGpsNo = () => {
+    closeGpsPrompt();
+  };
+
+  const handleGpsPromptContinue = async () => {
+    const trimmedGps = gpsPromptValue.trim();
+    if (trimmedGps && gpsPromptEntry?.id) {
+      await persistEntryGpsCoordinates(gpsPromptEntry.id, trimmedGps);
+      await loadEntries();
     }
-    setPreserveQualityFormOnGpsPrompt(false);
-    setShowQualityModal(true);
+    closeGpsPrompt();
   };
 
   const handleGpsYes = () => {
-    if ("geolocation" in navigator) {
-      setIsCapturingGps(true);
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setIsCapturingGps(false);
-          const capturedGps = `${position.coords.latitude},${position.coords.longitude}`;
-          showNotification("GPS Captured Successfully", "success");
-          setShowGpsPrompt(false);
-
-          // Immediately save GPS to server so it's not lost if quality isn't saved
-          const entryId = gpsPromptEntry?.id;
-          if (entryId) {
-            const token = localStorage.getItem('token');
-            const gpsFormData = new FormData();
-            gpsFormData.append('gpsCoordinates', capturedGps);
-            axios.put(`${API_URL}/sample-entries/${entryId}`, gpsFormData, {
-              headers: { Authorization: `Bearer ${token}` }
-            }).catch((err: any) => {
-              console.error('[GPS SAVE] Failed to save GPS immediately:', err);
-            });
-          }
-
-          if (!preserveQualityFormOnGpsPrompt) {
-            resetQualityForm(gpsPromptEntry as SampleEntry, {
-              defaultResampleSmellNo: shouldDefaultResampleSmellNo(gpsPromptEntry as SampleEntry, qualityModalIntent)
-            });
-            setQualityRecordExists(true);
-          }
-          setQualityData(prev => ({
-            ...prev,
-            gpsCoordinates: capturedGps
-          }));
-          setPreserveQualityFormOnGpsPrompt(false);
-          setShowQualityModal(true);
-        },
-        (error) => {
-          setIsCapturingGps(false);
-          showNotification("GPS failed: " + error.message, "error");
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
-    } else {
+    if (!("geolocation" in navigator)) {
       showNotification("Geolocation is not supported by this browser.", "error");
+      return;
     }
+
+    setIsCapturingGps(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        setIsCapturingGps(false);
+        const capturedGps = `${position.coords.latitude},${position.coords.longitude}`;
+        setGpsPromptValue(capturedGps);
+        if (gpsPromptEntry?.id) {
+          await persistEntryGpsCoordinates(gpsPromptEntry.id, capturedGps);
+          await loadEntries();
+        }
+        showNotification("GPS Captured Successfully", "success");
+      },
+      (error) => {
+        setIsCapturingGps(false);
+        showNotification("GPS failed: " + error.message, "error");
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
   };
 
   useEffect(() => {
@@ -2278,8 +2317,8 @@ const SampleEntryPage: React.FC<{
                   onClick={() => {
                     loadDropdownData();
                     setSelectedEntryType('DIRECT_LOADED_VEHICLE');
-                    setSampleCollectType('broker');
-                    setFormData({ entryDate: new Date().toISOString().split('T')[0], brokerName: '', variety: '', partyName: '', location: '', bags: '', lorryNumber: '', packaging: '75', sampleCollectedBy: 'Broker Office Sample', sampleGivenToOffice: false, smellHas: false, smellType: '', gpsCoordinates: '' });
+                    setSampleCollectType('supervisor');
+                    setFormData({ entryDate: new Date().toISOString().split('T')[0], brokerName: '', variety: '', partyName: '', location: '', bags: '', lorryNumber: '', packaging: '75', sampleCollectedBy: toTitleCase(user?.fullName || user?.username || ''), sampleGivenToOffice: false, smellHas: false, smellType: '', gpsCoordinates: '' });
                     setEditingEntry(null);
                     setShowModal(true);
                   }}
@@ -2659,7 +2698,7 @@ const SampleEntryPage: React.FC<{
                             
                             const resampleQualitySaved = isPaddyResampleWorkflow
                               && hasSavedResampleQualityAttempt(entry as any, qualityAttempts)
-                              && hasSampleBookReadySnapshot(latestQualityAttempt);
+                              && hasFullQualitySnapshot(latestQualityAttempt);
                             const hasAnySavedResampleQuality = isPaddyResampleWorkflow
                               && (
                                 resampleQualitySaved
@@ -2737,10 +2776,14 @@ const SampleEntryPage: React.FC<{
                               && !baseHas100Grams;
                             const suppressOriginalQualityStatus = isPaddyResampleWorkflow && !resampleQualitySaved;
                             const hasQuality = isQualityRecheckPending ? false : (!suppressOriginalQualityStatus && baseHasQuality);
-                            const has100Grams = isQualityRecheckPending ? false : (!suppressOriginalQualityStatus && baseHas100Grams);
+                            const has100Grams = isQualityRecheckPending ? false : (
+                              isPaddyResampleWorkflow
+                                ? baseHas100Grams
+                                : (!suppressOriginalQualityStatus && baseHas100Grams)
+                            );
                             const hasResample100gPrep = isQualityRecheckPending ? false : (isPaddyResampleWorkflow && !resampleQualitySaved && baseHasResample100gPrep);
                             const showResampleQualityCompleted = isPaddyResampleWorkflow && resampleQualitySaved && hasQuality;
-                            const showResample100GramsCompleted = isPaddyResampleWorkflow && resampleQualitySaved && has100Grams;
+                            const showResample100GramsCompleted = isPaddyResampleWorkflow && has100Grams;
                             const showDetailedQualityStatus = false;
                             const qualityAttemptLabels = resampleAttempts > 0
                               ? ['Original Quality', ...Array.from({ length: resampleAttempts }, (_, i) => `Resample ${i + 1}`)]
@@ -2832,6 +2875,31 @@ const SampleEntryPage: React.FC<{
                                 </button>
                               );
                             };
+                            const renderGpsButton = () => {
+                              const canManageGps = entry.entryType === 'LOCATION_SAMPLE'
+                                && (isPaddyResampleEntry || isPaddyResampleWorkflow || isResamplePassFlow)
+                                && (effectiveStaffCanEditDetails || canEditQuality || !isStaffUser);
+                              if (!canManageGps) return null;
+                              const hasGps = getSavedGpsCoordinates(entry) !== '';
+                              return (
+                                <button
+                                  onClick={() => openGpsPrompt(entry)}
+                                  title={hasGps ? 'Edit GPS Location' : 'Add GPS Location'}
+                                  style={{
+                                    fontSize: '9px',
+                                    padding: '2px 5px',
+                                    backgroundColor: hasGps ? '#0f766e' : '#2563eb',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '2px',
+                                    cursor: 'pointer',
+                                    fontWeight: '600'
+                                  }}
+                                >
+                                  {hasGps ? 'Edit GPS' : 'Add GPS'}
+                                </button>
+                              );
+                            };
 
                             const smellState = getEntrySmellState(entry as any);
                             const terminalSampleReportMeta = getStaffTerminalSampleReportMeta(entry as any);
@@ -2840,6 +2908,26 @@ const SampleEntryPage: React.FC<{
                             const isFailedSmell = String(entry.failRemarks || '').toLowerCase().includes('smell');
                             const isCancelledEntry = entry.workflowStatus === 'CANCELLED';
                             const isPaddyResample = entry.lotSelectionDecision === 'FAIL' && entry.entryType !== 'RICE_SAMPLE';
+                            const resamplePassDecision = String((entry as any).resampleOriginDecision || '').toUpperCase();
+                            const isResamplePassFlow = resamplePassDecision === 'PASS_WITH_COOKING' || resamplePassDecision === 'PASS_WITHOUT_COOKING';
+                            const rowBgColor = isSmellDarkOrMedium
+                              ? '#fee2e2'
+                              : isSmellLight
+                                ? '#fef2f2'
+                                : isResamplePassFlow
+                                  ? '#fff3e0'
+                                  : isPaddyResample
+                                    ? '#fff3e0'
+                                    : entry.entryType === 'DIRECT_LOADED_VEHICLE'
+                                      ? '#e3f2fd'
+                                      : entry.entryType === 'LOCATION_SAMPLE'
+                                        ? '#ffd9b3'
+                                        : '#ffffff';
+                            const rowOutlineStyle = isResamplePassFlow
+                              ? '2px solid #dc2626'
+                              : isPaddyResample
+                                ? '2px solid #f97316'
+                                : undefined;
                             
                             // Cooking report data
                             const cookingReport = (entry as any).cookingReport;
@@ -2847,7 +2935,7 @@ const SampleEntryPage: React.FC<{
                             const cookingAttempts = cookingHistory.filter((h: any) => h?.status);
                             const hasCookingData = cookingHistory.length > 0 || !!cookingReport?.status;
                             return (
-                              <tr key={entry.id} style={{ backgroundColor: isSmellDarkOrMedium ? '#ffebee' : isSmellLight ? '#fffde7' : isPaddyResample ? '#fff3e0' : entry.entryType === 'DIRECT_LOADED_VEHICLE' ? '#e3f2fd' : entry.entryType === 'LOCATION_SAMPLE' ? '#ffcc80' : '#ffffff', border: isPaddyResample ? '2px solid #f4a460' : undefined }}>
+                              <tr key={entry.id} style={{ backgroundColor: rowBgColor, outline: rowOutlineStyle, outlineOffset: '-2px' }}>
                                 <td style={{ padding: '1px 4px', textAlign: 'center', fontWeight: '700', fontSize: '13px', verticalAlign: 'middle', border: '1px solid #000' }}>{slNo}</td>
                                 {filterEntryType !== 'RICE_SAMPLE' && (
                                   <td style={{ padding: '1px 4px', textAlign: 'center', fontSize: '11px', fontWeight: '700', lineHeight: '1.2', color: getEntryTypeTextColor(getDisplayedEntryTypeCode(entry)), border: '1px solid #000' }}>
@@ -2857,8 +2945,8 @@ const SampleEntryPage: React.FC<{
                                         const convertedTypeCode = getConvertedEntryTypeCode(entry);
                                         return (
                                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0px' }}>
-                                            <span style={{ fontSize: '9px', color: '#888' }}>{originalTypeCode}</span>
-                                            <span style={{ fontSize: '11px', fontWeight: 800, color: getEntryTypeTextColor(originalTypeCode) }}>{convertedTypeCode}</span>
+                                            <span style={{ fontSize: '11px', color: getEntryTypeTextColor(originalTypeCode), fontWeight: 800 }}>{originalTypeCode}</span>
+                                            <span style={{ fontSize: '14px', fontWeight: 900, color: getEntryTypeTextColor(convertedTypeCode) }}>{convertedTypeCode}</span>
                                           </div>
                                         );
                                       }
@@ -3044,6 +3132,7 @@ const SampleEntryPage: React.FC<{
                                           </button>
                                         )}
                                         {renderUploadButton()}
+                                        {renderGpsButton()}
                                       </div>
                                     ) : isPaddyResampleEntry && canEditQuality ? (
                                       <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-start' }}>
@@ -3089,6 +3178,7 @@ const SampleEntryPage: React.FC<{
                                           </button>
                                         ) : null}
                                         {renderUploadButton()}
+                                        {renderGpsButton()}
                                       </div>
                                     ) : hasResample100gPrep ? (
                                       <>
@@ -3109,6 +3199,7 @@ const SampleEntryPage: React.FC<{
                                               <button onClick={() => requestEditApproval(entry, 'entry')} title={entryApprovalPending ? 'Entry edit approval pending' : 'Request Entry Edit Approval'} style={{ fontSize: '10px', padding: '3px 6px', backgroundColor: entryApprovalPending ? '#94a3b8' : '#7c3aed', color: 'white', border: 'none', borderRadius: '2px', cursor: 'pointer', fontWeight: '600' }}>{entryApprovalPending ? 'Pending' : 'Req Edit'}</button>
                                             ) : null}
                                             {renderUploadButton()}
+                                            {renderGpsButton()}
                                           </div>
                                         )}
                                       </>
@@ -3131,6 +3222,7 @@ const SampleEntryPage: React.FC<{
                                               <button onClick={() => requestEditApproval(entry, 'entry')} title={entryApprovalPending ? 'Entry edit approval pending' : 'Request Entry Edit Approval'} style={{ fontSize: '10px', padding: '3px 6px', backgroundColor: entryApprovalPending ? '#94a3b8' : '#7c3aed', color: 'white', border: 'none', borderRadius: '2px', cursor: 'pointer', fontWeight: '600' }}>{entryApprovalPending ? 'Pending' : 'Req Edit'}</button>
                                             ) : null}
                                             {renderUploadButton()}
+                                            {renderGpsButton()}
                                           </div>
                                         )}
                                       </>
@@ -3226,6 +3318,7 @@ const SampleEntryPage: React.FC<{
                                               <button onClick={() => requestEditApproval(entry, 'entry')} title={entryApprovalPending ? 'Entry edit approval pending' : 'Request Entry Edit Approval'} style={{ fontSize: '9px', padding: '2px 5px', backgroundColor: entryApprovalPending ? '#94a3b8' : '#7c3aed', color: 'white', border: 'none', borderRadius: '2px', cursor: 'pointer', fontWeight: '600' }}>{entryApprovalPending ? 'Pending' : 'Req Edit'}</button>
                                             ) : null}
                                             {renderUploadButton()}
+                                            {renderGpsButton()}
                                           </div>
                                         )}
                                       </>
@@ -3267,6 +3360,7 @@ const SampleEntryPage: React.FC<{
                                           <button onClick={() => requestEditApproval(entry, 'entry')} title={entryApprovalPending ? 'Entry edit approval pending' : 'Request Entry Edit Approval'} style={{ fontSize: '9px', padding: '2px 5px', backgroundColor: entryApprovalPending ? '#94a3b8' : '#7c3aed', color: 'white', border: 'none', borderRadius: '2px', cursor: 'pointer', fontWeight: '600' }}>{entryApprovalPending ? 'Pending' : 'Req Edit'}</button>
                                         ) : null}
                                         {renderUploadButton()}
+                                        {renderGpsButton()}
                                       </div>
                                     ) : (
                                       <span style={{ fontSize: '10px', padding: '2px 6px', backgroundColor: '#f5f5f5', color: '#999', borderRadius: '3px', fontWeight: '600' }}>Pending</span>
@@ -4602,37 +4696,63 @@ const SampleEntryPage: React.FC<{
             backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 99999
           }}>
             <div style={{
-              backgroundColor: 'white', borderRadius: '12px', padding: '24px', width: '380px',
-              boxShadow: '0 10px 30px rgba(0,0,0,0.3)', textAlign: 'center'
+              backgroundColor: 'white', borderRadius: '12px', padding: '24px', width: '440px',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
             }}>
               <div style={{ fontSize: '36px', marginBottom: '12px' }}>Map</div>
-              <h3 style={{ marginBottom: '12px', color: '#1e293b', fontSize: '18px', fontWeight: '800' }}>Capture GPS Location?</h3>
+              <h3 style={{ marginBottom: '12px', color: '#1e293b', fontSize: '18px', fontWeight: '800', textAlign: 'center' }}>Capture GPS Location?</h3>
               <p style={{ marginBottom: '24px', color: '#475569', fontSize: '14px', lineHeight: '1.5' }}>
                 This is a resample location sample. Do you want to capture the GPS coordinates before adding quality parameters?
               </p>
               
-              {isCapturingGps ? (
-                <div style={{ padding: '12px', color: '#2563eb', fontWeight: '600', fontSize: '14px' }}>
-                  ⏳ Fetching Location...
-                </div>
-              ) : (
-                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                            <div style={{ marginBottom: '16px' }}>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
                   <button
                     type="button"
                     onClick={handleGpsYes}
-                    style={{ flex: 1, padding: '10px', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', fontSize: '14px', boxShadow: '0 2px 4px rgba(37,99,235,0.3)' }}
+                    disabled={isCapturingGps}
+                    style={{ padding: '10px 14px', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', cursor: isCapturingGps ? 'not-allowed' : 'pointer', fontWeight: '700', fontSize: '13px', boxShadow: '0 2px 4px rgba(37,99,235,0.3)', whiteSpace: 'nowrap' }}
                   >
-                    YES, Capture
+                    {isCapturingGps ? 'Capturing...' : 'Add GPS'}
                   </button>
-                  <button
-                    type="button"
-                    onClick={handleGpsNo}
-                    style={{ flex: 1, padding: '10px', backgroundColor: '#e2e8f0', color: '#475569', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', fontSize: '14px' }}
-                  >
-                    NO, Skip
-                  </button>
+                  <input
+                    type="text"
+                    value={gpsPromptValue}
+                    onChange={(e) => setGpsPromptValue(e.target.value)}
+                    placeholder="Latitude,Longitude or map link"
+                    style={{ flex: 1, padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box' }}
+                  />
                 </div>
-              )}
+                {gpsPromptValue && (
+                  <div style={{ textAlign: 'left' }}>
+                    <a
+                      href={buildMapHref(gpsPromptValue)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ fontSize: '12px', color: '#1565c0', fontWeight: '700', textDecoration: 'underline' }}
+                    >
+                      Open Map
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  onClick={handleGpsPromptContinue}
+                  style={{ flex: 1, padding: '10px', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', fontSize: '14px' }}
+                >
+                  Continue
+                </button>
+                <button
+                  type="button"
+                  onClick={handleGpsNo}
+                  style={{ flex: 1, padding: '10px', backgroundColor: '#e2e8f0', color: '#475569', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', fontSize: '14px' }}
+                >
+                  Skip
+                </button>
+              </div>
             </div>
           </div>
         )
@@ -5314,3 +5434,4 @@ const SampleEntryPage: React.FC<{
 };
 
 export default SampleEntryPage;
+

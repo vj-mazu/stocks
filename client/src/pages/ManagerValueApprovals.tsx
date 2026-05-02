@@ -40,6 +40,18 @@ const formatChargeUnit = (unit?: string) => unit === 'per_quintal'
           : unit === 'month'
             ? 'Month'
             : unit || '';
+const formatPackagingLabel = (value?: string | number | null) => {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '-';
+  const normalized = raw.toLowerCase();
+  if (normalized === '0' || normalized === 'loose') return 'Loose';
+  if (normalized === '75' || normalized === '75 kg') return '75 Kg';
+  if (normalized === '40' || normalized === '40 kg') return '40 Kg';
+  if (normalized === '26' || normalized === '26 kg') return '26 Kg';
+  if (normalized === '50' || normalized === '50 kg') return '50 Kg';
+  if (normalized.includes('kg') || normalized.includes('tons')) return raw;
+  return `${raw} Kg`;
+};
 
 type PendingSummaryRow = {
   key: string;
@@ -103,10 +115,7 @@ const hasPendingFieldChanged = (offering: Record<string, any> | undefined, pendi
 };
 
 const buildPendingSummary = (data?: Record<string, any> | null, offering?: Record<string, any>): PendingSummaryRow[] => {
-  const mergedData = {
-    ...(offering || {}),
-    ...(data || {})
-  };
+  const pendingData = data || {};
   const rows: PendingSummaryRow[] = [];
   const pushRow = (key: string, label: string, value: string) => {
     const shouldHighlight = managerHighlightedFieldKeys.has(key) && hasPendingFieldChanged(offering, data, key);
@@ -117,38 +126,38 @@ const buildPendingSummary = (data?: Record<string, any> | null, offering?: Recor
       tone: shouldHighlight ? managerPendingFieldTone : standardPendingFieldTone
     });
   };
-  if (mergedData.finalSute !== undefined && mergedData.finalSute !== null && mergedData.finalSute !== '') {
-    pushRow('finalSute', 'Sute', `${toDisplayNumber(mergedData.finalSute)} ${formatChargeUnit(mergedData.finalSuteUnit)}`.trim());
+  if (pendingData.finalSute !== undefined && pendingData.finalSute !== null && pendingData.finalSute !== '') {
+    pushRow('finalSute', 'Sute', `${toDisplayNumber(pendingData.finalSute)} ${formatChargeUnit(pendingData.finalSuteUnit)}`.trim());
   }
-  if (mergedData.moistureValue !== undefined && mergedData.moistureValue !== null && mergedData.moistureValue !== '') {
-    pushRow('moistureValue', 'Moisture', `${toDisplayNumber(mergedData.moistureValue)}%`);
+  if (pendingData.moistureValue !== undefined && pendingData.moistureValue !== null && pendingData.moistureValue !== '') {
+    pushRow('moistureValue', 'Moisture', `${toDisplayNumber(pendingData.moistureValue)}%`);
   }
-  if (mergedData.hamali !== undefined && mergedData.hamali !== null && mergedData.hamali !== '') {
-    pushRow('hamali', 'Hamali', `${toDisplayNumber(mergedData.hamali)} ${formatChargeUnit(mergedData.hamaliUnit)}`.trim());
+  if (pendingData.hamali !== undefined && pendingData.hamali !== null && pendingData.hamali !== '') {
+    pushRow('hamali', 'Hamali', `${toDisplayNumber(pendingData.hamali)} ${formatChargeUnit(pendingData.hamaliUnit)}`.trim());
   }
-  if (mergedData.brokerage !== undefined && mergedData.brokerage !== null && mergedData.brokerage !== '') {
-    pushRow('brokerage', 'Brokerage', `${toDisplayNumber(mergedData.brokerage)} ${formatChargeUnit(mergedData.brokerageUnit)}`.trim());
+  if (pendingData.brokerage !== undefined && pendingData.brokerage !== null && pendingData.brokerage !== '') {
+    pushRow('brokerage', 'Brokerage', `${toDisplayNumber(pendingData.brokerage)} ${formatChargeUnit(pendingData.brokerageUnit)}`.trim());
   }
-  if (mergedData.lf !== undefined && mergedData.lf !== null && mergedData.lf !== '') {
-    pushRow('lf', 'LF', `${toDisplayNumber(mergedData.lf)} ${formatChargeUnit(mergedData.lfUnit)}`.trim());
+  if (pendingData.lf !== undefined && pendingData.lf !== null && pendingData.lf !== '') {
+    pushRow('lf', 'LF', `${toDisplayNumber(pendingData.lf)} ${formatChargeUnit(pendingData.lfUnit)}`.trim());
   }
-  if (mergedData.cdEnabled === true || mergedData.cdValue !== undefined) {
-    pushRow('cdValue', 'CD', mergedData.cdEnabled === true
-      ? `${toDisplayNumber(mergedData.cdValue)} ${formatChargeUnit(mergedData.cdUnit)}`.trim()
+  if (pendingData.cdEnabled === true || pendingData.cdValue !== undefined || pendingData.cdEnabled === false) {
+    pushRow('cdValue', 'CD', pendingData.cdEnabled === true
+      ? `${toDisplayNumber(pendingData.cdValue)} ${formatChargeUnit(pendingData.cdUnit)}`.trim()
       : 'No');
   }
-  if (mergedData.bankLoanEnabled === true || mergedData.bankLoanValue !== undefined) {
-    pushRow('bankLoanValue', 'Bank Loan', mergedData.bankLoanEnabled === true
-      ? `${toDisplayNumber(mergedData.bankLoanValue)} ${formatChargeUnit(mergedData.bankLoanUnit)}`.trim()
+  if (pendingData.bankLoanEnabled === true || pendingData.bankLoanValue !== undefined || pendingData.bankLoanEnabled === false) {
+    pushRow('bankLoanValue', 'Bank Loan', pendingData.bankLoanEnabled === true
+      ? `${toDisplayNumber(pendingData.bankLoanValue)} ${formatChargeUnit(pendingData.bankLoanUnit)}`.trim()
       : 'No');
   }
-  if (mergedData.paymentConditionValue !== undefined && mergedData.paymentConditionValue !== null && mergedData.paymentConditionValue !== '') {
-    pushRow('paymentConditionValue', 'Payment', `${toDisplayNumber(mergedData.paymentConditionValue)} ${formatChargeUnit(mergedData.paymentConditionUnit)}`.trim());
+  if (pendingData.paymentConditionValue !== undefined && pendingData.paymentConditionValue !== null && pendingData.paymentConditionValue !== '') {
+    pushRow('paymentConditionValue', 'Payment', `${toDisplayNumber(pendingData.paymentConditionValue)} ${formatChargeUnit(pendingData.paymentConditionUnit)}`.trim());
   }
-  if (mergedData.egbType !== undefined || mergedData.egbValue !== undefined) {
-    const egbValue = mergedData.egbType === 'mill'
-      ? `${toDisplayNumber(mergedData.egbValue ?? 0)} (Mill)`
-      : `${toDisplayNumber(mergedData.egbValue)}${mergedData.egbType ? ` (${toTitleCase(mergedData.egbType)})` : ''}`;
+  if (pendingData.egbType !== undefined || pendingData.egbValue !== undefined) {
+    const egbValue = pendingData.egbType === 'mill'
+      ? `${toDisplayNumber(pendingData.egbValue ?? 0)} (Mill)`
+      : `${toDisplayNumber(pendingData.egbValue)}${pendingData.egbType ? ` (${toTitleCase(pendingData.egbType)})` : ''}`;
     pushRow('egbValue', 'EGB', egbValue);
   }
   return rows;
@@ -252,11 +261,11 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
         <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8' }}>No manager approvals pending</div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', minWidth: '1100px', borderCollapse: 'collapse' }}>
+          <table style={{ width: '100%', minWidth: '920px', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
             <thead>
               <tr style={{ background: '#0f172a', color: '#fff' }}>
-                {['Sl No', 'Party', 'Location', 'Variety', 'Bags', 'Pending Values', 'Requested By', 'Requested At', 'Action'].map((header) => (
-                  <th key={header} style={{ padding: '10px 12px', border: '1px solid #1e293b', fontSize: '12px', textAlign: 'left' }}>{header}</th>
+                {['Sl No', 'Party / Broker', 'Location', 'Variety', 'Bags', 'Pending Values', 'Requested By', 'Requested At', 'Action'].map((header) => (
+                  <th key={header} style={{ padding: '6px 8px', border: '1px solid #1e293b', fontSize: '10px', textAlign: 'left', whiteSpace: 'nowrap' }}>{header}</th>
                 ))}
               </tr>
             </thead>
@@ -265,17 +274,17 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
                 const summaryRows = buildPendingSummary(entry.offering?.pendingManagerValueApprovalData, entry.offering);
                 return (
                   <tr key={entry.id} style={{ background: index % 2 === 0 ? '#fff7ed' : '#fffbeb' }}>
-                    <td style={{ padding: '10px 12px', border: '1px solid #e2e8f0', fontWeight: 700 }}>{index + 1}</td>
-                    <td style={{ padding: '10px 12px', border: '1px solid #e2e8f0' }}>
-                      <div style={{ fontWeight: 700 }}>{toTitleCase(entry.partyName || '-')}</div>
-                      <div style={{ fontSize: '11px', color: '#64748b' }}>{toTitleCase(entry.brokerName || '-')}</div>
+                    <td style={{ padding: '6px 8px', border: '1px solid #e2e8f0', fontWeight: 700, fontSize: '11px', verticalAlign: 'top' }}>{index + 1}</td>
+                    <td style={{ padding: '6px 8px', border: '1px solid #e2e8f0', verticalAlign: 'top' }}>
+                      <div style={{ fontWeight: 800, fontSize: '14px', color: '#0f172a', lineHeight: 1.2 }}>{toTitleCase(entry.brokerName || '-')}</div>
+                      <div style={{ fontWeight: 700, fontSize: '12px', color: '#475569', marginTop: '4px', lineHeight: 1.2 }}>{toTitleCase(entry.partyName || '-')}</div>
                       <div style={{
-                        marginTop: '6px',
+                        marginTop: '5px',
                         display: 'inline-flex',
                         alignItems: 'center',
-                        padding: '2px 8px',
+                        padding: '2px 7px',
                         borderRadius: '999px',
-                        fontSize: '10px',
+                        fontSize: '9px',
                         fontWeight: 800,
                         color: '#9a3412',
                         background: '#ffedd5',
@@ -284,69 +293,72 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
                         Manager Added Pending Approval
                       </div>
                     </td>
-                    <td style={{ padding: '10px 12px', border: '1px solid #e2e8f0' }}>{toTitleCase(entry.location || '-')}</td>
-                    <td style={{ padding: '10px 12px', border: '1px solid #e2e8f0' }}>{toTitleCase(entry.variety || '-')}</td>
-                    <td style={{ padding: '10px 12px', border: '1px solid #e2e8f0' }}>{entry.bags || '-'} | {entry.packaging || '-'}</td>
-                    <td style={{ padding: '10px 12px', border: '1px solid #e2e8f0' }}>
+                    <td style={{ padding: '6px 8px', border: '1px solid #e2e8f0', fontSize: '11px', verticalAlign: 'top' }}>{toTitleCase(entry.location || '-')}</td>
+                    <td style={{ padding: '6px 8px', border: '1px solid #e2e8f0', fontSize: '11px', verticalAlign: 'top' }}>{toTitleCase(entry.variety || '-')}</td>
+                    <td style={{ padding: '6px 8px', border: '1px solid #e2e8f0', fontSize: '11px', verticalAlign: 'top' }}>{entry.bags || '-'} | {formatPackagingLabel(entry.packaging || '-')}</td>
+                    <td style={{ padding: '6px 8px', border: '1px solid #e2e8f0', verticalAlign: 'top' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {summaryRows.length === 0 ? (
                           <div style={{
-                            fontSize: '12px',
+                            fontSize: '11px',
                             color: '#64748b',
                             background: '#f8fafc',
                             border: '1px solid #e2e8f0',
                             borderRadius: '6px',
-                            padding: '6px 8px'
+                            padding: '5px 7px'
                           }}>-</div>
                         ) : summaryRows.map((row) => (
                           <div key={row.key} style={{
-                            fontSize: '12px',
+                            fontSize: '11px',
                             color: row.tone.textColor,
                             background: row.tone.background,
                             border: `1px solid ${row.tone.border}`,
                             borderRadius: '8px',
-                            padding: '6px 8px',
+                            padding: '5px 7px',
                             display: 'flex',
                             alignItems: 'center',
                             gap: '8px',
-                            flexWrap: 'wrap'
+                            flexWrap: 'nowrap',
+                            justifyContent: 'space-between',
+                            width: '100%'
                           }}>
                             <span style={{
                               display: 'inline-flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              minWidth: '70px',
-                              padding: '2px 8px',
+                              width: '72px',
+                              flexShrink: 0,
+                              padding: '2px 6px',
                               borderRadius: '999px',
                               background: row.tone.labelBackground,
                               color: row.tone.labelColor,
-                              fontSize: '10px',
+                              fontSize: '9px',
                               fontWeight: 800
                             }}>{row.label}</span>
-                            <span style={{ fontWeight: 700, color: row.tone.textColor }}>{row.value}</span>
+                            <span style={{ fontWeight: 700, color: row.tone.textColor, flex: 1, minWidth: 0, textAlign: 'right', whiteSpace: 'normal', overflowWrap: 'anywhere', lineHeight: 1.25 }}>{row.value}</span>
                           </div>
                         ))}
                       </div>
                     </td>
-                    <td style={{ padding: '10px 12px', border: '1px solid #e2e8f0' }}>{entry.pendingManagerValueApprovalRequestedByName || '-'}</td>
-                    <td style={{ padding: '10px 12px', border: '1px solid #e2e8f0' }}>
+                    <td style={{ padding: '6px 8px', border: '1px solid #e2e8f0', fontSize: '11px', verticalAlign: 'top' }}>{entry.pendingManagerValueApprovalRequestedByName || '-'}</td>
+                    <td style={{ padding: '6px 8px', border: '1px solid #e2e8f0', fontSize: '11px', verticalAlign: 'top' }}>
                       {entry.offering?.pendingManagerValueApprovalRequestedAt
                         ? new Date(entry.offering.pendingManagerValueApprovalRequestedAt).toLocaleString('en-GB')
                         : '-'}
                     </td>
-                    <td style={{ padding: '10px 12px', border: '1px solid #e2e8f0' }}>
+                    <td style={{ padding: '6px 8px', border: '1px solid #e2e8f0', verticalAlign: 'top' }}>
                       <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                         <button
                           onClick={() => handleDecision(entry.id, 'approve')}
                           disabled={submittingId === entry.id}
-                          style={{ padding: '6px 10px', border: 'none', borderRadius: '6px', background: '#16a34a', color: '#fff', fontWeight: 700, cursor: submittingId === entry.id ? 'not-allowed' : 'pointer' }}
+                          style={{ padding: '5px 9px', border: 'none', borderRadius: '6px', background: '#16a34a', color: '#fff', fontWeight: 700, cursor: submittingId === entry.id ? 'not-allowed' : 'pointer', fontSize: '11px' }}
                         >
                           Approve
                         </button>
                         <button
                           onClick={() => handleDecision(entry.id, 'reject')}
                           disabled={submittingId === entry.id}
-                          style={{ padding: '6px 10px', border: 'none', borderRadius: '6px', background: '#dc2626', color: '#fff', fontWeight: 700, cursor: submittingId === entry.id ? 'not-allowed' : 'pointer' }}
+                          style={{ padding: '5px 9px', border: 'none', borderRadius: '6px', background: '#dc2626', color: '#fff', fontWeight: 700, cursor: submittingId === entry.id ? 'not-allowed' : 'pointer', fontSize: '11px' }}
                         >
                           Reject
                         </button>

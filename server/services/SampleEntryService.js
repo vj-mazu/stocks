@@ -674,11 +674,11 @@ class SampleEntryService {
           if (
             requestedStatus === 'LOCATION_SAMPLE'
             && hasFinalizedResampleWorkflow(entry)
-            && !hasPostResampleAttempt(entry, hasQualitySnapshot)
+            && !hasPostResampleAttempt(entry, hasFullQualitySnapshot)
           ) {
             return true;
           }
-          if (hasPostResampleAttempt(entry, hasQualitySnapshot)) return false;
+          if (hasPostResampleAttempt(entry, hasFullQualitySnapshot)) return false;
           return requestedStatus === 'LOCATION_SAMPLE';
         });
       }
