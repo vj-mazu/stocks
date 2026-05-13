@@ -93,21 +93,6 @@ const Button = styled.button`
   }
 `;
 
-const HelpText = styled.div`
-  margin-top: 2rem;
-  padding: 1rem;
-  background: #f3f4f6;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  color: #6b7280;
-`;
-
-const HelpTitle = styled.div`
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-  color: #374151;
-`;
-
 const Login: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -117,7 +102,7 @@ const Login: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!username || !password) {
       toast.error('Please enter username and password');
       return;
@@ -138,9 +123,9 @@ const Login: React.FC = () => {
   return (
     <LoginContainer>
       <LoginCard>
-        <Logo>🏭 Mother India</Logo>
+        <Logo>Kushi Agro Foods</Logo>
         <Subtitle>Stock Management System</Subtitle>
-        
+
         <Form onSubmit={handleSubmit}>
           <FormGroup>
             <Label>Username</Label>
@@ -168,13 +153,6 @@ const Login: React.FC = () => {
             {loading ? 'Logging in...' : 'Login'}
           </Button>
         </Form>
-
-        <HelpText>
-          <HelpTitle>Default Credentials:</HelpTitle>
-          <div>Staff: <strong>staff</strong> / <strong>staff123</strong></div>
-          <div>Manager: <strong>rohit</strong> / <strong>rohit456</strong></div>
-          <div>Admin: <strong>ashish</strong> / <strong>ashish789</strong></div>
-        </HelpText>
       </LoginCard>
     </LoginContainer>
   );
