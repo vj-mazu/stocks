@@ -1027,7 +1027,9 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                 status = isLast ? 'Fail' : 'Pass';
             } else if (isLast && (isResamplePassFlow || isCookingDrivenResample)) {
                 const qType = getQualityTypeMeta(attempt).label;
-                status = qType === 'Pending' ? 'Pending' : 'Pass';
+                const isWorkflowPending = !['COMPLETED', 'PASSED', 'FAILED', 'CANCELLED', 'SOLD_OUT'].includes(String(entry.workflowStatus || '').toUpperCase());
+                const isLotPassed = ['PASS_WITHOUT_COOKING', 'PASS_WITH_COOKING'].includes(String(entry.lotSelectionDecision || '').toUpperCase());
+                status = (qType === 'Pending' || (isWorkflowPending && !isLotPassed)) ? 'Pending' : 'Pass';
             } else if (isFailDecision) {
                 status = attemptsSorted.length <= 1 ? 'Pass' : (isLast ? 'Pending' : 'Pass');
             } else if (isLast && isQualityRecheckPending && !isCookingOnlyRecheck) {
