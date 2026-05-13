@@ -244,6 +244,18 @@ const getOfferActorMeta = (offering: any) => {
     }
   };
 };
+const getFinalRateActorMeta = (offering: any) => {
+  const hasFinalRate = hasValue(offering?.finalBaseRate) || hasValue(offering?.offerBaseRateValue);
+  if (!hasFinalRate) return null;
+  return {
+    label: 'Admin Added',
+    style: {
+      color: '#155724',
+      background: '#d4edda',
+      border: '1px solid #c3e6cb'
+    }
+  };
+};
 const toTs = (value?: string | null) => {
   const ts = value ? new Date(value).getTime() : 0;
   return Number.isFinite(ts) ? ts : 0;
@@ -322,7 +334,7 @@ const getEntrySmellLabel = (entry: any) => {
   }
   return '-';
 };
-const paddyColumnWidths = ['48px', '54px', '74px', '66px', '250px', '118px', '124px', '180px', '180px', '120px', '120px', '94px', '74px', '70px', '90px', '64px', '78px', '72px', '72px', '120px', '110px', '150px', '104px'];
+const paddyColumnWidths = ['48px', '54px', '62px', '58px', '250px', '118px', '124px', '180px', '180px', '120px', '120px', '94px', '74px', '70px', '90px', '64px', '78px', '72px', '72px', '120px', '110px', '150px', '104px'];
 const frozenPaddyColumnCount = 11;
 const frozenPaddyLeftOffsets = paddyColumnWidths.reduce<number[]>((acc, width, index) => {
   if (index >= frozenPaddyColumnCount) return acc;
@@ -335,6 +347,16 @@ const compactStatusText = (parts: string[]) => parts.filter(Boolean).join(' | ')
 const getAttemptLabel = (attemptNo: number) => {
   if (attemptNo <= 1) return '1st';
   return '2nd';
+};
+const formatPackagingLabel = (value?: string | number | null) => {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '-';
+  const normalized = raw.toLowerCase();
+  if (normalized === '75' || normalized === '75 kg') return '75 Kg';
+  if (normalized === '40' || normalized === '40 kg') return '40 Kg';
+  if (normalized === '26' || normalized === '26 kg') return '26 Kg';
+  if (normalized === '50' || normalized === '50 kg') return '50 Kg';
+  return raw;
 };
 const getQualityAttemptLabel = (attemptNo: number) => {
   if (attemptNo <= 1) return '1st';
@@ -493,11 +515,33 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
   const [selectedEntry, setSelectedEntry] = useState<SampleEntry | null>(null);
   const [detailModalEntry, setDetailModalEntry] = useState<SampleEntry | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [managerModalMode, setManagerModalMode] = useState<'view' | 'edit'>('view');
   const [showOfferEditModal, setShowOfferEditModal] = useState(false);
   const [showFinalEditModal, setShowFinalEditModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [qualityHistoryModal, setQualityHistoryModal] = useState<{ open: boolean; entry: SampleEntry | null }>({ open: false, entry: null });
   const [remarksPopup, setRemarksPopup] = useState<{ isOpen: boolean; title: string; text: string }>({ isOpen: false, title: '', text: '' });
+
+  const scrollByViewport = (direction: 'up' | 'down') => {
+    const amount = Math.max(420, Math.floor(window.innerHeight * 0.8));
+    window.scrollBy({ top: direction === 'down' ? amount : -amount, behavior: 'smooth' });
+  };
+  const scrollHorizontalByViewport = (direction: 'left' | 'right') => {
+    const targetNode = tableScrollRef.current || topScrollRef.current;
+    if (!targetNode) return;
+    const amount = Math.max(360, Math.floor(window.innerWidth * 0.75));
+    targetNode.scrollBy({ left: direction === 'right' ? amount : -amount, behavior: 'smooth' });
+  };
+  const handleHorizontalWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
+    if (isMobile) return;
+    const targetNode = tableScrollRef.current || topScrollRef.current;
+    if (!targetNode) return;
+    const dominantDelta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+    if (dominantDelta === 0) return;
+    event.preventDefault();
+    targetNode.scrollLeft += dominantDelta;
+    syncHorizontalScroll('table');
+  }, [isMobile, syncHorizontalScroll]);
 
   const openDetailEntry = async (entry: SampleEntry) => {
     try {
@@ -653,36 +697,49 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
 
   useEffect(() => { fetchEntries(); }, [fetchEntries]);
 
-  const handleUpdateClick = (entry: SampleEntry) => {
+  const handleManagerValuesModalOpen = (entry: SampleEntry, mode: 'view' | 'edit') => {
     if (entry.entryType !== 'RICE_SAMPLE' && !entry.qualityParameters?.id && !entry.qualityParameters?.reportedBy) {
       showNotification('Add quality report before filling manager values.', 'error');
       return;
     }
     const o = entry.offering || {};
-    const isBrokerageMissing = o.brokerageEnabled === false && !parseFloat(o.brokerage ?? '');
-    setSelectedEntry(entry);
+    const pendingApprovalData = String(o.pendingManagerValueApprovalStatus || '').toLowerCase() === 'pending'
+      ? (o.pendingManagerValueApprovalData || {})
+      : {};
+    const effectiveOffering = {
+      ...o,
+      ...pendingApprovalData
+    };
+    const isBrokerageMissing = effectiveOffering.brokerageEnabled === false && !parseFloat(effectiveOffering.brokerage ?? '');
+    setSelectedEntry({
+      ...entry,
+      offering: effectiveOffering,
+      originalOffering: o,
+      pendingManagerValueApprovalData: pendingApprovalData
+    } as any);
     setManagerData({
-      sute: o.finalSute?.toString() ?? o.sute?.toString() ?? '',
-      suteUnit: o.finalSuteUnit || o.suteUnit || 'per_ton',
-      moistureValue: o.moistureValue?.toString() ?? '',
-      hamali: toOptionalInputValue(o.hamali),
-      hamaliUnit: o.hamaliUnit || 'per_bag',
-      brokerage: toOptionalInputValue(o.brokerage),
-      brokerageUnit: isBrokerageMissing ? 'per_quintal' : (o.brokerageUnit || 'per_quintal'),
-      lf: toOptionalInputValue(o.lf),
-      lfUnit: o.lfUnit || 'per_bag',
-      finalBaseRate: o.finalBaseRate?.toString() ?? o.offerBaseRateValue?.toString() ?? '',
-      baseRateType: o.baseRateType || 'PD_WB',
-      egbValue: o.egbValue?.toString() ?? '',
-      egbType: o.egbType || ((o.egbValue && parseFloat(o.egbValue) > 0) ? 'purchase' : 'mill'),
-      cdValue: toOptionalInputValue(o.cdValue),
-      cdUnit: o.cdUnit || 'percentage',
-      bankLoanValue: toOptionalInputValue(o.bankLoanValue),
-      bankLoanUnit: o.bankLoanUnit || 'per_bag',
-      paymentConditionEnabled: !(o.paymentConditionValue == null || o.paymentConditionValue === ''),
-      paymentConditionValue: o.paymentConditionValue?.toString() ?? '15',
-      paymentConditionUnit: o.paymentConditionUnit || 'days'
+      sute: effectiveOffering.finalSute?.toString() ?? effectiveOffering.sute?.toString() ?? '',
+      suteUnit: effectiveOffering.finalSuteUnit || effectiveOffering.suteUnit || 'per_ton',
+      moistureValue: effectiveOffering.moistureValue?.toString() ?? '',
+      hamali: toOptionalInputValue(effectiveOffering.hamali),
+      hamaliUnit: effectiveOffering.hamaliUnit || 'per_bag',
+      brokerage: toOptionalInputValue(effectiveOffering.brokerage),
+      brokerageUnit: isBrokerageMissing ? 'per_quintal' : (effectiveOffering.brokerageUnit || 'per_quintal'),
+      lf: toOptionalInputValue(effectiveOffering.lf),
+      lfUnit: effectiveOffering.lfUnit || 'per_bag',
+      finalBaseRate: effectiveOffering.finalBaseRate?.toString() ?? effectiveOffering.offerBaseRateValue?.toString() ?? '',
+      baseRateType: effectiveOffering.baseRateType || 'PD_WB',
+      egbValue: effectiveOffering.egbValue?.toString() ?? '',
+      egbType: effectiveOffering.egbType || ((effectiveOffering.egbValue && parseFloat(effectiveOffering.egbValue) > 0) ? 'purchase' : 'mill'),
+      cdValue: toOptionalInputValue(effectiveOffering.cdValue),
+      cdUnit: effectiveOffering.cdUnit || 'percentage',
+      bankLoanValue: toOptionalInputValue(effectiveOffering.bankLoanValue),
+      bankLoanUnit: effectiveOffering.bankLoanUnit || 'per_bag',
+      paymentConditionEnabled: !(effectiveOffering.paymentConditionValue == null || effectiveOffering.paymentConditionValue === ''),
+      paymentConditionValue: effectiveOffering.paymentConditionValue?.toString() ?? '15',
+      paymentConditionUnit: effectiveOffering.paymentConditionUnit || 'days'
     });
+    setManagerModalMode(mode);
     setShowModal(true);
   };
 
@@ -931,7 +988,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
       setShowModal(false);
       setSelectedEntry(null);
       fetchEntries();
-      showNotification(response.data?.message || 'Values saved successfully', 'success');
+      showNotification((response.data as any)?.message || 'Values saved successfully', 'success');
     } catch (error: any) {
       showNotification(error.response?.data?.error || 'Failed to save values', 'error');
     } finally {
@@ -1410,18 +1467,22 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
       && String(entry.lotSelectionDecision || '').toUpperCase() !== 'FAIL';
     const hasCurrentResampleQuality = attemptsSorted.length > 1;
 
+    const resamplePassDecision = String((entry as any)?.resampleOriginDecision || '').toUpperCase();
+    const isResamplePassFlow = resamplePassDecision === 'PASS_WITH_COOKING' || resamplePassDecision === 'PASS_WITHOUT_COOKING';
+
     const rows = attemptsSorted.map((attempt: any, idx: number) => {
       const isLast = idx === attemptsSorted.length - 1;
       let status = mapQualityDecisionToStatus(entry.lotSelectionDecision);
 
       if (isHardFailed && attemptsSorted.length > 1) {
         status = isLast ? 'Fail' : 'Pass';
+      } else if (isLast && (isResamplePassFlow || isCookingDrivenResample)) {
+        const qType = getQualityTypeMeta(attempt).label;
+        status = qType === 'Pending' ? 'Pending' : 'Pass';
       } else if (isFailDecision) {
         status = attemptsSorted.length <= 1 ? 'Pass' : (isLast ? 'Pending' : 'Pass');
       } else if (isLast && isQualityRecheckPending && !isCookingOnlyRecheck) {
         status = mapQualityDecisionToStatus(previousDecision || entry.lotSelectionDecision);
-      } else if (isLast && isCookingDrivenResample) {
-        status = 'Pass';
       }
 
       if (entry.workflowStatus === 'CANCELLED' && status === 'Pending') {
@@ -1470,6 +1531,28 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
 
     return rows;
   };
+  const shouldShowLocationConversionType = (entry: SampleEntry) => {
+    const originDecision = String((entry as any)?.resampleOriginDecision || '').toUpperCase();
+    const resampleCollectors = buildOrderedNameList([
+      ...((Array.isArray((entry as any)?.resampleCollectedTimeline) ? (entry as any).resampleCollectedTimeline : []).map((item: any) => item?.sampleCollectedBy || item?.name || '')),
+      ...((Array.isArray((entry as any)?.resampleCollectedHistory) ? (entry as any).resampleCollectedHistory : []).map((item: any) => item?.sampleCollectedBy || item?.name || ''))
+    ]);
+    const hasExplicitResampleFlow =
+      originDecision === 'PASS_WITH_COOKING'
+      || originDecision === 'PASS_WITHOUT_COOKING'
+      || Boolean((entry as any)?.resampleStartAt)
+      || Boolean((entry as any)?.resampleTriggerRequired)
+      || Boolean((entry as any)?.resampleTriggeredAt)
+      || Boolean((entry as any)?.resampleDecisionAt)
+      || Boolean((entry as any)?.resampleAfterFinal)
+      || Number(entry.qualityReportAttempts || 0) > 1
+      || (Array.isArray((entry as any)?.qualityAttemptDetails) && (entry as any).qualityAttemptDetails.length > 1);
+    return (
+      String(entry.entryType || '').toUpperCase() !== 'LOCATION_SAMPLE'
+      && hasExplicitResampleFlow
+      && resampleCollectors.length > 0
+    );
+  };
 
   const qualityModalEntry = qualityHistoryModal.entry;
   const qualityAttemptDetails = [...(qualityModalEntry?.qualityAttemptDetails || [])]
@@ -1478,6 +1561,9 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
   const qualityModalHasCookingHistory = hasCookingActivity(qualityModalEntry);
 
   const modalOffering = selectedEntry?.offering || {};
+  const modalOriginalOffering = (selectedEntry as any)?.originalOffering || modalOffering;
+  const modalPendingApprovalData = (selectedEntry as any)?.pendingManagerValueApprovalData || {};
+  const modalManagerApprovalPending = String(modalOriginalOffering.pendingManagerValueApprovalStatus || '').toLowerCase() === 'pending';
   const modalRateType = managerData.baseRateType || modalOffering.baseRateType || 'PD_LOOSE';
   const modalHasLf = hasLfForRateType(modalRateType);
   const modalHasEgb = hasEgbForRateType(modalRateType);
@@ -1499,15 +1585,16 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
   const modalBankLoanMissing = !!selectedEntry && !!modalOffering.bankLoanEnabled && !parseFloat(modalOffering.bankLoanValue ?? '');
   const modalPaymentMissing = !!selectedEntry && modalPaymentEnabled && !parseInt(modalOffering.paymentConditionValue ?? '', 10);
   const modalEgbMissing = !!selectedEntry && modalHasEgb && modalOffering.egbType === 'purchase' && !parseFloat(modalOffering.egbValue ?? '');
-  const modalCanEditSute = !!selectedEntry && isAdminOrOwner;
-  const modalCanEditMoisture = !!selectedEntry && isAdminOrOwner;
-  const modalCanEditHamali = !!selectedEntry && isManagerOrOwner;
-  const modalCanEditBrokerage = !!selectedEntry && isManagerOrOwner;
-  const modalCanEditLf = !!selectedEntry && modalHasLf && isManagerOrOwner;
-  const modalCanEditCd = !!selectedEntry && isAdminOrOwner;
-  const modalCanEditBankLoan = !!selectedEntry && isAdminOrOwner;
-  const modalCanEditPayment = !!selectedEntry && isAdminOrOwner;
-  const modalCanEditEgb = !!selectedEntry && modalHasEgb && modalOffering.egbType === 'purchase' && isAdminOrOwner;
+  const modalEditMode = managerModalMode === 'edit';
+  const modalCanEditSute = !!selectedEntry && modalEditMode && isAdminOrOwner;
+  const modalCanEditMoisture = !!selectedEntry && modalEditMode && isAdminOrOwner;
+  const modalCanEditHamali = !!selectedEntry && modalEditMode && isManagerOrOwner;
+  const modalCanEditBrokerage = !!selectedEntry && modalEditMode && isManagerOrOwner;
+  const modalCanEditLf = !!selectedEntry && modalHasLf && modalEditMode && isManagerOrOwner;
+  const modalCanEditCd = !!selectedEntry && modalEditMode && isAdminOrOwner;
+  const modalCanEditBankLoan = !!selectedEntry && modalEditMode && isAdminOrOwner;
+  const modalCanEditPayment = !!selectedEntry && modalEditMode && isAdminOrOwner;
+  const modalCanEditEgb = !!selectedEntry && modalHasEgb && modalOffering.egbType === 'purchase' && modalEditMode && isAdminOrOwner;
   const modalHasEditableFields = [
     modalCanEditSute,
     modalCanEditMoisture,
@@ -1561,6 +1648,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
   const editBottomAmountInputStyle: React.CSSProperties = { flex: '1 1 0', minWidth: 0, width: '100%', padding: '6px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '12px' };
   const editBottomUnitSelectStyle: React.CSSProperties = { width: '84px', minWidth: '84px', flex: '0 0 84px', padding: '6px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '11px' };
   const modalOfferActorMeta = getOfferActorMeta(modalOffering);
+  const modalFinalRateActorMeta = getFinalRateActorMeta(modalOffering) || modalOfferActorMeta;
   const modalAdminAddedMeta = {
     label: 'Admin Added',
     style: {
@@ -1601,7 +1689,16 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     color: editable ? '#8a6400' : modalManagerAddedMeta.style.color,
     border: editable ? '1px solid #f9d976' : modalManagerAddedMeta.style.border
   });
-  const modalFixedAdminTagStyle = (editable: boolean): React.CSSProperties => ({
+  const modalReadonlyManagerTagStyle = (
+    actorMeta: { style: React.CSSProperties },
+    needsManagerAdd: boolean
+  ): React.CSSProperties => ({
+    ...modalManagerTagStyle(false),
+    background: needsManagerAdd ? modalManagerAddedMeta.style.background : actorMeta.style.background,
+    color: needsManagerAdd ? modalManagerAddedMeta.style.color : actorMeta.style.color,
+    border: needsManagerAdd ? modalManagerAddedMeta.style.border : actorMeta.style.border
+  });
+  const modalFixedAdminTagStyle = (warning: boolean): React.CSSProperties => ({
     display: 'inline-flex',
     alignItems: 'center',
     fontSize: '10px',
@@ -1609,17 +1706,35 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     padding: '2px 6px',
     borderRadius: '999px',
     marginBottom: '6px',
-    background: editable ? '#fff3cd' : modalAdminAddedMeta.style.background,
-    color: editable ? '#8a6400' : modalAdminAddedMeta.style.color,
-    border: editable ? '1px solid #f9d976' : modalAdminAddedMeta.style.border
+    background: warning ? '#fff3cd' : modalAdminAddedMeta.style.background,
+    color: warning ? '#8a6400' : modalAdminAddedMeta.style.color,
+    border: warning ? '1px solid #f9d976' : modalAdminAddedMeta.style.border
   });
   const getManagerFieldActorMeta = (role?: string | null) => {
     const normalized = String(role || '').trim().toLowerCase();
     return normalized === 'manager' ? modalManagerAddedMeta : modalAdminAddedMeta;
   };
-  const modalHamaliActorMeta = getManagerFieldActorMeta((modalOffering as any).hamaliBy);
-  const modalBrokerageActorMeta = getManagerFieldActorMeta((modalOffering as any).brokerageBy);
-  const modalLfActorMeta = getManagerFieldActorMeta((modalOffering as any).lfBy);
+  const hasPendingManagerField = (valueKey: string, unitKey?: string) => (
+    modalManagerApprovalPending
+    && (modalPendingApprovalData[valueKey] !== undefined || (unitKey ? modalPendingApprovalData[unitKey] !== undefined : false))
+  );
+  const modalHamaliPending = hasPendingManagerField('hamali', 'hamaliUnit');
+  const modalBrokeragePending = hasPendingManagerField('brokerage', 'brokerageUnit');
+  const modalLfPending = hasPendingManagerField('lf', 'lfUnit');
+  const modalHamaliActorMeta = modalHamaliPending ? modalManagerAddedMeta : getManagerFieldActorMeta((modalOriginalOffering as any).hamaliBy);
+  const modalBrokerageActorMeta = modalBrokeragePending ? modalManagerAddedMeta : getManagerFieldActorMeta((modalOriginalOffering as any).brokerageBy);
+  const modalLfActorMeta = modalLfPending ? modalManagerAddedMeta : getManagerFieldActorMeta((modalOriginalOffering as any).lfBy);
+  const modalActionButtonStyle = (tone: 'view' | 'edit'): React.CSSProperties => ({
+    padding: '3px 8px',
+    background: tone === 'view' ? '#3498db' : '#e67e22',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '11px',
+    cursor: 'pointer',
+    fontWeight: 700,
+    whiteSpace: 'nowrap'
+  });
   const getFrozenCellStyle = (
     baseStyle: React.CSSProperties,
     rowBackground?: string
@@ -1644,7 +1759,86 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
           type="button"
           style={{ padding: '8px 16px', fontSize: '14px', fontWeight: 700, border: 'none', borderRadius: '4px', background: '#1565c0', color: 'white', cursor: 'default' }}
         >
-          Final Loading Lots
+          Pending Loading Lots
+        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={() => scrollHorizontalByViewport('left')}
+            style={{ padding: '8px 12px', fontSize: '12px', fontWeight: 700, border: '1px solid #cbd5e1', borderRadius: '4px', background: '#fff', color: '#1e3a8a', cursor: 'pointer' }}
+          >
+            Left
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollHorizontalByViewport('right')}
+            style={{ padding: '8px 12px', fontSize: '12px', fontWeight: 700, border: '1px solid #cbd5e1', borderRadius: '4px', background: '#fff', color: '#1e3a8a', cursor: 'pointer' }}
+          >
+            Right
+          </button>
+          <button
+            type="button"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            style={{ padding: '8px 12px', fontSize: '12px', fontWeight: 700, border: '1px solid #cbd5e1', borderRadius: '4px', background: '#fff', color: '#1e3a8a', cursor: 'pointer' }}
+          >
+            Top
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollByViewport('up')}
+            style={{ padding: '8px 12px', fontSize: '12px', fontWeight: 700, border: '1px solid #cbd5e1', borderRadius: '4px', background: '#fff', color: '#1e3a8a', cursor: 'pointer' }}
+          >
+            Up
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollByViewport('down')}
+            style={{ padding: '8px 12px', fontSize: '12px', fontWeight: 700, border: '1px solid #cbd5e1', borderRadius: '4px', background: '#fff', color: '#1e3a8a', cursor: 'pointer' }}
+          >
+            Down
+          </button>
+          <button
+            type="button"
+            onClick={() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' })}
+            style={{ padding: '8px 12px', fontSize: '12px', fontWeight: 700, border: '1px solid #cbd5e1', borderRadius: '4px', background: '#fff', color: '#1e3a8a', cursor: 'pointer' }}
+          >
+            Bottom
+          </button>
+        </div>
+      </div>
+
+      <div style={{ position: 'fixed', right: '16px', bottom: '22px', display: 'flex', flexDirection: 'column', gap: '8px', zIndex: 30 }}>
+        <button
+          type="button"
+          onClick={() => scrollHorizontalByViewport('left')}
+          title="Scroll left one screen"
+          style={{ width: '42px', height: '42px', borderRadius: '999px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#1e3a8a', fontSize: '18px', fontWeight: 900, cursor: 'pointer', boxShadow: '0 8px 20px rgba(15,23,42,0.16)' }}
+        >
+          ←
+        </button>
+        <button
+          type="button"
+          onClick={() => scrollHorizontalByViewport('right')}
+          title="Scroll right one screen"
+          style={{ width: '42px', height: '42px', borderRadius: '999px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#1e3a8a', fontSize: '18px', fontWeight: 900, cursor: 'pointer', boxShadow: '0 8px 20px rgba(15,23,42,0.16)' }}
+        >
+          →
+        </button>
+        <button
+          type="button"
+          onClick={() => scrollByViewport('up')}
+          title="Scroll up one screen"
+          style={{ width: '42px', height: '42px', borderRadius: '999px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#1e3a8a', fontSize: '18px', fontWeight: 900, cursor: 'pointer', boxShadow: '0 8px 20px rgba(15,23,42,0.16)' }}
+        >
+          ↑
+        </button>
+        <button
+          type="button"
+          onClick={() => scrollByViewport('down')}
+          title="Scroll down one screen"
+          style={{ width: '42px', height: '42px', borderRadius: '999px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#1e3a8a', fontSize: '18px', fontWeight: 900, cursor: 'pointer', boxShadow: '0 8px 20px rgba(15,23,42,0.16)' }}
+        >
+          ↓
         </button>
       </div>
 
@@ -1711,6 +1905,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
         <div
           ref={topScrollRef}
           onScroll={() => syncHorizontalScroll('top')}
+          onWheel={handleHorizontalWheel}
           style={{
             overflowX: 'auto',
             overflowY: 'hidden',
@@ -1728,6 +1923,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
       <div
         ref={tableScrollRef}
         onScroll={() => syncHorizontalScroll('table')}
+        onWheel={handleHorizontalWheel}
         style={{ overflowX: 'auto', borderRadius: !isRiceMode && !isMobile ? '0 0 6px 6px' : '6px' }}
       >
             {loading ? <div style={{ textAlign: 'center', padding: '30px', color: '#888' }}>Loading...</div> : filteredEntries.length === 0 ? <div style={{ textAlign: 'center', padding: '30px', color: '#888' }}>No loading lots found in this tab</div> : Object.entries(groupedByDateBroker).map(([dateStr, brokerGroups]) => {
@@ -1839,7 +2035,22 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                               const sampleCollectedNames = getCollectedAttemptNames(entry, sampleReportNames.length);
                               const isResamplePendingAdminAssign = entry.lotSelectionDecision === 'FAIL' && !entry.sampleCollectedBy;
                               const isLightSmell = entry.smellHas && String(entry.smellType || '').toUpperCase() === 'LIGHT';
-                              const rowBg = isLightSmell ? '#fff9c4' : entry.entryType === 'DIRECT_LOADED_VEHICLE' ? '#e3f2fd' : entry.entryType === 'LOCATION_SAMPLE' ? '#ffe0b2' : '#ffffff';
+                              const smellKey = String(entry.smellType || '').toUpperCase();
+                              const resamplePassDecision = String((entry as any)?.resampleOriginDecision || '').toUpperCase();
+                              const isResamplePassFlow = resamplePassDecision === 'PASS_WITH_COOKING' || resamplePassDecision === 'PASS_WITHOUT_COOKING';
+                              const rowBg = smellKey === 'DARK'
+                                ? '#fecaca'
+                                : smellKey === 'MEDIUM'
+                                  ? '#fee2e2'
+                                  : isLightSmell
+                                    ? '#fef2f2'
+                                    : isResamplePassFlow
+                                      ? '#fff3e0'
+                                      : entry.entryType === 'DIRECT_LOADED_VEHICLE'
+                                        ? '#e3f2fd'
+                                        : entry.entryType === 'LOCATION_SAMPLE'
+                                          ? '#ffd9b3'
+                                          : '#ffffff';
                               const typeCode = getEntryTypeCode(entry.entryType);
                               const partyNameText = toTitleCase(entry.partyName || '').trim();
                               const lorryText = entry.lorryNumber ? entry.lorryNumber.toUpperCase() : '';
@@ -1854,6 +2065,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                               const finalRateUnit = unitLabel(o.baseRateUnit || 'per_bag');
                               const cellStyle = (missing: boolean): React.CSSProperties => ({ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', background: missing ? '#fff3cd' : rowBg, color: missing ? '#856404' : '#333', fontWeight: missing ? '700' : '400', fontSize: '12px' });
                               const offerActorMeta = getOfferActorMeta(o);
+                              const finalRateActorMeta = getFinalRateActorMeta(o) || offerActorMeta;
 
                               if (isRiceMode) {
                                 return (
@@ -1865,17 +2077,20 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                         if (isConvertedResampleType(entry)) {
                                           const originalTypeCode = getOriginalEntryTypeCode(entry);
                                           const convertedTypeCode = getConvertedEntryTypeCode(entry);
-                                          return <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0px' }}><span style={{ fontSize: '8px', color: '#888' }}>{originalTypeCode}</span><span style={{ fontSize: '10px', fontWeight: 800, color: getEntryTypeTextColor(originalTypeCode) }}>{convertedTypeCode}</span></div>;
+                                          return <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px', minWidth: '38px' }}><span style={{ fontSize: '11px', color: getEntryTypeTextColor(originalTypeCode), fontWeight: 800 }}>{originalTypeCode}</span><span style={{ fontSize: '15px', fontWeight: 900, color: getEntryTypeTextColor(convertedTypeCode), letterSpacing: '0.2px' }}>{convertedTypeCode}</span></div>;
+                                        }
+                                        if (shouldShowLocationConversionType(entry)) {
+                                          return <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px', minWidth: '38px' }}><span style={{ fontSize: '11px', color: getEntryTypeTextColor(getDisplayedEntryTypeCode(entry)), fontWeight: 800 }}>{getDisplayedEntryTypeCode(entry)}</span><span style={{ fontSize: '15px', fontWeight: 900, color: getEntryTypeTextColor('LS'), letterSpacing: '0.2px' }}>LS</span></div>;
                                         }
                                         return entry.entryType === 'DIRECT_LOADED_VEHICLE'
-                                          ? <span style={{ color: 'white', backgroundColor: '#1565c0', padding: '1px 4px', borderRadius: '3px', fontSize: '10px', fontWeight: 800 }}>RL</span>
+                                          ? <span style={{ color: 'white', backgroundColor: '#1565c0', padding: '1px 4px', borderRadius: '3px', fontSize: '11px', fontWeight: 800 }}>RL</span>
                                           : entry.entryType === 'LOCATION_SAMPLE'
-                                            ? <span style={{ color: 'white', backgroundColor: '#e67e22', padding: '1px 4px', borderRadius: '3px', fontSize: '10px', fontWeight: 800 }}>LS</span>
-                                            : <span style={{ color: '#2e7d32', backgroundColor: '#fff', padding: '1px 4px', borderRadius: '3px', fontSize: '10px', fontWeight: 800, border: '1px solid #ccc' }}>MS</span>;
+                                            ? <span style={{ color: 'white', backgroundColor: '#c2410c', padding: '1px 4px', borderRadius: '3px', fontSize: '11px', fontWeight: 800 }}>LS</span>
+                                            : <span style={{ color: '#166534', backgroundColor: '#fff', padding: '1px 4px', borderRadius: '3px', fontSize: '11px', fontWeight: 800, border: '1px solid #166534' }}>MS</span>;
                                       })()}
                                     </td>
                                     <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontWeight: 600, fontSize: '14px' }}>{entry.bags?.toLocaleString('en-IN')}</td>
-                                    <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '14px' }}>{entry.packaging || '-'}</td>
+                                    <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '14px' }}>{formatPackagingLabel(entry.packaging)}</td>
                                     <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '14px' }}>
                                       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                         <button
@@ -1903,10 +2118,15 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                     <td style={cellStyle(hamaliMissing)}>{hamaliMissing ? 'Need' : (hasValue(effectiveHamaliValue) ? fmtVal(effectiveHamaliValue, o.hamaliUnit) : o.hamaliEnabled === false ? 'Pending' : '-')}</td>
                                     <td style={cellStyle(bkrgMissing)}>{bkrgMissing ? 'Need' : (o.brokerage ? fmtVal(o.brokerage, o.brokerageUnit) : o.brokerageEnabled === false ? 'Pending' : '-')}</td>
                                     <td style={cellStyle(lfMissing)}>{lfMissing ? 'Need' : (o.lf ? fmtVal(o.lf, o.lfUnit) : o.lfEnabled === false ? 'Pending' : '-')}</td>
-                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}><div><span style={{ padding: '2px 6px', borderRadius: '10px', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap', display: 'inline-block', marginBottom: '2px', border: offerActorMeta.style.border, background: offerActorMeta.style.backgroundColor, color: offerActorMeta.style.color }}>{offerActorMeta.label}</span></div><div><span style={{ padding: '2px 6px', borderRadius: '10px', fontSize: '10px', fontWeight: 700, background: managerApprovalPending ? '#ede9fe' : (needsFill ? '#fff3cd' : '#d4edda'), color: managerApprovalPending ? '#6d28d9' : (needsFill ? '#856404' : '#155724'), whiteSpace: 'nowrap', display: 'inline-block', marginBottom: '2px', border: managerApprovalPending ? '1px solid #c4b5fd' : (needsFill ? '1px solid #ffeeba' : '1px solid #c3e6cb') }}>{managerApprovalPending ? 'Pending Approval' : (needsFill ? 'Manager Missing' : 'Manager Added')}</span></div></td>
+                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}><div><span style={{ padding: '2px 6px', borderRadius: '10px', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap', display: 'inline-block', marginBottom: '2px', border: finalRateActorMeta.style.border, background: finalRateActorMeta.style.background, color: finalRateActorMeta.style.color }}>{finalRateActorMeta.label}</span></div><div><span style={{ padding: '2px 6px', borderRadius: '10px', fontSize: '10px', fontWeight: 700, background: managerApprovalPending ? '#ede9fe' : (needsFill ? '#fff3cd' : '#d4edda'), color: managerApprovalPending ? '#6d28d9' : (needsFill ? '#856404' : '#155724'), whiteSpace: 'nowrap', display: 'inline-block', marginBottom: '2px', border: managerApprovalPending ? '1px solid #c4b5fd' : (needsFill ? '1px solid #ffeeba' : '1px solid #c3e6cb') }}>{managerApprovalPending ? 'Pending Approval' : (needsFill ? 'Manager Missing' : 'Manager Added')}</span></div></td>
                                     <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
                                       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'center' }}>
-                                        {isManagerOrOwner && <button onClick={() => handleUpdateClick(entry)} style={{ padding: '3px 4px', background: managerApprovalPending ? '#7c3aed' : (needsFill ? '#e67e22' : '#3498db'), color: 'white', border: 'none', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: 700, whiteSpace: 'nowrap' }}>{managerApprovalPending ? 'View/Edit Pending' : (needsFill ? 'Fill Values' : 'View/Edit')}</button>}
+                                        {isManagerOrOwner && (
+                                          <>
+                                            <button onClick={() => handleManagerValuesModalOpen(entry, 'view')} style={modalActionButtonStyle('view')}>View</button>
+                                            <button onClick={() => handleManagerValuesModalOpen(entry, 'edit')} style={modalActionButtonStyle('edit')}>{managerApprovalPending ? 'Edit Pending' : (needsFill ? 'Fill Values' : 'Edit')}</button>
+                                          </>
+                                        )}
                                       </div>
                                     </td>
                                   </tr>
@@ -1916,9 +2136,31 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                               return (
                                 <tr key={entry.id} style={{ background: rowBg }}>
                                   <td style={getFrozenCellStyle({ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontWeight: 700, background: rowBg }, rowBg)}>{index + 1}</td>
-                                  <td style={getFrozenCellStyle({ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', background: rowBg }, rowBg)}><span style={{ display: 'inline-block', minWidth: '28px', padding: '1px 4px', borderRadius: '3px', fontSize: '10px', fontWeight: 800, color: typeCode === 'RL' || typeCode === 'LS' ? '#fff' : '#333', backgroundColor: typeCode === 'RL' ? '#1565c0' : typeCode === 'LS' ? '#e67e22' : '#fff', border: typeCode === 'MS' ? '1px solid #ccc' : 'none' }}>{typeCode}</span></td>
+                                  <td style={getFrozenCellStyle({ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', background: rowBg }, rowBg)}>
+                                    {(() => {
+                                      if (isConvertedResampleType(entry)) {
+                                        const originalTypeCode = getOriginalEntryTypeCode(entry);
+                                        const convertedTypeCode = getConvertedEntryTypeCode(entry);
+                                        return (
+                                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px', minWidth: '38px' }}>
+                                            <span style={{ fontSize: '11px', color: getEntryTypeTextColor(originalTypeCode), fontWeight: 800 }}>{originalTypeCode}</span>
+                                            <span style={{ fontSize: '15px', fontWeight: 900, color: getEntryTypeTextColor(convertedTypeCode), letterSpacing: '0.2px' }}>{convertedTypeCode}</span>
+                                          </div>
+                                        );
+                                      }
+                                      if (shouldShowLocationConversionType(entry)) {
+                                        return (
+                                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px', minWidth: '38px' }}>
+                                            <span style={{ fontSize: '11px', color: getEntryTypeTextColor(getDisplayedEntryTypeCode(entry)), fontWeight: 800 }}>{getDisplayedEntryTypeCode(entry)}</span>
+                                            <span style={{ fontSize: '15px', fontWeight: 900, color: getEntryTypeTextColor('LS'), letterSpacing: '0.2px' }}>LS</span>
+                                          </div>
+                                        );
+                                      }
+                                      return <span style={{ display: 'inline-block', minWidth: '28px', padding: '1px 4px', borderRadius: '3px', fontSize: '11px', fontWeight: 800, color: typeCode === 'RL' || typeCode === 'LS' ? '#fff' : '#166534', backgroundColor: typeCode === 'RL' ? '#1565c0' : typeCode === 'LS' ? '#c2410c' : '#fff', border: typeCode === 'MS' ? '1px solid #166534' : 'none' }}>{typeCode}</span>;
+                                    })()}
+                                  </td>
                                   <td style={getFrozenCellStyle({ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontWeight: 700, fontSize: '13px', background: rowBg }, rowBg)}>{entry.bags?.toLocaleString('en-IN') || '-'}</td>
-                                  <td style={getFrozenCellStyle({ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontSize: '13px', background: rowBg }, rowBg)}>{entry.packaging || '-'}</td>
+                                  <td style={getFrozenCellStyle({ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontSize: '13px', background: rowBg }, rowBg)}>{formatPackagingLabel(entry.packaging)}</td>
                                   <td style={getFrozenCellStyle({ border: '1px solid #000', padding: '3px 5px', textAlign: 'left', fontSize: '14px', lineHeight: '1.35', wordBreak: 'break-word', background: rowBg }, rowBg)}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                       <button
@@ -2103,7 +2345,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                   {/* Disabled resample block */}
                                   <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center', background: '#fafcff' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'stretch' }}>
-                                      <div style={{ fontSize: '10px', fontWeight: 800, borderRadius: '4px', padding: '2px 4px', ...offerActorMeta.style }}>{offerActorMeta.label}</div>
+                                      <div style={{ fontSize: '10px', fontWeight: 800, borderRadius: '4px', padding: '2px 4px', ...finalRateActorMeta.style }}>{finalRateActorMeta.label}</div>
                                       <div style={{ fontSize: '10px', fontWeight: 700, color: managerApprovalPending ? '#6d28d9' : (needsFill ? '#856404' : '#155724'), background: managerApprovalPending ? '#ede9fe' : (needsFill ? '#fff3cd' : '#d4edda'), border: managerApprovalPending ? '1px solid #c4b5fd' : (needsFill ? '1px solid #ffeeba' : '1px solid #c3e6cb'), borderRadius: '4px', padding: '2px 4px', lineHeight: '1.25' }}>
                                         {managerApprovalPending ? 'Manager Added Pending Approval' : (needsFill ? `Missing: ${compactStatusText(missingFieldLabels)}` : 'Manager Added')}
                                       </div>
@@ -2112,23 +2354,30 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                   <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
                                       {isManagerOrOwner && (
-                                        <button
-                                          onClick={() => handleUpdateClick(entry)}
-                                          disabled={!hasQualityReport}
-                                          style={{
-                                            padding: '3px 8px',
-                                            background: !hasQualityReport ? '#b0bec5' : (managerApprovalPending ? '#7c3aed' : (needsFill ? '#e67e22' : '#3498db')),
-                                            color: 'white',
-                                            border: 'none',
-                                            borderRadius: '4px',
-                                            fontSize: '11px',
-                                            cursor: !hasQualityReport ? 'not-allowed' : 'pointer',
-                                            fontWeight: 700,
-                                            whiteSpace: 'nowrap'
-                                          }}
-                                        >
-                                          {!hasQualityReport ? 'Quality Pending' : (managerApprovalPending ? 'View/Edit Pending' : (needsFill ? 'Fill Values' : 'View/Edit'))}
-                                        </button>
+                                        <>
+                                          <button
+                                            onClick={() => handleManagerValuesModalOpen(entry, 'view')}
+                                            disabled={!hasQualityReport}
+                                            style={{
+                                              ...modalActionButtonStyle('view'),
+                                              background: !hasQualityReport ? '#b0bec5' : modalActionButtonStyle('view').background,
+                                              cursor: !hasQualityReport ? 'not-allowed' : 'pointer'
+                                            }}
+                                          >
+                                            {!hasQualityReport ? 'Quality Pending' : 'View'}
+                                          </button>
+                                          <button
+                                            onClick={() => handleManagerValuesModalOpen(entry, 'edit')}
+                                            disabled={!hasQualityReport}
+                                            style={{
+                                              ...modalActionButtonStyle('edit'),
+                                              background: !hasQualityReport ? '#b0bec5' : (managerApprovalPending ? '#7c3aed' : String(modalActionButtonStyle('edit').background)),
+                                              cursor: !hasQualityReport ? 'not-allowed' : 'pointer'
+                                            }}
+                                          >
+                                            {!hasQualityReport ? 'Quality Pending' : (managerApprovalPending ? 'Edit Pending' : (needsFill ? 'Fill Values' : 'Edit'))}
+                                          </button>
+                                        </>
                                       )}
                                       {isAdminOrOwner && (
                                         <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -2272,7 +2521,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                    {[
                      ['Date', new Date(qualityModalEntry.entryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })],
                      ['Bags', qualityModalEntry.bags?.toLocaleString('en-IN')],
-                     ['Packaging', `${qualityModalEntry.packaging || '75'} Kg`],
+                      ['Packaging', formatPackagingLabel(qualityModalEntry.packaging || '75')],
                      ['Variety', toTitleCase(qualityModalEntry.variety || '-')],
                    ].map(([label, value], i) => (
                      <div key={`basic-top-${i}`} style={{ background: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
@@ -2462,33 +2711,35 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
           <div style={{ backgroundColor: 'white', padding: '14px', borderRadius: '12px', width: '92%', maxWidth: '760px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
             <h3 style={{ marginTop: 0, color: '#2c3e50', borderBottom: '2px solid #3498db', paddingBottom: '10px', fontSize: '16px', textAlign: 'center' }}>{selectedEntry.brokerName}</h3>
             <div style={{ background: '#f8f9fa', padding: '8px 14px', borderRadius: '6px', marginBottom: '14px', border: '1px solid #e0e0e0', textAlign: 'center', fontSize: '12px', color: '#333' }}>
-              Bags: <b>{selectedEntry.bags}</b> | Pkg: <b>{selectedEntry.packaging || '75'} Kg</b> | Party: <b>{toTitleCase(selectedEntry.partyName) || (selectedEntry.entryType === 'DIRECT_LOADED_VEHICLE' ? selectedEntry.lorryNumber?.toUpperCase() : '')}</b> | Paddy Location: <b>{selectedEntry.location || '-'}</b> | Variety: <b>{selectedEntry.variety}</b> | Collected By: <b>{getCollectedByDisplay(selectedEntry).primary}</b>
+              Bags: <b>{selectedEntry.bags}</b> | Pkg: <b>{formatPackagingLabel(selectedEntry.packaging || '75')}</b> | Party: <b>{toTitleCase(selectedEntry.partyName) || (selectedEntry.entryType === 'DIRECT_LOADED_VEHICLE' ? selectedEntry.lorryNumber?.toUpperCase() : '')}</b> | Paddy Location: <b>{selectedEntry.location || '-'}</b> | Variety: <b>{selectedEntry.variety}</b> | Collected By: <b>{getCollectedByDisplay(selectedEntry).primary}</b>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', gap: '10px' }}>
-              <div style={{ flex: 1, background: modalMissingFields.length > 0 ? '#fff7db' : '#e8f5e9', border: modalMissingFields.length > 0 ? '1px solid #f3d37b' : '1px solid #c8e6c9', borderRadius: '8px', padding: '9px 10px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 800, color: modalMissingFields.length > 0 ? '#8a6400' : '#2e7d32', marginBottom: '4px' }}>
-                  {modalMissingFields.length > 0 ? 'Manager Missing Fields' : 'All Values Already Added'}
+              <div style={{ flex: 1, background: modalEditMode ? (modalMissingFields.length > 0 ? '#fff7db' : '#e8f5e9') : '#eff6ff', border: modalEditMode ? (modalMissingFields.length > 0 ? '1px solid #f3d37b' : '1px solid #c8e6c9') : '1px solid #bfdbfe', borderRadius: '8px', padding: '9px 10px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 800, color: modalEditMode ? (modalMissingFields.length > 0 ? '#8a6400' : '#2e7d32') : '#1d4ed8', marginBottom: '4px' }}>
+                  {modalEditMode ? (modalMissingFields.length > 0 ? 'Manager Missing Fields' : 'All Values Already Added') : 'View Loading Lot Values'}
                 </div>
                 <div style={{ fontSize: '12px', color: '#334155', lineHeight: '1.4' }}>
-                  {modalMissingFields.length > 0 ? modalMissingFields.join('  |  ') : 'This lot already has all manager-side values.'}
+                  {modalEditMode
+                    ? (modalMissingFields.length > 0 ? modalMissingFields.join('  |  ') : 'This lot already has all manager-side values.')
+                    : 'Read-only view of final and manager-side values.'}
                 </div>
               </div>
-              {modalOfferActorMeta ? (
-                <div style={{ padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 800, whiteSpace: 'nowrap', ...modalOfferActorMeta.style }}>
-                  {modalOfferActorMeta.label}
+              {modalFinalRateActorMeta ? (
+                <div style={{ padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 800, whiteSpace: 'nowrap', ...modalFinalRateActorMeta.style }}>
+                  {modalFinalRateActorMeta.label}
                 </div>
               ) : null}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1.2fr) repeat(2, minmax(160px, 1fr))', gap: '10px', marginBottom: '10px' }}>
               <div style={modalCardStyle}>
-                <span style={modalTagStyle(false)}>{modalOfferActorMeta.label}</span>
+                <span style={{ ...modalTagStyle(false), background: modalFinalRateActorMeta.style.background, color: modalFinalRateActorMeta.style.color, border: modalFinalRateActorMeta.style.border }}>{modalFinalRateActorMeta.label}</span>
                 <label style={modalLabelStyle}>Final Rate</label>
                 <div style={modalMetaStyle}>{formatRateTypeLabel(modalRateType)} | {formatRateUnitLabel(modalBaseRateUnit)}</div>
                 <div style={modalReadonlyValueStyle}>{formatManagerRateValue(modalOffering.finalBaseRate ?? modalOffering.offerBaseRateValue, modalBaseRateUnit)}</div>
               </div>
               <div style={modalCanEditSute ? modalEditableCardStyle : modalCardStyle}>
-                <span style={modalFixedAdminTagStyle(modalCanEditSute)}>{modalSuteMissing ? 'Manager Add' : modalAdminAddedMeta.label}</span>
+                <span style={modalFixedAdminTagStyle(modalSuteMissing)}>{modalSuteMissing ? 'Manager Add' : modalAdminAddedMeta.label}</span>
                 <label style={modalLabelStyle}>Sute</label>
                 <div style={modalMetaStyle}>{formatSuteUnitLabel(modalSuteUnit)}</div>
                 {modalCanEditSute ? (
@@ -2498,7 +2749,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                 )}
               </div>
               <div style={modalCanEditMoisture ? modalEditableCardStyle : modalCardStyle}>
-                <span style={modalFixedAdminTagStyle(modalCanEditMoisture)}>{modalMoistureMissing ? 'Manager Add' : modalAdminAddedMeta.label}</span>
+                <span style={modalFixedAdminTagStyle(modalMoistureMissing)}>{modalMoistureMissing ? 'Manager Add' : modalAdminAddedMeta.label}</span>
                 <label style={modalLabelStyle}>Moisture</label>
                 <div style={modalMetaStyle}>Percent</div>
                 {modalCanEditMoisture ? (
@@ -2511,12 +2762,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(160px, 1fr))', gap: '10px', marginBottom: '10px' }}>
               <div style={modalCanEditHamali ? modalEditableCardStyle : modalCardStyle}>
-                <span style={modalCanEditHamali ? modalManagerTagStyle(true) : {
-                  ...modalManagerTagStyle(false),
-                  background: modalHamaliActorMeta.style.background,
-                  color: modalHamaliActorMeta.style.color,
-                  border: modalHamaliActorMeta.style.border
-                }}>{modalHamaliMissing ? 'Manager Add' : modalHamaliActorMeta.label}</span>
+                <span style={modalCanEditHamali ? modalManagerTagStyle(true) : modalReadonlyManagerTagStyle(modalHamaliActorMeta, modalHamaliMissing)}>{modalHamaliMissing ? 'Manager Add' : modalHamaliActorMeta.label}</span>
                 <label style={modalLabelStyle}>Hamali</label>
                 <div style={modalMetaStyle}>{modalOffering.hamaliEnabled === false ? `Pending from manager | ${formatChargeUnitLabel(modalHamaliUnit)}` : formatChargeUnitLabel(modalHamaliUnit)}</div>
                 {modalCanEditHamali ? (
@@ -2532,12 +2778,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                 )}
               </div>
               <div style={modalCanEditBrokerage ? modalEditableCardStyle : modalCardStyle}>
-                <span style={modalCanEditBrokerage ? modalManagerTagStyle(true) : {
-                  ...modalManagerTagStyle(false),
-                  background: modalBrokerageActorMeta.style.background,
-                  color: modalBrokerageActorMeta.style.color,
-                  border: modalBrokerageActorMeta.style.border
-                }}>{modalBrokerageMissing ? 'Manager Add' : modalBrokerageActorMeta.label}</span>
+                <span style={modalCanEditBrokerage ? modalManagerTagStyle(true) : modalReadonlyManagerTagStyle(modalBrokerageActorMeta, modalBrokerageMissing)}>{modalBrokerageMissing ? 'Manager Add' : modalBrokerageActorMeta.label}</span>
                 <label style={modalLabelStyle}>Brokerage</label>
                 <div style={modalMetaStyle}>{modalOffering.brokerageEnabled === false ? `Pending from manager | ${formatChargeUnitLabel(modalBrokerageUnit)}` : formatChargeUnitLabel(modalBrokerageUnit)}</div>
                 {modalCanEditBrokerage ? (
@@ -2554,14 +2795,9 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                 )}
               </div>
               <div style={modalHasLf ? (modalCanEditLf ? modalEditableCardStyle : modalCardStyle) : modalCardStyle}>
-                <span style={modalHasLf ? ((modalCanEditLf
+                <span style={modalHasLf ? (modalCanEditLf
                   ? modalManagerTagStyle(true)
-                  : {
-                      ...modalManagerTagStyle(false),
-                      background: modalLfActorMeta.style.background,
-                      color: modalLfActorMeta.style.color,
-                      border: modalLfActorMeta.style.border
-                    })) : modalFixedAdminTagStyle(false)}>{modalHasLf ? (modalLfMissing ? 'Manager Add' : modalLfActorMeta.label) : 'Not Applicable'}</span>
+                  : modalReadonlyManagerTagStyle(modalLfActorMeta, modalLfMissing)) : modalFixedAdminTagStyle(false)}>{modalHasLf ? (modalLfMissing ? 'Manager Add' : modalLfActorMeta.label) : 'Not Applicable'}</span>
                 <label style={modalLabelStyle}>LF</label>
                 <div style={modalMetaStyle}>{modalHasLf ? (modalOffering.lfEnabled === false ? `Pending from manager | ${formatChargeUnitLabel(modalLfUnit)}` : formatChargeUnitLabel(modalLfUnit)) : 'Not applicable for MD/WB'}</div>
                 {modalHasLf ? (
@@ -2585,7 +2821,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
             {!isRiceMode && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(160px, 1fr))', gap: '10px', marginBottom: '10px' }}>
                 <div style={modalCanEditCd ? modalEditableCardStyle : modalCardStyle}>
-                  <span style={modalFixedAdminTagStyle(modalCanEditCd)}>{modalCdMissing ? 'Manager Add' : modalAdminAddedMeta.label}</span>
+                  <span style={modalFixedAdminTagStyle(modalCdMissing)}>{modalCdMissing ? 'Manager Add' : modalAdminAddedMeta.label}</span>
                   <label style={modalLabelStyle}>CD</label>
                   <div style={modalMetaStyle}>{modalOffering.cdEnabled ? formatChargeUnitLabel(modalCdUnit) : 'No'}</div>
                   {modalCanEditCd ? (
@@ -2601,7 +2837,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                   )}
                 </div>
                 <div style={modalCanEditBankLoan ? modalEditableCardStyle : modalCardStyle}>
-                  <span style={modalFixedAdminTagStyle(modalCanEditBankLoan)}>{modalBankLoanMissing ? 'Manager Add' : modalAdminAddedMeta.label}</span>
+                  <span style={modalFixedAdminTagStyle(modalBankLoanMissing)}>{modalBankLoanMissing ? 'Manager Add' : modalAdminAddedMeta.label}</span>
                   <label style={modalLabelStyle}>Bank Loan</label>
                   <div style={modalMetaStyle}>{modalOffering.bankLoanEnabled ? formatChargeUnitLabel(modalBankLoanUnit) : 'No'}</div>
                   {modalCanEditBankLoan ? (
@@ -2617,7 +2853,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                   )}
                 </div>
                 <div style={modalCanEditPayment ? modalEditableCardStyle : modalCardStyle}>
-                  <span style={modalFixedAdminTagStyle(modalCanEditPayment)}>{modalPaymentMissing ? 'Manager Add' : modalAdminAddedMeta.label}</span>
+                  <span style={modalFixedAdminTagStyle(modalPaymentMissing)}>{modalPaymentMissing ? 'Manager Add' : modalAdminAddedMeta.label}</span>
                   <label style={modalLabelStyle}>Payment Condition</label>
                   <div style={modalMetaStyle}>{modalPaymentEnabled ? (modalPaymentUnit === 'month' ? 'Month' : 'Days') : 'No'}</div>
                   {modalCanEditPayment ? (
@@ -2637,7 +2873,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
 
             <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px', marginBottom: '14px' }}>
               <div style={modalCanEditEgb ? modalEditableCardStyle : modalCardStyle}>
-                <span style={modalFixedAdminTagStyle(modalCanEditEgb)}>{modalHasEgb ? (modalEgbMissing ? 'Manager Add' : modalAdminAddedMeta.label) : 'Not Applicable'}</span>
+                <span style={modalFixedAdminTagStyle(modalHasEgb && modalEgbMissing)}>{modalHasEgb ? (modalEgbMissing ? 'Manager Add' : modalAdminAddedMeta.label) : 'Not Applicable'}</span>
                 <label style={modalLabelStyle}>EGB</label>
                 <div style={modalMetaStyle}>
                   {!modalHasEgb
@@ -2662,8 +2898,8 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-              <button onClick={() => setShowModal(false)} disabled={isSubmitting} style={{ padding: '8px 16px', borderRadius: '6px', background: 'white', cursor: isSubmitting ? 'not-allowed' : 'pointer', fontSize: '13px' }}>Cancel</button>
-              {modalHasEditableFields && (
+              <button onClick={() => setShowModal(false)} disabled={isSubmitting} style={{ padding: '8px 16px', borderRadius: '6px', background: 'white', cursor: isSubmitting ? 'not-allowed' : 'pointer', fontSize: '13px' }}>{modalEditMode ? 'Cancel' : 'Close'}</button>
+              {modalEditMode && modalHasEditableFields && (
                 <button onClick={handleSaveValues} disabled={isSubmitting} style={{ padding: '8px 24px', border: 'none', borderRadius: '6px', background: isSubmitting ? '#95a5a6' : 'linear-gradient(135deg, #27ae60, #2ecc71)', color: 'white', fontWeight: 700, cursor: isSubmitting ? 'not-allowed' : 'pointer', fontSize: '13px' }}>{isSubmitting ? 'Saving...' : 'Save Values'}</button>
               )}
             </div>
@@ -2678,7 +2914,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
               {selectedEntry.brokerName}
             </h3>
             <div style={{ backgroundColor: '#eaf2f8', padding: '6px 8px', borderRadius: '6px', marginBottom: '6px', fontSize: '10px', textAlign: 'center', lineHeight: '1.4' }}>
-              Bags: <b>{selectedEntry.bags}</b> | Pkg: <b>{selectedEntry.packaging || '75'} Kg</b> | Party: <b>{toTitleCase(selectedEntry.partyName) || (selectedEntry.entryType === 'DIRECT_LOADED_VEHICLE' ? selectedEntry.lorryNumber?.toUpperCase() : '-')}</b> | Paddy Location: <b>{toTitleCase(selectedEntry.location) || '-'}</b> | Variety: <b>{toTitleCase(selectedEntry.variety) || '-'}</b>
+              Bags: <b>{selectedEntry.bags}</b> | Pkg: <b>{formatPackagingLabel(selectedEntry.packaging || '75')}</b> | Party: <b>{toTitleCase(selectedEntry.partyName) || (selectedEntry.entryType === 'DIRECT_LOADED_VEHICLE' ? selectedEntry.lorryNumber?.toUpperCase() : '-')}</b> | Paddy Location: <b>{toTitleCase(selectedEntry.location) || '-'}</b> | Variety: <b>{toTitleCase(selectedEntry.variety) || '-'}</b>
             </div>
             <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: '10px', color: '#2563eb' }}>Edit Offer Rate</div>
             <div style={editTopRowGridStyle}>
@@ -2916,7 +3152,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
               {selectedEntry.brokerName}
             </h3>
             <div style={{ backgroundColor: '#e8f8f5', padding: '6px 8px', borderRadius: '6px', marginBottom: '6px', fontSize: '10px', textAlign: 'center', lineHeight: '1.4' }}>
-              Bags: <b>{selectedEntry.bags}</b> | Pkg: <b>{selectedEntry.packaging || '75'} Kg</b> | Party: <b>{toTitleCase(selectedEntry.partyName) || (selectedEntry.entryType === 'DIRECT_LOADED_VEHICLE' ? selectedEntry.lorryNumber?.toUpperCase() : '-')}</b> | Paddy Location: <b>{toTitleCase(selectedEntry.location) || '-'}</b> | Variety: <b>{toTitleCase(selectedEntry.variety) || '-'}</b>
+              Bags: <b>{selectedEntry.bags}</b> | Pkg: <b>{formatPackagingLabel(selectedEntry.packaging || '75')}</b> | Party: <b>{toTitleCase(selectedEntry.partyName) || (selectedEntry.entryType === 'DIRECT_LOADED_VEHICLE' ? selectedEntry.lorryNumber?.toUpperCase() : '-')}</b> | Paddy Location: <b>{toTitleCase(selectedEntry.location) || '-'}</b> | Variety: <b>{toTitleCase(selectedEntry.variety) || '-'}</b>
             </div>
             <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: '10px', color: '#16a34a' }}>Edit Final Rate</div>
             <div style={editTopRowGridStyle}>

@@ -295,6 +295,20 @@ const hasQualitySnapshot = (attempt: any) => {
 
   return (hasMoisture && (hasGrains || hasDetailedQuality)) || hasDetailedQuality || hasSmell;
 };
+const hasPaddy100gSnapshot = (attempt: any) => (
+    isProvidedNumeric(attempt?.moistureRaw, attempt?.moisture)
+    && isProvidedNumeric(attempt?.wbRRaw, attempt?.wbR)
+    && isProvidedNumeric(attempt?.wbBkRaw, attempt?.wbBk)
+    && isProvidedNumeric(attempt?.grainsCountRaw, attempt?.grainsCount)
+    && !isProvidedNumeric(attempt?.cutting1Raw, attempt?.cutting1)
+    && !isProvidedNumeric(attempt?.bend1Raw, attempt?.bend1)
+    && !isProvidedAlpha(attempt?.mixRaw, attempt?.mix)
+    && !isProvidedAlpha(attempt?.mixSRaw, attempt?.mixS)
+    && !isProvidedAlpha(attempt?.mixLRaw, attempt?.mixL)
+    && !isProvidedAlpha(attempt?.kanduRaw, attempt?.kandu)
+    && !isProvidedAlpha(attempt?.oilRaw, attempt?.oil)
+    && !isProvidedAlpha(attempt?.skRaw, attempt?.sk)
+);
 
 const getResampleRoundLabel = (attempts: number) => {
     if (attempts <= 1) return '';
@@ -458,6 +472,14 @@ const getPopupSmellSummary = (entry: any) => {
 
 export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpdate }: { detailEntry: SampleEntry, detailMode: 'quick' | 'history' | 'summary' | 'full', onClose: () => void, onUpdate?: (gpsCoordinates?: string) => void | Promise<void> }) => {
     const { user } = useAuth();
+    const buildMapHref = (value: any) => {
+        const raw = typeof value === 'object' && value !== null
+            ? `${value.lat},${value.lng}`
+            : String(value || '').trim();
+        if (!raw) return '';
+        if (/^https?:\/\//i.test(raw)) return raw;
+        return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(raw)}`;
+    };
     const isStaff = user?.role === 'staff';
     const [supervisors, setSupervisors] = useState<any[]>([]);
     const [cookingInput, setCookingInput] = useState<any>({});
@@ -676,7 +698,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             || isProvidedAlpha((attempt as any).mixRaw, attempt.mix)
             || isProvidedAlpha((attempt as any).mixSRaw, attempt.mixS)
             || isProvidedAlpha((attempt as any).mixLRaw, attempt.mixL);
-        const has100g = isProvidedNumeric((attempt as any).grainsCountRaw, attempt.grainsCount);
+        const has100g = hasPaddy100gSnapshot(attempt);
         if (hasFullQuality) return 'Done';
         if (has100g) return '100-Gms';
         return 'Pending';
@@ -1225,7 +1247,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                         const query = typeof gps === 'object' ? `${gps.lat},${gps.lng}` : gps;
                                                         return (
                                                             <a
-                                                                href={`https://www.google.com/maps/search/?api=1&query=${query}`}
+                                                                href={buildMapHref(query)}
                                                                 target="_blank"
                                                                 rel="noopener noreferrer"
                                                                 title="View on Map"
@@ -1318,7 +1340,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                 <div style={{ background: '#f8f9fa', padding: '12px', borderRadius: '6px', border: '1px solid #e0e0e0', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                     <div style={{ fontSize: '11px', color: '#666', fontWeight: '800', textTransform: 'uppercase' }}>GPS Coordinates Captured</div>
                                                     <a
-                                                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(localGps)}`}
+                                                        href={buildMapHref(localGps)}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                         style={{ display: 'inline-block', padding: '6px 16px', background: '#e67e22', color: 'white', borderRadius: '4px', textDecoration: 'none', fontSize: '11px', fontWeight: '800', letterSpacing: '0.5px' }}

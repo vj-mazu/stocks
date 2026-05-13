@@ -268,23 +268,23 @@ const getEntrySmellColor = (entry: any) => {
     const attempt = attempts[idx];
     if (attempt?.smellHas && attempt?.smellType) {
       const smellType = String(attempt.smellType).toUpperCase();
-      if (smellType === 'DARK') return '#dc2626';
-      if (smellType === 'MEDIUM') return '#ea580c';
-      if (smellType === 'LIGHT') return '#ca8a04';
+      if (smellType === 'DARK') return '#991b1b';
+      if (smellType === 'MEDIUM') return '#b91c1c';
+      if (smellType === 'LIGHT') return '#dc2626';
     }
   }
   const quality = entry?.qualityParameters;
   if (quality?.smellHas && quality?.smellType) {
     const smellType = String(quality.smellType).toUpperCase();
-    if (smellType === 'DARK') return '#dc2626';
-    if (smellType === 'MEDIUM') return '#ea580c';
-    if (smellType === 'LIGHT') return '#ca8a04';
+    if (smellType === 'DARK') return '#991b1b';
+    if (smellType === 'MEDIUM') return '#b91c1c';
+    if (smellType === 'LIGHT') return '#dc2626';
   }
   if (entry?.smellHas && entry?.smellType) {
     const smellType = String(entry.smellType).toUpperCase();
-    if (smellType === 'DARK') return '#dc2626';
-    if (smellType === 'MEDIUM') return '#ea580c';
-    if (smellType === 'LIGHT') return '#ca8a04';
+    if (smellType === 'DARK') return '#991b1b';
+    if (smellType === 'MEDIUM') return '#b91c1c';
+    if (smellType === 'LIGHT') return '#dc2626';
   }
   return '#2e7d32';
 };
@@ -292,6 +292,15 @@ const toSentenceCase = (value: string) => {
   const normalized = String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
   if (!normalized) return '';
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};
+
+const formatPackagingLabel = (value?: string | number | null) => {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '75 Kg';
+  const lower = raw.toLowerCase();
+  if (lower === '0' || lower === 'loose') return 'Loose';
+  if (lower.includes('kg') || lower.includes('ton')) return raw.replace(/\bkg\b/i, 'Kg');
+  return `${raw} Kg`;
 };
 
 const getCollectorLabel = (value?: string | null, supervisors?: { username: string; fullName?: string | null }[]) => {
@@ -424,7 +433,7 @@ const DEFAULT_PADDY_OFFER: OfferingData = {
   moistureValue: '',
   brokerageValue: '',
   brokerageEnabled: false,
-  brokerageUnit: 'per_bag',
+  brokerageUnit: 'per_quintal',
   lfValue: '',
   lfEnabled: false,
   lfUnit: 'per_bag',
@@ -457,7 +466,7 @@ const DEFAULT_FINAL_DATA: FinalPriceFormData = {
   hamali: '',
   hamaliUnit: 'per_bag',
   brokerage: '',
-  brokerageUnit: 'per_bag',
+  brokerageUnit: 'per_quintal',
   lf: '',
   lfUnit: 'per_bag',
   egbValue: '0',
@@ -644,7 +653,7 @@ const buildOfferFormData = (offer?: Partial<OfferVersionData> | null): OfferingD
     moistureValue: (offer?.moistureValue ?? '').toString(),
     brokerageEnabled: !!offer?.brokerageEnabled,
     brokerageValue: toOptionalInputValue(offer?.brokerage),
-    brokerageUnit: offer?.brokerageUnit || 'per_bag',
+    brokerageUnit: offer?.brokerageUnit || 'per_quintal',
     lfEnabled: !!offer?.lfEnabled,
     lfValue: toOptionalInputValue(offer?.lf),
     lfUnit: offer?.lfUnit || 'per_bag',
@@ -1139,39 +1148,41 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
       setOfferVersions(versions);
       if (d) {
         const activeOffer = getActiveOffer(d) || {} as any;
-        setActiveOfferKey(activeOffer?.key || getLatestOffer(d)?.key || 'offer1');
+        const latestOffer = getLatestOffer(d) || activeOffer;
+        const selectedOffer = latestOffer || activeOffer;
+        setActiveOfferKey(selectedOffer?.key || activeOffer?.key || 'offer1');
         setFinalData({
-          finalSute: d.finalSute?.toString() || activeOffer.sute?.toString() || d.sute?.toString() || '',
-          finalSuteUnit: d.finalSuteUnit || activeOffer.suteUnit || d.suteUnit || 'per_ton',
-          finalBaseRate: d.finalBaseRate?.toString() || activeOffer.offerBaseRateValue?.toString() || d.offerBaseRateValue?.toString() || '',
-          baseRateType: activeOffer.baseRateType || d.baseRateType || 'PD_WB',
-          baseRateUnit: activeOffer.baseRateUnit || d.baseRateUnit || 'per_bag',
-          suteEnabled: activeOffer.suteEnabled !== false,
-          moistureEnabled: activeOffer.moistureEnabled !== false,
-          hamaliEnabled: activeOffer.hamaliEnabled || false,
-          brokerageEnabled: activeOffer.brokerageEnabled || false,
-          lfEnabled: activeOffer.lfEnabled || false,
-          moistureValue: activeOffer.moistureValue?.toString() || '',
-          hamali: toOptionalInputValue(d.hamali ?? activeOffer.hamali ?? activeOffer.hamaliValue),
-          hamaliUnit: activeOffer.hamaliUnit || activeOffer.baseRateUnit || 'per_bag',
-          brokerage: toOptionalInputValue(d.brokerage ?? activeOffer.brokerage ?? activeOffer.brokerageValue),
-          brokerageUnit: activeOffer.brokerageUnit || activeOffer.baseRateUnit || 'per_bag',
-          lf: toOptionalInputValue(d.lf ?? activeOffer.lf ?? activeOffer.lfValue),
-          lfUnit: activeOffer.lfUnit || activeOffer.baseRateUnit || 'per_bag',
-          egbValue: activeOffer.egbValue?.toString() || d.egbValue?.toString() || '',
-          egbType: (activeOffer.egbType as 'mill' | 'purchase') || ((activeOffer.egbValue && parseFloat(activeOffer.egbValue.toString()) > 0) ? 'purchase' : 'mill'),
-          customDivisor: activeOffer.customDivisor?.toString() || d.customDivisor?.toString() || '',
-          cdEnabled: activeOffer.cdEnabled || false,
-          cdValue: toOptionalInputValue(activeOffer.cdValue),
-          cdUnit: activeOffer.cdUnit || 'percentage',
-          bankLoanEnabled: activeOffer.bankLoanEnabled || false,
-          bankLoanValue: toOptionalInputValue(activeOffer.bankLoanValue),
-          bankLoanUnit: activeOffer.bankLoanUnit || 'per_bag',
-          paymentConditionEnabled: activeOffer.paymentConditionEnabled != null
-            ? !!activeOffer.paymentConditionEnabled
+          finalSute: d.finalSute?.toString() || selectedOffer.sute?.toString() || d.sute?.toString() || '',
+          finalSuteUnit: d.finalSuteUnit || selectedOffer.suteUnit || d.suteUnit || 'per_ton',
+          finalBaseRate: d.finalBaseRate?.toString() || selectedOffer.offerBaseRateValue?.toString() || d.offerBaseRateValue?.toString() || '',
+          baseRateType: selectedOffer.baseRateType || d.baseRateType || 'PD_WB',
+          baseRateUnit: selectedOffer.baseRateUnit || d.baseRateUnit || 'per_bag',
+          suteEnabled: selectedOffer.suteEnabled !== false,
+          moistureEnabled: selectedOffer.moistureEnabled !== false,
+          hamaliEnabled: selectedOffer.hamaliEnabled || false,
+          brokerageEnabled: selectedOffer.brokerageEnabled || false,
+          lfEnabled: selectedOffer.lfEnabled || false,
+          moistureValue: selectedOffer.moistureValue?.toString() || '',
+          hamali: toOptionalInputValue(d.hamali ?? selectedOffer.hamali ?? selectedOffer.hamaliValue),
+          hamaliUnit: selectedOffer.hamaliUnit || selectedOffer.baseRateUnit || 'per_bag',
+          brokerage: toOptionalInputValue(d.brokerage ?? selectedOffer.brokerage ?? selectedOffer.brokerageValue),
+          brokerageUnit: selectedOffer.brokerageUnit || 'per_quintal',
+          lf: toOptionalInputValue(d.lf ?? selectedOffer.lf ?? selectedOffer.lfValue),
+          lfUnit: selectedOffer.lfUnit || selectedOffer.baseRateUnit || 'per_bag',
+          egbValue: selectedOffer.egbValue?.toString() || d.egbValue?.toString() || '',
+          egbType: (selectedOffer.egbType as 'mill' | 'purchase') || ((selectedOffer.egbValue && parseFloat(selectedOffer.egbValue.toString()) > 0) ? 'purchase' : 'mill'),
+          customDivisor: selectedOffer.customDivisor?.toString() || d.customDivisor?.toString() || '',
+          cdEnabled: selectedOffer.cdEnabled || false,
+          cdValue: toOptionalInputValue(selectedOffer.cdValue),
+          cdUnit: selectedOffer.cdUnit || 'percentage',
+          bankLoanEnabled: selectedOffer.bankLoanEnabled || false,
+          bankLoanValue: toOptionalInputValue(selectedOffer.bankLoanValue),
+          bankLoanUnit: selectedOffer.bankLoanUnit || 'per_bag',
+          paymentConditionEnabled: selectedOffer.paymentConditionEnabled != null
+            ? !!selectedOffer.paymentConditionEnabled
             : true,
-          paymentConditionValue: activeOffer.paymentConditionValue?.toString() || d.paymentConditionValue?.toString() || '15',
-          paymentConditionUnit: activeOffer.paymentConditionUnit || d.paymentConditionUnit || 'days',
+          paymentConditionValue: selectedOffer.paymentConditionValue?.toString() || d.paymentConditionValue?.toString() || '15',
+          paymentConditionUnit: selectedOffer.paymentConditionUnit || d.paymentConditionUnit || 'days',
           finalPrice: d.finalPrice?.toString() || entry.finalPrice?.toString() || '',
           remarks: d.finalRemarks || ''
         });
@@ -1223,7 +1234,7 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
       hamali: toOptionalInputValue(slotOffer.hamali),
       hamaliUnit: slotOffer.hamaliUnit || 'per_bag',
       brokerage: toOptionalInputValue(slotOffer.brokerage),
-      brokerageUnit: slotOffer.brokerageUnit || 'per_bag',
+      brokerageUnit: slotOffer.brokerageUnit || 'per_quintal',
       lf: toOptionalInputValue(slotOffer.lf),
       lfUnit: slotOffer.lfUnit || 'per_bag',
       egbValue: slotOffer.egbValue?.toString() || '0',
@@ -1714,15 +1725,15 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                             const isLightSmell = smellLabel === 'Light';
                             const isDarkMediumSmell = smellLabel === 'Dark' || smellLabel === 'Medium';
                             const rowBgColor = isDarkMediumSmell
-                              ? '#ffebee'
+                              ? '#fee2e2'
                               : isLightSmell
-                                ? '#fffde7'
+                                ? '#fef2f2'
                                 : isResampleActive
                                   ? '#fff7e6'
                                   : entry.entryType === 'DIRECT_LOADED_VEHICLE'
                                     ? '#e3f2fd'
                                     : entry.entryType === 'LOCATION_SAMPLE'
-                                      ? '#ffe0b2'
+                                      ? '#ffd9b3'
                                       : '#ffffff';
                             return (
                               <tr key={entry.id} style={{ backgroundColor: rowBgColor }}>
@@ -1734,11 +1745,11 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                                     </td>
                                     <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontWeight: '700', whiteSpace: 'nowrap', color: getEntryTypeTextColor(rowType) }}>
                                       {isConvertedResampleType(entry)
-                                        ? <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0px' }}><span style={{ fontSize: '8px', color: '#888' }}>{getOriginalEntryTypeCode(entry)}</span><span style={{ color: getEntryTypeTextColor(getOriginalEntryTypeCode(entry)) }}>{getConvertedEntryTypeCode(entry)}</span></div>
+                                        ? <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px', minWidth: '38px' }}><span style={{ fontSize: '11px', color: getEntryTypeTextColor(getOriginalEntryTypeCode(entry)), fontWeight: 800 }}>{getOriginalEntryTypeCode(entry)}</span><span style={{ fontSize: '14px', fontWeight: 900, color: getEntryTypeTextColor(getConvertedEntryTypeCode(entry)) }}>{getConvertedEntryTypeCode(entry)}</span></div>
                                         : rowType}
                                     </td>
                                     <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontWeight: '600', fontSize: '13px', whiteSpace: 'nowrap' }}>{entry.bags?.toLocaleString('en-IN') || '0'}</td>
-                                    <td style={{ border: '1px solid #000', padding: '3px 4px', fontSize: '13px', textAlign: 'center', whiteSpace: 'nowrap' }}>{entry.packaging || '-'}</td>
+                                    <td style={{ border: '1px solid #000', padding: '3px 4px', fontSize: '13px', textAlign: 'center', whiteSpace: 'nowrap' }}>{formatPackagingLabel(entry.packaging)}</td>
                                     <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#1565c0', whiteSpace: 'nowrap' }}>{getPartyNode(entry, () => openDetailEntry(entry))}</td>
                                     <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '13px', whiteSpace: 'nowrap' }}>{toTitleCase(entry.location) || '-'}</td>
                                     <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '13px', whiteSpace: 'nowrap' }}>{toTitleCase(entry.variety) || '-'}</td>
@@ -1782,11 +1793,11 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                                     </td>
                                     <td style={{ border: '1px solid #000', padding: '3px', textAlign: 'center', fontWeight: '700', color: getEntryTypeTextColor(rowType) }}>
                                       {isConvertedResampleType(entry)
-                                        ? <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0px' }}><span style={{ fontSize: '8px', color: '#888' }}>{getOriginalEntryTypeCode(entry)}</span><span style={{ color: getEntryTypeTextColor(getOriginalEntryTypeCode(entry)) }}>{getConvertedEntryTypeCode(entry)}</span></div>
+                                        ? <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px', minWidth: '38px' }}><span style={{ fontSize: '11px', color: getEntryTypeTextColor(getOriginalEntryTypeCode(entry)), fontWeight: 800 }}>{getOriginalEntryTypeCode(entry)}</span><span style={{ fontSize: '14px', fontWeight: 900, color: getEntryTypeTextColor(getConvertedEntryTypeCode(entry)) }}>{getConvertedEntryTypeCode(entry)}</span></div>
                                         : rowType}
                                     </td>
                                     <td style={{ border: '1px solid #000', padding: '3px', textAlign: 'center', fontWeight: '600' }}>{entry.bags?.toLocaleString('en-IN') || '0'}</td>
-                                    <td style={{ border: '1px solid #000', padding: '3px', textAlign: 'center' }}>{entry.packaging || '-'}</td>
+                                    <td style={{ border: '1px solid #000', padding: '3px', textAlign: 'center' }}>{formatPackagingLabel(entry.packaging)}</td>
                                     <td style={{ border: '1px solid #000', padding: '3px 5px', textAlign: 'left', fontWeight: '600', color: '#0d47a1' }}>{getPartyNode(entry, () => openDetailEntry(entry))}</td>
                                     <td style={{ border: '1px solid #000', padding: '3px 5px', textAlign: 'left' }}>{toTitleCase(entry.location) || '-'}</td>
                                     <td style={{ border: '1px solid #000', padding: '3px 5px', textAlign: 'left' }}>{toTitleCase(entry.variety) || '-'}</td>
@@ -1971,7 +1982,7 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                                       ) : <span>{o?.finalPrice || entry.finalPrice ? `Rs ${toNumberText(o?.finalPrice || entry.finalPrice)}` : '-'}</span>}
                                     </td>
                                     <td style={{ border: '1px solid #000', padding: '3px', textAlign: 'center' }}>
-                                      {(isAdmin || isManager) && entry.lotSelectionDecision !== 'FAIL' && (
+                                      {(isAdmin || isManager) && entry.lotSelectionDecision !== 'FAIL' && !isResampleActive && (
                                         isRiceMode
                                           ? entry.workflowStatus === 'LOT_SELECTION'
                                           : ['LOT_SELECTION', 'FINAL_REPORT'].includes(entry.workflowStatus)
@@ -2114,7 +2125,7 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                 backgroundColor: '#eaf2f8', padding: '6px 8px', borderRadius: '6px',
                 marginBottom: '6px', fontSize: '10px', textAlign: 'center', lineHeight: '1.4'
               }}>
-                Bags: <b>{selectedEntry.bags?.toLocaleString('en-IN')}</b> | Pkg: <b>{selectedEntry.packaging || '75'} Kg</b> | Party: <b>{getPartyDisplay(selectedEntry)}</b> | <b>{selectedEntry.location}</b> | <b>{selectedEntry.variety}</b>
+                Bags: <b>{selectedEntry.bags?.toLocaleString('en-IN')}</b> | Pkg: <b>{formatPackagingLabel(selectedEntry.packaging || '75')}</b> | Party: <b>{getPartyDisplay(selectedEntry)}</b> | <b>{selectedEntry.location}</b> | <b>{selectedEntry.variety}</b>
               </div>
 
               {!isRiceMode && (
@@ -2242,11 +2253,11 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                       <div style={{ display: 'flex', gap: '6px', fontSize: '11px', flexWrap: 'wrap' }}>
                         <label style={radioLabelStyle}>
                           <input type="radio" name="baseRateUnit" checked={offerData.baseRateUnit === 'per_bag'}
-                            onChange={() => setOfferData({ ...offerData, baseRateUnit: 'per_bag', hamaliUnit: 'per_bag', brokerageUnit: 'per_bag', lfUnit: 'per_bag', customDivisor: '' })} /> Per Bag
+                            onChange={() => setOfferData({ ...offerData, baseRateUnit: 'per_bag', hamaliUnit: 'per_bag', brokerageUnit: offerData.brokerageUnit || 'per_quintal', lfUnit: 'per_bag', customDivisor: '' })} /> Per Bag
                         </label>
                         <label style={radioLabelStyle}>
                           <input type="radio" name="baseRateUnit" checked={offerData.baseRateUnit === 'per_quintal'}
-                            onChange={() => setOfferData({ ...offerData, baseRateUnit: 'per_quintal', hamaliUnit: 'per_quintal', brokerageUnit: 'per_quintal', lfUnit: 'per_quintal', customDivisor: '' })} /> Per Qtl
+                            onChange={() => setOfferData({ ...offerData, baseRateUnit: 'per_quintal', hamaliUnit: 'per_quintal', brokerageUnit: offerData.brokerageUnit || 'per_quintal', lfUnit: 'per_quintal', customDivisor: '' })} /> Per Qtl
                         </label>
                         {!isRiceMode && (
                           <label style={radioLabelStyle}>
@@ -2525,7 +2536,7 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                 marginBottom: '6px', fontSize: '10px', textAlign: 'center', lineHeight: '1.4',
                 display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px'
               }}>
-                <div>Bags: <b>{selectedEntry.bags?.toLocaleString('en-IN')}</b> | Pkg: <b>{selectedEntry.packaging || '75'} Kg</b> | Party: <b>{getPartyDisplay(selectedEntry)}</b></div>
+                <div>Bags: <b>{selectedEntry.bags?.toLocaleString('en-IN')}</b> | Pkg: <b>{formatPackagingLabel(selectedEntry.packaging || '75')}</b> | Party: <b>{getPartyDisplay(selectedEntry)}</b></div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ color: '#444', fontWeight: '700' }}>Final Rate Uses:</span>
                   <select
@@ -2564,11 +2575,11 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                       <div style={{ display: 'flex', gap: '6px', fontSize: '11px', flexWrap: 'wrap' }}>
                         <label style={radioLabelStyle}>
                           <input type="radio" name="finalBaseRateUnit" checked={finalData.baseRateUnit === 'per_bag'}
-                            onChange={() => setFinalData({ ...finalData, baseRateUnit: 'per_bag', hamaliUnit: 'per_bag', brokerageUnit: 'per_bag', lfUnit: 'per_bag', customDivisor: '' })} /> Per Bag
+                            onChange={() => setFinalData({ ...finalData, baseRateUnit: 'per_bag', hamaliUnit: 'per_bag', brokerageUnit: finalData.brokerageUnit || 'per_quintal', lfUnit: 'per_bag', customDivisor: '' })} /> Per Bag
                         </label>
                         <label style={radioLabelStyle}>
                           <input type="radio" name="finalBaseRateUnit" checked={finalData.baseRateUnit === 'per_quintal'}
-                            onChange={() => setFinalData({ ...finalData, baseRateUnit: 'per_quintal', hamaliUnit: 'per_quintal', brokerageUnit: 'per_quintal', lfUnit: 'per_quintal', customDivisor: '' })} /> Per Qtl
+                            onChange={() => setFinalData({ ...finalData, baseRateUnit: 'per_quintal', hamaliUnit: 'per_quintal', brokerageUnit: finalData.brokerageUnit || 'per_quintal', lfUnit: 'per_quintal', customDivisor: '' })} /> Per Qtl
                         </label>
                         {!isRiceMode && (
                           <label style={radioLabelStyle}>
@@ -2955,4 +2966,3 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
 };
 
 export default FinalPassLots;
-

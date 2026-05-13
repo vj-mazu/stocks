@@ -38,6 +38,18 @@ const formatIndianCurrency = (value: any) => {
         ? num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
         : '-';
 };
+const formatPackagingLabel = (value?: string | number | null) => {
+    const raw = String(value ?? '').trim();
+    if (!raw) return '-';
+    const normalized = raw.toLowerCase();
+    if (normalized === '0' || normalized === 'loose') return 'Loose';
+    if (normalized === '75' || normalized === '75 kg') return '75 Kg';
+    if (normalized === '40' || normalized === '40 kg') return '40 Kg';
+    if (normalized === '26' || normalized === '26 kg') return '26 Kg';
+    if (normalized === '50' || normalized === '50 kg') return '50 Kg';
+    if (normalized.includes('kg') || normalized.includes('tons')) return raw;
+    return `${raw} Kg`;
+};
 const formatPaddyFinalSummary = (offering?: any) => {
     if (!offering) return '';
     const parts: string[] = [];
@@ -118,11 +130,11 @@ const CompletedLots: React.FC<CompletedLotsProps> = ({ entryType, excludeEntryTy
             )}
 
             <div style={{ overflowX: 'auto', borderRadius: '6px', border: '1px solid #ddd' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                     <thead>
                         <tr style={{ background: 'linear-gradient(135deg, #e67e22, #f39c12)', color: 'white' }}>
                             {['Date', 'SL No', 'Broker', 'Bags', 'Pkg', 'Variety', 'Party', entryType === 'RICE_SAMPLE' ? 'Rice Location' : 'Location', 'Status', 'Offer Rate', 'Final Price'].map(h => (
-                                <th key={h} style={{ padding: '10px 8px', textAlign: 'left', fontWeight: '600', whiteSpace: 'nowrap' }}>{h}</th>
+                                <th key={h} style={{ padding: '7px 6px', textAlign: 'left', fontWeight: '600', whiteSpace: 'nowrap' }}>{h}</th>
                             ))}
                         </tr>
                     </thead>
@@ -133,24 +145,24 @@ const CompletedLots: React.FC<CompletedLotsProps> = ({ entryType, excludeEntryTy
                             <tr><td colSpan={11} style={{ textAlign: 'center', padding: '30px', color: '#888' }}>No completed lots with pending patti</td></tr>
                         ) : entries.map((e, i) => (
                             <tr key={e.id} style={{ background: i % 2 === 0 ? '#fff' : '#fef9f0', borderBottom: '1px solid #eee' }}>
-                                <td style={{ padding: '8px' }}>{new Date(e.entryDate).toLocaleDateString('en-IN')}</td>
-                                <td style={{ padding: '8px', fontWeight: '600' }}>{(i + 1 + (page - 1) * pageSize)}</td>
-                                <td style={{ padding: '8px' }}>{e.brokerName}</td>
-                                <td style={{ padding: '8px' }}>{e.bags?.toLocaleString('en-IN')}</td>
-                                <td style={{ padding: '8px' }}>{e.packaging || '75'}</td>
-                                <td style={{ padding: '8px' }}>{e.variety}</td>
-                                <td style={{ padding: '8px' }}>
-                                    <div style={{ fontWeight: '600', color: '#1565c0' }}>{toTitleCase(e.partyName) || (e.entryType === 'DIRECT_LOADED_VEHICLE' ? e.lorryNumber?.toUpperCase() : '')}</div>
-                                    {e.entryType === 'DIRECT_LOADED_VEHICLE' && e.lorryNumber && e.partyName && <div style={{ fontSize: '10px', color: '#1565c0', fontWeight: '600' }}>{e.lorryNumber.toUpperCase()}</div>}
+                                <td style={{ padding: '6px' }}>{new Date(e.entryDate).toLocaleDateString('en-IN')}</td>
+                                <td style={{ padding: '6px', fontWeight: '600' }}>{(i + 1 + (page - 1) * pageSize)}</td>
+                                <td style={{ padding: '6px', fontSize: '11px' }}>{e.brokerName}</td>
+                                <td style={{ padding: '6px' }}>{e.bags?.toLocaleString('en-IN')}</td>
+                                <td style={{ padding: '6px', fontSize: '11px' }}>{formatPackagingLabel(e.packaging || '75')}</td>
+                                <td style={{ padding: '6px' }}>{e.variety}</td>
+                                <td style={{ padding: '6px' }}>
+                                    <div style={{ fontWeight: '600', color: '#1565c0', fontSize: '12px' }}>{toTitleCase(e.partyName) || (e.entryType === 'DIRECT_LOADED_VEHICLE' ? e.lorryNumber?.toUpperCase() : '')}</div>
+                                    {e.entryType === 'DIRECT_LOADED_VEHICLE' && e.lorryNumber && e.partyName && <div style={{ fontSize: '9px', color: '#1565c0', fontWeight: '600' }}>{e.lorryNumber.toUpperCase()}</div>}
                                 </td>
-                                <td style={{ padding: '8px' }}>{e.location}</td>
-                                <td style={{ padding: '8px' }}>
+                                <td style={{ padding: '6px' }}>{e.location}</td>
+                                <td style={{ padding: '6px' }}>
                                     <span style={{ padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: '600', background: '#fff3cd', color: '#856404' }}>
                                         Patti Pending
                                     </span>
                                 </td>
-                                <td style={{ padding: '8px' }}>{e.offering?.offerRate || '-'}</td>
-                                <td style={{ padding: '8px', fontWeight: '600', color: '#27ae60' }}>
+                                <td style={{ padding: '6px' }}>{e.offering?.offerRate || '-'}</td>
+                                <td style={{ padding: '6px', fontWeight: '600', color: '#27ae60' }}>
                                     <div>{e.offering?.finalPrice || '-'}</div>
                                     {entryType !== 'RICE_SAMPLE' && formatPaddyFinalSummary(e.offering) && (
                                         <div style={{ marginTop: '3px', fontSize: '10px', fontWeight: '600', color: '#6b7280', lineHeight: '1.35' }}>

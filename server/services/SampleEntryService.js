@@ -674,11 +674,11 @@ class SampleEntryService {
           if (
             requestedStatus === 'LOCATION_SAMPLE'
             && hasFinalizedResampleWorkflow(entry)
-            && !hasPostResampleAttempt(entry, hasQualitySnapshot)
+            && !hasPostResampleAttempt(entry, hasFullQualitySnapshot)
           ) {
             return true;
           }
-          if (hasPostResampleAttempt(entry, hasQualitySnapshot)) return false;
+          if (hasPostResampleAttempt(entry, hasFullQualitySnapshot)) return false;
           return requestedStatus === 'LOCATION_SAMPLE';
         });
       }
@@ -775,8 +775,9 @@ class SampleEntryService {
           if (updates[field] === undefined) return false;
           return hasChanged(field, updates[field], currentEntry[field]);
         });
+        const isResampleEntryEdit = isResampleWorkflowEntry(currentEntry);
 
-        if (changedFields.length > 0) {
+        if (changedFields.length > 0 && !isResampleEntryEdit) {
           const allowedEntryEdits = Math.max(1, Number(currentEntry.staffEntryEditAllowance || 1));
           if (Number(currentEntry.staffPartyNameEdits || 0) >= allowedEntryEdits) {
             throw new Error('This entry can only be edited once by staff. Please contact admin/manager for further changes.');
@@ -927,6 +928,57 @@ class SampleEntryService {
     const currentUser = await User.findByPk(userId, { attributes: ['id', 'username', 'fullName'] });
     const updatedByFullName = currentUser?.fullName || currentUser?.username || 'System';
     const updates = { updatedBy: userId, updatedByFullName };
+    const isManagerMissingValueRequest = userRole === 'manager' && finalData?.fillMissingValues === true;
+    const normalizeComparableValue = (value) => {
+      if (value === undefined || value === null || value === '') return null;
+      if (typeof value === 'boolean') return value;
+      const raw = String(value).trim();
+      if (!raw) return null;
+      const numericValue = Number(raw);
+      return Number.isFinite(numericValue) ? numericValue : raw.toLowerCase();
+    };
+    const hasMeaningfulChange = (key, nextValue) => (
+      normalizeComparableValue(nextValue) !== normalizeComparableValue(offering[key])
+    );
+
+    if (isManagerMissingValueRequest) {
+      const pendingData = {};
+      const pendingFieldGroups = [
+        ['finalSute', 'finalSuteUnit'],
+        ['moistureValue'],
+        ['hamali', 'hamaliUnit'],
+        ['brokerage', 'brokerageUnit'],
+        ['lf', 'lfUnit'],
+        ['egbValue', 'egbType'],
+        ['cdEnabled', 'cdValue', 'cdUnit'],
+        ['bankLoanEnabled', 'bankLoanValue', 'bankLoanUnit'],
+        ['paymentConditionValue', 'paymentConditionUnit'],
+        ['isFinalized']
+      ];
+
+      for (const fieldGroup of pendingFieldGroups) {
+        const providedKeys = fieldGroup.filter((key) => finalData[key] !== undefined);
+        if (providedKeys.length === 0) continue;
+        const groupHasChange = providedKeys.some((key) => hasMeaningfulChange(key, finalData[key]));
+        if (!groupHasChange) continue;
+        for (const key of providedKeys) {
+          pendingData[key] = finalData[key];
+        }
+      }
+
+      await offering.update({
+        updatedBy: userId,
+        updatedByFullName,
+        pendingManagerValueApprovalStatus: 'pending',
+        pendingManagerValueApprovalData: pendingData,
+        pendingManagerValueApprovalRequestedBy: userId,
+        pendingManagerValueApprovalRequestedAt: new Date(),
+        pendingManagerValueApprovalApprovedBy: null,
+        pendingManagerValueApprovalApprovedAt: null
+      });
+
+      return this.formatOfferingPayload(offering);
+    }
 
     // Update final reported info if being finalized
     if (finalData.isFinalized === true && !offering.isFinalized) {
@@ -952,6 +1004,9 @@ class SampleEntryService {
       if (finalData.brokerageUnit !== undefined) updates.brokerageUnit = finalData.brokerageUnit;
       if (finalData.lf !== undefined) updates.lf = finalData.lf;
       if (finalData.lfUnit !== undefined) updates.lfUnit = finalData.lfUnit;
+      if (finalData.hamali !== undefined || finalData.hamaliUnit !== undefined) updates.hamaliBy = userRole;
+      if (finalData.brokerage !== undefined || finalData.brokerageUnit !== undefined) updates.brokerageBy = userRole;
+      if (finalData.lf !== undefined || finalData.lfUnit !== undefined) updates.lfBy = userRole;
       if (finalData.moistureValue !== undefined) updates.moistureValue = finalData.moistureValue;
       if (finalData.egbValue !== undefined) updates.egbValue = finalData.egbValue;
       if (finalData.egbType !== undefined) updates.egbType = finalData.egbType;
@@ -975,6 +1030,9 @@ class SampleEntryService {
       if (finalData.brokerageUnit !== undefined) updates.brokerageUnit = finalData.brokerageUnit;
       if (finalData.lf !== undefined) updates.lf = finalData.lf;
       if (finalData.lfUnit !== undefined) updates.lfUnit = finalData.lfUnit;
+      if (finalData.hamali !== undefined || finalData.hamaliUnit !== undefined) updates.hamaliBy = userRole;
+      if (finalData.brokerage !== undefined || finalData.brokerageUnit !== undefined) updates.brokerageBy = userRole;
+      if (finalData.lf !== undefined || finalData.lfUnit !== undefined) updates.lfBy = userRole;
       if (finalData.finalPrice !== undefined) updates.finalPrice = finalData.finalPrice;
       if (finalData.finalSute !== undefined) updates.finalSute = finalData.finalSute;
       if (finalData.finalSuteUnit !== undefined) updates.finalSuteUnit = finalData.finalSuteUnit;

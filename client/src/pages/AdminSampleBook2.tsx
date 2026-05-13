@@ -148,6 +148,26 @@ interface SampleEntry {
 }
 
 const toTitleCase = (str: string) => str ? str.replace(/\b\w/g, c => c.toUpperCase()) : '';
+const formatPackagingLabel = (value?: string | number | null) => {
+    const raw = String(value ?? '').trim();
+    if (!raw) return '-';
+    const normalized = raw.toLowerCase();
+    if (normalized === '0' || normalized === 'loose') return 'Loose';
+    if (normalized === '75' || normalized === '75 kg') return '75 Kg';
+    if (normalized === '40' || normalized === '40 kg') return '40 Kg';
+    if (normalized === '26' || normalized === '26 kg') return '26 Kg';
+    if (normalized === '50' || normalized === '50 kg') return '50 Kg';
+    if (normalized.includes('kg') || normalized.includes('tons')) return raw;
+    return `${raw} Kg`;
+};
+const buildMapHref = (value: any) => {
+    const raw = typeof value === 'object' && value !== null
+        ? `${value.lat},${value.lng}`
+        : String(value || '').trim();
+    if (!raw) return '';
+    if (/^https?:\/\//i.test(raw)) return raw;
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(raw)}`;
+};
 const toSentenceCase = (value: string) => {
     const normalized = String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
     if (!normalized) return '';
@@ -290,8 +310,10 @@ const hasQualitySnapshot = (attempt: any) => {
   return hasMoisture && (hasGrains || hasDetailedQuality);
 };
 const hasResampleWbActivationSnapshot = (attempt: any) =>
-    isProvidedNumeric(attempt?.wbRRaw, attempt?.wbR)
-    && isProvidedNumeric(attempt?.wbBkRaw, attempt?.wbBk);
+    isProvidedNumeric(attempt?.moistureRaw, attempt?.moisture)
+    && isProvidedNumeric(attempt?.wbRRaw, attempt?.wbR)
+    && isProvidedNumeric(attempt?.wbBkRaw, attempt?.wbBk)
+    && isProvidedNumeric(attempt?.grainsCountRaw, attempt?.grainsCount);
 const hasExplicitDetailedQualityRaw = (attempt: any) =>
     String(attempt?.cutting1Raw ?? '').trim() !== ''
     || String(attempt?.bend1Raw ?? '').trim() !== ''
@@ -371,20 +393,33 @@ const getQualityAttemptsForEntry = (entry: any) => {
     const _resampleTimeline = Array.isArray(entry?.resampleCollectedTimeline) ? entry.resampleCollectedTimeline : [];
     const _resampleHistory = Array.isArray(entry?.resampleCollectedHistory) ? entry.resampleCollectedHistory : [];
     const _hasResampleCollector = _resampleTimeline.length > 0 || _resampleHistory.length > 0;
-    
-    if (_hasResampleCollector) {
+    const _originDecision = String((entry as any)?.resampleOriginDecision || '').toUpperCase();
+    const _hasExplicitResampleWorkflow =
+        _originDecision === 'PASS_WITH_COOKING'
+        || _originDecision === 'PASS_WITHOUT_COOKING'
+        || Boolean((entry as any)?.resampleStartAt)
+        || Boolean((entry as any)?.resampleTriggerRequired)
+        || Boolean((entry as any)?.resampleTriggeredAt)
+        || Boolean((entry as any)?.resampleDecisionAt)
+        || Boolean((entry as any)?.resampleAfterFinal);
+
+    if (_hasResampleCollector && _hasExplicitResampleWorkflow) {
         let _collectorName = '';
         let _collectedDate: string | null = null;
         if (_resampleTimeline.length > 0) {
             const last = _resampleTimeline[_resampleTimeline.length - 1];
-            if (typeof last === 'string') { _collectorName = last; }
-            else if (last && typeof last === 'object') { _collectorName = last.sampleCollectedBy || last.name || ''; _collectedDate = last.date || null; }
+            if (typeof last === 'string') {
+                _collectorName = last;
+            } else if (last && typeof last === 'object') {
+                _collectorName = last.sampleCollectedBy || last.name || '';
+                _collectedDate = last.date || null;
+            }
         } else if (_resampleHistory.length > 0) {
             const last = _resampleHistory[_resampleHistory.length - 1];
             _collectorName = typeof last === 'string' ? last : (last?.name || last?.sampleCollectedBy || '');
         }
 
-        const _resampleStart = _toTime(entry?.resampleStartAt || entry?.resampleTriggeredAt || entry?.resampleDecisionAt || _collectedDate);
+        const _resampleStart = _toTime((entry as any)?.resampleStartAt || (entry as any)?.resampleTriggeredAt || (entry as any)?.resampleDecisionAt || _collectedDate);
         const _hasPostResampleQuality = qpAll.some((qp: any) => {
             const qpTime = _toTime(qp?.updatedAt || qp?.createdAt);
             return qpTime > 0 && _resampleStart > 0 && qpTime >= (_resampleStart - 2000);
@@ -401,6 +436,7 @@ const getQualityAttemptsForEntry = (entry: any) => {
             });
         }
     }
+
     return qpAll;
 };
 
@@ -435,7 +471,7 @@ const getPopupSmellSummary = (entry: any) => {
         return {
             label: 'Smell',
             value: smellLabel,
-            tone: String(smellLabel || '').trim().toUpperCase() === 'LIGHT' ? '#e67e22' : '#c62828'
+            tone: String(smellLabel || '').trim().toUpperCase() === 'LIGHT' ? '#dc2626' : '#991b1b'
         };
     }
 
@@ -455,6 +491,8 @@ const getPopupSmellSummary = (entry: any) => {
 interface AdminSampleBook2Props {
     entryType?: string;
     excludeEntryType?: string;
+    approvalMode?: 'hidden' | 'embedded' | 'only';
+    onApprovalCountChange?: (count: number) => void;
 }
 
 type PricingDetailState = {
@@ -467,14 +505,14 @@ type SupervisorUser = {
     fullName?: string | null;
 };
 
-const AdminSampleBook2: React.FC<AdminSampleBook2Props> = ({ entryType, excludeEntryType }) => {
+const AdminSampleBook2: React.FC<AdminSampleBook2Props> = ({ entryType, excludeEntryType, approvalMode = 'hidden', onApprovalCountChange }) => {
     const isRiceBook = entryType === 'RICE_SAMPLE';
     const tableMinWidth = isRiceBook ? '100%' : '1500px';
     const [entries, setEntries] = useState<SampleEntry[]>([]);
     const [approvalEntries, setApprovalEntries] = useState<SampleEntry[]>([]);
     const [loading, setLoading] = useState(false);
     const [supervisors, setSupervisors] = useState<SupervisorUser[]>([]);
-    const [activeView, setActiveView] = useState<'sample-book' | 'edit-approvals'>('sample-book');
+    const [activeView, setActiveView] = useState<'sample-book' | 'edit-approvals'>(approvalMode === 'only' ? 'edit-approvals' : 'sample-book');
 
     // Pagination
     const [page, setPage] = useState(1);
@@ -655,16 +693,22 @@ const AdminSampleBook2: React.FC<AdminSampleBook2Props> = ({ entryType, excludeE
     }, []);
 
     useEffect(() => {
-        loadEntries();
+        if (approvalMode !== 'only') {
+            loadEntries();
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [page]);
+    }, [page, approvalMode]);
 
     useEffect(() => {
-        if (activeView === 'edit-approvals') {
+        if (approvalMode === 'only' || activeView === 'edit-approvals') {
             loadApprovalEntries();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeView]);
+    }, [activeView, approvalMode]);
+
+    useEffect(() => {
+        setActiveView(approvalMode === 'only' ? 'edit-approvals' : 'sample-book');
+    }, [approvalMode]);
 
     const normalizeCollectedByFilter = (value: string) => {
         const raw = String(value || '').trim();
@@ -888,7 +932,7 @@ const AdminSampleBook2: React.FC<AdminSampleBook2Props> = ({ entryType, excludeE
             || isProvidedAlpha((attempt as any).mixRaw, attempt.mix)
             || isProvidedAlpha((attempt as any).mixSRaw, attempt.mixS)
             || isProvidedAlpha((attempt as any).mixLRaw, attempt.mixL);
-        const has100g = isProvidedNumeric((attempt as any).grainsCountRaw, attempt.grainsCount);
+        const has100g = hasResampleWbActivationSnapshot(attempt);
         if (hasWbOnlyResampleActivation) return { label: '100-Gms', variant: 'resample-wb' };
         if (hasFullQuality) return { label: 'Done', variant: 'default' };
         if (hasResampleWbActivationSnapshot(attempt)) return { label: '100-Gms', variant: 'resample-wb' };
@@ -926,6 +970,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
         const attemptsSorted = getQualityAttemptsForEntry(entry);
         const isHardFailed = String(entry.workflowStatus || '').toUpperCase() === 'FAILED';
         const isFailDecision = String(entry.lotSelectionDecision || '').toUpperCase() === 'FAIL' && String(entry.workflowStatus || '').toUpperCase() !== 'FAILED';
+        const resampleOriginDecision = String((entry as any)?.resampleOriginDecision || '').toUpperCase();
         const isQualityRecheckPending = (entry as any).qualityPending === true
             || ((entry as any).qualityPending == null && (entry as any).recheckRequested === true && (entry as any).recheckType !== 'cooking');
         const isCookingOnlyRecheck = (entry as any).cookingPending === true && !isQualityRecheckPending;
@@ -937,6 +982,11 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             && String((entry as any)?.originalEntryType || '').toUpperCase() !== 'LOCATION_SAMPLE';
         const hasResampleCollectorHistory = (Array.isArray((entry as any)?.resampleCollectedTimeline) && (entry as any).resampleCollectedTimeline.length > 0)
             || (Array.isArray((entry as any)?.resampleCollectedHistory) && (entry as any).resampleCollectedHistory.length > 0);
+        const hasDisplayableResampleWorkflow =
+            isConvertedLocationResample
+            || hasResampleCollectorHistory
+            || resampleOriginDecision === 'PASS_WITH_COOKING'
+            || resampleOriginDecision === 'PASS_WITHOUT_COOKING';
         const isSpecialTriggeredResamplePending = !isHardFailed
             && isConvertedLocationResample
             && hasCookingHistory
@@ -944,20 +994,29 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             && attemptsSorted.length <= 1
             && String(entry.lotSelectionDecision || '').toUpperCase() !== 'FAIL';
         const hasCurrentResampleQuality = attemptsSorted.length > 1;
+
+        const shouldCollapseToSingleFailRow =
+            (isFailDecision || isHardFailed)
+            && !hasDisplayableResampleWorkflow
+            && attemptsSorted.length > 0;
+
+        if (shouldCollapseToSingleFailRow) {
+            const primaryAttempt = attemptsSorted[0];
+            const qualityType = getQualityTypeMeta(primaryAttempt);
+            return [{
+                type: qualityType.label,
+                typeVariant: qualityType.variant,
+                status: 'Fail'
+            }];
+        }
         
         // FIXED: Check if resample quality is complete (has all required fields)
         const hasCompleteResampleQuality = hasCurrentResampleQuality && attemptsSorted.length >= 2 && (() => {
             const latestAttempt = attemptsSorted[attemptsSorted.length - 1];
             return isProvidedNumeric((latestAttempt as any).moistureRaw, latestAttempt.moisture)
-                && isProvidedNumeric((latestAttempt as any).grainsCountRaw, latestAttempt.grainsCount)
-                && (
-                    isProvidedNumeric((latestAttempt as any).cutting1Raw, latestAttempt.cutting1)
-                    || isProvidedNumeric((latestAttempt as any).bend1Raw, latestAttempt.bend1)
-                    || isProvidedAlpha((latestAttempt as any).mixRaw, latestAttempt.mix)
-                    || isProvidedAlpha((latestAttempt as any).mixSRaw, latestAttempt.mixS)
-                    || isProvidedAlpha((latestAttempt as any).mixLRaw, latestAttempt.mixL)
-                );
+                && hasResampleWbActivationSnapshot(latestAttempt);
         })();
+        const isResamplePassFlow = resampleOriginDecision === 'PASS_WITH_COOKING' || resampleOriginDecision === 'PASS_WITHOUT_COOKING';
         
         const rows = attemptsSorted.map((attempt: any, idx: number) => {
             const isLast = idx === attemptsSorted.length - 1;
@@ -966,16 +1025,13 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             // LINE-WISE logic: 1st attempt stays Pass, only the failed attempt shows Fail
             if (isHardFailed && attemptsSorted.length > 1) {
                 status = isLast ? 'Fail' : 'Pass';
+            } else if (isLast && (isResamplePassFlow || isCookingDrivenResample)) {
+                const qType = getQualityTypeMeta(attempt).label;
+                status = qType === 'Pending' ? 'Pending' : 'Pass';
             } else if (isFailDecision) {
-                if (attemptsSorted.length <= 1) {
-                    status = 'Pass';
-                } else {
-                    status = isLast ? 'Pending' : 'Pass';
-                }
+                status = attemptsSorted.length <= 1 ? 'Pass' : (isLast ? 'Pending' : 'Pass');
             } else if (isLast && isQualityRecheckPending && !isCookingOnlyRecheck) {
                 status = mapQualityDecisionToStatus(previousDecision || entry.lotSelectionDecision);
-            } else if (isLast && isCookingDrivenResample) {
-                status = 'Pass';
             }
 
             if (entry.workflowStatus === 'CANCELLED' && status === 'Pending') {
@@ -1012,11 +1068,8 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
         // FIXED: Show resample status correctly
         // If FAIL decision and no resample quality yet, show "Pending/Resampling"
         if (isFailDecision && !hasCurrentResampleQuality) {
-            const isSmellEntry = entry.failRemarks && entry.failRemarks.toLowerCase().includes('smell');
-            if (!isSmellEntry) {
-                rows.push({ type: 'Pending', typeVariant: 'default', status: 'Resampling' });
-            }
-        } 
+            return rows;
+        }
         // If FAIL decision and resample quality exists but only 1 row (shouldn't happen but handle it)
         else if (isFailDecision && hasCurrentResampleQuality && rows.length === 1) {
             const onlyRow = rows[0];
@@ -1232,13 +1285,43 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
 
     const qualityBadge = (entry: SampleEntry) => {
         const rows = buildQualityStatusRows(entry);
+        const resampleOriginDecision = String((entry as any)?.resampleOriginDecision || '').toUpperCase();
+        const isConvertedLocationResample = String(entry.entryType || '').toUpperCase() === 'LOCATION_SAMPLE'
+            && !!String((entry as any)?.originalEntryType || '').trim()
+            && String((entry as any)?.originalEntryType || '').toUpperCase() !== 'LOCATION_SAMPLE';
+        const hasResampleCollectorHistory = (Array.isArray((entry as any)?.resampleCollectedTimeline) && (entry as any).resampleCollectedTimeline.length > 0)
+            || (Array.isArray((entry as any)?.resampleCollectedHistory) && (entry as any).resampleCollectedHistory.length > 0);
+        const hasDisplayableResampleWorkflow =
+            isConvertedLocationResample
+            || hasResampleCollectorHistory
+            || resampleOriginDecision === 'PASS_WITH_COOKING'
+            || resampleOriginDecision === 'PASS_WITHOUT_COOKING';
+        const isAnyFailChoice = String(entry.lotSelectionDecision || '').toUpperCase() === 'FAIL'
+            || String(entry.workflowStatus || '').toUpperCase() === 'FAILED';
+        const hasGhostFailFollowup =
+            rows.length >= 2
+            && rows[0]?.type === 'Done'
+            && rows[0]?.status === 'Pass'
+            && rows[1]?.type === 'Pending'
+            && rows[1]?.status === 'Fail';
+
+        const displayRows = hasGhostFailFollowup
+            ? [{
+                ...rows[0],
+                status: 'Fail'
+            }]
+            : (isAnyFailChoice && !hasDisplayableResampleWorkflow && rows.length > 0
+                ? [{
+                    ...rows[0],
+                    status: 'Fail'
+                }]
+                : rows);
         const isLightSmell = entry.smellHas && String(entry.smellType || '').toUpperCase() === 'LIGHT';
 
-        if (rows.length === 0) {
+        if (displayRows.length === 0) {
             if (entry.workflowStatus === 'CANCELLED') return <span style={{ color: '#999', fontSize: '10px' }}>-</span>;
             
             // Check if it's a smell auto-fail decision or already failed due to smell
-            const isAnyFailChoice = String(entry.lotSelectionDecision || '').toUpperCase() === 'FAIL' || entry.workflowStatus === 'FAILED';
             const isSmellEntry = entry.failRemarks && entry.failRemarks.toLowerCase().includes('smell');
             if (isAnyFailChoice && isSmellEntry) {
                 const smellLabel = toTitleCase(entry.failRemarks!.replace(/^failed:\s*/i, '').trim());
@@ -1256,7 +1339,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
 
         return (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
-                {rows.map((row, idx) => {
+                {displayRows.map((row, idx) => {
                     const typeStyle = getQualityTypeStyle(row.type, (row as any).typeVariant);
                     const statusStyle = row.status ? getStatusStyle(row.status) : { bg: 'transparent', color: 'transparent' };
                     return (
@@ -1292,6 +1375,9 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             setDetailLoadingId(null);
         }
     };
+    useEffect(() => {
+        onApprovalCountChange?.(approvalEntries.length);
+    }, [approvalEntries.length, onApprovalCountChange]);
 
     const getWorkflowStatusMeta = (status?: string | null) => {
         const key = String(status || '').trim().toUpperCase();
@@ -1563,22 +1649,25 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
 
     return (
         <div>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
-                <button
-                    onClick={() => setActiveView('sample-book')}
-                    style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '13px', background: activeView === 'sample-book' ? '#1565c0' : '#cbd5e1', color: activeView === 'sample-book' ? '#fff' : '#1e293b' }}
-                >
-                    Paddy Sample Book
-                </button>
-                <button
-                    onClick={() => setActiveView('edit-approvals')}
-                    style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '13px', background: activeView === 'edit-approvals' ? '#7c3aed' : '#cbd5e1', color: activeView === 'edit-approvals' ? '#fff' : '#1e293b' }}
-                >
-                    Approval For Edit
-                    {renderTabBadge(approvalEntries.length, '#6d28d9')}
-                </button>
-            </div>
+            {approvalMode === 'embedded' ? (
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                    <button
+                        onClick={() => setActiveView('sample-book')}
+                        style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '13px', background: activeView === 'sample-book' ? '#1565c0' : '#cbd5e1', color: activeView === 'sample-book' ? '#fff' : '#1e293b' }}
+                    >
+                        Paddy Sample Book
+                    </button>
+                    <button
+                        onClick={() => setActiveView('edit-approvals')}
+                        style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '13px', background: activeView === 'edit-approvals' ? '#7c3aed' : '#cbd5e1', color: activeView === 'edit-approvals' ? '#fff' : '#1e293b' }}
+                    >
+                        Approval For Edit
+                        {renderTabBadge(approvalEntries.length, '#6d28d9')}
+                    </button>
+                </div>
+            ) : null}
             {/* Filter Bar */}
+            {activeView === 'sample-book' ? (
             <div style={{ marginBottom: '0px' }}>
                 <button onClick={() => setFiltersVisible(!filtersVisible)}
                     style={{ padding: '7px 16px', backgroundColor: filtersVisible ? '#e74c3c' : '#3498db', color: 'white', border: 'none', borderRadius: '4px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1681,6 +1770,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                     </div>
                 )}
             </div>
+            ) : null}
 
             {activeView === 'edit-approvals' ? (
                 <div style={{ overflowX: 'auto', backgroundColor: 'white', border: '1px solid #000', marginTop: '12px' }}>
@@ -1711,11 +1801,11 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                             <td style={{ border: '1px solid #000', padding: '8px 10px', textAlign: 'center', verticalAlign: 'middle', fontWeight: 700 }}>{index + 1}</td>
                                             <td style={{ border: '1px solid #000', padding: '8px 10px', textAlign: 'center', verticalAlign: 'middle', fontWeight: '700', color: isConvertedResampleType(entry) ? getEntryTypeTextColor(getDisplayedEntryTypeCode(entry)) : undefined }}>
                                                 {isConvertedResampleType(entry)
-                                                    ? <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0px' }}><span style={{ fontSize: '10px', color: '#888' }}>{getOriginalEntryTypeCode(entry)}</span><span style={{ color: getEntryTypeTextColor(getOriginalEntryTypeCode(entry)) }}>{getConvertedEntryTypeCode(entry)}</span></div>
+                                                    ? <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px', minWidth: '38px' }}><span style={{ fontSize: '11px', color: getEntryTypeTextColor(getOriginalEntryTypeCode(entry)), fontWeight: 800 }}>{getOriginalEntryTypeCode(entry)}</span><span style={{ fontSize: '14px', fontWeight: 900, color: getEntryTypeTextColor(getConvertedEntryTypeCode(entry)) }}>{getConvertedEntryTypeCode(entry)}</span></div>
                                                     : getDisplayedEntryTypeCode(entry)}
                                             </td>
                                             <td style={{ border: '1px solid #000', padding: '8px 10px', textAlign: 'center', verticalAlign: 'middle' }}>{entry.bags}</td>
-                                            <td style={{ border: '1px solid #000', padding: '8px 10px', textAlign: 'center', verticalAlign: 'middle' }}>{entry.packaging}</td>
+                                            <td style={{ border: '1px solid #000', padding: '8px 10px', textAlign: 'center', verticalAlign: 'middle' }}>{formatPackagingLabel(entry.packaging)}</td>
                                             <td style={{ border: '1px solid #000', padding: '8px 10px', verticalAlign: 'middle', minWidth: '180px' }}>
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                                     <button
@@ -1822,23 +1912,30 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                                         const cookingStatusKey = String(cr?.status || '').toUpperCase();
                                                         const isCancelled = entry.workflowStatus === 'CANCELLED';
                                                         const isFailedSmell = entry.workflowStatus === 'FAILED' && entry.failRemarks && entry.failRemarks.toLowerCase().includes('smell');
-                                                        const isLightSmell = entry.smellHas && String(entry.smellType || '').toUpperCase() === 'LIGHT';
+                                                        const smellKey = String(entry.smellType || '').toUpperCase();
+                                                        const isLightSmell = entry.smellHas && smellKey === 'LIGHT';
                                                         const isResampleRow =
                                                             entry.lotSelectionDecision === 'FAIL'
                                                             && entry.workflowStatus !== 'FAILED'
                                                             && !['PASS', 'MEDIUM'].includes(cookingStatusKey)
                                                             && !entry.offering?.finalPrice;
+                                                        const resamplePassDecision = String((entry as any).resampleOriginDecision || '').toUpperCase();
+                                                        const isResamplePassFlow = resamplePassDecision === 'PASS_WITH_COOKING' || resamplePassDecision === 'PASS_WITHOUT_COOKING';
                                                         const rowBg = isCancelled
                                                             ? '#f8bbd0'
-                                                            : isFailedSmell
-                                                                ? '#ffebee'
-                                                                : isLightSmell
-                                                                    ? '#fff9c4'
-                                                                    : isResampleRow
+                                                            : isFailedSmell || smellKey === 'DARK'
+                                                                ? '#fecaca'
+                                                                : smellKey === 'MEDIUM'
+                                                                    ? '#fee2e2'
+                                                                    : isLightSmell
+                                                                        ? '#fef2f2'
+                                                                        : isResamplePassFlow
                                                                         ? '#fff3e0'
-                                                                        : cookingFail
-                                                                            ? '#fff0f0'
-                                                                            : entry.entryType === 'DIRECT_LOADED_VEHICLE' ? '#e3f2fd' : entry.entryType === 'LOCATION_SAMPLE' ? '#ffe0b2' : '#ffffff';
+                                                                        : isResampleRow
+                                                                            ? '#fff3e0'
+                                                                            : cookingFail
+                                                                                ? '#fff0f0'
+                                                                                : entry.entryType === 'DIRECT_LOADED_VEHICLE' ? '#e3f2fd' : entry.entryType === 'LOCATION_SAMPLE' ? '#ffd9b3' : '#ffffff';
 
                                                         const fallback = entryType === 'RICE_SAMPLE' ? '--' : '-';
                                                         const fmtVal = (v: any, forceDecimal = false, precision = 2) => {
@@ -1857,18 +1954,18 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                                             || isProvidedAlpha((qp as any).mixLRaw, qp.mixL)
                                                         );
                                                         return (
-                                                            <tr key={entry.id} style={{ backgroundColor: rowBg }}>
+                                                            <tr key={entry.id} style={{ backgroundColor: rowBg, border: isResamplePassFlow ? '2px solid #dc2626' : undefined }}>
                                                                 <td style={{ border: '1px solid #000', padding: '3px 4px', fontSize: '13px', fontWeight: '600', textAlign: 'center', whiteSpace: 'nowrap' }}>{idx + 1}</td>
                                                                 {!isRiceBook && (
                                                                     <td style={{ border: '1px solid #000', padding: '3px 4px', fontSize: '13px', fontWeight: '700', textAlign: 'center', whiteSpace: 'nowrap' }}>
                                                                         {isConvertedResampleType(entry)
-                                                                            ? <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0px' }}><span style={{ fontSize: '10px', color: '#888' }}>{getOriginalEntryTypeCode(entry)}</span><span style={{ color: getEntryTypeTextColor(getOriginalEntryTypeCode(entry)) }}>{getConvertedEntryTypeCode(entry)}</span></div>
+                                                                            ? <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px', minWidth: '38px' }}><span style={{ fontSize: '11px', color: getEntryTypeTextColor(getOriginalEntryTypeCode(entry)), fontWeight: 800 }}>{getOriginalEntryTypeCode(entry)}</span><span style={{ fontSize: '14px', fontWeight: 900, color: getEntryTypeTextColor(getConvertedEntryTypeCode(entry)) }}>{getConvertedEntryTypeCode(entry)}</span></div>
                                                                             : <span style={{ color: getEntryTypeTextColor(getDisplayedEntryTypeCode(entry)) }}>{getDisplayedEntryTypeCode(entry)}</span>}
                                                                     </td>
                                                                 )}
                                                                 <td style={{ border: '1px solid #000', padding: '3px 4px', fontSize: '13px', fontWeight: '700', textAlign: 'center', whiteSpace: 'nowrap' }}>{entry.bags || '0'}</td>
-                                                                <td style={{ border: '1px solid #000', padding: '3px 4px', fontSize: '13px', textAlign: 'center', whiteSpace: 'nowrap' }}>{Number(entry.packaging) === 0 ? 'Loose' : `${entry.packaging || '75'} kg`}</td>
-                                                                <td style={{ border: '1px solid #000', padding: '3px 4px', fontSize: '14px', color: '#1565c0', fontWeight: '600', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                <td style={{ border: '1px solid #000', padding: '3px 4px', fontSize: '12px', textAlign: 'center', whiteSpace: 'nowrap' }}>{formatPackagingLabel(entry.packaging)}</td>
+                                                                <td style={{ border: '1px solid #000', padding: '3px 4px', fontSize: '13px', color: '#1565c0', fontWeight: '600', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                     {(() => {
                                                                         const partyDisplay = getPartyDisplayParts(entry);
                                                                         return (
@@ -1907,7 +2004,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                                                         const query = typeof gps === 'object' ? `${gps.lat},${gps.lng}` : gps;
                                                                         return (
                                                                             <a 
-                                                                                href={`https://www.google.com/maps/search/?api=1&query=${query}`}
+                                                                                href={buildMapHref(query)}
                                                                                 target="_blank"
                                                                                 rel="noopener noreferrer"
                                                                                 title="View on Map"
@@ -1948,7 +2045,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                                                         const smellHasVal = entry.smellHas ?? (entry.qualityParameters as any)?.smellHas;
                                                                         const isSmellFail = String(entry.failRemarks || '').toLowerCase().includes('smell');
                                                                         if (smellHasVal && smellType && !isSmellFail) {
-                                                                            const smellColor = smellType.toUpperCase() === 'DARK' ? '#dc2626' : smellType.toUpperCase() === 'MEDIUM' ? '#ea580c' : '#ca8a04';
+                                                                            const smellColor = smellType.toUpperCase() === 'DARK' ? '#991b1b' : smellType.toUpperCase() === 'MEDIUM' ? '#b91c1c' : '#dc2626';
                                                                             return (
                                                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                                                                     <div style={{ fontSize: '8px', color: smellColor, fontWeight: '700' }}>{toTitleCase(smellType)} Smell</div>

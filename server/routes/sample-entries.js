@@ -272,10 +272,19 @@ const hasFullQualitySnapshot = (attempt = {}) => {
 const hasSampleBookReadySnapshot = (attempt = {}) => {
   const hasMoisture = isProvidedNumericValue(attempt.moistureRaw, attempt.moisture);
   const hasGrains = isProvidedNumericValue(attempt.grainsCountRaw, attempt.grainsCount);
+  if (hasResampleCookingPrepSnapshot(attempt)) return true;
   if (!hasMoisture || !hasGrains) return false;
   if (hasFullQualitySnapshot(attempt)) return true;
   return !hasAnyDetailedQuality(attempt);
 };
+const hasResampleCookingPrepSnapshot = (attempt = {}) => (
+  isProvidedNumericValue(attempt.moistureRaw, attempt.moisture)
+  && isProvidedNumericValue(attempt.wbRRaw, attempt.wbR)
+  && isProvidedNumericValue(attempt.wbBkRaw, attempt.wbBk)
+  && isProvidedNumericValue(attempt.paddyWbRaw, attempt.paddyWb)
+  && isProvidedNumericValue(attempt.grainsCountRaw, attempt.grainsCount)
+  && !hasAnyDetailedQuality(attempt)
+);
 const normalizeAttemptValue = (value = '') => String(value ?? '').trim().toLowerCase();
 const areQualityAttemptsEquivalent = (left = {}, right = {}) => {
   const fields = [
@@ -891,9 +900,6 @@ const validateRequiredEntryFields = (entryType, data) => {
   }
 
   if (data.smellHas === true && isEmpty(data.smellType)) return 'Smell type is required';
-  if (entryType === 'LOCATION_SAMPLE') {
-    if (isEmpty(data.gpsCoordinates)) return 'GPS coordinates are required';
-  }
 
   return null;
 };
@@ -1182,6 +1188,55 @@ router.get('/tabs/edit-approvals', authenticateToken, cacheMiddleware(15), async
   }
 });
 
+router.get('/tabs/manager-value-approvals', authenticateToken, cacheMiddleware(15), async (req, res) => {
+  try {
+    const workflowRole = getWorkflowRole(req.user);
+    if (!['admin', 'owner'].includes(workflowRole)) {
+      return res.status(403).json({ error: 'Only admin can view manager value approvals' });
+    }
+
+    const entries = await SampleEntry.findAll({
+      include: [
+        {
+          model: SampleEntryOffering,
+          as: 'offering',
+          where: { pendingManagerValueApprovalStatus: 'pending' },
+          required: true
+        },
+        { model: User, as: 'creator', attributes: ['id', 'username', 'fullName'], required: false }
+      ],
+      order: [
+        ['entryDate', 'DESC'],
+        ['createdAt', 'DESC']
+      ]
+    });
+
+    const requestUserIds = Array.from(new Set(entries
+      .map((entry) => entry?.offering?.pendingManagerValueApprovalRequestedBy)
+      .filter(Boolean)));
+    const users = requestUserIds.length
+      ? await User.findAll({ where: { id: requestUserIds }, attributes: ['id', 'username', 'fullName'], raw: true })
+      : [];
+    const userMap = new Map(users.map((user) => [user.id, user]));
+
+    const payload = entries.map((entry) => {
+      const plain = entry.toJSON ? entry.toJSON() : entry;
+      const requester = plain.offering?.pendingManagerValueApprovalRequestedBy
+        ? userMap.get(plain.offering.pendingManagerValueApprovalRequestedBy)
+        : null;
+      return {
+        ...plain,
+        pendingManagerValueApprovalRequestedByName: requester?.fullName || requester?.username || ''
+      };
+    });
+
+    return res.json({ entries: payload });
+  } catch (error) {
+    console.error('Error getting manager value approvals:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 router.post('/:id/edit-approval-request', authenticateToken, async (req, res) => {
   try {
     const workflowRole = getWorkflowRole(req.user);
@@ -1283,6 +1338,87 @@ router.post('/:id/edit-approval-decision', authenticateToken, async (req, res) =
     return res.json({ success: true, message: `${isQualityRequest ? 'Quality' : 'Entry'} edit request ${nextDecision}d.` });
   } catch (error) {
     console.error('Error deciding edit approval:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/:id/manager-value-approval-decision', authenticateToken, async (req, res) => {
+  try {
+    const workflowRole = getWorkflowRole(req.user);
+    if (!['admin', 'owner'].includes(workflowRole)) {
+      return res.status(403).json({ error: 'Only admin can approve manager value requests' });
+    }
+
+    const nextDecision = String(req.body?.decision || '').trim().toLowerCase();
+    if (!['approve', 'reject'].includes(nextDecision)) {
+      return res.status(400).json({ error: 'Decision must be approve or reject' });
+    }
+
+    const sampleEntry = await SampleEntry.findByPk(req.params.id, {
+      include: [{ model: SampleEntryOffering, as: 'offering', required: false }]
+    });
+    if (!sampleEntry || !sampleEntry.offering) {
+      return res.status(404).json({ error: 'Sample entry approval request not found' });
+    }
+
+    const offering = sampleEntry.offering;
+    if (String(offering.pendingManagerValueApprovalStatus || '').toLowerCase() !== 'pending') {
+      return res.status(400).json({ error: 'No pending manager approval found for this lot' });
+    }
+
+    if (nextDecision === 'reject') {
+      await offering.update({
+        pendingManagerValueApprovalStatus: 'rejected',
+        pendingManagerValueApprovalApprovedBy: req.user.userId,
+        pendingManagerValueApprovalApprovedAt: new Date(),
+        pendingManagerValueApprovalData: null
+      });
+      invalidateSampleEntryTabCaches();
+      return res.json({ success: true, message: 'Manager value request rejected' });
+    }
+
+    const pendingData = offering.pendingManagerValueApprovalData || {};
+    await SampleEntryService.setFinalPrice(
+      req.params.id,
+      { ...pendingData, fillMissingValues: false },
+      req.user.userId,
+      'admin'
+    );
+
+    const managerFieldUpdates = {};
+    if (pendingData.hamali !== undefined || pendingData.hamaliUnit !== undefined) managerFieldUpdates.hamaliBy = 'manager';
+    if (pendingData.brokerage !== undefined || pendingData.brokerageUnit !== undefined) managerFieldUpdates.brokerageBy = 'manager';
+    if (pendingData.lf !== undefined || pendingData.lfUnit !== undefined) managerFieldUpdates.lfBy = 'manager';
+
+    await offering.update({
+      ...managerFieldUpdates,
+      pendingManagerValueApprovalStatus: 'approved',
+      pendingManagerValueApprovalApprovedBy: req.user.userId,
+      pendingManagerValueApprovalApprovedAt: new Date(),
+      pendingManagerValueApprovalData: null
+    });
+
+    if (pendingData.isFinalized) {
+      try {
+        const entry = await SampleEntryService.getSampleEntryById(req.params.id);
+        if (entry && ['FINAL_REPORT', 'LOT_SELECTION'].includes(entry.workflowStatus)) {
+          await WorkflowEngine.transitionTo(
+            req.params.id,
+            'LOT_ALLOTMENT',
+            req.user.userId,
+            workflowRole,
+            { finalPriceSet: true }
+          );
+        }
+      } catch (transitionError) {
+        console.error('[MANAGER-VALUE-APPROVAL] Transition FAILED:', transitionError.message);
+      }
+    }
+
+    invalidateSampleEntryTabCaches();
+    return res.json({ success: true, message: 'Manager value request approved' });
+  } catch (error) {
+    console.error('Error deciding manager value approval:', error);
     return res.status(500).json({ error: error.message });
   }
 });
@@ -1841,8 +1977,11 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
 
         await hydrateSampleEntryWorkflowState(sampleEntry);
 
+        const isResampleCookingPrepOnlyRequest = parseBoolFlag(req.body.resampleCookingPrepOnly) === true;
+
         // Location staff can edit own LOCATION_SAMPLE entries OR assigned resample lots.
-        if (userRole === 'physical_supervisor' && sampleEntry.entryType === 'LOCATION_SAMPLE') {
+        // Resample 100gms from Cooking Book is a separate supervisor flow and is allowed for the broader paddy supervisor set.
+        if (userRole === 'physical_supervisor' && sampleEntry.entryType === 'LOCATION_SAMPLE' && !isResampleCookingPrepOnlyRequest) {
           const canEdit = await canLocationStaffEditQuality(sampleEntry, req.user);
           if (!canEdit) {
             return res.status(403).json({
@@ -1893,7 +2032,13 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
         const wbEnabledFlag = parseBoolFlag(req.body.wbEnabled);
         const paddyWbEnabledFlag = parseBoolFlag(req.body.paddyWbEnabled);
         const dryMoistureEnabledFlag = parseBoolFlag(req.body.dryMoistureEnabled);
+        const isResampleCookingPrepOnly =
+          parseBoolFlag(req.body.resampleCookingPrepOnly) === true
+          && sampleEntry?.entryType !== 'RICE_SAMPLE'
+          && isResampleWorkflowMarker(sampleEntry);
         const requireExplicitResampleSmell =
+          !isResampleCookingPrepOnly
+          &&
           String(req.body.qualityEntryIntent || '').toLowerCase() === 'next'
           && sampleEntry?.entryType !== 'RICE_SAMPLE'
           && isResampleWorkflowMarker(sampleEntry);
@@ -1908,28 +2053,37 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
 
         const hasAnyFullDetail = hasCutting1 || hasCutting2 || hasBend1 || hasBend2 || hasMix || hasKandu || hasOil || hasSk;
         const is100gOnly = hasMoisture && hasGrains && !hasAnyFullDetail;
-        const isResampleWbActivationOnly =
-          String(req.body.qualityEntryIntent || '').toLowerCase() === 'next'
-          && sampleEntry?.entryType !== 'RICE_SAMPLE'
-          && isResampleWorkflowMarker(sampleEntry)
+        const isResampleWbActivationOnly = false;
+        const isValidResampleCookingPrepOnly =
+          isResampleCookingPrepOnly
           && wbEnabled
+          && hasMoisture
           && hasWbR
           && hasWbBk
-          && !hasMoisture
-          && !hasGrains
+          && hasGrains
           && !hasAnyFullDetail
-          && !hasPaddyWb
           && !hasDryMoisture
           && !hasSmix
           && !hasLmix;
-        const fallbackReportedBy = String(req.user?.username || '').trim();
+        const isValidPaddy100gThreeFieldOnly =
+          sampleEntry?.entryType !== 'RICE_SAMPLE'
+          && hasMoisture
+          && wbEnabled
+          && hasWbR
+          && hasWbBk
+          && hasGrains
+          && !hasAnyFullDetail
+          && !hasDryMoisture
+          && !hasSmix
+          && !hasLmix;
         const rawReportedByValue = typeof req.body.reportedBy === 'string' ? req.body.reportedBy.trim() : '';
-        const reportedByValue = rawReportedByValue || (isResampleWbActivationOnly ? fallbackReportedBy : '');
-        if (!reportedByValue || reportedByValue.toLowerCase() === 'unknown') {
+        const reportedByValue = rawReportedByValue;
+        const is100gSave = isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly || is100gOnly;
+        if ((!is100gSave && !reportedByValue) || reportedByValue.toLowerCase() === 'unknown') {
           return res.status(400).json({ error: 'Sample Reported By is required' });
         }
 
-        if (!is100gOnly && !isResampleWbActivationOnly) {
+        if (!is100gOnly && !isValidResampleCookingPrepOnly && !isValidPaddy100gThreeFieldOnly) {
           if (!hasMoisture) return res.status(400).json({ error: 'Moisture is required' });
           if (!hasGrains) return res.status(400).json({ error: 'Grains Count is required' });
           if (!hasCutting1 || !hasCutting2) return res.status(400).json({ error: 'Cutting is required' });
@@ -2052,7 +2206,7 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
 
           // Staff one-time edit check: if already used their available chances, block
           const qualityEditAllowance = Math.max(1, Number(sampleEntry?.staffQualityEditAllowance || 1));
-          const isLimitedStaffRole = ['staff', 'physical_supervisor', 'paddy_supervisor'].includes(String(getWorkflowRole(req.user) || '').toLowerCase());
+          const isLimitedStaffRole = ['staff', 'quality_supervisor', 'physical_supervisor', 'paddy_supervisor'].includes(String(getWorkflowRole(req.user) || '').toLowerCase());
           if (isLimitedStaffRole && Number(sampleEntry?.staffBagsEdits || 0) >= qualityEditAllowance && !isRecheckQualityPending && !isResampleQualityPending) {
             return res.status(403).json({ error: 'Quality parameters can only be edited once by staff.' });
           }
@@ -2089,7 +2243,7 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
               existingQuality.id,
               {
                 ...qualityData,
-                is100Grams: req.body.is100Grams === 'true' || req.body.is100Grams === true || isResampleWbActivationOnly,
+                is100Grams: req.body.is100Grams === 'true' || req.body.is100Grams === true || isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly,
                 reportedByUserId: req.user.userId
               },
               req.user.userId,
@@ -2097,7 +2251,7 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
               { createNewAttempt: shouldCreateNewResampleAttempt }
             );
             // Increment the edit counter to lock future edits
-            if (sampleEntry) {
+            if (sampleEntry && !isResampleQualityPending) {
               await sampleEntry.update({
                 staffBagsEdits: (sampleEntry.staffBagsEdits || 0) + 1,
                 qualityEditApprovalStatus: null,
@@ -2120,7 +2274,7 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
               existingQuality.id,
               {
                 ...qualityData,
-                is100Grams: req.body.is100Grams === 'true' || req.body.is100Grams === true || isResampleWbActivationOnly,
+                is100Grams: req.body.is100Grams === 'true' || req.body.is100Grams === true || isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly,
                 reportedByUserId: req.user.userId
               },
               req.user.userId,
@@ -2142,7 +2296,10 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
         }
 
         const quality = await QualityParametersService.addQualityParameters(
-          qualityData,
+          {
+            ...qualityData,
+            is100Grams: req.body.is100Grams === 'true' || req.body.is100Grams === true || isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly
+          },
           req.user.userId,
           getWorkflowRole(req.user)
         );
@@ -2184,8 +2341,11 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
 
         await hydrateSampleEntryWorkflowState(sampleEntry);
 
+        const isResampleCookingPrepOnlyRequest = parseBoolFlag(req.body.resampleCookingPrepOnly) === true;
+
         // Location staff can edit own LOCATION_SAMPLE entries OR assigned resample lots.
-        if (userRole === 'physical_supervisor' && sampleEntry.entryType === 'LOCATION_SAMPLE') {
+        // Resample 100gms from Cooking Book is a separate supervisor flow and is allowed for the broader paddy supervisor set.
+        if (userRole === 'physical_supervisor' && sampleEntry.entryType === 'LOCATION_SAMPLE' && !isResampleCookingPrepOnlyRequest) {
           const canEdit = await canLocationStaffEditQuality(sampleEntry, req.user);
           if (!canEdit) {
             return res.status(403).json({
@@ -2223,7 +2383,7 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
 
         // Admin/Manager edit only. Staff can edit quality only up to their approved allowance.
         const qualityEditAllowance = Math.max(1, Number(sampleEntry.staffQualityEditAllowance || 1));
-        const isLimitedStaffRole = ['staff', 'physical_supervisor', 'paddy_supervisor'].includes(String(getWorkflowRole(req.user) || '').toLowerCase());
+        const isLimitedStaffRole = ['staff', 'quality_supervisor', 'physical_supervisor', 'paddy_supervisor'].includes(String(getWorkflowRole(req.user) || '').toLowerCase());
         if (isLimitedStaffRole && Number(sampleEntry.staffBagsEdits || 0) >= qualityEditAllowance && !isRecheckQualityPending && !isResampleQualityPending) {
           return res.status(403).json({ error: 'Quality parameters can only be edited once by staff. Please contact admin/manager for further changes.' });
         }
@@ -2248,15 +2408,18 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
         const wbEnabled = wbEnabledFlag !== null ? wbEnabledFlag : (hasWbR || hasWbBk);
         const paddyWbEnabled = paddyWbEnabledFlag !== null ? paddyWbEnabledFlag : hasPaddyWb;
         const dryMoistureEnabled = dryMoistureEnabledFlag !== null ? dryMoistureEnabledFlag : hasDryMoisture;
-        const isResampleWbActivationOnly =
-          String(req.body.qualityEntryIntent || '').toLowerCase() === 'next'
+        const isResampleWbActivationOnly = false;
+        const isResampleCookingPrepOnly =
+          parseBoolFlag(req.body.resampleCookingPrepOnly) === true
           && sampleEntry?.entryType !== 'RICE_SAMPLE'
-          && isResampleWorkflowMarker(sampleEntry)
+          && isResampleWorkflowMarker(sampleEntry);
+        const isValidResampleCookingPrepOnly =
+          isResampleCookingPrepOnly
           && wbEnabled
           && hasWbR
           && hasWbBk
-          && normalizeRaw(req.body.moisture) === null
-          && normalizeRaw(req.body.grainsCount) === null
+          && normalizeRaw(req.body.moisture) !== null
+          && normalizeRaw(req.body.grainsCount) !== null
           && !hasMix
           && !hasKandu
           && !hasOil
@@ -2267,12 +2430,29 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
           && normalizeRaw(req.body.cutting2) === null
           && normalizeRaw(req.body.bend1) === null
           && normalizeRaw(req.body.bend2) === null
-          && !hasPaddyWb
+          && !hasDryMoisture;
+        const isValidPaddy100gThreeFieldOnly =
+          sampleEntry?.entryType !== 'RICE_SAMPLE'
+          && normalizeRaw(req.body.moisture) !== null
+          && wbEnabled
+          && hasWbR
+          && hasWbBk
+          && normalizeRaw(req.body.grainsCount) !== null
+          && !hasMix
+          && !hasKandu
+          && !hasOil
+          && !hasSk
+          && !hasSmix
+          && !hasLmix
+          && normalizeRaw(req.body.cutting1) === null
+          && normalizeRaw(req.body.cutting2) === null
+          && normalizeRaw(req.body.bend1) === null
+          && normalizeRaw(req.body.bend2) === null
           && !hasDryMoisture;
         const rawReportedByValue = typeof req.body.reportedBy === 'string' ? req.body.reportedBy.trim() : '';
-        const fallbackReportedBy = String(existing?.reportedBy || req.user?.username || '').trim();
-        const reportedByValue = rawReportedByValue || (isResampleWbActivationOnly ? fallbackReportedBy : '');
-        if (!reportedByValue || reportedByValue.toLowerCase() === 'unknown') {
+        const reportedByValue = rawReportedByValue;
+        const is100gSave = isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly;
+        if ((!is100gSave && !reportedByValue) || reportedByValue.toLowerCase() === 'unknown') {
           return res.status(400).json({ error: 'Sample Reported By is required' });
         }
 
@@ -2283,7 +2463,7 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
         // Prepare update data
         const updates = {
           sampleEntryId,
-          is100Grams: req.body.is100Grams === 'true' || req.body.is100Grams === true || isResampleWbActivationOnly,
+          is100Grams: req.body.is100Grams === 'true' || req.body.is100Grams === true || isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly,
           moisture: parseFloatSafe(req.body.moisture, existing.moisture),
           dryMoisture: dryMoistureEnabled ? parseFloatSafe(req.body.dryMoisture, existing.dryMoisture) : null,
           cutting1: parseFloatSafe(req.body.cutting1, existing.cutting1),
@@ -2376,15 +2556,17 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
 
         // Increment edit counter for staff to prevent further changes (skip during recheck)
         if (isLimitedStaffRole && !isRecheckQualityPending) {
-          await sampleEntry.update({
-            staffBagsEdits: (sampleEntry.staffBagsEdits || 0) + 1,
-            qualityEditApprovalStatus: null,
-            qualityEditApprovalReason: null,
-            qualityEditApprovalRequestedBy: null,
-            qualityEditApprovalRequestedAt: null,
-            qualityEditApprovalApprovedBy: null,
-            qualityEditApprovalApprovedAt: null
-          });
+          if (!isResampleQualityPending) {
+            await sampleEntry.update({
+              staffBagsEdits: (sampleEntry.staffBagsEdits || 0) + 1,
+              qualityEditApprovalStatus: null,
+              qualityEditApprovalReason: null,
+              qualityEditApprovalRequestedBy: null,
+              qualityEditApprovalRequestedAt: null,
+              qualityEditApprovalApprovedBy: null,
+              qualityEditApprovalApprovedAt: null
+            });
+          }
         }
 
         invalidateSampleEntryTabCaches();
@@ -2721,6 +2903,20 @@ router.post('/:id/final-price', authenticateToken, async (req, res) => {
     );
 
     console.log(`[FINAL-PRICE] setFinalPrice succeeded. isFinalized in body: ${req.body.isFinalized}`);
+
+    if (
+      getWorkflowRole(req.user) === 'manager'
+      && req.body.fillMissingValues
+      && String(result?.pendingManagerValueApprovalStatus || '').toLowerCase() === 'pending'
+    ) {
+      invalidateSampleEntryTabCaches();
+      console.log(`[FINAL-PRICE] Manager missing values staged for admin approval`);
+      return res.json({
+        ...result,
+        pendingApproval: true,
+        message: 'Manager values sent for admin approval'
+      });
+    }
 
     if (req.body.resampleAfterFinal) {
       const previousDecision = String(currentEntry?.lotSelectionDecision || '').toUpperCase();

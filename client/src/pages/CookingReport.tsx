@@ -66,6 +66,18 @@ const formatDateInputValue = (value: Date) => {
 };
 
 const toTitleCase = (str: string) => str ? str.replace(/\b\w/g, c => c.toUpperCase()) : '';
+const formatPackagingLabel = (value?: string | number | null) => {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '-';
+  const normalized = raw.toLowerCase();
+  if (normalized === '0' || normalized === 'loose') return 'Loose';
+  if (normalized === '75' || normalized === '75 kg') return '75 Kg';
+  if (normalized === '40' || normalized === '40 kg') return '40 Kg';
+  if (normalized === '26' || normalized === '26 kg') return '26 Kg';
+  if (normalized === '50' || normalized === '50 kg') return '50 Kg';
+  if (normalized.includes('kg') || normalized.includes('tons')) return raw;
+  return `${raw} Kg`;
+};
 const getCollectorLabel = (value: string | null | undefined, supervisors: SupervisorUser[]) => {
   const raw = typeof value === 'string' ? value.trim() : '';
   if (!raw) return '-';
@@ -225,10 +237,10 @@ const hasAnyDetailedQuality = (attempt: any) => (
   || isProvidedAlphaValue(attempt?.oilRaw, attempt?.oil)
   || isProvidedAlphaValue(attempt?.skRaw, attempt?.sk)
 );
-const hasResampleWbActivationSnapshot = (attempt: any) => (
-  isProvidedNumericValue(attempt?.wbRRaw, attempt?.wbR)
+const hasResample100gSnapshot = (attempt: any) => (
+  isProvidedNumericValue(attempt?.moistureRaw, attempt?.moisture)
+  && isProvidedNumericValue(attempt?.wbRRaw, attempt?.wbR)
   && isProvidedNumericValue(attempt?.wbBkRaw, attempt?.wbBk)
-  && !isProvidedNumericValue(attempt?.moistureRaw, attempt?.moisture)
   && !isProvidedNumericValue(attempt?.grainsCountRaw, attempt?.grainsCount)
   && !hasAnyDetailedQuality(attempt)
 );
@@ -244,11 +256,8 @@ const hasQualitySnapshot = (attempt: any) => {
     attempt?.smellHas === false;
   const hasLegacyToggleOnlyFullSave =
     hasMoisture && (hasDetailedQuality || hasOptionalResampleSignals);
-  const hasWbActivation =
-    isProvidedAlphaValue(attempt?.wbRRaw, attempt?.wbR) &&
-    isProvidedAlphaValue(attempt?.wbBkRaw, attempt?.wbBk);
 
-  return (hasMoisture && (hasGrains || hasDetailedQuality)) || hasLegacyToggleOnlyFullSave || hasWbActivation;
+  return (hasMoisture && (hasGrains || hasDetailedQuality)) || hasLegacyToggleOnlyFullSave || hasResample100gSnapshot(attempt);
 };
 const normalizeAttemptValue = (value: any) => {
   if (value === null || value === undefined) return '';
@@ -498,11 +507,11 @@ const hasCurrentCycleQualityData = (entry: SampleEntry) => {
   if (!isResampleWorkflowEntry(entry)) return hasQualitySnapshot(attempts[attempts.length - 1]);
   if (attempts.length > 1) {
     const latestAttempt = attempts[attempts.length - 1];
-    return hasQualitySnapshot(latestAttempt) || hasResampleWbActivationSnapshot(latestAttempt);
+    return hasQualitySnapshot(latestAttempt) || hasResample100gSnapshot(latestAttempt);
   }
 
   const currentQuality = entry.qualityParameters;
-  if (!hasQualitySnapshot(currentQuality) && !hasResampleWbActivationSnapshot(currentQuality)) return false;
+  if (!hasQualitySnapshot(currentQuality) && !hasResample100gSnapshot(currentQuality)) return false;
 
   const resampleStartValue = (entry as any)?.resampleTriggeredAt
     || (entry as any)?.resampleStartAt
@@ -519,6 +528,30 @@ const hasCurrentCycleQualityData = (entry: SampleEntry) => {
   const resampleStartAt = getTimeValue(resampleStartValue);
   const qualityUpdatedAt = getTimeValue(qualityUpdatedValue);
   return qualityUpdatedAt >= resampleStartAt;
+};
+const isCurrentCycleQualitySnapshot = (entry: SampleEntry, attempt: any) => {
+  if (!attempt) return false;
+  if (!isResampleWorkflowEntry(entry)) {
+    return hasQualitySnapshot(attempt) || hasResample100gSnapshot(attempt);
+  }
+
+  if (!hasQualitySnapshot(attempt) && !hasResample100gSnapshot(attempt)) {
+    return false;
+  }
+
+  const resampleStartValue = (entry as any)?.resampleTriggeredAt
+    || (entry as any)?.resampleStartAt
+    || entry?.lotSelectionAt
+    || null;
+  const qualityUpdatedValue = attempt?.updatedAt
+    || attempt?.createdAt
+    || null;
+
+  if (!resampleStartValue || !qualityUpdatedValue) {
+    return false;
+  }
+
+  return getTimeValue(qualityUpdatedValue) >= getTimeValue(resampleStartValue);
 };
 const hasFullQualitySnapshot = (attempt: any) => {
   const hasNumericValue = (rawVal: any, valueVal: any) => {
@@ -557,11 +590,12 @@ const hasFullQualitySnapshot = (attempt: any) => {
 const getCurrentCycleQualitySnapshot = (entry: SampleEntry) => {
   const attempts = getQualityAttemptsForEntry(entry);
   if (attempts.length > 1) {
-    return attempts[attempts.length - 1];
+    const latestAttempt = attempts[attempts.length - 1];
+    return isCurrentCycleQualitySnapshot(entry, latestAttempt) ? latestAttempt : null;
   }
 
   const currentQuality = entry?.qualityParameters;
-  if (hasQualitySnapshot(currentQuality) || hasResampleWbActivationSnapshot(currentQuality)) {
+  if (isCurrentCycleQualitySnapshot(entry, currentQuality)) {
     return currentQuality;
   }
 
@@ -623,11 +657,20 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
     cookingDoneBy: '',
     cookingApprovedBy: ''
   });
+  const createEmptyResamplePrepData = () => ({
+    moisture: '',
+    grainsCount: '',
+    wbR: '',
+    wbBk: ''
+  });
   const [entries, setEntries] = useState<SampleEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<SampleEntry | null>(null);
   const [cookingData, setCookingData] = useState(createEmptyCookingData);
+  const [showResamplePrepModal, setShowResamplePrepModal] = useState(false);
+  const [resamplePrepEntry, setResamplePrepEntry] = useState<SampleEntry | null>(null);
+  const [resamplePrepData, setResamplePrepData] = useState(createEmptyResamplePrepData);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submissionLocksRef = useRef<Set<string>>(new Set());
   const [supervisors, setSupervisors] = useState<SupervisorUser[]>([]);
@@ -656,7 +699,7 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
   }, [entryType, excludeEntryType]);
 
   // Custom states for Admin/Manager 'Cooking Approved by' toggles
-  const [approvalType, setApprovalType] = useState<'owner' | 'manager' | 'admin' | 'manual'>('owner');
+  const [approvalType, setApprovalType] = useState<'' | 'owner' | 'manager' | 'admin' | 'manual'>('');
   const [manualApprovalName, setManualApprovalName] = useState('');
   const [manualDate, setManualDate] = useState(new Date().toISOString().split('T')[0]);
   const isCookingStaffRole = (['staff', 'quality_supervisor', 'paddy_supervisor'].includes(String(user?.role || '').toLowerCase())) || forceStaffMode;
@@ -666,9 +709,15 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
     setManualCookingName('');
     setUseManualEntry(false);
     setShowRemarksInput(false);
-    setApprovalType('owner');
+    setApprovalType('');
     setManualApprovalName('');
     setManualDate(new Date().toISOString().split('T')[0]);
+  };
+
+  const resetResamplePrepState = () => {
+    setShowResamplePrepModal(false);
+    setResamplePrepEntry(null);
+    setResamplePrepData(createEmptyResamplePrepData());
   };
 
   const closeReportModal = () => {
@@ -964,6 +1013,92 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
     });
   };
 
+  const handleOpenResamplePrep = (entry: SampleEntry) => {
+    const currentCycleQuality = getCurrentCycleQualitySnapshot(entry) as any;
+    const rawOrEmpty = (rawVal: any, valueVal: any) => {
+      const raw = rawVal !== null && rawVal !== undefined ? String(rawVal).trim() : '';
+      if (raw !== '') return raw;
+      if (valueVal === null || valueVal === undefined) return '';
+      const text = String(valueVal).trim();
+      if (!text) return '';
+      const num = Number(text);
+      return Number.isFinite(num) && num === 0 ? '' : text;
+    };
+
+    setResamplePrepEntry(entry);
+    setResamplePrepData({
+      moisture: rawOrEmpty(currentCycleQuality?.moistureRaw, currentCycleQuality?.moisture),
+      grainsCount: rawOrEmpty(currentCycleQuality?.grainsCountRaw, currentCycleQuality?.grainsCount),
+      wbR: rawOrEmpty(currentCycleQuality?.wbRRaw, currentCycleQuality?.wbR),
+      wbBk: rawOrEmpty(currentCycleQuality?.wbBkRaw, currentCycleQuality?.wbBk)
+    });
+    setShowResamplePrepModal(true);
+  };
+
+  const handleResamplePrepInput = (field: 'moisture' | 'grainsCount' | 'wbR' | 'wbBk', value: string) => {
+    const cleaned = value.replace(/[^0-9.]/g, '');
+    if (cleaned.length > 5) return;
+    setResamplePrepData((prev) => ({ ...prev, [field]: cleaned }));
+  };
+
+  const handleSubmitResamplePrep = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resamplePrepEntry || isSubmitting) return;
+
+    const moisture = String(resamplePrepData.moisture || '').trim();
+    const grainsCount = String(resamplePrepData.grainsCount || '').trim();
+    const wbR = String(resamplePrepData.wbR || '').trim();
+    const wbBk = String(resamplePrepData.wbBk || '').trim();
+
+    if (!moisture) {
+      showNotification('Moisture is required', 'error');
+      return;
+    }
+    if (!grainsCount) {
+      showNotification('Grains Count is required', 'error');
+      return;
+    }
+    if (!wbR || !wbBk) {
+      showNotification('WB-R and WB-BK are required', 'error');
+      return;
+    }
+
+    const lockKey = `resample-prep-${resamplePrepEntry.id}`;
+    if (!acquireSubmissionLock(lockKey)) return;
+
+    try {
+      setIsSubmitting(true);
+      const formData = new FormData();
+      formData.append('moisture', moisture);
+      formData.append('grainsCount', grainsCount);
+      formData.append('wbR', wbR);
+      formData.append('wbBk', wbBk);
+      formData.append('wbEnabled', 'true');
+      formData.append('is100Grams', 'true');
+      formData.append('resampleCookingPrepOnly', 'true');
+      formData.append('qualityEntryIntent', 'next');
+
+      await axios.post(
+        `${API_URL}/sample-entries/${resamplePrepEntry.id}/quality-parameters`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
+        }
+      );
+
+      showNotification('Resample 100gms saved successfully', 'success');
+      resetResamplePrepState();
+      loadEntries();
+    } catch (error: any) {
+      showNotification(error.response?.data?.error || 'Failed to save resample 100gms', 'error');
+    } finally {
+      setIsSubmitting(false);
+      releaseSubmissionLock(lockKey);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedEntry || isSubmitting) return;
@@ -985,6 +1120,11 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
     // Determine cookingApprovedBy value (Admin/Manager overrides, staff preserves existing)
     let finalCookingApprovedBy = selectedEntry.cookingReport?.cookingApprovedBy || '';
     if (!isCookingStaffRole) {
+      if (!approvalType) {
+        showNotification('Please select Cooking Approved by', 'error');
+        releaseSubmissionLock(lockKey);
+        return;
+      }
       if (approvalType === 'owner') finalCookingApprovedBy = 'Harish';
       else if (approvalType === 'manager') finalCookingApprovedBy = 'Guru';
       else if (approvalType === 'admin') finalCookingApprovedBy = 'MK Subbu';
@@ -1373,7 +1513,10 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
     }
 
     if (!hasResampleSplit && canUseIndependentResampleCookingFlow(entry) && workflow === 'COOKING_REPORT' && decision === 'PASS_WITH_COOKING') {
-      if (!lastCurrentCycleStaff || lastCurrentCycleAdminAt >= lastCurrentCycleStaffAt) {
+      const currentCycleCompleted =
+        ['PASS', 'MEDIUM', 'FAIL'].includes(latestCurrentCycleAdminStatus)
+        && lastCurrentCycleAdminAt >= lastCurrentCycleStaffAt;
+      if (!currentCycleCompleted && (!lastCurrentCycleStaff || latestCurrentCycleAdminStatus === 'RECHECK' || lastCurrentCycleAdminAt >= lastCurrentCycleStaffAt)) {
         return { canAdd: true, reason: '' };
       }
     }
@@ -1441,6 +1584,19 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
       && isResampleWorkflowEntry(entry)
       && Boolean((entry as any).resampleTriggerRequired || String((entry as any).resampleOriginDecision || '').toUpperCase() === 'PASS_WITH_COOKING')
       && !hasFullQualitySnapshot(currentCycleQuality);
+  };
+  const shouldShowResamplePrepAction = (entry: SampleEntry) => {
+    if (activeTab !== 'RESAMPLE_COOKING_REPORT') return false;
+    if (!isResampleWorkflowEntry(entry)) return false;
+    if (entry.entryType === 'RICE_SAMPLE') return false;
+    if (!(entry as any).resampleTriggerRequired && String((entry as any).resampleOriginDecision || '').toUpperCase() !== 'PASS_WITH_COOKING') {
+      return false;
+    }
+
+    const actionState = canOpenCookingActionForEntry(entry);
+    if (actionState.canAdd) return false;
+    if (String(actionState.reason || '').toUpperCase() !== 'AWAITING QUALITY') return false;
+    return !hasCurrentCycleQualityData(entry);
   };
 
   const renderSampleReportByWithDate = (entry: any) => {
@@ -1838,10 +1994,10 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                             )}
                             <div style={{
                               background: '#e8eaf6',
-                              color: '#000', padding: '4px 10px', fontWeight: '700', fontSize: '13.5px',
+                              color: '#000', padding: '3px 8px', fontWeight: '700', fontSize: '12px',
                               display: 'flex', alignItems: 'center', gap: '4px'
                             }}>
-                              <span style={{ fontSize: '13.5px', fontWeight: '800' }}>{brokerSeq}.</span> {brokerName}
+                              <span style={{ fontSize: '12px', fontWeight: '800' }}>{brokerSeq}.</span> {brokerName}
                             </div>
                             <table className="responsive-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', tableLayout: 'fixed', border: '1px solid #000' }}>
                               <thead>
@@ -1850,9 +2006,9 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                                   {(activeTab as string) !== 'RICE_COOKING_REPORT' && (
                                     <th style={{ border: '1px solid #000', padding: '1px 3px', fontWeight: '600', fontSize: '12px', textAlign: 'center', width: '3%' }}>Type</th>
                                   )}
-                                  <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', width: '4%' }}>Bags</th>
-                                  <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', width: '4%' }}>Pkg</th>
-                                  <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '11%' }}>Party Name</th>
+                                  <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', width: '3.5%' }}>Bags</th>
+                                  <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', width: '3.5%' }}>Pkg</th>
+                                  <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '9.5%' }}>Party Name</th>
                                   <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '9%' }}>Location</th>
                                   <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '7%' }}>Variety</th>
                                   <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', width: '4%' }}>Quality</th>
@@ -1887,7 +2043,7 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                                   }
 
                                   return (
-                                    <tr key={entry.id} style={{ backgroundColor: (() => { const smellType = String((entry as any).smellType || '').toUpperCase(); const isLightSmell = (entry as any).smellHas && smellType === 'LIGHT'; const isDarkMediumSmell = (entry as any).smellHas && (smellType === 'DARK' || smellType === 'MEDIUM'); const isResampleRow = entry.lotSelectionDecision === 'FAIL'; if (isDarkMediumSmell) return '#ffebee'; if (isLightSmell) return '#fffde7'; if (isResampleRow) return '#fff3e0'; return entry.entryType === 'DIRECT_LOADED_VEHICLE' ? '#e3f2fd' : entry.entryType === 'LOCATION_SAMPLE' ? '#ffe0b2' : '#ffffff'; })() }}>
+                                    <tr key={entry.id} style={{ backgroundColor: (() => { const smellType = String((entry as any).smellType || '').toUpperCase(); const isLightSmell = (entry as any).smellHas && smellType === 'LIGHT'; const isDarkMediumSmell = (entry as any).smellHas && (smellType === 'DARK' || smellType === 'MEDIUM'); const resamplePassDecision = String((entry as any)?.resampleOriginDecision || '').toUpperCase(); const isResamplePassFlow = resamplePassDecision === 'PASS_WITH_COOKING' || resamplePassDecision === 'PASS_WITHOUT_COOKING'; const isResampleRow = entry.lotSelectionDecision === 'FAIL'; if (smellType === 'DARK') return '#fecaca'; if (smellType === 'MEDIUM') return '#fee2e2'; if (isLightSmell) return '#fef2f2'; if (isResamplePassFlow) return '#fff3e0'; if (isResampleRow) return '#fff3e0'; return entry.entryType === 'DIRECT_LOADED_VEHICLE' ? '#e3f2fd' : entry.entryType === 'LOCATION_SAMPLE' ? '#ffd9b3' : '#ffffff'; })(), border: (() => { const resamplePassDecision = String((entry as any)?.resampleOriginDecision || '').toUpperCase(); return resamplePassDecision === 'PASS_WITH_COOKING' || resamplePassDecision === 'PASS_WITHOUT_COOKING' ? '2px solid #dc2626' : undefined; })() }}>
                                       <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontWeight: '600', fontSize: '13px' }}>{slNo}</td>
                                       {(activeTab as string) !== 'RICE_COOKING_REPORT' && (
                                         <td style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center', verticalAlign: 'middle' }}>
@@ -1896,19 +2052,19 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                                             if (isConvertedResampleType(entry)) {
                                               const originalTypeCode = getOriginalEntryTypeCode(entry);
                                               const convertedTypeCode = getConvertedEntryTypeCode(entry);
-                                              return <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0px' }}><span style={{ fontSize: '8px', color: '#888' }}>{originalTypeCode}</span><span style={{ fontSize: '12px', fontWeight: 800, color: getEntryTypeTextColor(originalTypeCode) }}>{convertedTypeCode}</span></div>;
+                                              return <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px', minWidth: '38px' }}><span style={{ fontSize: '11px', color: getEntryTypeTextColor(originalTypeCode), fontWeight: 800 }}>{originalTypeCode}</span><span style={{ fontSize: '14px', fontWeight: 900, color: getEntryTypeTextColor(convertedTypeCode) }}>{convertedTypeCode}</span></div>;
                                             }
                                             const originalLabel = entry.entryType === 'DIRECT_LOADED_VEHICLE' ? 'RL' : entry.entryType === 'LOCATION_SAMPLE' ? 'LS' : entry.entryType === 'RICE_SAMPLE' ? 'RS' : 'MS';
-                                            const bgColor = entry.entryType === 'DIRECT_LOADED_VEHICLE' ? '#1565c0' : entry.entryType === 'LOCATION_SAMPLE' ? '#e67e22' : '#fff';
-                                            const textColor = entry.entryType === 'DIRECT_LOADED_VEHICLE' || entry.entryType === 'LOCATION_SAMPLE' ? 'white' : '#2e7d32';
-                                            const border = entry.entryType !== 'DIRECT_LOADED_VEHICLE' && entry.entryType !== 'LOCATION_SAMPLE' ? '1px solid #ccc' : 'none';
+                                            const bgColor = entry.entryType === 'DIRECT_LOADED_VEHICLE' ? '#1565c0' : entry.entryType === 'LOCATION_SAMPLE' ? '#c2410c' : '#fff';
+                                            const textColor = entry.entryType === 'DIRECT_LOADED_VEHICLE' || entry.entryType === 'LOCATION_SAMPLE' ? 'white' : '#166534';
+                                            const border = entry.entryType !== 'DIRECT_LOADED_VEHICLE' && entry.entryType !== 'LOCATION_SAMPLE' ? '1px solid #166534' : 'none';
                                             return <span style={{ color: textColor, backgroundColor: bgColor, padding: '1px 4px', borderRadius: '3px', fontSize: '12px', fontWeight: 800, border }}>{originalLabel}</span>;
                                           })()}
                                         </td>
                                       )}
                                       <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontWeight: '600', fontSize: '13px' }}>{entry.bags?.toLocaleString('en-IN') || '0'}</td>
-                                      <td style={{ border: '1px solid #000', padding: '3px 4px', fontSize: '13px', textAlign: 'center' }}>{entry.packaging || '-'}</td>
-                                      <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#1565c0' }}>
+                                      <td style={{ border: '1px solid #000', padding: '3px 4px', fontSize: '11px', textAlign: 'center' }}>{formatPackagingLabel(entry.packaging)}</td>
+                                      <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '13px', fontWeight: '600', color: '#1565c0' }}>
                                         {(() => {
                                           const partyDisplay = getPartyDisplayParts(entry);
                                           return (
@@ -1916,12 +2072,12 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                                               <button
                                                 type="button"
                                                 onClick={() => handleOpenDetail(entry)}
-                                                style={{ background: 'transparent', border: 'none', color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', fontWeight: '700', fontSize: '14px', padding: 0, textAlign: 'left' }}
+                                                style={{ background: 'transparent', border: 'none', color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', fontWeight: '700', fontSize: '13px', padding: 0, textAlign: 'left' }}
                                               >
                                                 {partyDisplay.label}
                                               </button>
                                               {partyDisplay.showLorrySecondLine ? (
-                                                <div style={{ fontSize: '13px', color: '#1565c0', fontWeight: '600' }}>{partyDisplay.lorry}</div>
+                                                <div style={{ fontSize: '12px', color: '#1565c0', fontWeight: '600' }}>{partyDisplay.lorry}</div>
                                               ) : null}
                                             </div>
                                           );
@@ -1965,11 +2121,24 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                                           {(() => {
                                             const actionState = canOpenCookingActionForEntry(entry);
                                             const showQualityAction = shouldShowCompleteQualityAction(entry);
-                                            if (!actionState.canAdd && !showQualityAction) {
+                                            const showResamplePrepAction = shouldShowResamplePrepAction(entry);
+                                            if (!actionState.canAdd && !showQualityAction && !showResamplePrepAction) {
                                               return <span style={{ fontSize: '11px', color: '#999', fontStyle: 'italic' }}>{actionState.reason || 'Locked'}</span>;
                                             }
                                             return (
                                               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                                                {showResamplePrepAction && (
+                                                  <button
+                                                    onClick={() => handleOpenResamplePrep(entry)}
+                                                    style={{
+                                                      fontSize: '9px', padding: '4px 10px',
+                                                      backgroundColor: '#8e24aa', color: 'white', border: 'none',
+                                                      borderRadius: '10px', cursor: 'pointer', fontWeight: '700'
+                                                    }}
+                                                  >
+                                                    Add 100gms
+                                                  </button>
+                                                )}
                                                 {actionState.canAdd && (
                                                   <button
                                                     onClick={() => handleOpenModal(entry)}
@@ -2066,15 +2235,15 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                               color: '#000', padding: '4px 10px', fontWeight: '700', fontSize: '13.5px',
                               display: 'flex', alignItems: 'center', gap: '4px'
                             }}>
-                              <span style={{ fontSize: '13.5px', fontWeight: '800' }}>{brokerSeq}.</span> {brokerName}
+                              <span style={{ fontSize: '12px', fontWeight: '800' }}>{brokerSeq}.</span> {brokerName}
                             </div>
                             <table className="responsive-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', tableLayout: 'fixed', border: '1px solid #000' }}>
                               <thead>
                                 <tr style={{ backgroundColor: '#4a148c', color: 'white' }}>
                                   <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', width: '3%' }}>SL No</th>
-                                  <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', width: '6%' }}>Bags</th>
-                                  <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', width: '6%' }}>Pkg</th>
-                                  <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '16%' }}>Party Name</th>
+                                  <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', width: '5%' }}>Bags</th>
+                                  <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', width: '5%' }}>Pkg</th>
+                                  <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '13%' }}>Party Name</th>
                                   <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '12%' }}>Location</th>
                                   <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '8%' }}>Variety</th>
                                   <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', width: '10%' }}>Sample Report By</th>
@@ -2096,14 +2265,8 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                                     <tr key={entry.id}>
                                       <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontWeight: '600', fontSize: '13px' }}>{slNo}</td>
                                       <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontWeight: '700', fontSize: '13px', color: '#1565c0' }}>{entry.bags?.toLocaleString('en-IN') || '0'}</td>
-                                      <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontSize: '11px' }}>{(() => {
-                                        let pkg = String(entry.packaging || '75');
-                                        if (pkg.toLowerCase() === '0' || pkg.toLowerCase() === 'loose') return 'Loose';
-                                        if (pkg.toLowerCase().includes('kg')) return pkg;
-                                        if (pkg.toLowerCase().includes('tons')) return pkg;
-                                        return `${pkg} kg`;
-                                      })()}</td>
-                                      <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#1565c0' }}>
+                                      <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontSize: '11px' }}>{formatPackagingLabel(entry.packaging)}</td>
+                                      <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '13px', fontWeight: '600', color: '#1565c0' }}>
                                         {(() => {
                                           const partyDisplay = getPartyDisplayParts(entry);
                                           return (
@@ -2111,12 +2274,12 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                                               <button
                                                 type="button"
                                                 onClick={() => handleOpenHistory(entry, 'all')}
-                                                style={{ background: 'transparent', border: 'none', color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', fontWeight: '700', fontSize: '14px', padding: 0, textAlign: 'left' }}
+                                                style={{ background: 'transparent', border: 'none', color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', fontWeight: '700', fontSize: '13px', padding: 0, textAlign: 'left' }}
                                               >
                                                 {partyDisplay.label}
                                               </button>
                                               {partyDisplay.showLorrySecondLine ? (
-                                                <div style={{ fontSize: '13px', color: '#1565c0', fontWeight: '600' }}>{partyDisplay.lorry}</div>
+                                                <div style={{ fontSize: '12px', color: '#1565c0', fontWeight: '600' }}>{partyDisplay.lorry}</div>
                                               ) : null}
                                             </div>
                                           );
@@ -2145,11 +2308,24 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                                           {(() => {
                                             const actionState = canOpenCookingActionForEntry(entry);
                                             const showQualityAction = shouldShowCompleteQualityAction(entry);
-                                            if (!actionState.canAdd && !showQualityAction) {
+                                            const showResamplePrepAction = shouldShowResamplePrepAction(entry);
+                                            if (!actionState.canAdd && !showQualityAction && !showResamplePrepAction) {
                                               return <span style={{ fontSize: '11px', color: '#999', fontStyle: 'italic' }}>{actionState.reason || 'Locked'}</span>;
                                             }
                                             return (
                                               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                                                {showResamplePrepAction && (
+                                                  <button
+                                                    onClick={() => handleOpenResamplePrep(entry)}
+                                                    style={{
+                                                      fontSize: '9px', padding: '4px 10px',
+                                                      backgroundColor: '#8e24aa', color: 'white', border: 'none',
+                                                      borderRadius: '10px', cursor: 'pointer', fontWeight: '700'
+                                                    }}
+                                                  >
+                                                    Add 100gms
+                                                  </button>
+                                                )}
                                                 {actionState.canAdd && (
                                                   <button
                                                     onClick={() => handleOpenModal(entry)}
@@ -2408,6 +2584,115 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
           </div>
         )
       }
+
+      {showResamplePrepModal && resamplePrepEntry && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.55)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1001,
+          padding: '20px'
+        }}>
+          <div style={{
+            width: '100%',
+            maxWidth: '420px',
+            backgroundColor: '#fff',
+            borderRadius: '10px',
+            boxShadow: '0 14px 36px rgba(0,0,0,0.28)',
+            overflow: 'hidden',
+            border: '1px solid #d9d9d9'
+          }}>
+            <div style={{
+              background: 'linear-gradient(135deg, #8e24aa 0%, #5e35b1 100%)',
+              color: '#fff',
+              padding: '16px 18px'
+            }}>
+              <div style={{ fontSize: '18px', fontWeight: 800, marginBottom: '6px' }}>Add Resample 100gms</div>
+              <div style={{ fontSize: '13px', lineHeight: 1.5, opacity: 0.95 }}>
+                <div><strong>Party:</strong> {getPartyLabel(resamplePrepEntry)}</div>
+                <div><strong>Variety:</strong> {toTitleCase(resamplePrepEntry.variety)}</div>
+                <div><strong>Only save:</strong> Moisture, Grains Count, WB-R, WB-BK</div>
+              </div>
+            </div>
+            <form onSubmit={handleSubmitResamplePrep} style={{ padding: '18px' }}>
+              <div style={{ display: 'grid', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 700, color: '#333' }}>
+                    Moisture
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={resamplePrepData.moisture}
+                    onChange={(e) => handleResamplePrepInput('moisture', e.target.value)}
+                    style={{ width: '100%', padding: '9px 10px', borderRadius: '6px', border: '1px solid #bbb', fontSize: '13px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 700, color: '#333' }}>
+                    Grains Count
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={resamplePrepData.grainsCount}
+                    onChange={(e) => handleResamplePrepInput('grainsCount', e.target.value)}
+                    style={{ width: '100%', padding: '9px 10px', borderRadius: '6px', border: '1px solid #bbb', fontSize: '13px' }}
+                  />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 700, color: '#333' }}>
+                      WB-R
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={resamplePrepData.wbR}
+                      onChange={(e) => handleResamplePrepInput('wbR', e.target.value)}
+                      style={{ width: '100%', padding: '9px 10px', borderRadius: '6px', border: '1px solid #bbb', fontSize: '13px' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 700, color: '#333' }}>
+                      WB-BK
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={resamplePrepData.wbBk}
+                      onChange={(e) => handleResamplePrepInput('wbBk', e.target.value)}
+                      style={{ width: '100%', padding: '9px 10px', borderRadius: '6px', border: '1px solid #bbb', fontSize: '13px' }}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '18px' }}>
+                <button
+                  type="button"
+                  onClick={resetResamplePrepState}
+                  style={{ padding: '9px 16px', borderRadius: '6px', border: '1px solid #999', backgroundColor: '#fff', cursor: 'pointer', fontWeight: 700, color: '#555' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  style={{ padding: '9px 16px', borderRadius: '6px', border: 'none', backgroundColor: isSubmitting ? '#b39ddb' : '#6a1b9a', color: '#fff', cursor: isSubmitting ? 'not-allowed' : 'pointer', fontWeight: 700 }}
+                >
+                  {isSubmitting ? 'Saving...' : 'Save 100gms'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       
       {detailEntry && (
