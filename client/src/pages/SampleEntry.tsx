@@ -2118,7 +2118,18 @@ const SampleEntryPage: React.FC<{
     && qualityModalIntent === 'next'
     && isResampleWorkflowEntry(selectedEntry as any, selectedEntryAttempts)
     && allowPaddy100gThreeFieldSave;
-  const shouldFreezeStaffWbFields = isStaffUser && !!selectedEntry && selectedEntry.entryType !== 'RICE_SAMPLE';
+  const hasSavedCurrentCycleWbValues = !!selectedEntry && (
+    qualityModalIntent === 'next'
+      ? selectedResampleAttemptSaved
+      : (
+        isProvidedNumericValue(selectedLatestQualityAttempt?.wbRRaw, selectedLatestQualityAttempt?.wbR)
+        || isProvidedNumericValue(selectedLatestQualityAttempt?.wbBkRaw, selectedLatestQualityAttempt?.wbBk)
+      )
+  );
+  const shouldFreezeStaffWbFields = isStaffUser
+    && !!selectedEntry
+    && selectedEntry.entryType !== 'RICE_SAMPLE'
+    && hasSavedCurrentCycleWbValues;
   const isOptionalReportedBy100g = !!selectedEntry
     && selectedEntry.entryType !== 'RICE_SAMPLE'
     && (
