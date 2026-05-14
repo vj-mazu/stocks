@@ -2118,6 +2118,7 @@ const SampleEntryPage: React.FC<{
     && qualityModalIntent === 'next'
     && isResampleWorkflowEntry(selectedEntry as any, selectedEntryAttempts)
     && allowPaddy100gThreeFieldSave;
+  const shouldFreezeStaffWbFields = isStaffUser && !!selectedEntry && selectedEntry.entryType !== 'RICE_SAMPLE';
   const isOptionalReportedBy100g = !!selectedEntry
     && selectedEntry.entryType !== 'RICE_SAMPLE'
     && (
@@ -4544,14 +4545,14 @@ const SampleEntryPage: React.FC<{
                               <label style={{ display: 'block', marginBottom: '2px', fontWeight: '500', color: '#555', fontSize: '9px' }}>R</label>
                               <input type="number" step="0.01" value={qualityData.wbR}
                                 onChange={(e) => handleQualityInput('wbR', e.target.value)}
-                                disabled={!wbEnabled}
+                                disabled={!wbEnabled || shouldFreezeStaffWbFields}
                                 style={{ width: '100%', padding: '4px', border: '1px solid #ddd', borderRadius: '3px', fontSize: '12px', boxSizing: 'border-box' }} />
                             </div>
                             <div style={{ flex: 1 }}>
                               <label style={{ display: 'block', marginBottom: '2px', fontWeight: '500', color: '#555', fontSize: '9px' }}>BK</label>
                               <input type="number" step="0.01" value={qualityData.wbBk}
                                 onChange={(e) => handleQualityInput('wbBk', e.target.value)}
-                                disabled={!wbEnabled}
+                                disabled={!wbEnabled || shouldFreezeStaffWbFields}
                                 style={{ width: '100%', padding: '4px', border: '1px solid #ddd', borderRadius: '3px', fontSize: '12px', boxSizing: 'border-box' }} />
                             </div>
                           </div>

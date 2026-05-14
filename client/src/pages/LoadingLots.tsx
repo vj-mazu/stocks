@@ -1478,9 +1478,20 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
         status = isLast ? 'Fail' : 'Pass';
       } else if (isLast && (isResamplePassFlow || isCookingDrivenResample)) {
         const qType = getQualityTypeMeta(attempt).label;
+        const normalizedLotDecision = String(entry.lotSelectionDecision || '').toUpperCase();
         const isWorkflowPending = !['COMPLETED', 'PASSED', 'FAILED', 'CANCELLED', 'SOLD_OUT'].includes(String(entry.workflowStatus || '').toUpperCase());
-        const isLotPassed = ['PASS_WITHOUT_COOKING', 'PASS_WITH_COOKING'].includes(String(entry.lotSelectionDecision || '').toUpperCase());
-        status = (qType === 'Pending' || (isWorkflowPending && !isLotPassed)) ? 'Pending' : 'Pass';
+        const isLotPassed = ['PASS_WITHOUT_COOKING', 'PASS_WITH_COOKING'].includes(normalizedLotDecision);
+        const hasCurrentResampleDecision = Boolean((entry as any)?.resampleDecisionAt);
+        const hasResolvedCurrentResamplePass = hasCurrentResampleDecision && isLotPassed;
+        if (qType === 'Done') {
+          status = hasResolvedCurrentResamplePass ? 'Pass' : 'Pending';
+        } else if (qType === '100-Gms') {
+          status = hasResolvedCurrentResamplePass ? 'Pass' : 'Pending';
+        } else if (qType === 'Pending') {
+          status = 'Pending';
+        } else {
+          status = (!isWorkflowPending || hasResolvedCurrentResamplePass) ? 'Pass' : 'Pending';
+        }
       } else if (isFailDecision) {
         status = attemptsSorted.length <= 1 ? 'Pass' : (isLast ? 'Pending' : 'Pass');
       } else if (isLast && isQualityRecheckPending && !isCookingOnlyRecheck) {
@@ -2011,10 +2022,31 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                               const qualityAttempts = getQualityAttemptsForEntry(entry);
                               const qualityRows = buildQualityStatusRows(entry);
                               const cookingRows = buildCookingStatusRows(entry);
-                              const hasQualityReport = qualityAttempts.length > 0 || !!qualityData.reportedBy || !!qualityData.id;
-                              const normalizedLotDecision = String(entry.lotSelectionDecision || '').toUpperCase();
+                              const resampleOriginDecision = String((entry as any)?.resampleOriginDecision || '').toUpperCase();
+                              const isConvertedLocationResample = String(entry.entryType || '').toUpperCase() === 'LOCATION_SAMPLE'
+                                && !!String((entry as any)?.originalEntryType || '').trim()
+                                && String((entry as any)?.originalEntryType || '').toUpperCase() !== 'LOCATION_SAMPLE';
                               const hasResampleCollectorHistory = (Array.isArray((entry as any)?.resampleCollectedTimeline) && (entry as any).resampleCollectedTimeline.length > 0)
                                 || (Array.isArray((entry as any)?.resampleCollectedHistory) && (entry as any).resampleCollectedHistory.length > 0);
+                              const hasDisplayableResampleWorkflow =
+                                isConvertedLocationResample
+                                || hasResampleCollectorHistory
+                                || resampleOriginDecision === 'PASS_WITH_COOKING'
+                                || resampleOriginDecision === 'PASS_WITHOUT_COOKING';
+                              const hasGhostResamplePending =
+                                qualityRows.length >= 2
+                                && qualityRows[0]?.type === 'Done'
+                                && qualityRows[0]?.status === 'Pending'
+                                && qualityRows[1]?.type === 'Pending'
+                                && (qualityRows[1]?.status === 'Resampling' || qualityRows[1]?.status === 'Pending');
+                              const displayQualityRows = hasGhostResamplePending && hasDisplayableResampleWorkflow
+                                ? [
+                                  { ...qualityRows[0], status: 'Pass' },
+                                  ...qualityRows.slice(1),
+                                ]
+                                : qualityRows;
+                              const hasQualityReport = qualityAttempts.length > 0 || !!qualityData.reportedBy || !!qualityData.id;
+                              const normalizedLotDecision = String(entry.lotSelectionDecision || '').toUpperCase();
                               const isResampleCase = qualityAttempts.length > 1
                                 || normalizedLotDecision === 'FAIL'
                                 || Boolean((entry as any)?.resampleStartAt)
@@ -2219,11 +2251,11 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                       ) : null;
                                     })()}
                                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
-                                      {qualityRows.length === 0 ? (
+                                      {displayQualityRows.length === 0 ? (
                                         <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center' }}>
                                           <span style={{ background: '#f5f5f5', color: '#c62828', padding: '2px 6px', borderRadius: '10px', fontSize: '9px' }}>Pending</span>
                                         </div>
-                                      ) : qualityRows.map((row, idx) => {
+                                      ) : displayQualityRows.map((row, idx) => {
                                         const typeStyle = getQualityTypeStyle(row.type, (row as any).typeVariant);
                                         const statusStyle = row.status ? getStatusStyle(row.status) : { bg: 'transparent', color: 'transparent' };
                                         return (
@@ -2269,7 +2301,18 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                   </td>
                                   <td style={getFrozenCellStyle({ border: '1px solid #000', padding: '4px 5px', textAlign: 'left', fontSize: '10px', lineHeight: '1.2', background: rowBg }, rowBg)}>
                                     {(() => {
-                                      const displayRows = cookingRows;
+                                      const normalizedLotDecision = String(entry.lotSelectionDecision || '').toUpperCase();
+                                      const isLotPassed = normalizedLotDecision === 'PASS_WITH_COOKING' || normalizedLotDecision === 'PASS_WITHOUT_COOKING';
+                                      const resampleOriginDecision = String((entry as any)?.resampleOriginDecision || '').toUpperCase();
+                                      const isResamplePassFlow = resampleOriginDecision === 'PASS_WITH_COOKING' || resampleOriginDecision === 'PASS_WITHOUT_COOKING';
+                                      const hasSecondQualityPass = qualityRows.length > 1 && qualityRows[qualityRows.length - 1]?.status === 'Pass';
+                                      const displayRows = isResamplePassFlow && isLotPassed && hasSecondQualityPass
+                                        ? cookingRows.map((row, idx) => (
+                                          idx === cookingRows.length - 1 && row.status === 'Pending'
+                                            ? { ...row, status: 'Pass' }
+                                            : row
+                                        ))
+                                        : cookingRows;
 
                                       if (String(entry.lotSelectionDecision || '').toUpperCase() === 'PASS_WITHOUT_COOKING' && displayRows.length === 0) {
                                         return <span style={{ color: '#999', fontSize: '10px' }}>-</span>;

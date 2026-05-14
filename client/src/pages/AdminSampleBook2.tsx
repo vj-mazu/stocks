@@ -1027,9 +1027,20 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                 status = isLast ? 'Fail' : 'Pass';
             } else if (isLast && (isResamplePassFlow || isCookingDrivenResample)) {
                 const qType = getQualityTypeMeta(attempt).label;
+                const normalizedLotDecision = String(entry.lotSelectionDecision || '').toUpperCase();
                 const isWorkflowPending = !['COMPLETED', 'PASSED', 'FAILED', 'CANCELLED', 'SOLD_OUT'].includes(String(entry.workflowStatus || '').toUpperCase());
-                const isLotPassed = ['PASS_WITHOUT_COOKING', 'PASS_WITH_COOKING'].includes(String(entry.lotSelectionDecision || '').toUpperCase());
-                status = (qType === 'Pending' || (isWorkflowPending && !isLotPassed)) ? 'Pending' : 'Pass';
+                const isLotPassed = ['PASS_WITHOUT_COOKING', 'PASS_WITH_COOKING'].includes(normalizedLotDecision);
+                const hasCurrentResampleDecision = Boolean((entry as any)?.resampleDecisionAt);
+                const hasResolvedCurrentResamplePass = hasCurrentResampleDecision && isLotPassed;
+                if (qType === 'Done') {
+                    status = hasResolvedCurrentResamplePass ? 'Pass' : 'Pending';
+                } else if (qType === '100-Gms') {
+                    status = hasResolvedCurrentResamplePass ? 'Pass' : 'Pending';
+                } else if (qType === 'Pending') {
+                    status = 'Pending';
+                } else {
+                    status = (!isWorkflowPending || hasResolvedCurrentResamplePass) ? 'Pass' : 'Pending';
+                }
             } else if (isFailDecision) {
                 status = attemptsSorted.length <= 1 ? 'Pass' : (isLast ? 'Pending' : 'Pass');
             } else if (isLast && isQualityRecheckPending && !isCookingOnlyRecheck) {
@@ -1234,10 +1245,22 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
 
     const cookingBadge = (entry: SampleEntry) => {
         const rows = buildCookingStatusRows(entry);
+        const qualityRows = buildQualityStatusRows(entry);
         if (entry.lotSelectionDecision === 'PASS_WITHOUT_COOKING' && rows.length === 0) {
             return <span style={{ color: '#999', fontSize: '10px' }}>-</span>;
         }
-        const displayRows = rows;
+        const normalizedLotDecision = String(entry.lotSelectionDecision || '').toUpperCase();
+        const isLotPassed = normalizedLotDecision === 'PASS_WITH_COOKING' || normalizedLotDecision === 'PASS_WITHOUT_COOKING';
+        const resampleOriginDecision = String((entry as any)?.resampleOriginDecision || '').toUpperCase();
+        const isResamplePassFlow = resampleOriginDecision === 'PASS_WITH_COOKING' || resampleOriginDecision === 'PASS_WITHOUT_COOKING';
+        const hasSecondQualityPass = qualityRows.length > 1 && qualityRows[qualityRows.length - 1]?.status === 'Pass';
+        const displayRows = isResamplePassFlow && isLotPassed && hasSecondQualityPass
+            ? rows.map((row, idx) => (
+                idx === rows.length - 1 && row.status === 'Pending'
+                    ? { ...row, status: 'Pass' }
+                    : row
+            ))
+            : rows;
         if (displayRows.length === 0) return null;
 
         return (

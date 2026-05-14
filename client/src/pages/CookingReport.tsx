@@ -2624,7 +2624,7 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
               <div style={{ display: 'grid', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 700, color: '#333' }}>
-                    Moisture
+                    Moisture <span style={{ color: '#dc2626' }}>*</span>
                   </label>
                   <input
                     type="number"
@@ -2636,7 +2636,7 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 700, color: '#333' }}>
-                    Grains Count
+                    Grains Count <span style={{ color: '#dc2626' }}>*</span>
                   </label>
                   <input
                     type="number"
@@ -2649,7 +2649,7 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 700, color: '#333' }}>
-                      WB-R
+                      WB-R <span style={{ color: '#dc2626' }}>*</span>
                     </label>
                     <input
                       type="number"
@@ -2661,7 +2661,7 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                   </div>
                   <div>
                     <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 700, color: '#333' }}>
-                      WB-BK
+                      WB-BK <span style={{ color: '#dc2626' }}>*</span>
                     </label>
                     <input
                       type="number"
