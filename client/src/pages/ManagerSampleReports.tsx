@@ -1,14 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import AdminSampleBook2 from './AdminSampleBook2';
-import AssigningSupervisor from './AssigningSupervisor';
-import AllottedSupervisors from './AllottedSupervisors';
+import AllottingSupervisors from './AllottingSupervisors';
 import LoadingLots from './LoadingLots';
 import CompletedLots from './CompletedLots';
 import SampleApprovalsHub from './SampleApprovalsHub';
 import SampleEntryPage from './SampleEntry';
 import LotSelection from './LotSelection';
 import CookingReport from './CookingReport';
+import FinalPassLots from './FinalPassLots';
 import { API_URL } from '../config/api';
 
 type TabKey =
@@ -16,12 +16,12 @@ type TabKey =
     | 'staff-cooking-report'
     | 'pending-lots'
     | 'cooking-report'
+    | 'lots-passed'
     | 'loading-lots'
     | 'approvals'
     | 'completed-lots'
     | 'sample-book-2'
-    | 'assigning-supervisor'
-    | 'allotted-supervisors';
+    | 'allot-supervisor';
 
 interface TabConfig {
     key: TabKey;
@@ -36,10 +36,10 @@ const tabs: TabConfig[] = [
     { key: 'sample-book-2', label: 'Paddy Sample Book', icon: '\u{1F4D7}', color: '#1565c0' },
     { key: 'pending-lots', label: 'Pending (Sample Selection)', icon: '\u{1F4CB}', color: '#3498db' },
     { key: 'cooking-report', label: 'Cooking Book', icon: '\u{1F35A}', color: '#e67e22' },
+    { key: 'lots-passed', label: 'Final Pass Lots', icon: '\u{2705}', color: '#27ae60' },
     { key: 'loading-lots', label: 'Pending Loading Lots', icon: '\u{1F69A}', color: '#f39c12' },
-    { key: 'assigning-supervisor', label: 'Assigning (Loading)', icon: '\u{1F477}', color: '#d35400' },
-    { key: 'allotted-supervisors', label: 'Allotted Supervisors', icon: '\u{1F482}', color: '#2980b9' },
     { key: 'completed-lots', label: 'Completed Lots', icon: '\u{1F4E6}', color: '#e74c3c' },
+    { key: 'allot-supervisor', label: 'Allot Supervisor', icon: '\u{1F464}', color: '#4a90e2' },
     { key: 'approvals', label: 'Approvals', icon: '\u{1F4DD}', color: '#8e44ad' },
 ];
 
@@ -158,12 +158,12 @@ const ManagerSampleReports: React.FC = () => {
                 {activeTab === 'staff-cooking-report' && <CookingReport excludeEntryType="RICE_SAMPLE" forceStaffMode />}
                 {activeTab === 'pending-lots' && <LotSelection excludeEntryType="RICE_SAMPLE" />}
                 {activeTab === 'cooking-report' && <CookingReport excludeEntryType="RICE_SAMPLE" />}
+                {activeTab === 'lots-passed' && <FinalPassLots excludeEntryType="RICE_SAMPLE" />}
                 {activeTab === 'loading-lots' && <LoadingLots excludeEntryType="RICE_SAMPLE" />}
                 {activeTab === 'approvals' && <SampleApprovalsHub excludeEntryType="RICE_SAMPLE" onPendingCountChange={setApprovalPendingCount} />}
                 {activeTab === 'completed-lots' && <CompletedLots excludeEntryType="RICE_SAMPLE" />}
+                {activeTab === 'allot-supervisor' && <AllottingSupervisors />}
                 {activeTab === 'sample-book-2' && <AdminSampleBook2 excludeEntryType="RICE_SAMPLE" />}
-                {activeTab === 'assigning-supervisor' && <AssigningSupervisor />}
-                {activeTab === 'allotted-supervisors' && <AllottedSupervisors />}
             </div>
         </div>
     );
