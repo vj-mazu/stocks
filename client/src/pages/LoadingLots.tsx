@@ -1075,32 +1075,32 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
       : entry.sampleCollectedBy;
 
     let rawCollector = fallbackCollector || '';
+    const resampleCollectors = [
+      ...((Array.isArray((entry as any)?.resampleCollectedTimeline) ? (entry as any).resampleCollectedTimeline : []).map((item: any) => item?.sampleCollectedBy || item?.name || '')),
+      ...((Array.isArray((entry as any)?.resampleCollectedHistory) ? (entry as any).resampleCollectedHistory : []).map((item: any) => item?.sampleCollectedBy || item?.name || ''))
+    ]
+      .map((value) => String(value || '').trim())
+      .filter(Boolean);
 
-    if (rawCollector.includes('|')) {
-        const parts = rawCollector.split('|').map((s: string) => s.trim());
-        if (parts.length >= 2) {
-            return {
-                primary: getCollectorLabel(parts[1]),
-                secondary: getCollectorLabel(parts[0]),
-                highlightPrimary: false
-            };
-        }
-    }
-
-    const collectorLabel = getCollectorLabel(rawCollector || null);
     const orderedCollectors = buildOrderedNameList([
       rawCollector,
-      ...((Array.isArray((entry as any)?.resampleCollectedTimeline) ? (entry as any).resampleCollectedTimeline : []).map((item: any) => item?.sampleCollectedBy || item?.name || '')),
-      ...((Array.isArray((entry as any)?.resampleCollectedHistory) ? (entry as any).resampleCollectedHistory : []).map((item: any) => item?.sampleCollectedBy || item?.name || '')),
+      ...resampleCollectors,
       entry.sampleCollectedBy
     ]).filter((value, index, arr) => arr.findIndex((candidate) => candidate.toLowerCase() === value.toLowerCase()) === index);
-    const secondaryCollector = orderedCollectors.length > 1
-      ? getCollectorLabel(orderedCollectors[orderedCollectors.length - 1] || null)
-      : null;
+    const normalizeCollectorToken = (value: string) => value.includes('|')
+      ? value.split('|').map((s: string) => s.trim()).filter(Boolean).pop() || value
+      : value;
+    const primaryToken = normalizeCollectorToken(String(rawCollector || '').trim());
+    const secondaryToken = resampleCollectors.length > 0
+      ? normalizeCollectorToken(String(resampleCollectors[resampleCollectors.length - 1] || '').trim())
+      : '';
+    const collectorLabel = getCollectorLabel((secondaryToken || primaryToken || String(orderedCollectors[orderedCollectors.length - 1] || '').trim()) || null);
+    const primaryLabel = getCollectorLabel(primaryToken || null);
+    const secondaryLabel = getCollectorLabel(secondaryToken || null);
 
     return {
-      primary: collectorLabel !== '-' ? collectorLabel : getCreatorLabel(entry),
-      secondary: secondaryCollector && secondaryCollector !== collectorLabel ? secondaryCollector : null,
+      primary: resampleCollectors.length > 0 ? (primaryLabel !== '-' ? primaryLabel : collectorLabel) : (collectorLabel !== '-' ? collectorLabel : '-'),
+      secondary: resampleCollectors.length > 0 && secondaryLabel !== '-' ? secondaryLabel : null,
       highlightPrimary: false
     };
   };
@@ -1332,6 +1332,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
       || (Array.isArray((entry as any)?.resampleCollectedTimeline) && (entry as any).resampleCollectedTimeline.length > 0)
       || (Array.isArray((entry as any)?.resampleCollectedHistory) && (entry as any).resampleCollectedHistory.length > 0);
     const hasStoredCookingHistory = Array.isArray(cr?.history) && cr.history.length > 0;
+    const resampleOriginDecision = String((entry as any)?.resampleOriginDecision || '').toUpperCase();
 
     const decisionKey = String(decision || '').toUpperCase();
     if (decisionKey === 'PASS_WITHOUT_COOKING' && !hasStoredCookingHistory && !cr?.status && !isCookingRecheckPending) {
@@ -1341,7 +1342,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     const rows: { status: string; remarks: string; doneBy: string; doneDate: any; approvedBy: string; approvedDate: any; }[] = [];
 
     // Inject original Pass Without Cooking row if this is a resample from that state
-    if (String((entry as any)?.resampleOriginDecision || '').toUpperCase() === 'PASS_WITHOUT_COOKING') {
+    if (resampleOriginDecision === 'PASS_WITHOUT_COOKING') {
       rows.push({
         status: 'Pass Without Cooking',
         remarks: '',
@@ -1437,6 +1438,23 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
         doneBy: '',
         doneDate: null,
         approvedBy: '',
+        approvedDate: null,
+      });
+    }
+
+    if (
+      resampleOriginDecision === 'PASS_WITHOUT_COOKING'
+      && decisionKey === 'PASS_WITHOUT_COOKING'
+      && rows.length === 1
+      && rows[0]?.status === 'Pass Without Cooking'
+      && hasResampleHistory
+    ) {
+      rows.push({
+        status: 'Pass Without Cooking',
+        remarks: '',
+        doneBy: 'NA',
+        doneDate: null,
+        approvedBy: 'NA',
         approvedDate: null,
       });
     }
@@ -2216,11 +2234,11 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                       const collectedByDisplay = getCollectedByDisplay(entry);
                                       if (collectedByDisplay.secondary) {
                                         return (
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '3px' }}>
                                             <span style={{ fontWeight: 700, color: collectedByDisplay.highlightPrimary ? '#7e22ce' : '#1f2937' }}>
                                               {collectedByDisplay.primary}
                                             </span>
-                                            <span style={{ color: '#94a3b8', fontWeight: 800, fontSize: '11px' }}>|</span>
+                                            <span style={{ width: '100%', borderTop: '1px solid #cbd5e1' }} />
                                             <span style={{ fontWeight: 600, color: '#334155', fontSize: '12px' }}>
                                               {collectedByDisplay.secondary}
                                             </span>
@@ -2587,15 +2605,27 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                    ))}
                    <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                      <div style={{ fontSize: '9px', color: '#64748b', marginBottom: '3px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sample Collected By</div>
-                     {(() => {
-                       const col = getCollectedByDisplay(qualityModalEntry);
-                       return (
-                         <div style={{ fontSize: '14px', fontWeight: '800', color: col.highlightPrimary ? '#7e22ce' : '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                           {col.primary}
-                         </div>
-                       );
-                     })()}
-                   </div>
+                      {(() => {
+                        const col = getCollectedByDisplay(qualityModalEntry);
+                        return (
+                          col.secondary ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <div style={{ fontSize: '14px', fontWeight: '800', color: col.highlightPrimary ? '#7e22ce' : '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {col.primary}
+                              </div>
+                              <div style={{ borderTop: '1px solid #cbd5e1' }} />
+                              <div style={{ fontSize: '13px', fontWeight: '700', color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {col.secondary}
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: '14px', fontWeight: '800', color: col.highlightPrimary ? '#7e22ce' : '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {col.primary}
+                            </div>
+                          )
+                        );
+                      })()}
+                    </div>
                  </div>
                 {/* Quality Parameters */}
                 <h4 style={{ margin: '0 0 10px', fontSize: '13px', color: '#e67e22', borderBottom: '2px solid #e67e22', paddingBottom: '6px' }}>🔬 Quality Parameters</h4>

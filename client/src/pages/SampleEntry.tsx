@@ -136,25 +136,40 @@ const SampleEntryPage: React.FC<{
       arr.findIndex((candidate) => candidate.toLowerCase() === value.toLowerCase()) === index
     ));
   const getCollectedByDisplay = (entry: SampleEntry) => {
-    let rawCollector = getOriginalCollector(entry) || '';
-    if (rawCollector.includes('|')) {
-      const parts = rawCollector.split('|').map(s => s.trim());
+    const rawCollector = getOriginalCollector(entry) || '';
+    const resampleCollectors = getResampleCollectorNames(entry);
+    const currentCollector = String(entry.sampleCollectedBy || '').trim();
+    const effectiveCollector = String(
+      resampleCollectors[resampleCollectors.length - 1]
+      || currentCollector
+      || rawCollector
+      || ''
+    ).trim();
+
+    if (effectiveCollector.includes('|')) {
+      const parts = effectiveCollector.split('|').map((s) => s.trim()).filter(Boolean);
       if (parts.length >= 2) {
-        return { primary: getCollectorLabel(parts[1]), secondary: getCollectorLabel(parts[0]), highlightPrimary: false };
+        return {
+          primary: getCollectorLabel(parts[1]),
+          secondary: getCollectorLabel(parts[0]),
+          highlightPrimary: false
+        };
       }
     }
-    const collectorLabel = getCollectorLabel(rawCollector || null);
-    const orderedCollectorNames = buildOrderedCollectorNames([
-      rawCollector,
-      ...getResampleCollectorNames(entry),
-      entry.sampleCollectedBy
-    ]);
-    const secondaryCollector = orderedCollectorNames.length > 1
-      ? getCollectorLabel(orderedCollectorNames[orderedCollectorNames.length - 1] || null)
-      : null;
+
+    const collectorLabel = getCollectorLabel(effectiveCollector || null);
+    if (collectorLabel === 'Broker Office Sample') {
+      return {
+        primary: collectorLabel,
+        secondary: null,
+        highlightPrimary: false
+      };
+    }
+
+    const creatorLabel = getCreatorLabel(entry);
     return {
-      primary: collectorLabel !== '-' ? collectorLabel : getCreatorLabel(entry),
-      secondary: secondaryCollector && secondaryCollector !== collectorLabel ? secondaryCollector : null,
+      primary: creatorLabel !== '-' ? creatorLabel : collectorLabel,
+      secondary: collectorLabel !== '-' ? collectorLabel : null,
       highlightPrimary: false
     };
   };
@@ -1533,9 +1548,37 @@ const SampleEntryPage: React.FC<{
     if (isResampleWorkflowEntry(entry as any)) return '';
     return String(user?.fullName || user?.username || '').trim();
   };
+  const getResampleAllottedReportedBy = (entry?: SampleEntry | null) => {
+    if (!entry) return '';
+    if (String(entry.entryType || '').toUpperCase() !== 'LOCATION_SAMPLE') return '';
+    if ((entry as any).sampleGivenToOffice === true) return '';
+    if (!isResampleWorkflowEntry(entry as any)) return '';
+    const timeline = Array.isArray((entry as any)?.resampleCollectedTimeline) ? (entry as any).resampleCollectedTimeline : [];
+    const history = Array.isArray((entry as any)?.resampleCollectedHistory) ? (entry as any).resampleCollectedHistory : [];
+    const getName = (item: any) => {
+      if (typeof item === 'string') return String(item || '').trim();
+      if (item && typeof item === 'object') return String(item.sampleCollectedBy || item.name || '').trim();
+      return '';
+    };
+    const lastTimelineName = timeline.length > 0 ? getName(timeline[timeline.length - 1]) : '';
+    const lastHistoryName = history.length > 0 ? getName(history[history.length - 1]) : '';
+    return String(lastTimelineName || lastHistoryName || entry.sampleCollectedBy || '').trim();
+  };
+  const getEffectiveReportedByDefault = (entry?: SampleEntry | null) => {
+    if (!entry) return '';
+    const rawValue = getResampleAllottedReportedBy(entry) || getDefaultReportedByForTakenByEntry(entry);
+    return rawValue ? getCollectorLabel(rawValue) : '';
+  };
   const shouldLockReportedByForTakenByEntry = (entry?: SampleEntry | null) => (
     Boolean(getDefaultReportedByForTakenByEntry(entry))
   );
+  const shouldLockReportedByForQualityEntry = (entry?: SampleEntry | null) => {
+    if (!entry) return false;
+    if (isResampleWorkflowEntry(entry as any)) {
+      return isStaffUser && Boolean(getResampleAllottedReportedBy(entry));
+    }
+    return shouldLockReportedByForTakenByEntry(entry);
+  };
 
   const getSavedGpsCoordinates = (entry?: SampleEntry | any) => {
     const attempts = entry ? getQualityAttemptsForEntry(entry as any) : [];
@@ -1590,7 +1633,7 @@ const SampleEntryPage: React.FC<{
         return { has: false, type: '' };
     };
     const priorSmell = determinePriorSmell();
-    const defaultReportedBy = getDefaultReportedByForTakenByEntry(entry);
+    const defaultReportedBy = getEffectiveReportedByDefault(entry);
 
     setQualityData({
       moisture: '',
@@ -1991,8 +2034,8 @@ const SampleEntryPage: React.FC<{
       formDataToSend.append('paddyWbEnabled', paddyWbEnabled ? 'true' : 'false');
       formDataToSend.append('dryMoistureEnabled', dryMoistureEnabled ? 'true' : 'false');
       const reportedByValue = qualityData.reportedBy || '';
-      const effectiveReportedByValue = shouldLockReportedByForTakenByEntry(selectedEntry) && !isOptionalReportedBy100g
-        ? (getDefaultReportedByForTakenByEntry(selectedEntry) || reportedByValue)
+      const effectiveReportedByValue = shouldLockReportedByForQualityEntry(selectedEntry) && !isOptionalReportedBy100g
+        ? (getEffectiveReportedByDefault(selectedEntry) || reportedByValue)
         : reportedByValue;
       if (!isOptionalReportedBy100g && !effectiveReportedByValue) {
         showNotification('Sample Reported By is required', 'error');
@@ -4606,24 +4649,30 @@ const SampleEntryPage: React.FC<{
                     <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>
                       Sample Reported By {!isOptionalReportedBy100g ? <span style={{ color: '#e53935' }}>*</span> : null}
                     </label>
+                      {shouldLockReportedByForQualityEntry(selectedEntry) && !isOptionalReportedBy100g ? (
+                        <input
+                          type="text"
+                          value={toTitleCase(getEffectiveReportedByDefault(selectedEntry) || qualityData.reportedBy || '')}
+                          readOnly
+                          style={{ width: '100%', padding: '6px', border: '1.5px solid #bbb', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box', fontWeight: '600', backgroundColor: '#f5f5f5', color: '#555', cursor: 'not-allowed' }}
+                        />
+                      ) : (
                       <select
                         value={(() => {
                           const options = isRiceQualityEntry ? riceReportedByOptions : qualityUsers;
-                          const current = shouldLockReportedByForTakenByEntry(selectedEntry) && !isOptionalReportedBy100g
-                            ? (getDefaultReportedByForTakenByEntry(selectedEntry) || qualityData.reportedBy || '')
-                            : (qualityData.reportedBy || '');
+                          const current = qualityData.reportedBy || '';
                           const match = options.find((name) => String(name).toLowerCase() === String(current).toLowerCase());
                           return match || current;
                         })()}
                         onChange={(e) => setQualityData({ ...qualityData, reportedBy: e.target.value })}
-                        disabled={shouldLockReportedByForTakenByEntry(selectedEntry) && !isOptionalReportedBy100g}
-                        style={{ width: '100%', padding: '6px', border: '1.5px solid #bbb', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box', fontWeight: '600', backgroundColor: shouldLockReportedByForTakenByEntry(selectedEntry) && !isOptionalReportedBy100g ? '#f5f5f5' : '#fff', color: shouldLockReportedByForTakenByEntry(selectedEntry) && !isOptionalReportedBy100g ? '#555' : '#000', cursor: shouldLockReportedByForTakenByEntry(selectedEntry) && !isOptionalReportedBy100g ? 'not-allowed' : 'pointer' }}
+                        style={{ width: '100%', padding: '6px', border: '1.5px solid #bbb', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box', fontWeight: '600', backgroundColor: '#fff', color: '#000', cursor: 'pointer' }}
                       >
                         <option value="">-- Select --</option>
                         {(isRiceQualityEntry ? riceReportedByOptions : qualityUsers).map((qName, idx) => (
                           <option key={idx} value={qName}>{toTitleCase(qName)}</option>
                         ))}
                       </select>
+                      )}
                   </div>
                 </div>
 

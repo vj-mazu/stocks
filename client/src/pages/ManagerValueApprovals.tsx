@@ -287,18 +287,18 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
                 return (
                   <tr key={entry.id} style={{ background: index % 2 === 0 ? '#fff7ed' : '#fffbeb' }}>
                     <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', fontWeight: 700, fontSize: '11px', verticalAlign: 'top', textAlign: 'left' }}>{index + 1}</td>
-                    <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', verticalAlign: 'top', fontWeight: 700, fontSize: '12px', color: '#0f172a', lineHeight: 1.2, textAlign: 'left' }}>
+                    <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', verticalAlign: 'top', fontWeight: 700, fontSize: '13px', color: '#0f172a', lineHeight: 1.2, textAlign: 'left' }}>
                       {toTitleCase(entry.brokerName || '-')}
                     </td>
                     <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', verticalAlign: 'top', textAlign: 'left' }}>
-                      <div style={{ fontWeight: 700, fontSize: '12px', color: '#334155', lineHeight: 1.2 }}>{toTitleCase(entry.partyName || '-')}</div>
+                      <div style={{ fontWeight: 700, fontSize: '13px', color: '#334155', lineHeight: 1.2 }}>{toTitleCase(entry.partyName || '-')}</div>
                       <div style={{
                         marginTop: '4px',
                         display: 'inline-flex',
                         alignItems: 'center',
                         padding: '2px 6px',
                         borderRadius: '999px',
-                        fontSize: '9px',
+                        fontSize: '10px',
                         fontWeight: 800,
                         color: '#9a3412',
                         background: '#ffedd5',
@@ -307,14 +307,14 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
                         Manager Added Pending Approval
                       </div>
                     </td>
-                    <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', fontSize: '11px', verticalAlign: 'top', lineHeight: 1.15, textAlign: 'left' }}>{toTitleCase(entry.location || '-')}</td>
-                    <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', fontSize: '11px', verticalAlign: 'top', lineHeight: 1.15, textAlign: 'left' }}>{toTitleCase(entry.variety || '-')}</td>
-                    <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', fontSize: '11px', verticalAlign: 'top', lineHeight: 1.15, textAlign: 'left' }}>{entry.bags || '-'} | {formatPackagingLabel(entry.packaging || '-')}</td>
+                    <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', fontSize: '13px', fontWeight: 700, color: '#334155', verticalAlign: 'top', lineHeight: 1.15, textAlign: 'left' }}>{toTitleCase(entry.location || '-')}</td>
+                    <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', fontSize: '13px', fontWeight: 700, color: '#334155', verticalAlign: 'top', lineHeight: 1.15, textAlign: 'left' }}>{toTitleCase(entry.variety || '-')}</td>
+                    <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', fontSize: '13px', fontWeight: 700, color: '#334155', verticalAlign: 'top', lineHeight: 1.15, textAlign: 'left' }}>{entry.bags || '-'} | {formatPackagingLabel(entry.packaging || '-')}</td>
                     <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', verticalAlign: 'top', textAlign: 'left' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                         {summaryRows.length === 0 ? (
                           <div style={{
-                            fontSize: '11px',
+                            fontSize: '12px',
                             color: '#64748b',
                             background: '#f8fafc',
                             border: '1.5px solid #cbd5e1',
@@ -324,7 +324,7 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
                           }}>-</div>
                         ) : summaryRows.map((row) => (
                           <div key={row.key} style={{
-                            fontSize: '10px',
+                            fontSize: '11px',
                             color: row.tone.textColor,
                             background: row.tone.background,
                             border: `1.5px solid ${row.tone.border}`,
@@ -348,16 +348,16 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
                               borderRadius: '999px',
                               background: row.tone.labelBackground,
                               color: row.tone.labelColor,
-                              fontSize: '9px',
+                              fontSize: '11px',
                               fontWeight: 800
                             }}>{row.label}</span>
-                            <span style={{ fontWeight: 700, fontSize: '10px', color: row.tone.textColor, flex: 1, minWidth: 0, textAlign: 'right', whiteSpace: 'normal', overflowWrap: 'anywhere', lineHeight: 1.1 }}>{row.value}</span>
+                            <span style={{ fontWeight: 700, fontSize: '12px', color: row.tone.textColor, flex: 1, minWidth: 0, textAlign: 'right', whiteSpace: 'normal', overflowWrap: 'anywhere', lineHeight: 1.1 }}>{row.value}</span>
                           </div>
                         ))}
                       </div>
                     </td>
-                    <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', fontSize: '11px', verticalAlign: 'top', lineHeight: 1.15, textAlign: 'left' }}>{entry.pendingManagerValueApprovalRequestedByName || '-'}</td>
-                    <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', fontSize: '11px', verticalAlign: 'top', lineHeight: 1.15, textAlign: 'left' }}>
+                    <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', fontSize: '13px', fontWeight: 700, color: '#334155', verticalAlign: 'top', lineHeight: 1.15, textAlign: 'left' }}>{entry.pendingManagerValueApprovalRequestedByName || '-'}</td>
+                    <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', fontSize: '13px', fontWeight: 700, color: '#334155', verticalAlign: 'top', lineHeight: 1.15, textAlign: 'left' }}>
                       {entry.offering?.pendingManagerValueApprovalRequestedAt
                         ? new Date(entry.offering.pendingManagerValueApprovalRequestedAt).toLocaleString('en-GB')
                         : '-'}

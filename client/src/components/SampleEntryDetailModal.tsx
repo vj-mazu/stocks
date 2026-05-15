@@ -647,14 +647,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             arr.findIndex((candidate) => candidate.toLowerCase() === value.toLowerCase()) === index
         ));
     const getCollectedByDisplay = (entry: SampleEntry) => {
-        let rawCollector = getOriginalCollector(entry) || '';
-        if (rawCollector.includes('|')) {
-            const parts = rawCollector.split('|').map(s => s.trim());
-            if (parts.length >= 2) {
-                return { primary: getCollectorLabel(parts[1]), secondary: getCollectorLabel(parts[0]), highlightPrimary: false };
-            }
-        }
-        const collectorLabel = getCollectorLabel(rawCollector || null);
+        const rawCollector = getOriginalCollector(entry) || '';
         const extractCollectorNames = (items: any[]) => items.map((item) => {
             if (typeof item === 'string') return item;
             if (item && typeof item === 'object') return item.sampleCollectedBy || item.name || '';
@@ -662,18 +655,37 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         });
         const resampleTimeline = Array.isArray((entry as any)?.resampleCollectedTimeline) ? (entry as any).resampleCollectedTimeline : [];
         const resampleHistory = Array.isArray((entry as any)?.resampleCollectedHistory) ? (entry as any).resampleCollectedHistory : [];
-        const orderedCollectorNames = buildOrderedCollectorNames([
-            rawCollector,
+        const resampleCollectors = buildOrderedCollectorNames([
             ...extractCollectorNames(resampleTimeline),
-            ...extractCollectorNames(resampleHistory),
-            entry.sampleCollectedBy
-        ]);
-        const secondaryCollector = orderedCollectorNames.length > 1
-            ? getCollectorLabel(orderedCollectorNames[orderedCollectorNames.length - 1] || null)
-            : null;
+            ...extractCollectorNames(resampleHistory)
+        ]).filter((name) => name.toLowerCase() !== 'broker office sample');
+        const currentCollector = String(entry.sampleCollectedBy || '').trim();
+        const effectiveCollector = String(
+            resampleCollectors[resampleCollectors.length - 1]
+            || currentCollector
+            || rawCollector
+            || ''
+        ).trim();
+
+        const normalizeCollectorToken = (value: string) => value.includes('|')
+            ? value.split('|').map((s) => s.trim()).filter(Boolean).pop() || value
+            : value;
+        const primaryToken = normalizeCollectorToken(String(rawCollector || '').trim());
+        const secondaryToken = resampleCollectors.length > 0
+            ? normalizeCollectorToken(String(resampleCollectors[resampleCollectors.length - 1] || '').trim())
+            : '';
+        const collectorLabel = getCollectorLabel((secondaryToken || primaryToken || effectiveCollector) || null);
+        if (collectorLabel === 'Broker Office Sample' && !secondaryToken) {
+            return {
+                primary: collectorLabel,
+                secondary: null,
+                highlightPrimary: false
+            };
+        }
+
         return {
-            primary: collectorLabel !== '-' ? collectorLabel : getCreatorLabel(entry),
-            secondary: secondaryCollector && secondaryCollector !== collectorLabel ? secondaryCollector : null,
+            primary: resampleCollectors.length > 0 ? getCollectorLabel(primaryToken || null) : (collectorLabel !== '-' ? collectorLabel : '-'),
+            secondary: resampleCollectors.length > 0 ? getCollectorLabel(secondaryToken || null) : null,
             highlightPrimary: false
         };
     };
@@ -1271,6 +1283,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                         <span style={{ fontSize: '14px', fontWeight: '700', color: collectedByDisplay.highlightPrimary ? '#9c27b0' : '#1e293b' }}>
                                                             {collectedByDisplay.primary}
                                                         </span>
+                                                        <div style={{ borderTop: '1px solid #cbd5e1' }} />
                                                         <span style={{ fontSize: '12px', fontWeight: '600', color: '#333', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                             {collectedByDisplay.secondary}
                                                         </span>

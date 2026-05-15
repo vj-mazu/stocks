@@ -604,25 +604,38 @@ const AdminSampleBook2: React.FC<AdminSampleBook2Props> = ({ entryType, excludeE
         return Array.from(new Set([...extractNames(resampleTimeline), ...extractNames(resampleHistory)]));
     };
     const getCollectedByDisplay = (entry: SampleEntry) => {
-        let rawCollector = getOriginalCollector(entry) || '';
-        if (rawCollector.includes('|')) {
-            const parts = rawCollector.split('|').map(s => s.trim());
-            if (parts.length >= 2) {
-                return { primary: getCollectorLabel(parts[1]), secondary: getCollectorLabel(parts[0]), highlightPrimary: false };
-            }
+        const rawCollector = getOriginalCollector(entry) || '';
+        const resampleCollectors = getResampleCollectorNames(entry);
+        const currentCollector = String(entry.sampleCollectedBy || '').trim();
+        const effectiveCollector = String(
+            resampleCollectors[resampleCollectors.length - 1]
+            || currentCollector
+            || rawCollector
+            || ''
+        ).trim();
+
+        const normalizeCollectorToken = (value: string) => value.includes('|')
+            ? value.split('|').map((s) => s.trim()).filter(Boolean).pop() || value
+            : value;
+        const primaryToken = normalizeCollectorToken(String(rawCollector || '').trim());
+        const currentCollectorToken = normalizeCollectorToken(String(currentCollector || '').trim());
+        const secondaryToken = resampleCollectors.length > 0
+            ? normalizeCollectorToken(String(resampleCollectors[resampleCollectors.length - 1] || '').trim())
+            : '';
+        const collectorLabel = getCollectorLabel((secondaryToken || currentCollectorToken || primaryToken || effectiveCollector) || null);
+        if (collectorLabel === 'Broker Office Sample' && !secondaryToken) {
+            return {
+                primary: collectorLabel,
+                secondary: null,
+                highlightPrimary: false
+            };
         }
-        const collectorLabel = getCollectorLabel(rawCollector || null);
-        const orderedCollectorNames = buildOrderedCollectorNames([
-            rawCollector,
-            ...getResampleCollectorNames(entry),
-            entry.sampleCollectedBy
-        ]);
-        const secondaryCollector = orderedCollectorNames.length > 1
-            ? getCollectorLabel(orderedCollectorNames[orderedCollectorNames.length - 1] || null)
-            : null;
+
         return {
-            primary: collectorLabel !== '-' ? collectorLabel : '-',
-            secondary: secondaryCollector && secondaryCollector !== collectorLabel ? secondaryCollector : null,
+            primary: resampleCollectors.length > 0
+                ? getCollectorLabel(primaryToken || null)
+                : (getCollectorLabel(currentCollectorToken || null) !== '-' ? getCollectorLabel(currentCollectorToken || null) : (collectorLabel !== '-' ? collectorLabel : '-')),
+            secondary: resampleCollectors.length > 0 ? getCollectorLabel(secondaryToken || null) : null,
             highlightPrimary: false
         };
     };
@@ -1117,6 +1130,8 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             || (Array.isArray((entry as any)?.resampleCollectedTimeline) && (entry as any).resampleCollectedTimeline.length > 0)
             || (Array.isArray((entry as any)?.resampleCollectedHistory) && (entry as any).resampleCollectedHistory.length > 0);
         const hasStoredCookingHistory = Array.isArray(cr?.history) && cr!.history.length > 0;
+        const resampleOriginDecision = String((entry as any)?.resampleOriginDecision || '').toUpperCase();
+        const currentDecisionKey = String(d || '').toUpperCase();
 
         if (d === 'PASS_WITHOUT_COOKING' && !hasResampleHistory && !hasStoredCookingHistory) {
             return [];
@@ -1131,7 +1146,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
         const rows: Array<{ status: string; remarks: string; doneBy: string; doneDate: any; approvedBy: string; approvedDate: any; }> = [];
 
         // Inject original Pass Without Cooking row if this is a resample from that state
-        if (String((entry as any)?.resampleOriginDecision || '').toUpperCase() === 'PASS_WITHOUT_COOKING') {
+        if (resampleOriginDecision === 'PASS_WITHOUT_COOKING') {
             rows.push({
                 status: 'Pass Without Cooking',
                 remarks: '',
@@ -1236,6 +1251,23 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                 doneBy: '',
                 doneDate: null,
                 approvedBy: '',
+                approvedDate: null
+            });
+        }
+
+        if (
+            resampleOriginDecision === 'PASS_WITHOUT_COOKING'
+            && currentDecisionKey === 'PASS_WITHOUT_COOKING'
+            && rows.length === 1
+            && rows[0]?.status === 'Pass Without Cooking'
+            && hasResampleHistory
+        ) {
+            rows.push({
+                status: 'Pass Without Cooking',
+                remarks: '',
+                doneBy: 'NA',
+                doneDate: null,
+                approvedBy: 'NA',
                 approvedDate: null
             });
         }
@@ -2046,11 +2078,11 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                                                         const collectedByDisplay = getCollectedByDisplay(entry);
                                                                         if (collectedByDisplay.secondary) {
                                                                             return (
-                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                                                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '3px' }}>
                                                                                     <span style={{ color: '#333', fontSize: '13px', fontWeight: '600' }}>
                                                                                         {collectedByDisplay.primary}
                                                                                     </span>
-                                                                                    <span style={{ color: '#94a3b8', fontWeight: '800', fontSize: '11px' }}>|</span>
+                                                                                    <span style={{ width: '100%', borderTop: '1px solid #cbd5e1' }} />
                                                                                     <span style={{ color: '#1e293b', fontSize: '12px', fontWeight: '600' }}>
                                                                                         {collectedByDisplay.secondary}
                                                                                     </span>

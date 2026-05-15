@@ -8,6 +8,7 @@ import CompletedLots from './CompletedLots';
 import AdminSampleBook2 from './AdminSampleBook2';
 import SampleApprovalsHub from './SampleApprovalsHub';
 import SampleEntryPage from './SampleEntry';
+import AllottingSupervisors from './AllottingSupervisors';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
 
@@ -20,7 +21,8 @@ type TabKey =
   | 'loading-lots'
   | 'approvals'
   | 'completed-lots'
-  | 'sample-book-2';
+  | 'sample-book-2'
+  | 'allot-supervisor';
 
 interface TabConfig {
   key: TabKey;
@@ -82,17 +84,20 @@ const OwnerSampleReports: React.FC = () => {
       icon: '\u{1F373}',
       color: '#ef6c00'
     };
-    const insertionIndex = baseTabsWithApprovals.findIndex((tab) => tab.key === 'pending-lots');
-
-    if (insertionIndex === -1) {
-      return [...baseTabsWithApprovals, staffTab];
-    }
-
-    return [
-      ...baseTabsWithApprovals.slice(0, insertionIndex + 1),
+    const reorderedBaseTabs = [
+      baseTabsWithApprovals.find((tab) => tab.key === 'paddy-samples'),
+      baseTabsWithApprovals.find((tab) => tab.key === 'sample-book-2'),
+      baseTabsWithApprovals.find((tab) => tab.key === 'pending-lots'),
       staffTab,
-      ...baseTabsWithApprovals.slice(insertionIndex + 1)
-    ];
+      baseTabsWithApprovals.find((tab) => tab.key === 'cooking-report'),
+      baseTabsWithApprovals.find((tab) => tab.key === 'lots-passed'),
+      baseTabsWithApprovals.find((tab) => tab.key === 'loading-lots'),
+      baseTabsWithApprovals.find((tab) => tab.key === 'completed-lots'),
+      { key: 'allot-supervisor', label: 'Allot Supervisor', icon: '\u{1F464}', color: '#4a90e2' } as TabConfig,
+      baseTabsWithApprovals.find((tab) => tab.key === 'approvals')
+    ].filter(Boolean) as TabConfig[];
+
+    return reorderedBaseTabs;
   }, [isManager]);
 
   useEffect(() => {
@@ -199,6 +204,7 @@ const OwnerSampleReports: React.FC = () => {
         {activeTab === 'approvals' && <SampleApprovalsHub excludeEntryType="RICE_SAMPLE" onPendingCountChange={setApprovalPendingCount} />}
         {activeTab === 'completed-lots' && <CompletedLots excludeEntryType="RICE_SAMPLE" />}
         {activeTab === 'sample-book-2' && <AdminSampleBook2 excludeEntryType="RICE_SAMPLE" />}
+        {activeTab === 'allot-supervisor' && <AllottingSupervisors />}
       </div>
     </div>
   );

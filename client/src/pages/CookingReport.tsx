@@ -92,28 +92,30 @@ const getCreatorLabel = (entry: SampleEntry) => {
   return raw ? toTitleCase(raw) : '-';
 };
 const getCollectedByDisplay = (entry: SampleEntry, supervisors: SupervisorUser[]) => {
-  const creatorLabel = getCreatorLabel(entry);
   const getOriginalCollector = (e: any) => {
     if (Array.isArray(e?.sampleCollectedHistory) && e.sampleCollectedHistory.length > 0) {
       return e.sampleCollectedHistory[0];
     }
     return String(e?.sampleCollectedBy || '').trim();
   };
-  const fallbackCollector = getOriginalCollector(entry);
-  const collectorLabel = getCollectorLabel(fallbackCollector || null, supervisors);
-  const isResample = String((entry as any)?.lotSelectionDecision || '').toUpperCase() === 'FAIL'
-    || Number((entry as any)?.qualityReportAttempts || 0) > 1
-    || (Array.isArray((entry as any)?.resampleCollectedHistory) && (entry as any).resampleCollectedHistory.length > 0);
-  const isGivenToOffice = Boolean((entry as any)?.sampleGivenToOffice) || isResample;
-
-  if (isGivenToOffice) {
-    const primary = creatorLabel !== '-' ? creatorLabel : collectorLabel;
-    const secondary = collectorLabel !== '-' && collectorLabel !== primary ? collectorLabel : null;
-    return { primary, secondary, highlightPrimary: true };
-  }
+  const fallbackCollector = String(getOriginalCollector(entry) || '').trim();
+  const orderedCollectorNames = [
+    fallbackCollector,
+    ...((Array.isArray((entry as any)?.resampleCollectedTimeline) ? (entry as any).resampleCollectedTimeline : []).map((item: any) => item?.sampleCollectedBy || item?.name || '')),
+    ...((Array.isArray((entry as any)?.resampleCollectedHistory) ? (entry as any).resampleCollectedHistory : []).map((item: any) => item?.sampleCollectedBy || item?.name || '')),
+    String(entry?.sampleCollectedBy || '').trim()
+  ]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .filter((value, index, arr) => arr.findIndex((candidate) => candidate.toLowerCase() === value.toLowerCase()) === index);
+  const effectiveCollector = String(orderedCollectorNames[orderedCollectorNames.length - 1] || fallbackCollector || '').trim();
+  const collectorToken = effectiveCollector.includes('|')
+    ? effectiveCollector.split('|').map((s) => s.trim()).filter(Boolean).pop() || effectiveCollector
+    : effectiveCollector;
+  const collectorLabel = getCollectorLabel(collectorToken || null, supervisors);
 
   return {
-    primary: collectorLabel !== '-' ? collectorLabel : creatorLabel,
+    primary: collectorLabel !== '-' ? collectorLabel : '-',
     secondary: null,
     highlightPrimary: false
   };
@@ -1535,7 +1537,18 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
 
   const canOpenCookingActionForEntry = (entry: SampleEntry) => {
     const actionState = canStaffAddCookingForEntry(entry);
-    if (isCookingStaffRole) return actionState;
+    if (isCookingStaffRole) {
+      const currentCycleQuality = getCurrentCycleQualitySnapshot(entry) as any;
+      const isCurrentCycleWbMissing = Boolean(currentCycleQuality)
+        && (
+          !isProvidedNumericValue(currentCycleQuality?.wbRRaw, currentCycleQuality?.wbR)
+          || !isProvidedNumericValue(currentCycleQuality?.wbBkRaw, currentCycleQuality?.wbBk)
+        );
+      if (actionState.canAdd && isCurrentCycleWbMissing) {
+        return { canAdd: false, reason: 'WB-R / WB-BK Required' };
+      }
+      return actionState;
+    }
 
     const history = Array.isArray(entry.cookingReport?.history) ? entry.cookingReport.history : [];
     const normalizedReason = String(actionState.reason || '').toUpperCase();

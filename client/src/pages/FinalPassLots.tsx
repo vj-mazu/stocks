@@ -591,6 +591,20 @@ const getLatestResampleAssignedCollector = (entry: any) => {
   }
   return getLatestHistoryCollector(entry?.resampleCollectedHistory);
 };
+const hasExistingResampleFlowForFinal = (entry: any) => {
+  if (!entry) return false;
+  const hasMultipleAttempts = Array.isArray(entry?.qualityAttemptDetails) && entry.qualityAttemptDetails.length > 1;
+  const hasResampleAssignments = getResampleAssignmentTimeline(entry).length > 0;
+  return String(entry?.lotSelectionDecision || '').trim().toUpperCase() === 'FAIL'
+    || Number(entry?.qualityReportAttempts || 0) > 1
+    || hasMultipleAttempts
+    || hasResampleAssignments
+    || Boolean(entry?.resampleStartAt)
+    || Boolean(entry?.resampleTriggeredAt)
+    || Boolean(entry?.resampleDecisionAt)
+    || Boolean(entry?.resampleAfterFinal)
+    || isConvertedResampleType(entry);
+};
 const getOriginalCollector = (entry: any) => {
   if (Array.isArray(entry?.sampleCollectedHistory) && entry.sampleCollectedHistory.length > 0) {
     return entry.sampleCollectedHistory[0];
@@ -610,10 +624,19 @@ const getFinalPassCollectedByDisplay = (entry: any, supervisors?: { username: st
     .map((value) => String(value || '').trim())
     .filter(Boolean)
     .filter((value, index, arr) => arr.findIndex((candidate) => candidate.toLowerCase() === value.toLowerCase()) === index);
-  if (normalized.length === 0) return '-';
-  const primary = getCollectorLabel(normalized[0], supervisors);
-  const secondary = normalized.length > 1 ? getCollectorLabel(normalized[normalized.length - 1], supervisors) : '';
-  return secondary && secondary !== primary ? `${primary} | ${secondary}` : primary;
+  if (normalized.length === 0) return { primary: '-', secondary: null };
+  const normalizeCollectorToken = (value: string) => value.includes('|')
+    ? value.split('|').map((s) => s.trim()).filter(Boolean).pop() || value
+    : value;
+  const resampleToken = assignmentTimeline.length > 0
+    ? normalizeCollectorToken(String(assignmentTimeline[assignmentTimeline.length - 1]?.name || '').trim())
+    : '';
+  const primary = getCollectorLabel(normalizeCollectorToken(String(originalCollector || '').trim()), supervisors);
+  const secondary = resampleToken ? getCollectorLabel(resampleToken, supervisors) : null;
+  return {
+    primary: assignmentTimeline.length > 0 ? primary : getCollectorLabel(normalizeCollectorToken(String(normalized[normalized.length - 1] || '').trim()), supervisors),
+    secondary
+  };
 };
 const getEffectiveDate = (entry: any) => {
   const hasResampleFlow = String(entry?.lotSelectionDecision || '').trim().toUpperCase() === 'FAIL'
@@ -1802,9 +1825,27 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                                     <td style={{ border: '1px solid #000', padding: '3px 5px', textAlign: 'left' }}>{toTitleCase(entry.location) || '-'}</td>
                                     <td style={{ border: '1px solid #000', padding: '3px 5px', textAlign: 'left' }}>{toTitleCase(entry.variety) || '-'}</td>
                                     <td style={{ border: '1px solid #000', padding: '3px 5px', textAlign: 'left' }}>
-                                      <span style={{ fontSize: '11px', color: '#666' }}>
-                                        {getFinalPassCollectedByDisplay(entry, paddySupervisors)}
-                                      </span>
+                                      {(() => {
+                                        const collectedByDisplay = getFinalPassCollectedByDisplay(entry, paddySupervisors);
+                                        if (collectedByDisplay.secondary) {
+                                          return (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'flex-start' }}>
+                                              <span style={{ fontSize: '11px', color: '#666' }}>
+                                                {collectedByDisplay.primary}
+                                              </span>
+                                              <span style={{ width: '100%', borderTop: '1px solid #cbd5e1' }} />
+                                              <span style={{ fontSize: '11px', color: '#475569', fontWeight: '600' }}>
+                                                {collectedByDisplay.secondary}
+                                              </span>
+                                            </div>
+                                          );
+                                        }
+                                        return (
+                                          <span style={{ fontSize: '11px', color: '#666' }}>
+                                            {collectedByDisplay.primary}
+                                          </span>
+                                        );
+                                      })()}
                                     </td>
                                     <td style={{ border: '1px solid #000', padding: '3px', textAlign: 'center' }}>
                                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
@@ -2800,7 +2841,7 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                   </div>
                 )}
 
-                {!isRiceMode && (
+                {!isRiceMode && !hasExistingResampleFlowForFinal(selectedEntry) && (
                   <div style={{ marginBottom: '8px', display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', padding: '8px 10px', border: '1px solid #e2e8f0', borderRadius: '6px', background: '#f8fafc' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, color: '#1f2937' }}>
                       <input

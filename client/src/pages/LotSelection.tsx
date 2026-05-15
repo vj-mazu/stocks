@@ -290,19 +290,32 @@ const LotSelection: React.FC<LotSelectionProps> = ({ entryType, excludeEntryType
       if (item && typeof item === 'object') return item.sampleCollectedBy || item.name || '';
       return '';
     });
+    const resampleCollectors = buildOrderedCollectorNames([
+      ...extractCollectorNames(Array.isArray((entry as any)?.resampleCollectedTimeline) ? (entry as any).resampleCollectedTimeline : []),
+      ...extractCollectorNames(Array.isArray((entry as any)?.resampleCollectedHistory) ? (entry as any).resampleCollectedHistory : [])
+    ]);
     const orderedCollectorNames = buildOrderedCollectorNames([
       getOriginalCollector(entry),
-      ...extractCollectorNames(Array.isArray((entry as any)?.resampleCollectedTimeline) ? (entry as any).resampleCollectedTimeline : []),
-      ...extractCollectorNames(Array.isArray((entry as any)?.resampleCollectedHistory) ? (entry as any).resampleCollectedHistory : []),
+      ...resampleCollectors,
       entry.sampleCollectedBy
     ]);
-    const primary = getCollectorLabel(orderedCollectorNames[0] || null);
-    const secondary = orderedCollectorNames.length > 1
-      ? getCollectorLabel(orderedCollectorNames[orderedCollectorNames.length - 1] || null)
-      : null;
+    const effectiveCollector = String(
+      resampleCollectors[resampleCollectors.length - 1]
+      || orderedCollectorNames[orderedCollectorNames.length - 1]
+      || getOriginalCollector(entry)
+      || ''
+    ).trim();
+    const normalizeCollectorToken = (value: string) => value.includes('|')
+      ? value.split('|').map((s) => s.trim()).filter(Boolean).pop() || value
+      : value;
+    const primaryToken = normalizeCollectorToken(String(getOriginalCollector(entry) || '').trim());
+    const secondaryToken = resampleCollectors.length > 0
+      ? normalizeCollectorToken(String(resampleCollectors[resampleCollectors.length - 1] || '').trim())
+      : '';
+    const primary = getCollectorLabel((resampleCollectors.length > 0 ? primaryToken : effectiveCollector) || null);
     return {
       primary: primary !== '-' ? primary : '-',
-      secondary: secondary && secondary !== primary ? secondary : null
+      secondary: resampleCollectors.length > 0 ? getCollectorLabel(secondaryToken || null) : null
     };
   };
   const renderCollectedBy = (entry: SampleEntry) => {
@@ -311,10 +324,8 @@ const LotSelection: React.FC<LotSelectionProps> = ({ entryType, excludeEntryType
       return (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '1px', minWidth: 0, fontWeight: '600', lineHeight: 1.15 }}>
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{collectedByDisplay.primary}</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', minWidth: 0, maxWidth: '100%' }}>
-            <span style={{ color: '#94a3b8', fontWeight: '800', flex: '0 0 auto' }}>|</span>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '10px', color: '#333', minWidth: 0 }}>{collectedByDisplay.secondary}</span>
-          </span>
+          <span style={{ width: '100%', borderTop: '1px solid #cbd5e1' }} />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '10px', color: '#333', minWidth: 0, maxWidth: '100%' }}>{collectedByDisplay.secondary}</span>
         </div>
       );
     }
