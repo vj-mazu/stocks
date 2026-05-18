@@ -2688,6 +2688,8 @@ router.post('/:id/lot-selection', authenticateToken, async (req, res) => {
         resampleTriggerRequired: previousDecision === 'PASS_WITH_COOKING',
         resampleTriggeredAt: null,
         resampleDecisionAt: null,
+        resampleCollectedTimeline: [],
+        resampleCollectedHistory: [],
         resampleAfterFinal: isLoadingStageResample ? false : Boolean(entry.resampleAfterFinal)
       }
       : {
@@ -2706,6 +2708,17 @@ router.post('/:id/lot-selection', authenticateToken, async (req, res) => {
       },
       req.user.userId
     );
+
+    if (decision === 'RESAMPLE' && isLoadingStageResample) {
+      const existingAllotment = await LotAllotmentService.getLotAllotmentBySampleEntry(req.params.id);
+      if (existingAllotment?.id) {
+        await LotAllotmentService.updateLotAllotment(
+          existingAllotment.id,
+          { allottedToSupervisorId: null },
+          req.user.userId
+        );
+      }
+    }
 
     invalidateSampleEntryTabCaches();
 
