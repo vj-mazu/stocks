@@ -521,6 +521,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [qualityHistoryModal, setQualityHistoryModal] = useState<{ open: boolean; entry: SampleEntry | null }>({ open: false, entry: null });
   const [remarksPopup, setRemarksPopup] = useState<{ isOpen: boolean; title: string; text: string }>({ isOpen: false, title: '', text: '' });
+  const [resampleConfirmEntry, setResampleConfirmEntry] = useState<SampleEntry | null>(null);
 
   const scrollByViewport = (direction: 'up' | 'down') => {
     const amount = Math.max(420, Math.floor(window.innerHeight * 0.8));
@@ -1080,6 +1081,29 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     const match = paddySupervisors.find((sup) => String(sup.username || '').trim().toLowerCase() === raw.toLowerCase());
     if (match?.fullName) return toTitleCase(match.fullName);
     return toTitleCase(raw);
+  };
+
+  const getCanTriggerLoadingResample = (entry: SampleEntry | null) => {
+    if (!entry) return false;
+    const normalizedLotDecision = String(entry.lotSelectionDecision || '').toUpperCase();
+    const resampleOriginDecision = String((entry as any)?.resampleOriginDecision || '').toUpperCase();
+    const isConvertedLocationResample = String(entry.entryType || '').toUpperCase() === 'LOCATION_SAMPLE'
+      && !!String((entry as any)?.originalEntryType || '').trim()
+      && String((entry as any)?.originalEntryType || '').toUpperCase() !== 'LOCATION_SAMPLE';
+    const hasResampleCollectorHistory = (Array.isArray((entry as any)?.resampleCollectedTimeline) && (entry as any).resampleCollectedTimeline.length > 0)
+      || (Array.isArray((entry as any)?.resampleCollectedHistory) && (entry as any).resampleCollectedHistory.length > 0);
+    const hasDisplayableResampleWorkflow =
+      isConvertedLocationResample
+      || hasResampleCollectorHistory
+      || resampleOriginDecision === 'PASS_WITH_COOKING'
+      || resampleOriginDecision === 'PASS_WITHOUT_COOKING';
+    return ['admin', 'manager', 'owner'].includes(String(user?.role || '').toLowerCase())
+      && !hasDisplayableResampleWorkflow
+      && !Boolean((entry as any)?.resampleStartAt)
+      && !Boolean((entry as any)?.resampleTriggeredAt)
+      && !Boolean((entry as any)?.resampleDecisionAt)
+      && !Boolean((entry as any)?.resampleAfterFinal)
+      && normalizedLotDecision !== 'FAIL';
   };
 
   const getCreatorLabel = (entry: SampleEntry) => {
@@ -2448,7 +2472,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                       )}
                                       {canTriggerLoadingResample && (
                                         <button
-                                          onClick={() => handleSendToResample(entry)}
+                                          onClick={() => setResampleConfirmEntry(entry)}
                                           style={{ padding: '3px 6px', background: '#e67e22', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '10px', cursor: 'pointer', fontWeight: 700 }}
                                         >
                                           Resample
@@ -2777,6 +2801,37 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                 style={{ padding: '8px 16px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {resampleConfirmEntry && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000 }}>
+          <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', width: '90%', maxWidth: '400px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '15px', paddingBottom: '10px', borderBottom: '1px solid #eee', color: '#e67e22', fontSize: '16px', fontWeight: 800 }}>
+              ⚠️ Confirm Resample
+            </h3>
+            <div style={{ fontSize: '14px', color: '#4b5563', lineHeight: '1.5', minHeight: '60px', background: '#fffbeb', padding: '12px', borderRadius: '8px', border: '1px solid #fef3c7' }}>
+              Do you want to resample?
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
+              <button
+                onClick={() => setResampleConfirmEntry(null)}
+                style={{ padding: '8px 16px', background: '#e2e8f0', color: '#475569', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const entry = resampleConfirmEntry;
+                  setResampleConfirmEntry(null);
+                  await handleSendToResample(entry);
+                }}
+                style={{ padding: '8px 16px', background: '#e67e22', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
+              >
+                Yes, Resample
               </button>
             </div>
           </div>
