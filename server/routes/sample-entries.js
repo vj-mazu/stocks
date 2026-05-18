@@ -1942,6 +1942,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
         // Resample assignment should only allot the lot to the location sample user.
         // The special resample workflow starts only after that user clicks Trigger in the Location Sample tab.
+        invalidateSampleEntryTabCaches();
 
         res.json(entry);
       } catch (error) {
@@ -2635,6 +2636,22 @@ router.post('/:id/lot-selection', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Sample entry not found' });
     }
 
+    const currentWorkflowStatus = String(entry.workflowStatus || '').toUpperCase();
+    const isLoadingStageResample =
+      decision === 'RESAMPLE'
+      && [
+        'LOT_ALLOTMENT',
+        'PHYSICAL_INSPECTION',
+        'INVENTORY_ENTRY',
+        'OWNER_FINANCIAL',
+        'MANAGER_FINANCIAL',
+        'FINAL_REVIEW',
+        'COMPLETED'
+      ].includes(currentWorkflowStatus);
+    const isAlreadyFailedSoldOut =
+      decision === 'SOLDOUT'
+      && currentWorkflowStatus === 'FAILED';
+
     let nextStatus;
     if (decision === 'PASS_WITHOUT_COOKING') {
       nextStatus = 'FINAL_REPORT';
@@ -2643,20 +2660,22 @@ router.post('/:id/lot-selection', authenticateToken, async (req, res) => {
     } else if (decision === 'FAIL') {
       nextStatus = 'FAILED';
     } else if (decision === 'RESAMPLE') {
-      nextStatus = 'STAFF_ENTRY';
+      nextStatus = isLoadingStageResample ? 'LOT_ALLOTMENT' : 'STAFF_ENTRY';
     } else if (decision === 'SOLDOUT') {
       nextStatus = 'FAILED';
     } else {
       return res.status(400).json({ error: 'Invalid decision' });
     }
 
-    await WorkflowEngine.transitionTo(
-      req.params.id, // Keep as UUID string, don't parse to int
-      nextStatus,
-      req.user.userId, // Use userId from JWT token
-      getWorkflowRole(req.user),
-      { lotSelectionDecision: decision === 'RESAMPLE' ? 'FAIL' : decision }
-    );
+    if (!isLoadingStageResample && !isAlreadyFailedSoldOut) {
+      await WorkflowEngine.transitionTo(
+        req.params.id, // Keep as UUID string, don't parse to int
+        nextStatus,
+        req.user.userId, // Use userId from JWT token
+        getWorkflowRole(req.user),
+        { lotSelectionDecision: decision === 'RESAMPLE' ? 'FAIL' : decision }
+      );
+    }
 
     // Explicitly update the lot selection fields on the SampleEntry
     const previousDecision = String(entry.lotSelectionDecision || '').toUpperCase();
@@ -2669,7 +2688,7 @@ router.post('/:id/lot-selection', authenticateToken, async (req, res) => {
         resampleTriggerRequired: previousDecision === 'PASS_WITH_COOKING',
         resampleTriggeredAt: null,
         resampleDecisionAt: null,
-        resampleAfterFinal: Boolean(entry.resampleAfterFinal)
+        resampleAfterFinal: isLoadingStageResample ? false : Boolean(entry.resampleAfterFinal)
       }
       : {
         resampleDecisionAt: isResampleWorkflowMarker(entry) ? new Date() : entry.resampleDecisionAt
@@ -2678,6 +2697,7 @@ router.post('/:id/lot-selection', authenticateToken, async (req, res) => {
     await SampleEntryService.updateSampleEntry(
       req.params.id,
       {
+        ...(isLoadingStageResample ? { workflowStatus: 'LOT_ALLOTMENT' } : {}),
         lotSelectionDecision: decision === 'RESAMPLE' ? 'FAIL' : decision,
         lotSelectionByUserId: req.user.userId,
         lotSelectionAt: new Date(),
@@ -3149,7 +3169,7 @@ router.post('/:id/close-lot', authenticateToken, async (req, res) => {
 // Cancel lot (Admin/Manager)
 router.post('/:id/cancel', authenticateToken, async (req, res) => {
   try {
-    const { remarks } = req.body;
+    const { remarks, decision } = req.body;
     const SampleEntry = require('../models/SampleEntry');
 
     // Only manager/admin/owner can cancel lots
@@ -3168,6 +3188,11 @@ router.post('/:id/cancel', authenticateToken, async (req, res) => {
 
     entry.workflowStatus = 'CANCELLED';
     entry.cancelRemarks = remarks.trim();
+    if (String(decision || '').toUpperCase() === 'SOLDOUT') {
+      entry.lotSelectionDecision = 'SOLDOUT';
+      entry.lotSelectionAt = new Date();
+      entry.lotSelectionByUserId = req.user.userId;
+    }
     await entry.save();
 
     invalidateSampleEntryTabCaches();

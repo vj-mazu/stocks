@@ -283,6 +283,18 @@ const PhysicalInspection: React.FC = () => {
     return '#2196F3';
   };
 
+  const isLocationStaffUser = user?.role === 'staff' && user?.staffType === 'location';
+  const isLegacyPhysicalSupervisor = user?.role === 'physical_supervisor';
+
+  if (user && !isLocationStaffUser && !isLegacyPhysicalSupervisor) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
+        <h2 style={{ marginBottom: '10px', color: '#333' }}>Access Denied</h2>
+        <p>Only assigned location staff can access this page.</p>
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: '20px' }}>
       <h2 style={{ marginBottom: '20px', fontSize: '24px', fontWeight: '600', color: '#333' }}>

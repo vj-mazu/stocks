@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { SampleEntryDetailModal } from '../components/SampleEntryDetailModal';
-import { getConvertedEntryTypeCode, getDisplayedEntryTypeCode, getEntryTypeTextColor, getOriginalEntryTypeCode, isConvertedResampleType } from '../utils/sampleTypeDisplay';
+import { getCollectedByDisplay as getSharedCollectedByDisplay, getConvertedEntryTypeCode, getDisplayedEntryTypeCode, getEntryTypeTextColor, getOriginalEntryTypeCode, isConvertedResampleType } from '../utils/sampleTypeDisplay';
 import { getDisplayQualityParameters } from '../utils/sampleEntryQualityModalLogic';
 
 import { API_URL } from '../config/api';
@@ -91,35 +91,7 @@ const getCreatorLabel = (entry: SampleEntry) => {
   const raw = creator?.fullName || creator?.username || '';
   return raw ? toTitleCase(raw) : '-';
 };
-const getCollectedByDisplay = (entry: SampleEntry, supervisors: SupervisorUser[]) => {
-  const getOriginalCollector = (e: any) => {
-    if (Array.isArray(e?.sampleCollectedHistory) && e.sampleCollectedHistory.length > 0) {
-      return e.sampleCollectedHistory[0];
-    }
-    return String(e?.sampleCollectedBy || '').trim();
-  };
-  const fallbackCollector = String(getOriginalCollector(entry) || '').trim();
-  const orderedCollectorNames = [
-    fallbackCollector,
-    ...((Array.isArray((entry as any)?.resampleCollectedTimeline) ? (entry as any).resampleCollectedTimeline : []).map((item: any) => item?.sampleCollectedBy || item?.name || '')),
-    ...((Array.isArray((entry as any)?.resampleCollectedHistory) ? (entry as any).resampleCollectedHistory : []).map((item: any) => item?.sampleCollectedBy || item?.name || '')),
-    String(entry?.sampleCollectedBy || '').trim()
-  ]
-    .map((value) => String(value || '').trim())
-    .filter(Boolean)
-    .filter((value, index, arr) => arr.findIndex((candidate) => candidate.toLowerCase() === value.toLowerCase()) === index);
-  const effectiveCollector = String(orderedCollectorNames[orderedCollectorNames.length - 1] || fallbackCollector || '').trim();
-  const collectorToken = effectiveCollector.includes('|')
-    ? effectiveCollector.split('|').map((s) => s.trim()).filter(Boolean).pop() || effectiveCollector
-    : effectiveCollector;
-  const collectorLabel = getCollectorLabel(collectorToken || null, supervisors);
-
-  return {
-    primary: collectorLabel !== '-' ? collectorLabel : '-',
-    secondary: null,
-    highlightPrimary: false
-  };
-};
+const getCollectedByDisplay = (entry: SampleEntry, supervisors: SupervisorUser[]) => getSharedCollectedByDisplay(entry as any, supervisors, { keepLoginPair: true });
 const toSentenceCase = (value: string) => {
   const normalized = String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
   if (!normalized) return '';
@@ -2713,6 +2685,7 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
           detailEntry={detailEntry as any}
           detailMode="history"
           onClose={() => setDetailEntry(null)}
+          showCollectorLoginPair={true}
         />
       )}
 

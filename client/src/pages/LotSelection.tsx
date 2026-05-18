@@ -3,7 +3,7 @@ import axios from 'axios';
 
 import { useNotification } from '../contexts/NotificationContext';
 import { SampleEntryDetailModal } from '../components/SampleEntryDetailModal';
-import { getConvertedEntryTypeCode, getDisplayedEntryTypeCode, getEntryTypeTextColor, getOriginalEntryTypeCode, isConvertedResampleType } from '../utils/sampleTypeDisplay';
+import { getCollectedByDisplay as getSharedCollectedByDisplay, getConvertedEntryTypeCode, getDisplayedEntryTypeCode, getEntryTypeTextColor, getOriginalEntryTypeCode, isConvertedResampleType } from '../utils/sampleTypeDisplay';
 import { getDisplayQualityParameters } from '../utils/sampleEntryQualityModalLogic';
 
 import { API_URL } from '../config/api';
@@ -284,40 +284,7 @@ const LotSelection: React.FC<LotSelectionProps> = ({ entryType, excludeEntryType
     .filter((value, index, arr) => (
       arr.findIndex((candidate) => candidate.toLowerCase() === value.toLowerCase()) === index
     ));
-  const getCollectedByDisplay = (entry: SampleEntry) => {
-    const extractCollectorNames = (items: any[]) => items.map((item) => {
-      if (typeof item === 'string') return item;
-      if (item && typeof item === 'object') return item.sampleCollectedBy || item.name || '';
-      return '';
-    });
-    const resampleCollectors = buildOrderedCollectorNames([
-      ...extractCollectorNames(Array.isArray((entry as any)?.resampleCollectedTimeline) ? (entry as any).resampleCollectedTimeline : []),
-      ...extractCollectorNames(Array.isArray((entry as any)?.resampleCollectedHistory) ? (entry as any).resampleCollectedHistory : [])
-    ]);
-    const orderedCollectorNames = buildOrderedCollectorNames([
-      getOriginalCollector(entry),
-      ...resampleCollectors,
-      entry.sampleCollectedBy
-    ]);
-    const effectiveCollector = String(
-      resampleCollectors[resampleCollectors.length - 1]
-      || orderedCollectorNames[orderedCollectorNames.length - 1]
-      || getOriginalCollector(entry)
-      || ''
-    ).trim();
-    const normalizeCollectorToken = (value: string) => value.includes('|')
-      ? value.split('|').map((s) => s.trim()).filter(Boolean).pop() || value
-      : value;
-    const primaryToken = normalizeCollectorToken(String(getOriginalCollector(entry) || '').trim());
-    const secondaryToken = resampleCollectors.length > 0
-      ? normalizeCollectorToken(String(resampleCollectors[resampleCollectors.length - 1] || '').trim())
-      : '';
-    const primary = getCollectorLabel((resampleCollectors.length > 0 ? primaryToken : effectiveCollector) || null);
-    return {
-      primary: primary !== '-' ? primary : '-',
-      secondary: resampleCollectors.length > 0 ? getCollectorLabel(secondaryToken || null) : null
-    };
-  };
+  const getCollectedByDisplay = (entry: SampleEntry) => getSharedCollectedByDisplay(entry as any, supervisors, { keepLoginPair: true });
   const renderCollectedBy = (entry: SampleEntry) => {
     const collectedByDisplay = getCollectedByDisplay(entry);
     if (collectedByDisplay.secondary) {
@@ -1189,6 +1156,7 @@ const LotSelection: React.FC<LotSelectionProps> = ({ entryType, excludeEntryType
           detailEntry={detailEntry as any}
           detailMode="history"
           onClose={() => setDetailEntry(null)}
+          showCollectorLoginPair={true}
         />
       )}
 

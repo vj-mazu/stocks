@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
 import axios from 'axios';
 import { generateSampleEntryPDF } from '../utils/sampleEntryPdfGenerator';
-import { getConvertedEntryTypeCode, getDisplayedEntryTypeCode, getEntryTypeTextColor, getOriginalEntryTypeCode, isConvertedResampleType } from '../utils/sampleTypeDisplay';
+import { getCollectedByDisplay as _sharedGetCollectedByDisplay, getConvertedEntryTypeCode, getDisplayedEntryTypeCode, getEntryTypeTextColor, getOriginalEntryTypeCode, isConvertedResampleType } from '../utils/sampleTypeDisplay';
 import { SampleEntryDetailModal } from '../components/SampleEntryDetailModal';
 import { API_URL } from '../config/api';
 import { hasSavedResampleAttemptFromHistory, shouldPreserveGpsPrefill, shouldRefillQualityModal, shouldShowQualityUpdateMode } from '../utils/sampleEntryQualityModalLogic';
@@ -67,6 +67,8 @@ const SampleEntryPage: React.FC<{
   }>({ isOpen: false, entry: null, type: 'entry', reason: '' });
   const [remarksPopup, setRemarksPopup] = useState<{ isOpen: boolean; text: string }>({ isOpen: false, text: '' });
   const submissionLocksRef = useRef<Set<string>>(new Set());
+  const deleteLocksRef = useRef<Set<string>>(new Set());
+  const deletedEntryIdsRef = useRef<Set<string>>(new Set());
   const loadDropdownDataRef = useRef<() => Promise<void>>(() => Promise.resolve());
   const loadEntriesRef = useRef<() => Promise<void>>(() => Promise.resolve());
   const qualityModalPrefillKeyRef = useRef<string | null>(null);
@@ -129,50 +131,49 @@ const SampleEntryPage: React.FC<{
     const firstHistoryValue = history.find((value: any) => String(value || '').trim());
     return String(firstHistoryValue || entry.sampleCollectedBy || '').trim();
   };
+  const parseStoredCollectorPair = (value?: string | null) => {
+    const parts = String(value || '').split('|').map((part) => part.trim()).filter(Boolean);
+    if (parts.length < 2) return null;
+    const loginName = parts[parts.length - 1];
+    const selectedName = parts.slice(0, -1).join(' | ');
+    return { selectedName, loginName };
+  };
+  const buildStoredCollectorValue = (selectedValue?: string | null) => {
+    const normalizedSelected = String(selectedValue || '').trim();
+    if (!normalizedSelected) return '';
+    if (normalizedSelected.toLowerCase() === 'broker office sample') return 'Broker Office Sample';
+
+    const storedPair = parseStoredCollectorPair(normalizedSelected);
+    if (storedPair) {
+      return `${toTitleCase(storedPair.selectedName)} | ${toTitleCase(storedPair.loginName)}`;
+    }
+
+    const loggedInName = toTitleCase(user?.fullName || user?.username || '');
+    return loggedInName
+      ? `${toTitleCase(normalizedSelected)} | ${loggedInName}`
+      : toTitleCase(normalizedSelected);
+  };
+  const getLatestFirstCycleCollector = (entry: SampleEntry) => {
+    const current = String(entry.sampleCollectedBy || '').trim();
+    const timeline = Array.isArray((entry as any)?.sampleCollectedTimeline) ? (entry as any).sampleCollectedTimeline : [];
+    const history = Array.isArray((entry as any)?.sampleCollectedHistory) ? (entry as any).sampleCollectedHistory : [];
+    const getValue = (item: any) => {
+      if (typeof item === 'string') return String(item || '').trim();
+      if (item && typeof item === 'object') return String(item.sampleCollectedBy || item.name || '').trim();
+      return '';
+    };
+    const lastTimelineValue = timeline.length > 0 ? getValue(timeline[timeline.length - 1]) : '';
+    const lastHistoryValue = history.length > 0 ? getValue(history[history.length - 1]) : '';
+    const firstHistoryValue = history.length > 0 ? getValue(history[0]) : '';
+    return String(current || lastTimelineValue || lastHistoryValue || firstHistoryValue || '').trim();
+  };
   const buildOrderedCollectorNames = (values: Array<string | null | undefined>) => values
     .map((value) => String(value || '').trim())
     .filter(Boolean)
     .filter((value, index, arr) => (
       arr.findIndex((candidate) => candidate.toLowerCase() === value.toLowerCase()) === index
     ));
-  const getCollectedByDisplay = (entry: SampleEntry) => {
-    const rawCollector = getOriginalCollector(entry) || '';
-    const resampleCollectors = getResampleCollectorNames(entry);
-    const currentCollector = String(entry.sampleCollectedBy || '').trim();
-    const effectiveCollector = String(
-      resampleCollectors[resampleCollectors.length - 1]
-      || currentCollector
-      || rawCollector
-      || ''
-    ).trim();
-
-    if (effectiveCollector.includes('|')) {
-      const parts = effectiveCollector.split('|').map((s) => s.trim()).filter(Boolean);
-      if (parts.length >= 2) {
-        return {
-          primary: getCollectorLabel(parts[1]),
-          secondary: getCollectorLabel(parts[0]),
-          highlightPrimary: false
-        };
-      }
-    }
-
-    const collectorLabel = getCollectorLabel(effectiveCollector || null);
-    if (collectorLabel === 'Broker Office Sample') {
-      return {
-        primary: collectorLabel,
-        secondary: null,
-        highlightPrimary: false
-      };
-    }
-
-    const creatorLabel = getCreatorLabel(entry);
-    return {
-      primary: creatorLabel !== '-' ? creatorLabel : collectorLabel,
-      secondary: collectorLabel !== '-' ? collectorLabel : null,
-      highlightPrimary: false
-    };
-  };
+  const getCollectedByDisplay = (entry: SampleEntry) => _sharedGetCollectedByDisplay(entry as any, paddySupervisors, { keepLoginPair: true });
   const isResampleWorkflowEntry = (entry: SampleEntry | any, qualityAttemptsOverride?: any[]) => {
     const qualityAttempts = qualityAttemptsOverride || getQualityAttemptsForEntry(entry as any);
     const isConvertedLocationResample = String(entry?.entryType || '').toUpperCase() === 'LOCATION_SAMPLE'
@@ -1292,11 +1293,12 @@ const SampleEntryPage: React.FC<{
       formDataToSend.append('entryType', selectedEntryType);
       formDataToSend.append('packaging', formData.packaging);
       let finalCollectedBy = formData.sampleCollectedBy;
-      if (formData.sampleGivenToOffice && finalCollectedBy) {
-        const loggedInName = toTitleCase(user.fullName || user.username || '');
-        if (loggedInName && !finalCollectedBy.includes(loggedInName)) {
-          finalCollectedBy = `${finalCollectedBy} | ${loggedInName}`;
-        }
+      const shouldStoreCollectorPair = (
+        (formData.sampleGivenToOffice || sampleCollectType === 'supervisor')
+        && String(finalCollectedBy || '').trim().toLowerCase() !== 'broker office sample'
+      );
+      if (shouldStoreCollectorPair) {
+        finalCollectedBy = buildStoredCollectorValue(finalCollectedBy);
       }
       if (finalCollectedBy) formDataToSend.append('sampleCollectedBy', toTitleCase(finalCollectedBy));
       formDataToSend.append('sampleGivenToOffice', String(formData.sampleGivenToOffice));
@@ -1358,7 +1360,9 @@ const SampleEntryPage: React.FC<{
     const bagsValue = typeof entry.bags === 'number' ? entry.bags.toString() : (entry.bags || '');
 
     // Determine sampleCollectType for edit form
-    const isBroker = (entry as any).sampleCollectedBy === 'Broker Office Sample';
+    const storedCollectorPair = parseStoredCollectorPair((entry as any).sampleCollectedBy || '');
+    const normalizedCollectedBy = storedCollectorPair?.selectedName || (entry as any).sampleCollectedBy || '';
+    const isBroker = String(normalizedCollectedBy).trim() === 'Broker Office Sample';
     setSampleCollectType(isBroker ? 'broker' : 'supervisor');
 
     setFormData({
@@ -1370,7 +1374,7 @@ const SampleEntryPage: React.FC<{
       bags: bagsValue,
       lorryNumber: entry.lorryNumber || '',
       packaging: (entry as any).packaging || '75',
-      sampleCollectedBy: (entry as any).sampleCollectedBy || '',
+      sampleCollectedBy: normalizedCollectedBy,
       sampleGivenToOffice: (entry as any).sampleGivenToOffice || false,
       smellHas: (entry as any).smellHas || false,
       smellType: (entry as any).smellType || '',
@@ -1434,11 +1438,12 @@ const SampleEntryPage: React.FC<{
       if (formData.lorryNumber) formDataToSend.append('lorryNumber', formData.lorryNumber.toUpperCase());
       formDataToSend.append('packaging', formData.packaging);
       let finalCollectedBy = formData.sampleCollectedBy;
-      if (formData.sampleGivenToOffice && finalCollectedBy) {
-        const loggedInName = toTitleCase(user?.fullName || user?.username || '');
-        if (loggedInName && !finalCollectedBy.includes(loggedInName)) {
-          finalCollectedBy = `${finalCollectedBy} | ${loggedInName}`;
-        }
+      const shouldStoreCollectorPair = (
+        (formData.sampleGivenToOffice || sampleCollectType === 'supervisor')
+        && String(finalCollectedBy || '').trim().toLowerCase() !== 'broker office sample'
+      );
+      if (shouldStoreCollectorPair) {
+        finalCollectedBy = buildStoredCollectorValue(finalCollectedBy);
       }
       if (finalCollectedBy) formDataToSend.append('sampleCollectedBy', toTitleCase(finalCollectedBy));
       formDataToSend.append('sampleGivenToOffice', String(formData.sampleGivenToOffice));
@@ -1456,12 +1461,12 @@ const SampleEntryPage: React.FC<{
           Authorization: `Bearer ${token}`
         }
       });
-      showNotification('Entry updated successfully', 'success');
       setShowEditModal(false);
       setEditingEntry(null);
       setGodownImage(null);
       setPaddyLotImage(null);
-      loadEntries();
+      await loadEntries();
+      showNotification('Entry updated successfully', 'success');
     } catch (error: any) {
       showNotification(error.response?.data?.error || 'Failed to update entry', 'error');
     } finally {
@@ -1498,6 +1503,34 @@ const SampleEntryPage: React.FC<{
     } finally {
       setIsSubmitting(false);
       releaseSubmissionLock(lockKey);
+    }
+  };
+
+  const handleDeleteEntry = async (entryId: string) => {
+    if (isSubmitting || deleteLocksRef.current.has(entryId)) return;
+    try {
+      deleteLocksRef.current.add(entryId);
+      setIsSubmitting(true);
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `${API_URL}/sample-entries/${entryId}/cancel`,
+        { remarks: 'Deleted' },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      deletedEntryIdsRef.current.add(entryId);
+      setEntries((prev) => prev.filter((entry) => entry.id !== entryId));
+      try {
+        await fetchEntries();
+      } catch (refreshError) {
+        console.error('Failed to refresh entries after delete:', refreshError);
+      }
+      showNotification('Entry deleted successfully', 'success');
+    } catch (error: any) {
+      if (deletedEntryIdsRef.current.has(entryId)) return;
+      showNotification(error.response?.data?.error || 'Failed to delete entry', 'error');
+    } finally {
+      deleteLocksRef.current.delete(entryId);
+      setIsSubmitting(false);
     }
   };
 
@@ -2398,7 +2431,7 @@ const SampleEntryPage: React.FC<{
                   onClick={() => {
                     loadDropdownData();
                     setSelectedEntryType('LOCATION_SAMPLE');
-                    setFormData({ entryDate: new Date().toISOString().split('T')[0], brokerName: '', variety: '', partyName: '', location: '', bags: '', lorryNumber: '', packaging: '75', sampleCollectedBy: user?.username || '', sampleGivenToOffice: false, smellHas: false, smellType: '', gpsCoordinates: '' });
+                    setFormData({ entryDate: new Date().toISOString().split('T')[0], brokerName: '', variety: '', partyName: '', location: '', bags: '', lorryNumber: '', packaging: '75', sampleCollectedBy: toTitleCase(user?.fullName || user?.username || ''), sampleGivenToOffice: false, smellHas: false, smellType: '', gpsCoordinates: '' });
                     setEditingEntry(null);
                     setShowModal(true);
                   }}
@@ -2867,6 +2900,16 @@ const SampleEntryPage: React.FC<{
                             const entryApprovalPending = String((entry as any).entryEditApprovalStatus || '').toLowerCase() === 'pending';
                             const qualityApprovalPending = String((entry as any).qualityEditApprovalStatus || '').toLowerCase() === 'pending';
                             const canUploadPhotos = entry.entryType === 'LOCATION_SAMPLE' && (canEditQuality || !isStaffUser);
+                            const isPaddySampleEntryTab = filterEntryType !== 'RICE_SAMPLE'
+                              && ['MILL_SAMPLE', 'LOCATION_SAMPLE', 'SAMPLE_BOOK'].includes(activeTab);
+                            const isCancelledClosedEntry = entry.workflowStatus === 'CANCELLED';
+                            const resamplePassDecision = String((entry as any).resampleOriginDecision || '').toUpperCase();
+                            const isResamplePassFlow = resamplePassDecision === 'PASS_WITH_COOKING' || resamplePassDecision === 'PASS_WITHOUT_COOKING';
+                            const isSampleEntryResampleRow = isPaddyResampleEntry || isPaddyResampleWorkflow || isResamplePassFlow;
+                            const canDeleteEntry = ['admin', 'manager'].includes(String(user?.role || '').toLowerCase())
+                              && isPaddySampleEntryTab
+                              && !isCancelledClosedEntry
+                              && !isSampleEntryResampleRow;
                             // Trigger button ONLY for PASS_WITH_COOKING resample entries (not for FAIL entries)
                             // PASS_WITH_COOKING resample needs trigger to start cooking workflow
                             // PASS_WITHOUT_COOKING resample follows normal workflow (just add quality)
@@ -2955,6 +2998,34 @@ const SampleEntryPage: React.FC<{
                                 </button>
                               );
                             };
+                            const renderDeleteButton = () => {
+                              if (!canDeleteEntry) return null;
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleDeleteEntry(entry.id);
+                                  }}
+                                  title="Delete Entry"
+                                  disabled={isSubmitting || deleteLocksRef.current.has(entry.id)}
+                                  style={{
+                                    fontSize: '9px',
+                                    padding: '2px 5px',
+                                    backgroundColor: '#5b5b5b',
+                                    color: 'white',
+                                    border: '1px solid #3f3f3f',
+                                    borderRadius: '2px',
+                                    cursor: (isSubmitting || deleteLocksRef.current.has(entry.id)) ? 'not-allowed' : 'pointer',
+                                    fontWeight: '600',
+                                    opacity: (isSubmitting || deleteLocksRef.current.has(entry.id)) ? 0.7 : 1
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              );
+                            };
 
                             const smellState = getEntrySmellState(entry as any);
                             const terminalSampleReportMeta = getStaffTerminalSampleReportMeta(entry as any);
@@ -2963,8 +3034,6 @@ const SampleEntryPage: React.FC<{
                             const isFailedSmell = String(entry.failRemarks || '').toLowerCase().includes('smell');
                             const isCancelledEntry = entry.workflowStatus === 'CANCELLED';
                             const isPaddyResample = entry.lotSelectionDecision === 'FAIL' && entry.entryType !== 'RICE_SAMPLE';
-                            const resamplePassDecision = String((entry as any).resampleOriginDecision || '').toUpperCase();
-                            const isResamplePassFlow = resamplePassDecision === 'PASS_WITH_COOKING' || resamplePassDecision === 'PASS_WITHOUT_COOKING';
                             const rowBgColor = isSmellDarkOrMedium
                               ? '#fee2e2'
                               : isSmellLight
@@ -3077,6 +3146,10 @@ const SampleEntryPage: React.FC<{
                                   <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-start' }}>
                                     {isCancelledEntry ? (
                                       <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                        {(() => {
+                                          const isSoldOutEntry = String(entry.lotSelectionDecision || '').toUpperCase() === 'SOLDOUT'
+                                            || String(entry.cancelRemarks || '').toLowerCase().includes('sold out');
+                                          return (
                                         <span
                                           onClick={() => {
                                             if (entry.cancelRemarks) {
@@ -3086,17 +3159,19 @@ const SampleEntryPage: React.FC<{
                                           style={{
                                             fontSize: '11px',
                                             padding: '3px 8px',
-                                            backgroundColor: '#f8bbd0',
-                                            color: '#880e4f',
+                                            backgroundColor: isSoldOutEntry ? '#800000' : '#f8bbd0',
+                                            color: isSoldOutEntry ? '#ffffff' : '#880e4f',
                                             borderRadius: '3px',
                                             fontWeight: '700',
-                                            border: '1px solid #d81b60',
+                                            border: isSoldOutEntry ? '1px solid #5c0000' : '1px solid #d81b60',
                                             cursor: entry.cancelRemarks ? 'pointer' : 'default'
                                           }}
-                                          title={entry.cancelRemarks ? 'View cancellation remarks' : 'Cancelled'}
+                                          title={entry.cancelRemarks ? 'View cancellation remarks' : (isSoldOutEntry ? 'Sold Out' : 'Cancelled')}
                                         >
-                                          Cancelled
+                                          {isSoldOutEntry ? 'Sold Out' : 'Cancelled'}
                                         </span>
+                                          );
+                                        })()}
                                       </div>
                                     ) : terminalSampleReportMeta ? (
                                       <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -3188,6 +3263,7 @@ const SampleEntryPage: React.FC<{
                                         )}
                                         {renderUploadButton()}
                                         {renderGpsButton()}
+                                        {renderDeleteButton()}
                                       </div>
                                     ) : isPaddyResampleEntry && canEditQuality ? (
                                       <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-start' }}>
@@ -3234,6 +3310,7 @@ const SampleEntryPage: React.FC<{
                                         ) : null}
                                         {renderUploadButton()}
                                         {renderGpsButton()}
+                                        {renderDeleteButton()}
                                       </div>
                                     ) : hasResample100gPrep ? (
                                       <>
@@ -3255,6 +3332,7 @@ const SampleEntryPage: React.FC<{
                                             ) : null}
                                             {renderUploadButton()}
                                             {renderGpsButton()}
+                                            {renderDeleteButton()}
                                           </div>
                                         )}
                                       </>
@@ -3278,6 +3356,7 @@ const SampleEntryPage: React.FC<{
                                             ) : null}
                                             {renderUploadButton()}
                                             {renderGpsButton()}
+                                            {renderDeleteButton()}
                                           </div>
                                         )}
                                       </>
@@ -3374,6 +3453,7 @@ const SampleEntryPage: React.FC<{
                                             ) : null}
                                             {renderUploadButton()}
                                             {renderGpsButton()}
+                                            {renderDeleteButton()}
                                           </div>
                                         )}
                                       </>
@@ -3416,6 +3496,7 @@ const SampleEntryPage: React.FC<{
                                         ) : null}
                                         {renderUploadButton()}
                                         {renderGpsButton()}
+                                        {renderDeleteButton()}
                                       </div>
                                     ) : (
                                       <span style={{ fontSize: '10px', padding: '2px 6px', backgroundColor: '#f5f5f5', color: '#999', borderRadius: '3px', fontWeight: '600' }}>Pending</span>
@@ -4049,7 +4130,7 @@ const SampleEntryPage: React.FC<{
                           type="radio"
                           name="sampleGivenTo"
                           checked={!formData.sampleGivenToOffice}
-                          onChange={() => setFormData({ ...formData, sampleGivenToOffice: false, sampleCollectedBy: user?.username || '' })}
+                          onChange={() => setFormData({ ...formData, sampleGivenToOffice: false, sampleCollectedBy: toTitleCase(user?.fullName || user?.username || '') })}
                           style={{ accentColor: '#4a90e2', cursor: 'pointer' }}
                         />
                         Taken By
@@ -4071,7 +4152,7 @@ const SampleEntryPage: React.FC<{
                         <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500', color: '#555', fontSize: '12px' }}>Staff Name</label>
                         <input
                           type="text"
-                          value={formData.sampleCollectedBy || user?.username || ''}
+                          value={formData.sampleCollectedBy || toTitleCase(user?.fullName || user?.username || '')}
                           disabled
                           style={{ width: '100%', padding: '6px 8px', border: '1px solid #ddd', borderRadius: '3px', fontSize: '13px', textTransform: 'uppercase', backgroundColor: '#f0f0f0', cursor: 'not-allowed', fontWeight: '600', color: '#333' }}
                         />
@@ -5198,7 +5279,7 @@ const SampleEntryPage: React.FC<{
                           type="radio"
                           name="editSampleGivenTo"
                           checked={!formData.sampleGivenToOffice}
-                          onChange={() => setFormData({ ...formData, sampleGivenToOffice: false, sampleCollectedBy: user?.username || '' })}
+                          onChange={() => setFormData({ ...formData, sampleGivenToOffice: false, sampleCollectedBy: toTitleCase(user?.fullName || user?.username || '') })}
                           style={{ accentColor: '#4a90e2', cursor: 'pointer' }}
                         />
                         Taken By
@@ -5220,7 +5301,7 @@ const SampleEntryPage: React.FC<{
                         <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500', color: '#555', fontSize: '12px' }}>Staff Name</label>
                         <input
                           type="text"
-                          value={formData.sampleCollectedBy || user?.username || ''}
+                          value={formData.sampleCollectedBy || toTitleCase(user?.fullName || user?.username || '')}
                           disabled
                           style={{ width: '100%', padding: '6px 8px', border: '1px solid #ddd', borderRadius: '3px', fontSize: '13px', textTransform: 'uppercase', backgroundColor: '#f0f0f0', cursor: 'not-allowed', fontWeight: '600', color: '#333' }}
                         />
@@ -5361,6 +5442,7 @@ const SampleEntryPage: React.FC<{
         <SampleEntryDetailModal
           detailEntry={detailEntry as any}
           detailMode={detailMode}
+          showCollectorLoginPair={true}
           onClose={() => setDetailEntry(null)}
           onUpdate={async (gpsCoordinates?: string) => {
             if (gpsCoordinates) {

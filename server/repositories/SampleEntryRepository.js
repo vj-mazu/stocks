@@ -538,7 +538,22 @@ class SampleEntryRepository {
       }
     }
 
-    if (role === 'physical_supervisor' && userId) {
+    const assignedLocationStaffStatuses = new Set([
+      'LOT_ALLOTMENT',
+      'PHYSICAL_INSPECTION',
+      'INVENTORY_ENTRY',
+      'OWNER_FINANCIAL',
+      'MANAGER_FINANCIAL',
+      'FINAL_REVIEW',
+      'COMPLETED'
+    ]);
+    const isAssignedLocationStaffView =
+      role === 'staff'
+      && staffType === 'location'
+      && requestedStatus
+      && assignedLocationStaffStatuses.has(requestedStatus);
+
+    if ((role === 'physical_supervisor' || isAssignedLocationStaffView) && userId) {
       const lotAllotmentInclude = include.find(i => i.as === 'lotAllotment');
       if (lotAllotmentInclude) {
         lotAllotmentInclude.where = { allottedToSupervisorId: userId };

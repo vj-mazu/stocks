@@ -27,6 +27,8 @@ interface SampleEntry {
 interface Supervisor {
   id: number;
   username: string;
+  fullName?: string | null;
+  staffType?: string | null;
 }
 
 const AssigningSupervisor: React.FC = () => {
@@ -110,11 +112,11 @@ const AssigningSupervisor: React.FC = () => {
   const loadSupervisors = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/admin/physical-supervisors`, {
+      const response = await axios.get(`${API_URL}/sample-entries/paddy-supervisors?staffType=location`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const physicalSupervisors = (response.data as any).users || [];
-      setSupervisors(physicalSupervisors);
+      const locationStaff = (response.data as any).users || [];
+      setSupervisors(locationStaff);
     } catch (error: any) {
       showNotification(error.response?.data?.error || 'Failed to load supervisors', 'error');
     }
@@ -277,7 +279,7 @@ const AssigningSupervisor: React.FC = () => {
                                   <option value="">-- Select Supervisor --</option>
                                   {supervisors.map(supervisor => (
                                     <option key={supervisor.id} value={supervisor.id}>
-                                      {supervisor.username}
+                                      {supervisor.fullName || supervisor.username}
                                     </option>
                                   ))}
                                 </select>

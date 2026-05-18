@@ -266,7 +266,7 @@ const AppContent: React.FC = () => {
               <Route
                 path="/physical-inspection"
                 element={
-                  <ProtectedRoute roles={['physical_supervisor']}>
+                  <ProtectedRoute roles={['physical_supervisor', 'staff']}>
                     <Layout>
                       <PhysicalInspection />
                     </Layout>

@@ -549,7 +549,7 @@ const Navbar: React.FC = () => {
                   {(user.role === 'inventory_staff' || user.role === 'admin') && (
                     <DropdownLink to="/inventory-entry" $active={isActive('/inventory-entry')}>Inventory Entry</DropdownLink>
                   )}
-                  {user.role === 'physical_supervisor' && (
+                  {(user.role === 'physical_supervisor' || (user.role === 'staff' && user.staffType === 'location')) && (
                     <DropdownLink to="/physical-inspection" $active={isActive('/physical-inspection')}>Lots Allotted</DropdownLink>
                   )}
                   {user.role === 'admin' && (

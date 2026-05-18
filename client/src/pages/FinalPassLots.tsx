@@ -1466,6 +1466,7 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
           detailEntry={detailModalEntry as any}
           detailMode="history"
           onClose={() => setDetailModalEntry(null)}
+          showCollectorLoginPair={true}
         />
       )}
       {!isRiceMode && (
@@ -2952,6 +2953,7 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
           detailEntry={detailModalEntry as any}
           detailMode="history"
           onClose={() => setDetailModalEntry(null)}
+          showCollectorLoginPair={true}
         />
       )}
       {assignmentModal.isOpen && assignmentModal.entry && (

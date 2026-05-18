@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { SampleEntryDetailModal } from '../components/SampleEntryDetailModal';
 import { API_URL } from '../config/api';
-import { getConvertedEntryTypeCode, getDisplayedEntryTypeCode, getEntryTypeTextColor, getOriginalEntryTypeCode, isConvertedResampleType } from '../utils/sampleTypeDisplay';
+import { getCollectedByDisplay as getSharedCollectedByDisplay, getConvertedEntryTypeCode, getDisplayedEntryTypeCode, getEntryTypeTextColor, getOriginalEntryTypeCode, isConvertedResampleType } from '../utils/sampleTypeDisplay';
 
 interface SampleEntry {
   id: string;
@@ -1027,6 +1027,25 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     }
   };
 
+  const handleSendToResample = async (entry: SampleEntry) => {
+    if (isSubmitting) return;
+    try {
+      setIsSubmitting(true);
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `${API_URL}/sample-entries/${entry.id}/lot-selection`,
+        { decision: 'RESAMPLE' },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      showNotification('Entry sent to resample successfully', 'success');
+      fetchEntries();
+    } catch (error: any) {
+      showNotification(error.response?.data?.error || 'Failed to send entry to resample', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const groupedByDateBroker: Record<string, Record<string, SampleEntry[]>> = {};
 
   const filteredEntries = useMemo(() => {
@@ -1068,42 +1087,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     const raw = creator?.fullName || creator?.username || '';
     return raw ? toTitleCase(raw) : '-';
   };
-  const getCollectedByDisplay = (entry: SampleEntry) => {
-    const history = entry.sampleCollectedHistory || [];
-    const fallbackCollector = history.length > 0
-      ? history[0]
-      : entry.sampleCollectedBy;
-
-    let rawCollector = fallbackCollector || '';
-    const resampleCollectors = [
-      ...((Array.isArray((entry as any)?.resampleCollectedTimeline) ? (entry as any).resampleCollectedTimeline : []).map((item: any) => item?.sampleCollectedBy || item?.name || '')),
-      ...((Array.isArray((entry as any)?.resampleCollectedHistory) ? (entry as any).resampleCollectedHistory : []).map((item: any) => item?.sampleCollectedBy || item?.name || ''))
-    ]
-      .map((value) => String(value || '').trim())
-      .filter(Boolean);
-
-    const orderedCollectors = buildOrderedNameList([
-      rawCollector,
-      ...resampleCollectors,
-      entry.sampleCollectedBy
-    ]).filter((value, index, arr) => arr.findIndex((candidate) => candidate.toLowerCase() === value.toLowerCase()) === index);
-    const normalizeCollectorToken = (value: string) => value.includes('|')
-      ? value.split('|').map((s: string) => s.trim()).filter(Boolean).pop() || value
-      : value;
-    const primaryToken = normalizeCollectorToken(String(rawCollector || '').trim());
-    const secondaryToken = resampleCollectors.length > 0
-      ? normalizeCollectorToken(String(resampleCollectors[resampleCollectors.length - 1] || '').trim())
-      : '';
-    const collectorLabel = getCollectorLabel((secondaryToken || primaryToken || String(orderedCollectors[orderedCollectors.length - 1] || '').trim()) || null);
-    const primaryLabel = getCollectorLabel(primaryToken || null);
-    const secondaryLabel = getCollectorLabel(secondaryToken || null);
-
-    return {
-      primary: resampleCollectors.length > 0 ? (primaryLabel !== '-' ? primaryLabel : collectorLabel) : (collectorLabel !== '-' ? collectorLabel : '-'),
-      secondary: resampleCollectors.length > 0 && secondaryLabel !== '-' ? secondaryLabel : null,
-      highlightPrimary: false
-    };
-  };
+  const getCollectedByDisplay = (entry: SampleEntry) => getSharedCollectedByDisplay(entry as any, paddySupervisors, { keepLoginPair: true });
   const buildOrderedNameList = (values: Array<string | null | undefined>) => values
     .map((value) => String(value || '').trim())
     .filter(Boolean);
@@ -1477,6 +1461,17 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
       && String((entry as any)?.originalEntryType || '').toUpperCase() !== 'LOCATION_SAMPLE';
     const hasResampleCollectorHistory = (Array.isArray((entry as any)?.resampleCollectedTimeline) && (entry as any).resampleCollectedTimeline.length > 0)
       || (Array.isArray((entry as any)?.resampleCollectedHistory) && (entry as any).resampleCollectedHistory.length > 0);
+    const hasDisplayableResampleWorkflow =
+      hasResampleCollectorHistory
+      || isConvertedLocationResample
+      || Boolean((entry as any)?.resampleTriggerRequired)
+      || Boolean((entry as any)?.resampleTriggeredAt)
+      || Boolean((entry as any)?.resampleDecisionAt)
+      || Boolean((entry as any)?.resampleAfterFinal)
+      || Boolean((entry as any)?.resampleStartAt)
+      || Number((entry as any)?.qualityReportAttempts || 0) > 1
+      || buildCookingStatusRows(entry).length > 1
+      || getCollectedAttemptNames(entry, 2).length > 1;
     const isSpecialTriggeredResamplePending = !isHardFailed
       && isConvertedLocationResample
       && hasCookingHistory
@@ -1494,7 +1489,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
 
       if (isHardFailed && attemptsSorted.length > 1) {
         status = isLast ? 'Fail' : 'Pass';
-      } else if (isLast && (isResamplePassFlow || isCookingDrivenResample)) {
+      } else if (isLast && hasCurrentResampleQuality && (isResamplePassFlow || isCookingDrivenResample)) {
         const qType = getQualityTypeMeta(attempt).label;
         const normalizedLotDecision = String(entry.lotSelectionDecision || '').toUpperCase();
         const isWorkflowPending = !['COMPLETED', 'PASSED', 'FAILED', 'CANCELLED', 'SOLD_OUT'].includes(String(entry.workflowStatus || '').toUpperCase());
@@ -1547,6 +1542,12 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
         rows.push({ type: 'Pending', typeVariant: 'default', status: 'Resampling' });
       }
     } else if (isFailDecision && hasCurrentResampleQuality && rows.length === 1) {
+      const onlyRow = rows[0];
+      const isWbOnlyResampleRow = onlyRow?.type === '100-Gms' && onlyRow?.typeVariant === 'resample-wb';
+      if (!isWbOnlyResampleRow) {
+        rows.unshift({ type: 'Done', typeVariant: 'default', status: 'Pass' });
+      }
+    } else if (isHardFailed && hasDisplayableResampleWorkflow && rows.length === 1) {
       const onlyRow = rows[0];
       const isWbOnlyResampleRow = onlyRow?.type === '100-Gms' && onlyRow?.typeVariant === 'resample-wb';
       if (!isWbOnlyResampleRow) {
@@ -1783,6 +1784,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
           detailEntry={detailModalEntry as any}
           detailMode="history"
           onClose={() => setDetailModalEntry(null)}
+          showCollectorLoginPair={true}
         />
       )}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
@@ -2040,6 +2042,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                               const qualityAttempts = getQualityAttemptsForEntry(entry);
                               const qualityRows = buildQualityStatusRows(entry);
                               const cookingRows = buildCookingStatusRows(entry);
+                              const normalizedLotDecision = String(entry.lotSelectionDecision || '').toUpperCase();
                               const resampleOriginDecision = String((entry as any)?.resampleOriginDecision || '').toUpperCase();
                               const isConvertedLocationResample = String(entry.entryType || '').toUpperCase() === 'LOCATION_SAMPLE'
                                 && !!String((entry as any)?.originalEntryType || '').trim()
@@ -2051,6 +2054,13 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                 || hasResampleCollectorHistory
                                 || resampleOriginDecision === 'PASS_WITH_COOKING'
                                 || resampleOriginDecision === 'PASS_WITHOUT_COOKING';
+                              const canTriggerLoadingResample = ['admin', 'manager', 'owner'].includes(String(user?.role || '').toLowerCase())
+                                && !hasDisplayableResampleWorkflow
+                                && !Boolean((entry as any)?.resampleStartAt)
+                                && !Boolean((entry as any)?.resampleTriggeredAt)
+                                && !Boolean((entry as any)?.resampleDecisionAt)
+                                && !Boolean((entry as any)?.resampleAfterFinal)
+                                && normalizedLotDecision !== 'FAIL';
                               const hasGhostResamplePending =
                                 qualityRows.length >= 2
                                 && qualityRows[0]?.type === 'Done'
@@ -2064,7 +2074,6 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                 ]
                                 : qualityRows;
                               const hasQualityReport = qualityAttempts.length > 0 || !!qualityData.reportedBy || !!qualityData.id;
-                              const normalizedLotDecision = String(entry.lotSelectionDecision || '').toUpperCase();
                               const isResampleCase = qualityAttempts.length > 1
                                 || normalizedLotDecision === 'FAIL'
                                 || Boolean((entry as any)?.resampleStartAt)
@@ -2294,25 +2303,10 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                       })}
                                       {isResamplePendingAdminAssign && (
                                         <div style={{ marginTop: '3px', padding: '5px', background: '#fff8e1', borderRadius: '4px', border: '1px solid #f4d06f' }}>
-                                          <div style={{ fontWeight: 800, color: '#8a6400', marginBottom: '3px' }}>Assign Resample User</div>
-                                          <select
-                                            value={assignments[entry.id] ?? entry.sampleCollectedBy ?? ''}
-                                            onChange={(e) => setAssignments(prev => ({ ...prev, [entry.id]: e.target.value }))}
-                                            style={{ width: '100%', padding: '3px', fontSize: '10px', border: '1px solid #ccc', borderRadius: '3px', marginBottom: '4px' }}
-                                          >
-                                            <option value="">Select Staff</option>
-                                            {paddySupervisors.map((sup) => (
-                                              <option key={sup.id} value={sup.username}>
-                                                {toTitleCase(sup.fullName || sup.username)}
-                                              </option>
-                                            ))}
-                                          </select>
-                                          <button
-                                            onClick={() => handleAssignResample(entry)}
-                                            style={{ width: '100%', padding: '3px 6px', background: '#1976d2', color: '#fff', border: 'none', borderRadius: '3px', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}
-                                          >
-                                            Assign
-                                          </button>
+                                          <div style={{ fontWeight: 800, color: '#8a6400', marginBottom: '2px' }}>Resample Allotment</div>
+                                          <div style={{ fontSize: '10px', color: '#8a6400', fontWeight: 700 }}>
+                                            Assign user in Resample Allotment tab
+                                          </div>
                                         </div>
                                       )}
                                     </div>
@@ -2451,6 +2445,14 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                             Edit Final
                                           </button>
                                         </div>
+                                      )}
+                                      {canTriggerLoadingResample && (
+                                        <button
+                                          onClick={() => handleSendToResample(entry)}
+                                          style={{ padding: '3px 6px', background: '#e67e22', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '10px', cursor: 'pointer', fontWeight: 700 }}
+                                        >
+                                          Resample
+                                        </button>
                                       )}
                                     </div>
                                   </td>

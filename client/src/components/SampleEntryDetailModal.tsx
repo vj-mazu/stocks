@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_URL } from '../config/api';
 import { useAuth } from '../contexts/AuthContext';
+import { getCollectedByDisplay as getSharedCollectedByDisplay } from '../utils/sampleTypeDisplay';
 
 interface SampleEntry {
     id: string;
@@ -470,7 +471,7 @@ const getPopupSmellSummary = (entry: any) => {
 
 
 
-export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpdate }: { detailEntry: SampleEntry, detailMode: 'quick' | 'history' | 'summary' | 'full', onClose: () => void, onUpdate?: (gpsCoordinates?: string) => void | Promise<void> }) => {
+export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpdate, showCollectorLoginPair = false }: { detailEntry: SampleEntry, detailMode: 'quick' | 'history' | 'summary' | 'full', onClose: () => void, onUpdate?: (gpsCoordinates?: string) => void | Promise<void>, showCollectorLoginPair?: boolean }) => {
     const { user } = useAuth();
     const buildMapHref = (value: any) => {
         const raw = typeof value === 'object' && value !== null
@@ -640,55 +641,27 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         const firstHistoryValue = history.find((value: any) => String(value || '').trim());
         return String(firstHistoryValue || entry.sampleCollectedBy || '').trim();
     };
+    const getLatestFirstCycleCollector = (entry: SampleEntry) => {
+        const current = String(entry.sampleCollectedBy || '').trim();
+        const timeline = Array.isArray((entry as any)?.sampleCollectedTimeline) ? (entry as any).sampleCollectedTimeline : [];
+        const history = Array.isArray((entry as any)?.sampleCollectedHistory) ? (entry as any).sampleCollectedHistory : [];
+        const getValue = (item: any) => {
+            if (typeof item === 'string') return String(item || '').trim();
+            if (item && typeof item === 'object') return String(item.sampleCollectedBy || item.name || '').trim();
+            return '';
+        };
+        const lastTimelineValue = timeline.length > 0 ? getValue(timeline[timeline.length - 1]) : '';
+        const lastHistoryValue = history.length > 0 ? getValue(history[history.length - 1]) : '';
+        const firstHistoryValue = history.length > 0 ? getValue(history[0]) : '';
+        return String(current || lastTimelineValue || lastHistoryValue || firstHistoryValue || '').trim();
+    };
     const buildOrderedCollectorNames = (values: Array<string | null | undefined>) => values
         .map((value) => String(value || '').trim())
         .filter(Boolean)
         .filter((value, index, arr) => (
             arr.findIndex((candidate) => candidate.toLowerCase() === value.toLowerCase()) === index
         ));
-    const getCollectedByDisplay = (entry: SampleEntry) => {
-        const rawCollector = getOriginalCollector(entry) || '';
-        const extractCollectorNames = (items: any[]) => items.map((item) => {
-            if (typeof item === 'string') return item;
-            if (item && typeof item === 'object') return item.sampleCollectedBy || item.name || '';
-            return '';
-        });
-        const resampleTimeline = Array.isArray((entry as any)?.resampleCollectedTimeline) ? (entry as any).resampleCollectedTimeline : [];
-        const resampleHistory = Array.isArray((entry as any)?.resampleCollectedHistory) ? (entry as any).resampleCollectedHistory : [];
-        const resampleCollectors = buildOrderedCollectorNames([
-            ...extractCollectorNames(resampleTimeline),
-            ...extractCollectorNames(resampleHistory)
-        ]).filter((name) => name.toLowerCase() !== 'broker office sample');
-        const currentCollector = String(entry.sampleCollectedBy || '').trim();
-        const effectiveCollector = String(
-            resampleCollectors[resampleCollectors.length - 1]
-            || currentCollector
-            || rawCollector
-            || ''
-        ).trim();
-
-        const normalizeCollectorToken = (value: string) => value.includes('|')
-            ? value.split('|').map((s) => s.trim()).filter(Boolean).pop() || value
-            : value;
-        const primaryToken = normalizeCollectorToken(String(rawCollector || '').trim());
-        const secondaryToken = resampleCollectors.length > 0
-            ? normalizeCollectorToken(String(resampleCollectors[resampleCollectors.length - 1] || '').trim())
-            : '';
-        const collectorLabel = getCollectorLabel((secondaryToken || primaryToken || effectiveCollector) || null);
-        if (collectorLabel === 'Broker Office Sample' && !secondaryToken) {
-            return {
-                primary: collectorLabel,
-                secondary: null,
-                highlightPrimary: false
-            };
-        }
-
-        return {
-            primary: resampleCollectors.length > 0 ? getCollectorLabel(primaryToken || null) : (collectorLabel !== '-' ? collectorLabel : '-'),
-            secondary: resampleCollectors.length > 0 ? getCollectorLabel(secondaryToken || null) : null,
-            highlightPrimary: false
-        };
-    };
+    const getCollectedByDisplay = (entry: SampleEntry) => getSharedCollectedByDisplay(entry as any, supervisors, { keepLoginPair: showCollectorLoginPair });
 
 
 

@@ -34,6 +34,12 @@ const WORKFLOW_TRANSITIONS = [
     requiredData: ['qualityParameters']
   },
   {
+    fromStatus: 'STAFF_ENTRY',
+    toStatus: 'FAILED',
+    allowedRoles: ['admin', 'manager'],
+    requiredData: []
+  },
+  {
     fromStatus: 'QUALITY_CHECK',
     toStatus: 'LOT_SELECTION',
     allowedRoles: ['admin', 'manager', 'owner', 'quality_supervisor', 'physical_supervisor'],

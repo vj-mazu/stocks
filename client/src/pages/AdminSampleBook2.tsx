@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { API_URL } from '../config/api';
 import { toast } from '../utils/toast';
-import { getConvertedEntryTypeCode, getDisplayedEntryTypeCode, getEntryTypeTextColor, getOriginalEntryTypeCode, isConvertedResampleType } from '../utils/sampleTypeDisplay';
+import { getCollectedByDisplay as getSharedCollectedByDisplay, getConvertedEntryTypeCode, getDisplayedEntryTypeCode, getEntryTypeTextColor, getOriginalEntryTypeCode, isConvertedResampleType } from '../utils/sampleTypeDisplay';
 import { getDisplayQualityParameters } from '../utils/sampleEntryQualityModalLogic';
 import { SampleEntryDetailModal } from '../components/SampleEntryDetailModal';
 
@@ -603,42 +603,7 @@ const AdminSampleBook2: React.FC<AdminSampleBook2Props> = ({ entryType, excludeE
         const resampleHistory = Array.isArray((entry as any)?.resampleCollectedHistory) ? (entry as any).resampleCollectedHistory : [];
         return Array.from(new Set([...extractNames(resampleTimeline), ...extractNames(resampleHistory)]));
     };
-    const getCollectedByDisplay = (entry: SampleEntry) => {
-        const rawCollector = getOriginalCollector(entry) || '';
-        const resampleCollectors = getResampleCollectorNames(entry);
-        const currentCollector = String(entry.sampleCollectedBy || '').trim();
-        const effectiveCollector = String(
-            resampleCollectors[resampleCollectors.length - 1]
-            || currentCollector
-            || rawCollector
-            || ''
-        ).trim();
-
-        const normalizeCollectorToken = (value: string) => value.includes('|')
-            ? value.split('|').map((s) => s.trim()).filter(Boolean).pop() || value
-            : value;
-        const primaryToken = normalizeCollectorToken(String(rawCollector || '').trim());
-        const currentCollectorToken = normalizeCollectorToken(String(currentCollector || '').trim());
-        const secondaryToken = resampleCollectors.length > 0
-            ? normalizeCollectorToken(String(resampleCollectors[resampleCollectors.length - 1] || '').trim())
-            : '';
-        const collectorLabel = getCollectorLabel((secondaryToken || currentCollectorToken || primaryToken || effectiveCollector) || null);
-        if (collectorLabel === 'Broker Office Sample' && !secondaryToken) {
-            return {
-                primary: collectorLabel,
-                secondary: null,
-                highlightPrimary: false
-            };
-        }
-
-        return {
-            primary: resampleCollectors.length > 0
-                ? getCollectorLabel(primaryToken || null)
-                : (getCollectorLabel(currentCollectorToken || null) !== '-' ? getCollectorLabel(currentCollectorToken || null) : (collectorLabel !== '-' ? collectorLabel : '-')),
-            secondary: resampleCollectors.length > 0 ? getCollectorLabel(secondaryToken || null) : null,
-            highlightPrimary: false
-        };
-    };
+    const getCollectedByDisplay = (entry: SampleEntry) => getSharedCollectedByDisplay(entry as any, supervisors, { keepLoginPair: true });
 
     const handleRecheck = async (type: string) => {
         if (!recheckModal.entry) return;
@@ -981,6 +946,11 @@ const AdminSampleBook2: React.FC<AdminSampleBook2Props> = ({ entryType, excludeE
 
 const buildQualityStatusRows = (entry: SampleEntry) => {
         const attemptsSorted = getQualityAttemptsForEntry(entry);
+        const soldOutLike = String(entry.lotSelectionDecision || '').toUpperCase() === 'SOLDOUT'
+            || String((entry as any).cancelRemarks || '').toLowerCase().includes('sold out')
+            || String((entry as any).cancelRemarks || '').toLowerCase().includes('soldout')
+            || String((entry as any).failRemarks || '').toLowerCase().includes('sold out')
+            || String((entry as any).failRemarks || '').toLowerCase().includes('soldout');
         const isHardFailed = String(entry.workflowStatus || '').toUpperCase() === 'FAILED';
         const isFailDecision = String(entry.lotSelectionDecision || '').toUpperCase() === 'FAIL' && String(entry.workflowStatus || '').toUpperCase() !== 'FAILED';
         const resampleOriginDecision = String((entry as any)?.resampleOriginDecision || '').toUpperCase();
@@ -999,7 +969,18 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             isConvertedLocationResample
             || hasResampleCollectorHistory
             || resampleOriginDecision === 'PASS_WITH_COOKING'
-            || resampleOriginDecision === 'PASS_WITHOUT_COOKING';
+            || resampleOriginDecision === 'PASS_WITHOUT_COOKING'
+            || Boolean((entry as any)?.resampleTriggerRequired)
+            || Boolean((entry as any)?.resampleTriggeredAt)
+            || Boolean((entry as any)?.resampleDecisionAt)
+            || Boolean((entry as any)?.resampleAfterFinal)
+            || Boolean((entry as any)?.resampleStartAt)
+            || Number((entry as any)?.qualityReportAttempts || 0) > 1
+            || buildCookingStatusRows(entry).length > 1
+            || buildOrderedCollectorNames([
+                getOriginalCollector(entry),
+                ...getResampleCollectorNames(entry)
+            ]).length > 1;
         const isSpecialTriggeredResamplePending = !isHardFailed
             && isConvertedLocationResample
             && hasCookingHistory
@@ -1012,6 +993,17 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             (isFailDecision || isHardFailed)
             && !hasDisplayableResampleWorkflow
             && attemptsSorted.length > 0;
+
+        if (soldOutLike) {
+            return attemptsSorted.map((attempt: any) => {
+                const qualityType = getQualityTypeMeta(attempt);
+                return {
+                    type: qualityType.label,
+                    typeVariant: qualityType.variant,
+                    status: qualityType.label === 'Pending' ? 'Pending' : 'Pass'
+                };
+            });
+        }
 
         if (shouldCollapseToSingleFailRow) {
             const primaryAttempt = attemptsSorted[0];
@@ -1038,7 +1030,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             // LINE-WISE logic: 1st attempt stays Pass, only the failed attempt shows Fail
             if (isHardFailed && attemptsSorted.length > 1) {
                 status = isLast ? 'Fail' : 'Pass';
-            } else if (isLast && (isResamplePassFlow || isCookingDrivenResample)) {
+            } else if (isLast && hasCurrentResampleQuality && (isResamplePassFlow || isCookingDrivenResample)) {
                 const qType = getQualityTypeMeta(attempt).label;
                 const normalizedLotDecision = String(entry.lotSelectionDecision || '').toUpperCase();
                 const isWorkflowPending = !['COMPLETED', 'PASSED', 'FAILED', 'CANCELLED', 'SOLD_OUT'].includes(String(entry.workflowStatus || '').toUpperCase());
@@ -1098,6 +1090,12 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
         }
         // If FAIL decision and resample quality exists but only 1 row (shouldn't happen but handle it)
         else if (isFailDecision && hasCurrentResampleQuality && rows.length === 1) {
+            const onlyRow = rows[0];
+            const isWbOnlyResampleRow = onlyRow?.type === '100-Gms' && onlyRow?.typeVariant === 'resample-wb';
+            if (!isWbOnlyResampleRow) {
+                rows.unshift({ type: 'Done', typeVariant: 'default', status: 'Pass' });
+            }
+        } else if (isHardFailed && hasDisplayableResampleWorkflow && rows.length === 1) {
             const onlyRow = rows[0];
             const isWbOnlyResampleRow = onlyRow?.type === '100-Gms' && onlyRow?.typeVariant === 'resample-wb';
             if (!isWbOnlyResampleRow) {
@@ -1342,6 +1340,9 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
 
     const qualityBadge = (entry: SampleEntry) => {
         const rows = buildQualityStatusRows(entry);
+        const isSoldOutEntry = String(entry.lotSelectionDecision || '').toUpperCase() === 'SOLDOUT'
+            || String(entry.cancelRemarks || '').toLowerCase().includes('sold out')
+            || String((entry as any).failRemarks || '').toLowerCase().includes('sold out');
         const resampleOriginDecision = String((entry as any)?.resampleOriginDecision || '').toUpperCase();
         const isConvertedLocationResample = String(entry.entryType || '').toUpperCase() === 'LOCATION_SAMPLE'
             && !!String((entry as any)?.originalEntryType || '').trim()
@@ -1362,7 +1363,9 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             && rows[1]?.type === 'Pending'
             && rows[1]?.status === 'Fail';
 
-        const displayRows = hasGhostFailFollowup
+        const displayRows = isSoldOutEntry
+            ? rows
+            : hasGhostFailFollowup
             ? [{
                 ...rows[0],
                 status: 'Fail'
@@ -1465,6 +1468,9 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
         const cookingRows = buildCookingStatusRows(entry);
         const latestQuality = qualityRows.length > 0 ? qualityRows[qualityRows.length - 1] : null;
         const latestCooking = cookingRows.length > 0 ? cookingRows[cookingRows.length - 1] : null;
+        const isSoldOutEntry = String(entry.lotSelectionDecision || '').toUpperCase() === 'SOLDOUT'
+            || String(entry.cancelRemarks || '').toLowerCase().includes('sold out')
+            || String(entry.cancelRemarks || '').toLowerCase().includes('soldout');
         const hasDetailedQuality = !!(qp
             && isProvidedNumeric((qp as any).cutting1Raw, qp.cutting1)
             && isProvidedNumeric((qp as any).cutting2Raw, qp.cutting2)
@@ -1523,18 +1529,18 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                             fontSize: '9px',
                             padding: '3px 8px',
                             borderRadius: '10px',
-                            backgroundColor: '#f8bbd0',
-                            color: '#880e4f',
+                            backgroundColor: isSoldOutEntry ? '#800000' : '#f8bbd0',
+                            color: isSoldOutEntry ? '#ffffff' : '#880e4f',
                             fontWeight: '800',
                             lineHeight: '1.2',
                             whiteSpace: 'normal',
                             textAlign: 'center',
-                            border: '1px solid #d81b60',
+                            border: isSoldOutEntry ? '1px solid #5c0000' : '1px solid #d81b60',
                             cursor: entry.cancelRemarks ? 'pointer' : 'default',
                             boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                         }}
                     >
-                        Cancelled
+                        {isSoldOutEntry ? 'Sold Out' : 'Cancelled'}
                     </button>
                 </div>
             );
@@ -2218,6 +2224,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                         detailEntry={detailEntry as any}
                         detailMode="history"
                         onClose={() => setDetailEntry(null)}
+                        showCollectorLoginPair={true}
                     />
                 )
             }
