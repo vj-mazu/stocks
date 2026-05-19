@@ -244,7 +244,7 @@ class QualityParametersService {
           lotSelectionDecision: 'FAIL',
           lotSelectionAt: new Date(),
           lotSelectionByUserId: userId,
-          failRemarks: `Auto-failed due to smell: ${qualityData.smellType || 'Yes'}`,
+          failRemarks: `Failed: ${String(qualityData.smellType || 'Yes').charAt(0).toUpperCase()}${String(qualityData.smellType || 'Yes').slice(1).toLowerCase()} Smell`,
           smellHas: true,
           smellType: qualityData.smellType
         });
@@ -392,7 +392,7 @@ class QualityParametersService {
           lotSelectionDecision: 'FAIL',
           lotSelectionAt: new Date(),
           lotSelectionByUserId: userId,
-          failRemarks: `Auto-failed due to smell: ${updates.smellType || 'Yes'}`,
+          failRemarks: `Failed: ${String(updates.smellType || 'Yes').charAt(0).toUpperCase()}${String(updates.smellType || 'Yes').slice(1).toLowerCase()} Smell`,
           smellHas: true,
           smellType: updates.smellType
         });

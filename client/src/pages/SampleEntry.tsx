@@ -542,7 +542,11 @@ const SampleEntryPage: React.FC<{
     const isSmellFail = String(entry?.workflowStatus || '').toUpperCase() === 'FAILED'
       && failRemarks.toLowerCase().includes('smell');
     if (isSmellFail) {
-      const smellLabel = failRemarks.replace(/^failed:\s*/i, '').replace(/\s*smell\s*$/i, '').trim();
+      const smellLabel = failRemarks
+        .replace(/^auto[-\s]*failed\s+due\s+to\s+smell\s*:\s*/i, '')
+        .replace(/^failed:\s*/i, '')
+        .replace(/\s*smell\s*$/i, '')
+        .trim();
       if (smellLabel) {
         return toTitleCase(smellLabel);
       }
@@ -599,7 +603,13 @@ const SampleEntryPage: React.FC<{
     }
 
     if (failRemarksLower.includes('smell')) {
-      const smellPart = toTitleCase(failRemarks.replace(/^failed:\s*/i, '').trim() || 'Smell Fail');
+      const smellPart = toTitleCase(
+        failRemarks
+          .replace(/^auto[-\s]*failed\s+due\s+to\s+smell\s*:\s*/i, '')
+          .replace(/^failed:\s*/i, '')
+          .replace(/\s*smell\s*$/i, '')
+          .trim() || 'Smell Fail'
+      );
       return {
         label: 'Fail',
         subLabel: smellPart,
