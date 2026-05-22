@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
 import ResampleAllotment from './ResampleAllotment';
 import { SampleEntryDetailModal } from '../components/SampleEntryDetailModal';
-import { getConvertedEntryTypeCode, getDisplayedEntryTypeCode, getEntryTypeTextColor, getOriginalEntryTypeCode, isConvertedResampleType } from '../utils/sampleTypeDisplay';
+import { getCollectedByDisplay as getSharedCollectedByDisplay, getConvertedEntryTypeCode, getDisplayedEntryTypeCode, getEntryTypeTextColor, getOriginalEntryTypeCode, isConvertedResampleType, splitCollectedByLine } from '../utils/sampleTypeDisplay';
 import { getDisplayQualityParameters } from '../utils/sampleEntryQualityModalLogic';
 
 import { API_URL } from '../config/api';
@@ -308,8 +308,13 @@ const getCollectorLabel = (value?: string | null, supervisors?: { username: stri
   if (!raw) return '-';
   if (raw.toLowerCase() === 'broker office sample') return 'Broker Office Sample';
   if (supervisors && supervisors.length > 0) {
-    const match = supervisors.find((sup) => String(sup.username || '').trim().toLowerCase() === raw.toLowerCase());
+    const normalizedRaw = raw.toLowerCase();
+    const match = supervisors.find((sup) =>
+      String(sup.username || '').trim().toLowerCase() === normalizedRaw
+      || String(sup.fullName || '').trim().toLowerCase() === normalizedRaw
+    );
     if (match?.fullName) return toTitleCase(match.fullName);
+    if (match?.username) return toTitleCase(match.username);
   }
   return toTitleCase(raw);
 };
@@ -612,32 +617,9 @@ const getOriginalCollector = (entry: any) => {
   return String(entry?.sampleCollectedBy || '').trim();
 };
 
-const getFinalPassCollectedByDisplay = (entry: any, supervisors?: { username: string; fullName?: string | null }[]) => {
-  const originalCollector = getOriginalCollector(entry);
-  const orderedNames = [originalCollector];
-  const assignmentTimeline = getResampleAssignmentTimeline(entry);
-  assignmentTimeline.forEach((item) => {
-    if (item?.name) orderedNames.push(item.name);
-  });
-  if (entry?.sampleCollectedBy) orderedNames.push(String(entry.sampleCollectedBy).trim());
-  const normalized = orderedNames
-    .map((value) => String(value || '').trim())
-    .filter(Boolean)
-    .filter((value, index, arr) => arr.findIndex((candidate) => candidate.toLowerCase() === value.toLowerCase()) === index);
-  if (normalized.length === 0) return { primary: '-', secondary: null };
-  const normalizeCollectorToken = (value: string) => value.includes('|')
-    ? value.split('|').map((s) => s.trim()).filter(Boolean).pop() || value
-    : value;
-  const resampleToken = assignmentTimeline.length > 0
-    ? normalizeCollectorToken(String(assignmentTimeline[assignmentTimeline.length - 1]?.name || '').trim())
-    : '';
-  const primary = getCollectorLabel(normalizeCollectorToken(String(originalCollector || '').trim()), supervisors);
-  const secondary = resampleToken ? getCollectorLabel(resampleToken, supervisors) : null;
-  return {
-    primary: assignmentTimeline.length > 0 ? primary : getCollectorLabel(normalizeCollectorToken(String(normalized[normalized.length - 1] || '').trim()), supervisors),
-    secondary
-  };
-};
+const getFinalPassCollectedByDisplay = (entry: any, supervisors?: { username: string; fullName?: string | null }[], currentUser?: { fullName?: string | null; username?: string }) => (
+  getSharedCollectedByDisplay(entry, supervisors || [], { keepLoginPair: false, currentUser })
+);
 const getEffectiveDate = (entry: any) => {
   const hasResampleFlow = String(entry?.lotSelectionDecision || '').trim().toUpperCase() === 'FAIL'
     || (Array.isArray(entry?.resampleCollectedTimeline) && entry.resampleCollectedTimeline.length > 0)
@@ -1466,7 +1448,7 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
           detailEntry={detailModalEntry as any}
           detailMode="history"
           onClose={() => setDetailModalEntry(null)}
-          showCollectorLoginPair={true}
+          showCollectorLoginPair={false}
         />
       )}
       {!isRiceMode && (
@@ -1827,23 +1809,37 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                                     <td style={{ border: '1px solid #000', padding: '3px 5px', textAlign: 'left' }}>{toTitleCase(entry.variety) || '-'}</td>
                                     <td style={{ border: '1px solid #000', padding: '3px 5px', textAlign: 'left' }}>
                                       {(() => {
-                                        const collectedByDisplay = getFinalPassCollectedByDisplay(entry, paddySupervisors);
+                                        const collectedByDisplay = getFinalPassCollectedByDisplay(entry, paddySupervisors, user);
                                         if (collectedByDisplay.secondary) {
                                           return (
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'flex-start' }}>
-                                              <span style={{ fontSize: '11px', color: '#666' }}>
-                                                {collectedByDisplay.primary}
-                                              </span>
+                                              {(() => {
+                                                const primaryLine = splitCollectedByLine(collectedByDisplay.primary);
+                                                return (
+                                                  <span style={{ fontSize: '11px' }}>
+                                                    <span style={{ color: collectedByDisplay.highlightPrimary ? '#9c27b0' : '#666' }}>{primaryLine.text}</span>
+                                                    {primaryLine.accent ? <><span style={{ color: '#94a3b8' }}> | </span><span style={{ color: '#9c27b0' }}>{primaryLine.accent}</span></> : null}
+                                                  </span>
+                                                );
+                                              })()}
                                               <span style={{ width: '100%', borderTop: '1px solid #cbd5e1' }} />
-                                              <span style={{ fontSize: '11px', color: '#475569', fontWeight: '600' }}>
-                                                {collectedByDisplay.secondary}
-                                              </span>
+                                              {(() => {
+                                                const secondaryLine = splitCollectedByLine(collectedByDisplay.secondary);
+                                                return (
+                                                  <span style={{ fontSize: '11px', fontWeight: '600' }}>
+                                                    <span style={{ color: collectedByDisplay.highlightSecondary ? '#9c27b0' : '#475569' }}>{secondaryLine.text}</span>
+                                                    {secondaryLine.accent ? <><span style={{ color: '#94a3b8' }}> | </span><span style={{ color: '#9c27b0' }}>{secondaryLine.accent}</span></> : null}
+                                                  </span>
+                                                );
+                                              })()}
                                             </div>
                                           );
                                         }
+                                        const primaryLine = splitCollectedByLine(collectedByDisplay.primary);
                                         return (
-                                          <span style={{ fontSize: '11px', color: '#666' }}>
-                                            {collectedByDisplay.primary}
+                                          <span style={{ fontSize: '11px' }}>
+                                            <span style={{ color: collectedByDisplay.highlightPrimary ? '#9c27b0' : '#666' }}>{primaryLine.text}</span>
+                                            {primaryLine.accent ? <><span style={{ color: '#94a3b8' }}> | </span><span style={{ color: '#9c27b0' }}>{primaryLine.accent}</span></> : null}
                                           </span>
                                         );
                                       })()}

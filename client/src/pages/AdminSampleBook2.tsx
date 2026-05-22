@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { API_URL } from '../config/api';
+import { useAuth } from '../contexts/AuthContext';
 import { toast } from '../utils/toast';
-import { getCollectedByDisplay as getSharedCollectedByDisplay, getConvertedEntryTypeCode, getDisplayedEntryTypeCode, getEntryTypeTextColor, getOriginalEntryTypeCode, isConvertedResampleType } from '../utils/sampleTypeDisplay';
+import { getCollectedByDisplay as getSharedCollectedByDisplay, getConvertedEntryTypeCode, getDisplayedEntryTypeCode, getEntryTypeTextColor, getOriginalEntryTypeCode, isConvertedResampleType, splitCollectedByLine } from '../utils/sampleTypeDisplay';
 import { getDisplayQualityParameters } from '../utils/sampleEntryQualityModalLogic';
 import { SampleEntryDetailModal } from '../components/SampleEntryDetailModal';
 
@@ -506,6 +507,7 @@ type SupervisorUser = {
 };
 
 const AdminSampleBook2: React.FC<AdminSampleBook2Props> = ({ entryType, excludeEntryType, approvalMode = 'hidden', onApprovalCountChange }) => {
+    const { user } = useAuth();
     const isRiceBook = entryType === 'RICE_SAMPLE';
     const tableMinWidth = isRiceBook ? '100%' : '1500px';
     const [entries, setEntries] = useState<SampleEntry[]>([]);
@@ -603,7 +605,7 @@ const AdminSampleBook2: React.FC<AdminSampleBook2Props> = ({ entryType, excludeE
         const resampleHistory = Array.isArray((entry as any)?.resampleCollectedHistory) ? (entry as any).resampleCollectedHistory : [];
         return Array.from(new Set([...extractNames(resampleTimeline), ...extractNames(resampleHistory)]));
     };
-    const getCollectedByDisplay = (entry: SampleEntry) => getSharedCollectedByDisplay(entry as any, supervisors, { keepLoginPair: true });
+    const getCollectedByDisplay = (entry: SampleEntry) => getSharedCollectedByDisplay(entry as any, supervisors, { keepLoginPair: true, currentUser: user });
 
     const handleRecheck = async (type: string) => {
         if (!recheckModal.entry) return;
@@ -2085,20 +2087,38 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                                                                         if (collectedByDisplay.secondary) {
                                                                             return (
                                                                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '3px' }}>
-                                                                                    <span style={{ color: '#333', fontSize: '13px', fontWeight: '600' }}>
-                                                                                        {collectedByDisplay.primary}
-                                                                                    </span>
+                                                                                    {(() => {
+                                                                                        const primaryLine = splitCollectedByLine(collectedByDisplay.primary);
+                                                                                        return (
+                                                                                            <span style={{ fontSize: '13px', fontWeight: '600' }}>
+                                                                                                <span style={{ color: collectedByDisplay.highlightPrimary ? '#9c27b0' : '#333' }}>{primaryLine.text}</span>
+                                                                                                {primaryLine.accent ? <><span style={{ color: '#94a3b8' }}> | </span><span style={{ color: '#9c27b0' }}>{primaryLine.accent}</span></> : null}
+                                                                                            </span>
+                                                                                        );
+                                                                                    })()}
                                                                                     <span style={{ width: '100%', borderTop: '1px solid #cbd5e1' }} />
-                                                                                    <span style={{ color: '#1e293b', fontSize: '12px', fontWeight: '600' }}>
-                                                                                        {collectedByDisplay.secondary}
-                                                                                    </span>
+                                                                                    {(() => {
+                                                                                        const secondaryLine = splitCollectedByLine(collectedByDisplay.secondary);
+                                                                                        return (
+                                                                                            <span style={{ fontSize: '12px', fontWeight: '600' }}>
+                                                                                                <span style={{ color: collectedByDisplay.highlightSecondary ? '#9c27b0' : '#1e293b' }}>{secondaryLine.text}</span>
+                                                                                                {secondaryLine.accent ? <><span style={{ color: '#94a3b8' }}> | </span><span style={{ color: '#9c27b0' }}>{secondaryLine.accent}</span></> : null}
+                                                                                            </span>
+                                                                                        );
+                                                                                    })()}
                                                                                 </div>
                                                                             );
                                                                         }
                                                                         return (
-                                                                            <span style={{ color: '#333', fontSize: '13px', fontWeight: '600' }}>
-                                                                                {collectedByDisplay.primary}
-                                                                            </span>
+                                                                            (() => {
+                                                                                const primaryLine = splitCollectedByLine(collectedByDisplay.primary);
+                                                                                return (
+                                                                                    <span style={{ fontSize: '13px', fontWeight: '600' }}>
+                                                                                        <span style={{ color: collectedByDisplay.highlightPrimary ? '#9c27b0' : '#333' }}>{primaryLine.text}</span>
+                                                                                        {primaryLine.accent ? <><span style={{ color: '#94a3b8' }}> | </span><span style={{ color: '#9c27b0' }}>{primaryLine.accent}</span></> : null}
+                                                                                    </span>
+                                                                                );
+                                                                            })()
                                                                         );
                                                                     })()}
                                                                 </td>

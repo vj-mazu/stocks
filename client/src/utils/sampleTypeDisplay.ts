@@ -60,10 +60,28 @@ export type CollectedByDisplayResult = {
   primary: string;
   secondary: string | null;
   highlightPrimary: boolean;
+  highlightSecondary?: boolean;
+};
+
+export type CollectedByLineParts = {
+  text: string;
+  accent: string | null;
 };
 
 type CollectedByDisplayOptions = {
   keepLoginPair?: boolean;
+  currentUser?: { fullName?: string | null; username?: string };
+};
+
+export const splitCollectedByLine = (value?: string | null): CollectedByLineParts => {
+  const parts = String(value || '').split('|').map((part) => part.trim()).filter(Boolean);
+  if (parts.length < 2) {
+    return { text: String(value || '').trim(), accent: null };
+  }
+  return {
+    text: parts.slice(0, -1).join(' | '),
+    accent: parts[parts.length - 1]
+  };
 };
 
 const toTitleCase = (value?: string | null) => {
@@ -163,67 +181,171 @@ const parseStoredCollectorPair = (value: string) => {
   return { selectedName, loginName };
 };
 
+const formatStoredCollectorValue = (
+  rawValue: string | null | undefined,
+  supervisors: SupervisorLike[],
+  entry?: any
+) => {
+  const normalizedRaw = String(rawValue || '').trim();
+  if (!normalizedRaw) {
+    return {
+      label: '-',
+      selectedLabel: '-',
+      loginLabel: '',
+      isBroker: false,
+      isDropdownSupervisor: false,
+      isManualPair: false
+    };
+  }
+
+  const storedPair = parseStoredCollectorPair(normalizedRaw);
+  if (!storedPair) {
+    const singleLabel = getCollectorLabel(normalizedRaw, supervisors, entry);
+    return {
+      label: singleLabel,
+      selectedLabel: singleLabel,
+      loginLabel: '',
+      isBroker: normalizedRaw.toLowerCase() === 'broker office sample',
+      isDropdownSupervisor: false,
+      isManualPair: false
+    };
+  }
+
+  const selectedRaw = String(storedPair.selectedName || '').trim();
+  const loginRaw = String(storedPair.loginName || '').trim();
+  const selectedLabel = getCollectorLabel(selectedRaw, supervisors, entry);
+  const loginLabel = getCollectorLabel(loginRaw, supervisors, entry);
+  const isBroker = selectedRaw.toLowerCase() === 'broker office sample';
+  const isDropdownSupervisor = isSupervisorName(selectedRaw, supervisors);
+
+  return {
+    label: isBroker
+      ? 'Broker Office Sample'
+      : isDropdownSupervisor
+        ? selectedLabel
+        : `${selectedLabel} | ${loginLabel}`,
+    selectedLabel,
+    loginLabel,
+    isBroker,
+    isDropdownSupervisor,
+    isManualPair: !isBroker && !isDropdownSupervisor && !!loginLabel
+  };
+};
+
+const isSupervisorName = (value: string, supervisors: SupervisorLike[]) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return false;
+  return supervisors.some((sup) => (
+    String(sup.username || '').trim().toLowerCase() === normalized
+    || String(sup.fullName || '').trim().toLowerCase() === normalized
+    || String(sup.id || '').trim().toLowerCase() === normalized
+  ));
+};
+
+const applyCurrentUserHighlight = (result: CollectedByDisplayResult, currentUser?: { fullName?: string | null; username?: string }): CollectedByDisplayResult => {
+  if (!currentUser) return result;
+  const loginFullName = String(currentUser.fullName || '').trim().toLowerCase();
+  const loginUsername = String(currentUser.username || '').trim().toLowerCase();
+  if (!loginFullName && !loginUsername) return result;
+
+  const isMatch = (label: string) => {
+    const lower = label.trim().toLowerCase();
+    return lower === loginFullName || lower === loginUsername;
+  };
+
+  const primaryLower = result.primary?.trim().toLowerCase() || '';
+  const secondaryLower = result.secondary?.trim().toLowerCase() || '';
+
+  let highlightPrimary = result.highlightPrimary;
+  let highlightSecondary = result.highlightSecondary || false;
+
+  if (primaryLower && isMatch(primaryLower)) highlightPrimary = true;
+  // Only highlight secondary if it's a different name from primary (login=selected should not double-highlight)
+  if (secondaryLower && secondaryLower !== primaryLower && isMatch(secondaryLower)) highlightSecondary = true;
+
+  if (highlightPrimary !== result.highlightPrimary || highlightSecondary !== result.highlightSecondary) {
+    return { ...result, highlightPrimary, highlightSecondary };
+  }
+  return result;
+};
+
 export const getCollectedByDisplay = (entry: any, supervisors: SupervisorLike[], options?: CollectedByDisplayOptions): CollectedByDisplayResult => {
   const keepLoginPair = options?.keepLoginPair === true;
   const latestFirstCycleCollector = getLatestFirstCycleCollector(entry);
   const currentCollector = String(entry?.sampleCollectedBy || '').trim();
   const resampleCollectors = getResampleCollectorNames(entry);
 
+  let result: CollectedByDisplayResult;
+  let skipHighlight = false;
+  let forceSecondaryPlain = false;
+
   if (resampleCollectors.length === 0) {
-    const storedPair = parseStoredCollectorPair(latestFirstCycleCollector || currentCollector);
-    if (storedPair) {
-      const selectedLabel = getCollectorLabel(storedPair.selectedName, supervisors, entry);
-      if (selectedLabel === 'Broker Office Sample') {
-        return { primary: 'Broker Office Sample', secondary: null, highlightPrimary: false };
+    const formattedCollector = formatStoredCollectorValue(latestFirstCycleCollector || currentCollector, supervisors, entry);
+    if (formattedCollector.isManualPair || formattedCollector.isDropdownSupervisor || formattedCollector.isBroker) {
+      if (formattedCollector.isBroker) {
+        result = { primary: 'Broker Office Sample', secondary: null, highlightPrimary: false };
+      } else {
+        const loginNorm = String(formattedCollector.loginLabel || '').trim().toLowerCase();
+        const selectedNorm = String(formattedCollector.selectedLabel || '').trim().toLowerCase();
+        if (loginNorm === selectedNorm) {
+          result = {
+            primary: formattedCollector.selectedLabel,
+            secondary: null,
+            highlightPrimary: false
+          };
+        } else if (formattedCollector.isDropdownSupervisor) {
+          skipHighlight = true;
+          result = {
+            primary: formattedCollector.selectedLabel,
+            secondary: null,
+            highlightPrimary: false
+          };
+        } else {
+          skipHighlight = true;
+          result = {
+            primary: formattedCollector.selectedLabel,
+            secondary: formattedCollector.loginLabel,
+            highlightPrimary: false,
+            highlightSecondary: true
+          };
+        }
       }
-      if (!keepLoginPair) {
-        return {
-          primary: selectedLabel,
-          secondary: null,
-          highlightPrimary: false
-        };
-      }
-      return {
-        primary: getCollectorLabel(storedPair.loginName, supervisors, entry),
-        secondary: selectedLabel,
-        highlightPrimary: true
+    } else {
+      result = {
+        primary: getCollectorLabel(latestFirstCycleCollector || currentCollector || null, supervisors, entry),
+        secondary: null,
+        highlightPrimary: false
       };
     }
+  } else {
+    const resampleCollectorTokens = resampleCollectors.map((value) => value.toLowerCase());
+    const firstCycleCandidates = buildOrderedCollectorNames([
+      ...(Array.isArray(entry?.sampleCollectedTimeline) ? entry.sampleCollectedTimeline.map(extractCollectorValue) : []),
+      ...(Array.isArray(entry?.sampleCollectedHistory) ? entry.sampleCollectedHistory.map(extractCollectorValue) : []),
+      latestFirstCycleCollector,
+      currentCollector
+    ]);
+    const firstCycleCollector = firstCycleCandidates.find((value) => (
+      value
+      && !resampleCollectorTokens.includes(value.toLowerCase())
+    )) || latestFirstCycleCollector || currentCollector;
+    const firstCycleCollectorDisplay = keepLoginPair
+      ? formatStoredCollectorValue(firstCycleCollector || '', supervisors, entry).label
+      : getCollectorLabel(parseStoredCollectorPair(firstCycleCollector || '')?.selectedName || firstCycleCollector || null, supervisors, entry);
+    const resampleCollectorDisplay = keepLoginPair
+      ? formatStoredCollectorValue(resampleCollectors[resampleCollectors.length - 1] || '', supervisors, entry).label
+      : getCollectorLabel(parseStoredCollectorPair(resampleCollectors[resampleCollectors.length - 1] || '')?.selectedName || resampleCollectors[resampleCollectors.length - 1] || null, supervisors, entry);
 
-    return {
-      primary: getCollectorLabel(latestFirstCycleCollector || currentCollector || null, supervisors, entry),
-      secondary: null,
-      highlightPrimary: false
-    };
+    if (!resampleCollectorDisplay || resampleCollectorDisplay === '-') {
+      result = { primary: firstCycleCollectorDisplay, secondary: null, highlightPrimary: false };
+    } else {
+      result = { primary: firstCycleCollectorDisplay, secondary: resampleCollectorDisplay, highlightPrimary: false };
+    }
   }
 
-  const resampleCollectorTokens = resampleCollectors.map((value) => value.toLowerCase());
-  const firstCycleCandidates = buildOrderedCollectorNames([
-    ...(Array.isArray(entry?.sampleCollectedTimeline) ? entry.sampleCollectedTimeline.map(extractCollectorValue) : []),
-    ...(Array.isArray(entry?.sampleCollectedHistory) ? entry.sampleCollectedHistory.map(extractCollectorValue) : []),
-    latestFirstCycleCollector,
-    currentCollector
-  ]);
-  const firstCycleCollector = firstCycleCandidates.find((value) => (
-    value
-    && !resampleCollectorTokens.includes(value.toLowerCase())
-  )) || latestFirstCycleCollector || currentCollector;
-  const parsedFirstCycleCollector = !keepLoginPair ? (parseStoredCollectorPair(firstCycleCollector || '')?.selectedName || firstCycleCollector) : firstCycleCollector;
-  const parsedResampleCollector = !keepLoginPair ? (parseStoredCollectorPair(resampleCollectors[resampleCollectors.length - 1] || '')?.selectedName || resampleCollectors[resampleCollectors.length - 1]) : resampleCollectors[resampleCollectors.length - 1];
-  const firstCycleLabel = getCollectorLabel(parsedFirstCycleCollector || null, supervisors, entry);
-  const resampleLabel = getCollectorLabel(parsedResampleCollector || null, supervisors, entry);
-
-  if (!resampleLabel || resampleLabel === '-' || firstCycleLabel.toLowerCase() === resampleLabel.toLowerCase()) {
-    return {
-      primary: firstCycleLabel,
-      secondary: null,
-      highlightPrimary: false
-    };
+  if (!skipHighlight) {
+    result = applyCurrentUserHighlight(result, options?.currentUser);
   }
-
-  return {
-    primary: firstCycleLabel,
-    secondary: resampleLabel,
-    highlightPrimary: false
-  };
+  if (forceSecondaryPlain && result.secondary) result.highlightSecondary = false;
+  return result;
 };

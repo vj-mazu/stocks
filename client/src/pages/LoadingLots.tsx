@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { SampleEntryDetailModal } from '../components/SampleEntryDetailModal';
 import { API_URL } from '../config/api';
-import { getCollectedByDisplay as getSharedCollectedByDisplay, getConvertedEntryTypeCode, getDisplayedEntryTypeCode, getEntryTypeTextColor, getOriginalEntryTypeCode, isConvertedResampleType } from '../utils/sampleTypeDisplay';
+import { getCollectedByDisplay as getSharedCollectedByDisplay, getConvertedEntryTypeCode, getDisplayedEntryTypeCode, getEntryTypeTextColor, getOriginalEntryTypeCode, isConvertedResampleType, splitCollectedByLine } from '../utils/sampleTypeDisplay';
 
 interface SampleEntry {
   id: string;
@@ -1078,8 +1078,13 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     const raw = typeof value === 'string' ? value.trim() : '';
     if (!raw) return '-';
     if (raw.toLowerCase() === 'broker office sample') return 'Broker Office Sample';
-    const match = paddySupervisors.find((sup) => String(sup.username || '').trim().toLowerCase() === raw.toLowerCase());
+    const normalizedRaw = raw.toLowerCase();
+    const match = paddySupervisors.find((sup) =>
+      String(sup.username || '').trim().toLowerCase() === normalizedRaw
+      || String(sup.fullName || '').trim().toLowerCase() === normalizedRaw
+    );
     if (match?.fullName) return toTitleCase(match.fullName);
+    if (match?.username) return toTitleCase(match.username);
     return toTitleCase(raw);
   };
 
@@ -1111,7 +1116,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     const raw = creator?.fullName || creator?.username || '';
     return raw ? toTitleCase(raw) : '-';
   };
-  const getCollectedByDisplay = (entry: SampleEntry) => getSharedCollectedByDisplay(entry as any, paddySupervisors, { keepLoginPair: true });
+  const getCollectedByDisplay = (entry: SampleEntry) => getSharedCollectedByDisplay(entry as any, paddySupervisors, { keepLoginPair: true, currentUser: user });
   const buildOrderedNameList = (values: Array<string | null | undefined>) => values
     .map((value) => String(value || '').trim())
     .filter(Boolean);
@@ -2190,7 +2195,12 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                         ) : null}
                                         {entry.sampleCollectedBy ? (
                                           <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600 }}>
-                                            {getCollectorLabel(entry.sampleCollectedBy)}
+                                            {(() => {
+                                              const collectedByDisplay = getCollectedByDisplay(entry);
+                                              return collectedByDisplay.secondary
+                                                ? `${collectedByDisplay.primary} / ${collectedByDisplay.secondary}`
+                                                : collectedByDisplay.primary;
+                                            })()}
                                           </div>
                                         ) : null}
                                       </div>
@@ -2268,19 +2278,33 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                       if (collectedByDisplay.secondary) {
                                         return (
                                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '3px' }}>
-                                            <span style={{ fontWeight: 700, color: collectedByDisplay.highlightPrimary ? '#7e22ce' : '#1f2937' }}>
-                                              {collectedByDisplay.primary}
-                                            </span>
+                                            {(() => {
+                                              const primaryLine = splitCollectedByLine(collectedByDisplay.primary);
+                                              return (
+                                                <span style={{ fontWeight: 700 }}>
+                                                  <span style={{ color: collectedByDisplay.highlightPrimary ? '#7e22ce' : '#1f2937' }}>{primaryLine.text}</span>
+                                                  {primaryLine.accent ? <><span style={{ color: '#94a3b8' }}> | </span><span style={{ color: '#7e22ce' }}>{primaryLine.accent}</span></> : null}
+                                                </span>
+                                              );
+                                            })()}
                                             <span style={{ width: '100%', borderTop: '1px solid #cbd5e1' }} />
-                                            <span style={{ fontWeight: 600, color: '#334155', fontSize: '12px' }}>
-                                              {collectedByDisplay.secondary}
-                                            </span>
+                                            {(() => {
+                                              const secondaryLine = splitCollectedByLine(collectedByDisplay.secondary);
+                                              return (
+                                                <span style={{ fontWeight: 600, fontSize: '12px' }}>
+                                                  <span style={{ color: collectedByDisplay.highlightSecondary ? '#7e22ce' : '#334155' }}>{secondaryLine.text}</span>
+                                                  {secondaryLine.accent ? <><span style={{ color: '#94a3b8' }}> | </span><span style={{ color: '#7e22ce' }}>{secondaryLine.accent}</span></> : null}
+                                                </span>
+                                              );
+                                            })()}
                                           </div>
                                         );
                                       }
+                                      const primaryLine = splitCollectedByLine(collectedByDisplay.primary);
                                       return (
-                                        <div style={{ fontWeight: 700, color: '#1f2937' }}>
-                                          {collectedByDisplay.primary}
+                                        <div style={{ fontWeight: 700 }}>
+                                          <span style={{ color: collectedByDisplay.highlightPrimary ? '#7e22ce' : '#1f2937' }}>{primaryLine.text}</span>
+                                          {primaryLine.accent ? <><span style={{ color: '#94a3b8' }}> | </span><span style={{ color: '#7e22ce' }}>{primaryLine.accent}</span></> : null}
                                         </div>
                                       );
                                     })()}
@@ -2629,24 +2653,24 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                        <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value || '-'}</div>
                      </div>
                    ))}
-                   <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                     <div style={{ fontSize: '9px', color: '#64748b', marginBottom: '3px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sample Collected By</div>
-                      {(() => {
-                        const col = getCollectedByDisplay(qualityModalEntry);
-                        return (
-                          col.secondary ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              <div style={{ fontSize: '14px', fontWeight: '800', color: col.highlightPrimary ? '#7e22ce' : '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {col.primary}
-                              </div>
-                              <div style={{ borderTop: '1px solid #cbd5e1' }} />
-                              <div style={{ fontSize: '13px', fontWeight: '700', color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {col.secondary}
-                              </div>
-                            </div>
-                          ) : (
-                            <div style={{ fontSize: '14px', fontWeight: '800', color: col.highlightPrimary ? '#7e22ce' : '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {col.primary}
+                    <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ fontSize: '9px', color: '#64748b', marginBottom: '3px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sample Collected By</div>
+                       {(() => {
+                         const col = getCollectedByDisplay(qualityModalEntry);
+                         return (
+                           col.secondary ? (
+                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                               <div style={{ fontSize: '14px', fontWeight: '800', color: col.highlightPrimary ? '#7e22ce' : '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                 {col.primary}
+                               </div>
+                               <div style={{ borderTop: '1px solid #cbd5e1' }} />
+                               <div style={{ fontSize: '13px', fontWeight: '700', color: col.highlightSecondary ? '#7e22ce' : '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                 {col.secondary}
+                               </div>
+                             </div>
+                           ) : (
+                             <div style={{ fontSize: '14px', fontWeight: '800', color: col.highlightPrimary ? '#7e22ce' : '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                               {col.primary}
                             </div>
                           )
                         );
@@ -2666,7 +2690,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                     const smellHasVal = qp.smellHas ?? qualityModalEntry.qualityParameters?.smellHas;
                     const smellTypeVal = qp.smellType ?? qualityModalEntry.qualityParameters?.smellType;
                     
-                    const firstCollectorName = qualityModalCollectedNames[0]
+                    const firstCollectorName = getCollectedByDisplay(qualityModalEntry).primary || qualityModalCollectedNames[0]
                       || (qualityModalEntry.sampleCollectedHistory && qualityModalEntry.sampleCollectedHistory.length > 0
                         ? qualityModalEntry.sampleCollectedHistory[0]
                         : (qualityModalEntry.sampleCollectedBy || '-'));
@@ -2843,7 +2867,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
           <div style={{ backgroundColor: 'white', padding: '14px', borderRadius: '12px', width: '92%', maxWidth: '760px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
             <h3 style={{ marginTop: 0, color: '#2c3e50', borderBottom: '2px solid #3498db', paddingBottom: '10px', fontSize: '16px', textAlign: 'center' }}>{selectedEntry.brokerName}</h3>
             <div style={{ background: '#f8f9fa', padding: '8px 14px', borderRadius: '6px', marginBottom: '14px', border: '1px solid #e0e0e0', textAlign: 'center', fontSize: '12px', color: '#333' }}>
-              Bags: <b>{selectedEntry.bags}</b> | Pkg: <b>{formatPackagingLabel(selectedEntry.packaging || '75')}</b> | Party: <b>{toTitleCase(selectedEntry.partyName) || (selectedEntry.entryType === 'DIRECT_LOADED_VEHICLE' ? selectedEntry.lorryNumber?.toUpperCase() : '')}</b> | Paddy Location: <b>{selectedEntry.location || '-'}</b> | Variety: <b>{selectedEntry.variety}</b> | Collected By: <b>{getCollectedByDisplay(selectedEntry).primary}</b>
+              Bags: <b>{selectedEntry.bags}</b> | Pkg: <b>{formatPackagingLabel(selectedEntry.packaging || '75')}</b> | Party: <b>{toTitleCase(selectedEntry.partyName) || (selectedEntry.entryType === 'DIRECT_LOADED_VEHICLE' ? selectedEntry.lorryNumber?.toUpperCase() : '')}</b> | Paddy Location: <b>{selectedEntry.location || '-'}</b> | Variety: <b>{selectedEntry.variety}</b> | Collected By: <b>{(() => { const cbd = getCollectedByDisplay(selectedEntry); return cbd.secondary ? `${cbd.primary} / ${cbd.secondary}` : cbd.primary; })()}</b>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', gap: '10px' }}>
               <div style={{ flex: 1, background: modalEditMode ? (modalMissingFields.length > 0 ? '#fff7db' : '#e8f5e9') : '#eff6ff', border: modalEditMode ? (modalMissingFields.length > 0 ? '1px solid #f3d37b' : '1px solid #c8e6c9') : '1px solid #bfdbfe', borderRadius: '8px', padding: '9px 10px' }}>

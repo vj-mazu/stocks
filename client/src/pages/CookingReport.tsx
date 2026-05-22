@@ -82,8 +82,13 @@ const getCollectorLabel = (value: string | null | undefined, supervisors: Superv
   const raw = typeof value === 'string' ? value.trim() : '';
   if (!raw) return '-';
   if (raw.toLowerCase() === 'broker office sample') return 'Broker Office Sample';
-  const match = supervisors.find((sup) => String(sup.username || '').trim().toLowerCase() === raw.toLowerCase());
+  const normalizedRaw = raw.toLowerCase();
+  const match = supervisors.find((sup) =>
+    String(sup.username || '').trim().toLowerCase() === normalizedRaw
+    || String(sup.fullName || '').trim().toLowerCase() === normalizedRaw
+  );
   if (match?.fullName) return toTitleCase(match.fullName);
+  if (match?.username) return toTitleCase(match.username);
   return toTitleCase(raw);
 };
 const getCreatorLabel = (entry: SampleEntry) => {
@@ -1047,6 +1052,8 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
       formData.append('grainsCount', grainsCount);
       formData.append('wbR', wbR);
       formData.append('wbBk', wbBk);
+      const wbT = (parseFloat(wbR) || 0) + (parseFloat(wbBk) || 0);
+      formData.append('wbT', String(wbT));
       formData.append('wbEnabled', 'true');
       formData.append('is100Grams', 'true');
       formData.append('resampleCookingPrepOnly', 'true');
