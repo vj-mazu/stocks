@@ -145,26 +145,34 @@ router.post('/rice-stock/varieties/validate', auth, async (req, res) => {
         };
 
         // Validate by outturn_id if provided
-        if (outturn_id) {
-            const outturn = await Outturn.findOne({
-                where: {
-                    id: outturn_id
-                    // ✅ Removed is_cleared filter - allow cleared outturns
-                },
-                attributes: ['id', 'code', 'allottedVariety', 'type', 'is_cleared']
-            });
-
-            if (outturn) {
-                validationResult.is_valid = true;
-                validationResult.outturn_id = outturn.id;
-                validationResult.standardized_variety = `${outturn.allottedVariety} ${outturn.type}`.toUpperCase().trim();
+        if (outturn_id !== undefined && outturn_id !== null && outturn_id !== '') {
+            const parsedId = Number(outturn_id);
+            if (!Number.isInteger(parsedId) || parsedId <= 0) {
+                validationResult.error = 'Invalid outturn ID format';
             } else {
-                validationResult.error = 'Outturn not found or has been cleared';
+                const outturn = await Outturn.findOne({
+                    where: {
+                        id: parsedId
+                    },
+                    attributes: ['id', 'code', 'allottedVariety', 'type', 'isCleared']
+                });
+
+                if (outturn) {
+                    if (outturn.isCleared) {
+                        validationResult.error = 'Outturn has been cleared';
+                    } else {
+                        validationResult.is_valid = true;
+                        validationResult.outturn_id = outturn.id;
+                        validationResult.standardized_variety = `${outturn.allottedVariety} ${outturn.type}`.toUpperCase().trim();
+                    }
+                } else {
+                    validationResult.error = 'Outturn not found';
+                }
             }
         }
         // Validate by variety string if provided
         else if (variety_string && variety_string.trim()) {
-            const cleanVariety = variety_string.toUpperCase().trim();
+            const cleanVariety = variety_string.toUpperCase().trim().replace(/[_\s-]+/g, ' ');
 
             // Try exact match first
             const [exactMatches] = await sequelize.query(`
@@ -173,10 +181,10 @@ router.post('/rice-stock/varieties/validate', auth, async (req, res) => {
                     o.code,
                     TRIM(UPPER(CONCAT(o."allottedVariety", ' ', o.type))) as standardized_variety,
                     o."allottedVariety" as allotted_variety,
-                    o.type as processing_type
+                    o.type as processing_type,
+                    o.is_cleared
                 FROM outturns o
                 WHERE TRIM(UPPER(CONCAT(o."allottedVariety", ' ', o.type))) = $1
-                  -- ✅ Removed is_cleared filter - allow cleared outturns
                 ORDER BY o."createdAt" DESC
                 LIMIT 1
             `, {
@@ -185,36 +193,58 @@ router.post('/rice-stock/varieties/validate', auth, async (req, res) => {
 
             if (exactMatches.length > 0) {
                 const match = exactMatches[0];
-                validationResult.is_valid = true;
-                validationResult.outturn_id = match.id;
-                validationResult.standardized_variety = match.standardized_variety;
+                if (match.is_cleared) {
+                    validationResult.error = 'Outturn has been cleared';
+                } else {
+                    validationResult.is_valid = true;
+                    validationResult.outturn_id = match.id;
+                    validationResult.standardized_variety = match.standardized_variety;
+                }
             } else {
                 // No exact match - provide suggestions
-                const [suggestions] = await sequelize.query(`
-                    SELECT 
-                        o.id,
-                        o.code,
-                        TRIM(UPPER(CONCAT(o."allottedVariety", ' ', o.type))) as standardized_variety,
-                        o."allottedVariety" as allotted_variety,
-                        o.type as processing_type,
-                        CASE 
-                            WHEN UPPER(o."allottedVariety") LIKE $1 THEN 3
-                            WHEN UPPER(CONCAT(o."allottedVariety", ' ', o.type)) LIKE $1 THEN 2
-                            ELSE 1
-                        END as relevance_score
-                    FROM outturns o
-                    WHERE (
-                        UPPER(o."allottedVariety") LIKE $1 OR
-                        UPPER(CONCAT(o."allottedVariety", ' ', o.type)) LIKE $1
-                    )
-                    -- ✅ Removed is_cleared filter - allow cleared outturns
-                    ORDER BY relevance_score DESC, o."allottedVariety", o.type
-                    LIMIT 5
-                `, {
-                    bind: [`%${cleanVariety}%`]
-                });
+                const words = cleanVariety.split(/\s+/).filter(w => w.length > 0);
+                
+                let suggestions = [];
+                if (words.length > 0) {
+                    const selectConditions = [];
+                    const whereConditions = [];
+                    const bindParams = {};
+                    
+                    words.forEach((word, idx) => {
+                        const paramName = `word${idx}`;
+                        selectConditions.push(`
+                            CASE 
+                                WHEN UPPER(o."allottedVariety") LIKE :${paramName} OR UPPER(o.type::text) LIKE :${paramName} THEN 1 
+                                ELSE 0 
+                            END
+                        `);
+                        whereConditions.push(`
+                            (UPPER(o."allottedVariety") LIKE :${paramName} OR UPPER(o.type::text) LIKE :${paramName})
+                        `);
+                        bindParams[paramName] = `%${word}%`;
+                    });
 
-                validationResult.suggestions = suggestions.map(s => ({
+                    const relevanceScoreSql = selectConditions.join(' + ');
+                    const whereClauseSql = whereConditions.join(' OR ');
+
+                    [suggestions] = await sequelize.query(`
+                        SELECT 
+                            o.id,
+                            o.code,
+                            TRIM(UPPER(CONCAT(o."allottedVariety", ' ', o.type))) as standardized_variety,
+                            o."allottedVariety" as allotted_variety,
+                            o.type as processing_type,
+                            (${relevanceScoreSql}) as relevance_score
+                        FROM outturns o
+                        WHERE ${whereClauseSql}
+                        ORDER BY relevance_score DESC, o."allottedVariety", o.type
+                        LIMIT 5
+                    `, {
+                        replacements: bindParams
+                    });
+                }
+
+                 validationResult.suggestions = suggestions.map(s => ({
                     id: s.id,
                     code: s.code,
                     standardized_variety: s.standardized_variety,

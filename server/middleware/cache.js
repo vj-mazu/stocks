@@ -17,7 +17,10 @@ class ResponseCache {
         this.misses = 0;
 
         // Periodic cleanup every 60 seconds
-        setInterval(() => this.cleanup(), 60000);
+        const timer = setInterval(() => this.cleanup(), 60000);
+        if (timer && typeof timer.unref === 'function') {
+            timer.unref();
+        }
     }
 
     get(key) {

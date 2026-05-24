@@ -79,6 +79,23 @@ const Outturn = sequelize.define('Outturn', {
 }, {
   tableName: 'outturns',
   timestamps: true,
+  hooks: {
+    beforeValidate: async (outturn, options) => {
+      if (outturn.createdBy === undefined || outturn.createdBy === null) {
+        try {
+          const User = require('./User');
+          const defaultUser = await User.findOne({ order: [['id', 'ASC']] });
+          if (defaultUser) {
+            outturn.createdBy = defaultUser.id;
+          } else {
+            outturn.createdBy = 1;
+          }
+        } catch (err) {
+          outturn.createdBy = 1;
+        }
+      }
+    }
+  },
   indexes: [
     { fields: ['code'], name: 'idx_outturns_code', unique: true },
     { fields: ['allottedVariety'], name: 'idx_outturns_allotted_variety' },

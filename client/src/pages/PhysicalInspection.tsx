@@ -19,9 +19,82 @@ interface SampleEntry {
   finalPrice?: number;
   entryType?: string;
   lorryNumber?: string;
+  lotAllotment?: {
+    id: string;
+    allottedToSupervisorId: number;
+    allottedBags?: number;
+    supervisor: {
+      id: number;
+      username: string;
+    };
+    physicalInspections?: {
+      id: string;
+      inspectionDate: string;
+      lorryNumber: string;
+      bags: number;
+      cutting1: number;
+      cutting2: number;
+      bend: number;
+      reportedBy: {
+        username: string;
+      };
+    }[];
+  };
 }
 
 const toTitleCase = (str: string) => str ? str.replace(/\b\w/g, c => c.toUpperCase()) : '';
+
+const formatDecimal = (val: any) => {
+  if (val === undefined || val === null || val === '') return '';
+  const num = Number(val);
+  return isNaN(num) ? val.toString() : num.toString();
+};
+
+const handleCuttingInput = (value: string, entryType?: string) => {
+  if (entryType === 'RICE_SAMPLE') {
+    const cleaned = value.replace(/[^0-9.]/g, '');
+    if (cleaned.length > 5) return { raw: cleaned, part1: cleaned, part2: '' };
+    return { raw: cleaned, part1: cleaned, part2: '' };
+  }
+
+  let clean = value.replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×');
+  const xCount = (clean.match(/×/g) || []).length;
+  if (xCount > 1) {
+    const idx = clean.indexOf('×');
+    clean = clean.substring(0, idx + 1) + clean.substring(idx + 1).replace(/×/g, '');
+  }
+  if (clean.length === 1 && !clean.includes('×') && /^\d$/.test(clean)) {
+    clean = clean + '×';
+  }
+  const parts = clean.split('×');
+  const first = (parts[0] || '').substring(0, 4);
+  const second = (parts[1] || '').substring(0, 4);
+  clean = second !== undefined && clean.includes('×') ? `${first}×${second}` : first;
+  return { raw: clean, part1: first, part2: second || '' };
+};
+
+const handleBendInput = (value: string, entryType?: string) => {
+  if (entryType === 'RICE_SAMPLE') {
+    const cleaned = value.replace(/[^0-9.]/g, '');
+    if (cleaned.length > 5) return { raw: cleaned, part1: cleaned, part2: '' };
+    return { raw: cleaned, part1: cleaned, part2: '' };
+  }
+
+  let clean = value.replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×');
+  const xCount = (clean.match(/×/g) || []).length;
+  if (xCount > 1) {
+    const idx = clean.indexOf('×');
+    clean = clean.substring(0, idx + 1) + clean.substring(idx + 1).replace(/×/g, '');
+  }
+  if (clean.length === 1 && !clean.includes('×') && /^\d$/.test(clean)) {
+    clean = clean + '×';
+  }
+  const parts = clean.split('×');
+  const first = (parts[0] || '').substring(0, 4);
+  const second = (parts[1] || '').substring(0, 4);
+  clean = second !== undefined && clean.includes('×') ? `${first}×${second}` : first;
+  return { raw: clean, part1: first, part2: second || '' };
+};
 
 interface PreviousInspection {
   id: string;
@@ -118,10 +191,34 @@ const PhysicalInspection: React.FC = () => {
       const allEntries = Array.from(allMap.values());
       setEntries(allEntries);
 
-      // Load inspection progress for each entry
-      for (const entry of allEntries) {
-        await loadInspectionProgress(entry.id);
-      }
+      // Calculate inspection progress locally for each entry
+      const progressCache: { [key: string]: InspectionProgress } = {};
+      allEntries.forEach((entry: SampleEntry) => {
+        const totalBags = entry.lotAllotment?.allottedBags || entry.bags || 0;
+        const inspections = entry.lotAllotment?.physicalInspections || [];
+        const inspectedBags = inspections.reduce((sum, inspection) => sum + (inspection.bags || 0), 0);
+        const remainingBags = Math.max(0, totalBags - inspectedBags);
+        const progressPercentage = totalBags > 0 ? (inspectedBags / totalBags) * 100 : 0;
+        
+        progressCache[entry.id] = {
+          totalBags,
+          inspectedBags,
+          remainingBags,
+          progressPercentage,
+          previousInspections: inspections.map(inspection => ({
+            id: inspection.id,
+            inspectionDate: inspection.inspectionDate,
+            lorryNumber: inspection.lorryNumber,
+            bags: inspection.bags,
+            cutting1: inspection.cutting1,
+            cutting2: inspection.cutting2,
+            bend: inspection.bend,
+            bend2: (inspection as any).bend2,
+            reportedBy: inspection.reportedBy || { username: 'System' }
+          }))
+        };
+      });
+      setInspectionProgress(progressCache);
     } catch (error: any) {
       showNotification(error.response?.data?.error || 'Failed to load entries', 'error');
     } finally {
@@ -278,9 +375,9 @@ const PhysicalInspection: React.FC = () => {
   };
 
   const getProgressColor = (percentage: number) => {
-    if (percentage >= 100) return '#4CAF50';
-    if (percentage >= 50) return '#FFC107';
-    return '#2196F3';
+    if (percentage >= 100) return '#2e7d32';
+    if (percentage >= 50) return '#d97706';
+    return '#dc2626';
   };
 
   const isLocationStaffUser = user?.role === 'staff' && user?.staffType === 'location';
@@ -317,11 +414,11 @@ const PhysicalInspection: React.FC = () => {
               <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '80px' }}>Variety</th>
               <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '100px' }}>Party</th>
               <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '80px' }}>Location</th>
-              <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', textAlign: 'right', width: '80px' }}>Total</th>
-              <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', textAlign: 'right', width: '80px' }}>Loading</th>
-              <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', textAlign: 'right', width: '80px' }}>Balance</th>
-              <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', textAlign: 'center', width: '120px' }}>Progress</th>
-              <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', textAlign: 'center', width: '100px' }}>Actions</th>
+              <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '80px' }}>Total</th>
+              <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '80px' }}>Loading</th>
+              <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '80px' }}>Balance</th>
+              <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '120px' }}>Progress</th>
+              <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '100px' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -371,16 +468,16 @@ const PhysicalInspection: React.FC = () => {
                         {entry.entryType === 'DIRECT_LOADED_VEHICLE' && entry.lorryNumber && entry.partyName && <div style={{ fontSize: '10px', color: '#1565c0', fontWeight: '600' }}>{entry.lorryNumber.toUpperCase()}</div>}
                       </td>
                       <td style={{ border: '1px solid #ddd', padding: '6px', fontSize: '11px', textAlign: 'left' }}>{entry.location}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '6px', textAlign: 'right', fontSize: '11px', fontWeight: '600' }}>
+                      <td style={{ border: '1px solid #ddd', padding: '6px', textAlign: 'left', fontSize: '11px', fontWeight: '600' }}>
                         {progress?.totalBags?.toLocaleString('en-IN') || entry.bags?.toLocaleString('en-IN')}
                       </td>
-                      <td style={{ border: '1px solid #ddd', padding: '6px', textAlign: 'right', fontSize: '11px', color: '#4CAF50', fontWeight: '600' }}>
+                      <td style={{ border: '1px solid #ddd', padding: '6px', textAlign: 'left', fontSize: '11px', color: '#4CAF50', fontWeight: '600' }}>
                         {progress?.inspectedBags || 0}
                       </td>
-                      <td style={{ border: '1px solid #ddd', padding: '6px', textAlign: 'right', fontSize: '11px', color: '#FF9800', fontWeight: '600' }}>
+                      <td style={{ border: '1px solid #ddd', padding: '6px', textAlign: 'left', fontSize: '11px', color: '#FF9800', fontWeight: '600' }}>
                         {progress?.remainingBags?.toLocaleString('en-IN') || entry.bags?.toLocaleString('en-IN')}
                       </td>
-                      <td style={{ border: '1px solid #ddd', padding: '6px', textAlign: 'center' }}>
+                      <td style={{ border: '1px solid #ddd', padding: '6px', textAlign: 'left' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                           <div style={{
                             flex: 1,
@@ -401,7 +498,7 @@ const PhysicalInspection: React.FC = () => {
                           </span>
                         </div>
                       </td>
-                      <td style={{ border: '1px solid #ddd', padding: '6px', textAlign: 'center' }}>
+                      <td style={{ border: '1px solid #ddd', padding: '6px', textAlign: 'left' }}>
                         <button
                           onClick={() => initializeInspectionData(entry.id)}
                           disabled={progressPercentage >= 100}
@@ -430,27 +527,31 @@ const PhysicalInspection: React.FC = () => {
                           <table style={{ width: '100%', fontSize: '10px', borderCollapse: 'collapse' }}>
                             <thead>
                               <tr style={{ backgroundColor: '#e3f2fd' }}>
-                                <th style={{ border: '1px solid #ddd', padding: '4px' }}>Date</th>
-                                <th style={{ border: '1px solid #ddd', padding: '4px' }}>Lorry Number</th>
-                                <th style={{ border: '1px solid #ddd', padding: '4px' }}>Bags</th>
-                                <th style={{ border: '1px solid #ddd', padding: '4px' }}>Cutting</th>
-                                <th style={{ border: '1px solid #ddd', padding: '4px' }}>Bend</th>
-                                <th style={{ border: '1px solid #ddd', padding: '4px' }}>Inspected By</th>
+                                <th style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'left' }}>Date</th>
+                                <th style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'left' }}>Lorry Number</th>
+                                <th style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'left' }}>Bags</th>
+                                <th style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'left' }}>Cutting</th>
+                                <th style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'left' }}>Bend</th>
+                                <th style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'left' }}>Inspected By</th>
                               </tr>
                             </thead>
                             <tbody>
                               {progress.previousInspections.map((inspection, idx) => (
                                 <tr key={inspection.id} style={{ backgroundColor: idx % 2 === 0 ? 'white' : '#f9f9f9' }}>
-                                  <td style={{ border: '1px solid #ddd', padding: '4px' }}>
+                                  <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'left' }}>
                                     {new Date(inspection.inspectionDate).toLocaleDateString()}
                                   </td>
-                                  <td style={{ border: '1px solid #ddd', padding: '4px' }}>{inspection.lorryNumber}</td>
-                                  <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'right', fontWeight: '600' }}>
+                                  <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'left' }}>{inspection.lorryNumber}</td>
+                                  <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'left', fontWeight: '600' }}>
                                     {inspection.bags?.toLocaleString('en-IN')}
                                   </td>
-                                  <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'center' }}>{inspection.cutting1} x {inspection.cutting2}</td>
-                                  <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'right' }}>{inspection.bend2 ? `${Number(inspection.bend).toFixed(2)} x ${Number(inspection.bend2).toFixed(2)}` : Number(inspection.bend).toFixed(2)}</td>
-                                  <td style={{ border: '1px solid #ddd', padding: '4px' }}>{inspection.reportedBy.username}</td>
+                                  <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'left' }}>
+                                    {formatDecimal(inspection.cutting1)} {inspection.cutting2 && Number(inspection.cutting2) !== 0 ? `x ${formatDecimal(inspection.cutting2)}` : ''}
+                                  </td>
+                                  <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'left' }}>
+                                    {formatDecimal(inspection.bend)} {inspection.bend2 && Number(inspection.bend2) !== 0 ? `x ${formatDecimal(inspection.bend2)}` : ''}
+                                  </td>
+                                  <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'left' }}>{inspection.reportedBy.username}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -494,6 +595,7 @@ const PhysicalInspection: React.FC = () => {
                                   value={inspectionData[entry.id]?.lorryNumber || ''}
                                   onChange={(e) => handleInputChange(entry.id, 'lorryNumber', e.target.value.toUpperCase())}
                                   placeholder="Enter lorry number"
+                                  maxLength={10}
                                   style={{
                                     width: '100%',
                                     padding: '6px',
@@ -532,8 +634,17 @@ const PhysicalInspection: React.FC = () => {
                                     <input
                                       type="text"
                                       value={inspectionData[entry.id]?.cutting || ''}
-                                      onChange={(e) => handleInputChange(entry.id, 'cutting', e.target.value)}
-                                      placeholder="e.g. 12x20"
+                                      placeholder="1×"
+                                      onFocus={() => {
+                                        if (!inspectionData[entry.id]?.cutting) {
+                                          const res = handleCuttingInput('1×', entry.entryType);
+                                          handleInputChange(entry.id, 'cutting', res.raw);
+                                        }
+                                      }}
+                                      onChange={(e) => {
+                                        const res = handleCuttingInput(e.target.value, entry.entryType);
+                                        handleInputChange(entry.id, 'cutting', res.raw);
+                                      }}
                                       style={{
                                         width: '100%',
                                         padding: '6px',
@@ -550,8 +661,17 @@ const PhysicalInspection: React.FC = () => {
                                     <input
                                       type="text"
                                       value={inspectionData[entry.id]?.bend || ''}
-                                      onChange={(e) => handleInputChange(entry.id, 'bend', e.target.value)}
-                                      placeholder="e.g. 32"
+                                      placeholder="1×"
+                                      onFocus={() => {
+                                        if (!inspectionData[entry.id]?.bend) {
+                                          const res = handleBendInput('1×', entry.entryType);
+                                          handleInputChange(entry.id, 'bend', res.raw);
+                                        }
+                                      }}
+                                      onChange={(e) => {
+                                        const res = handleBendInput(e.target.value, entry.entryType);
+                                        handleInputChange(entry.id, 'bend', res.raw);
+                                      }}
                                       style={{
                                         width: '100%',
                                         padding: '6px',

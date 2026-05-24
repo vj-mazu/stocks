@@ -1917,14 +1917,14 @@ router.put('/:id', authenticateToken, async (req, res) => {
               staffType: 'location',
               isActive: true
             },
-            attributes: ['id', 'username']
+            attributes: ['id', 'username', 'fullName']
           });
 
           if (!locationStaffUser) {
             return res.status(400).json({ error: 'Assigned user must be an active location staff' });
           }
 
-          updates.sampleCollectedBy = locationStaffUser.username;
+          updates.sampleCollectedBy = locationStaffUser.fullName || locationStaffUser.username;
         }
 
         // Staff edit limits are now handled cleanly inside SampleEntryService.updateSampleEntry
@@ -2596,6 +2596,7 @@ router.put('/:id/physical-inspection/:inspectionId', authenticateToken, async (r
     if (req.body.cutting1 !== undefined) updates.cutting1 = parseFloat(req.body.cutting1);
     if (req.body.cutting2 !== undefined) updates.cutting2 = parseFloat(req.body.cutting2);
     if (req.body.bend !== undefined) updates.bend = parseFloat(req.body.bend);
+    if (req.body.bend2 !== undefined) updates.bend2 = parseFloat(req.body.bend2);
     if (req.body.remarks !== undefined) updates.remarks = req.body.remarks;
 
     const updated = await PhysicalInspectionService.updatePhysicalInspection(

@@ -8,7 +8,8 @@ import CompletedLots from './CompletedLots';
 import AdminSampleBook2 from './AdminSampleBook2';
 import SampleApprovalsHub from './SampleApprovalsHub';
 import SampleEntryPage from './SampleEntry';
-import AllottingSupervisors from './AllottingSupervisors';
+import AssigningSupervisor from './AssigningSupervisor';
+import AllottedSupervisors from './AllottedSupervisors';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
 
@@ -21,8 +22,7 @@ type TabKey =
   | 'loading-lots'
   | 'approvals'
   | 'completed-lots'
-  | 'sample-book-2'
-  | 'allot-supervisor';
+  | 'sample-book-2';
 
 interface TabConfig {
   key: TabKey;
@@ -48,6 +48,7 @@ const approvalTabs: TabConfig[] = [
 const OwnerSampleReports: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('paddy-samples');
   const [approvalPendingCount, setApprovalPendingCount] = useState(0);
+  const [activeSubTab, setActiveSubTab] = useState<'financials' | 'assign-supervisor' | 'assigned-lots'>('financials');
   const { user } = useAuth();
   const isManager = user?.role === 'manager';
   const loadApprovalPendingCount = useCallback(async () => {
@@ -93,7 +94,6 @@ const OwnerSampleReports: React.FC = () => {
       baseTabsWithApprovals.find((tab) => tab.key === 'lots-passed'),
       baseTabsWithApprovals.find((tab) => tab.key === 'loading-lots'),
       baseTabsWithApprovals.find((tab) => tab.key === 'completed-lots'),
-      { key: 'allot-supervisor', label: 'Allot Supervisor', icon: '\u{1F464}', color: '#4a90e2' } as TabConfig,
       baseTabsWithApprovals.find((tab) => tab.key === 'approvals')
     ].filter(Boolean) as TabConfig[];
 
@@ -200,11 +200,75 @@ const OwnerSampleReports: React.FC = () => {
         {activeTab === 'pending-lots' && <LotSelection excludeEntryType="RICE_SAMPLE" />}
         {activeTab === 'cooking-report' && <CookingReport excludeEntryType="RICE_SAMPLE" />}
         {activeTab === 'lots-passed' && <FinalPassLots excludeEntryType="RICE_SAMPLE" />}
-        {activeTab === 'loading-lots' && <LoadingLots excludeEntryType="RICE_SAMPLE" />}
+        {activeTab === 'loading-lots' && (
+          <div style={{ padding: '0 20px' }}>
+            {/* Sub-tabs */}
+            <div style={{
+              display: 'flex',
+              gap: '10px',
+              marginBottom: '20px',
+              borderBottom: '2px solid #e0e0e0'
+            }}>
+              <button
+                onClick={() => setActiveSubTab('financials')}
+                style={{
+                  padding: '10px 20px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  border: 'none',
+                  borderBottom: activeSubTab === 'financials' ? '3px solid #f39c12' : '3px solid transparent',
+                  backgroundColor: 'transparent',
+                  color: activeSubTab === 'financials' ? '#f39c12' : '#666',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                Loading Lots Table
+              </button>
+              <button
+                onClick={() => setActiveSubTab('assign-supervisor')}
+                style={{
+                  padding: '10px 20px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  border: 'none',
+                  borderBottom: activeSubTab === 'assign-supervisor' ? '3px solid #f39c12' : '3px solid transparent',
+                  backgroundColor: 'transparent',
+                  color: activeSubTab === 'assign-supervisor' ? '#f39c12' : '#666',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                Assign Supervisor
+              </button>
+              <button
+                onClick={() => setActiveSubTab('assigned-lots')}
+                style={{
+                  padding: '10px 20px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  border: 'none',
+                  borderBottom: activeSubTab === 'assigned-lots' ? '3px solid #f39c12' : '3px solid transparent',
+                  backgroundColor: 'transparent',
+                  color: activeSubTab === 'assigned-lots' ? '#f39c12' : '#666',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                Assigned Loading Lots
+              </button>
+            </div>
+
+            <div>
+              {activeSubTab === 'financials' && <LoadingLots excludeEntryType="RICE_SAMPLE" />}
+              {activeSubTab === 'assign-supervisor' && <AssigningSupervisor />}
+              {activeSubTab === 'assigned-lots' && <AllottedSupervisors />}
+            </div>
+          </div>
+        )}
         {activeTab === 'approvals' && <SampleApprovalsHub excludeEntryType="RICE_SAMPLE" onPendingCountChange={setApprovalPendingCount} />}
         {activeTab === 'completed-lots' && <CompletedLots excludeEntryType="RICE_SAMPLE" />}
         {activeTab === 'sample-book-2' && <AdminSampleBook2 excludeEntryType="RICE_SAMPLE" />}
-        {activeTab === 'allot-supervisor' && <AllottingSupervisors />}
       </div>
     </div>
   );

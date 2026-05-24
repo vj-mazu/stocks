@@ -54,9 +54,9 @@ describe('Rice Stock Migration Data Preservation Properties', () => {
                 movementType: fc.constantFrom('purchase', 'sale', 'palti'),
                 productType: fc.constantFrom('Rice', 'Bran', 'Broken'),
                 bags: fc.integer({ min: 1, max: 1000 }),
-                quantityQuintals: fc.float({ min: 0.1, max: 100.0, noNaN: true }),
+                quantityQuintals: fc.float({ min: Math.fround(0.1), max: Math.fround(100.0), noNaN: true  }),
                 locationCode: fc.constantFrom('A1', 'B2', 'C3', 'D4'),
-                rate: fc.float({ min: 1000, max: 5000, noNaN: true })
+                rate: fc.float({ min: Math.fround(1000), max: Math.fround(5000), noNaN: true  })
               }),
               { minLength: 1, maxLength: 5 }
             )

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
 import { getDisplayQualityParameters } from '../utils/sampleEntryQualityModalLogic';
+import { splitCollectedByLine } from '../utils/sampleTypeDisplay';
 
 interface SampleEntry {
     id: string;
@@ -61,6 +63,8 @@ const getOriginalCollector = (entry: SampleEntry) => {
 };
 
 const AdminSampleBook: React.FC = () => {
+    const { user } = useAuth();
+    const loginDisplayName = toTitleCase(user?.fullName || user?.username || '');
     const [entries, setEntries] = useState<SampleEntry[]>([]);
     const [loading, setLoading] = useState(false);
     const [total, setTotal] = useState(0);
@@ -295,9 +299,15 @@ const AdminSampleBook: React.FC = () => {
                                     </td>
                                     <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap' }}>{toTitleCase(e.variety)}</td>
                                     <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontSize: '11px', whiteSpace: 'nowrap' }}>
-                                        <span style={{ fontSize: '11px', color: '#666' }}>
-                                            {getCollectorLabel(getOriginalCollector(e))}
-                                        </span>
+                                        {(() => {
+                                            const line = splitCollectedByLine(getCollectorLabel(getOriginalCollector(e)));
+                                            return (
+                                                <span style={{ fontSize: '11px', fontWeight: '700' }}>
+                                                    <span style={{ color: '#666' }}>{line.text}</span>
+                                                    {line.accent ? <><span style={{ color: '#94a3b8' }}> | </span><span style={{ color: '#9c27b0' }}>{line.accent}</span></> : null}
+                                                </span>
+                                            );
+                                        })()}
                                     </td>
                                     <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                                         {(() => {
@@ -627,7 +637,15 @@ const AdminSampleBook: React.FC = () => {
                                     <DetailItem 
                                         label="Sample Collected By" 
                                         value={
-                                            getCollectorLabel(getOriginalCollector(selectedEntry))
+                                            (() => {
+                                                const line = splitCollectedByLine(getCollectorLabel(getOriginalCollector(selectedEntry)));
+                                                return (
+                                                    <span style={{ fontWeight: '700' }}>
+                                                        <span>{line.text}</span>
+                                                        {line.accent ? <><span style={{ color: '#94a3b8' }}> | </span><span style={{ color: '#9c27b0' }}>{line.accent}</span></> : null}
+                                                    </span>
+                                                );
+                                            })()
                                         } 
                                     />
                                 </div>

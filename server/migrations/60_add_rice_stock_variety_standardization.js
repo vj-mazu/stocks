@@ -28,6 +28,15 @@ async function up() {
           
           COMMENT ON COLUMN rice_stock_movements.outturn_id IS 'Foreign key to outturns table for variety standardization';
         END IF;
+
+        -- Add migration_rollback_id column for tracking rollbacks
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                      WHERE table_name = 'rice_stock_movements' AND column_name = 'migration_rollback_id') THEN
+          ALTER TABLE rice_stock_movements 
+          ADD COLUMN migration_rollback_id INTEGER;
+          
+          COMMENT ON COLUMN rice_stock_movements.migration_rollback_id IS 'Audit field for tracking which rollback operation affected this record';
+        END IF;
       END $$;
     `);
     
@@ -225,6 +234,7 @@ async function down() {
     // Remove columns
     await sequelize.query(`
       ALTER TABLE rice_stock_movements DROP COLUMN IF EXISTS outturn_id;
+      ALTER TABLE rice_stock_movements DROP COLUMN IF EXISTS migration_rollback_id;
       ALTER TABLE rice_stock_balances DROP COLUMN IF EXISTS outturn_id;
     `);
     

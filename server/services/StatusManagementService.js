@@ -324,12 +324,14 @@ class StatusManagementService {
      */
     static async cleanupOldStatuses(daysOld = 90, status = null) {
         try {
+            const parsedDaysOld = parseInt(daysOld, 10) || 90;
+
             let query = `
                 DELETE FROM hamali_entry_status
-                WHERE last_updated < NOW() - INTERVAL '${daysOld} days'
+                WHERE last_updated < NOW() - (:daysOld * INTERVAL '1 day')
             `;
 
-            const replacements = {};
+            const replacements = { daysOld: parsedDaysOld };
 
             if (status) {
                 query += ' AND status = :status';

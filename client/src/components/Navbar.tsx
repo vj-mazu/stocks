@@ -459,6 +459,9 @@ const Navbar: React.FC = () => {
               <NavLink to="/sample-entry" $active={isActive('/sample-entry')}>Paddy Sample Entry</NavLink>
               <NavLink to="/rice-sample-entries" $active={isActive('/rice-sample-entries')}>Rice Sample Entry</NavLink>
               <NavLink to="/cooking-book" $active={isActive('/cooking-book')}>Cooking Book</NavLink>
+              {user.staffType === 'location' && (
+                <NavLink to="/physical-inspection" $active={isActive('/physical-inspection')}>Lots Allotted</NavLink>
+              )}
             </>
           )}
           {user && user.role === 'manager' && (
@@ -549,7 +552,7 @@ const Navbar: React.FC = () => {
                   {(user.role === 'inventory_staff' || user.role === 'admin') && (
                     <DropdownLink to="/inventory-entry" $active={isActive('/inventory-entry')}>Inventory Entry</DropdownLink>
                   )}
-                  {(user.role === 'physical_supervisor' || (user.role === 'staff' && user.staffType === 'location')) && (
+                  {user.role === 'physical_supervisor' && (
                     <DropdownLink to="/physical-inspection" $active={isActive('/physical-inspection')}>Lots Allotted</DropdownLink>
                   )}
                   {user.role === 'admin' && (

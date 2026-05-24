@@ -95,7 +95,7 @@ describe('Property Test: Rice Stock API Filtering', () => {
       }
     );
   });
-});
+
   /**
    * Validate varieties endpoint filtering
    */

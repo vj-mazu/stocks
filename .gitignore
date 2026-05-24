@@ -5,3 +5,10 @@ logs.txt
 *~
 .DS_Store
 uploads/
+remote-compare/
+.agent/
+.agents/
+graphify-out/
+client/src/graphify-out/
+server/graphify-out/
+server/scratch/

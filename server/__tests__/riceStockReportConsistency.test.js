@@ -45,9 +45,21 @@ describe('Property Test: Rice Stock Report Consistency', () => {
         // Generate test parameters for rice stock report
         fc.record({
           dateFrom: fc.date({ min: new Date('2023-01-01'), max: new Date('2024-12-31') })
-            .map(d => d.toISOString().split('T')[0]),
+            .map(d => {
+                  try {
+                    return d.toISOString().split('T')[0];
+                  } catch (e) {
+                    return '2024-01-01';
+                  }
+                }),
           dateTo: fc.date({ min: new Date('2023-01-01'), max: new Date('2024-12-31') })
-            .map(d => d.toISOString().split('T')[0]),
+            .map(d => {
+                  try {
+                    return d.toISOString().split('T')[0];
+                  } catch (e) {
+                    return '2024-01-01';
+                  }
+                }),
           productType: fc.oneof(
             fc.constant('Rice'),
             fc.constant('Broken'),

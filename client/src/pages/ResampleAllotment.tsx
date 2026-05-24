@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { API_URL } from '../config/api';
 import { getConvertedEntryTypeCode, getDisplayedEntryTypeCode, getEntryTypeTextColor, getOriginalEntryTypeCode, isConvertedResampleType } from '../utils/sampleTypeDisplay';
@@ -33,9 +34,48 @@ const getCollectorLabel = (value: string | null | undefined, supervisors: { user
   const raw = typeof value === 'string' ? value.trim() : '';
   if (!raw) return '-';
   if (raw.toLowerCase() === 'broker office sample') return 'Broker Office Sample';
-  const match = supervisors.find((sup) => String(sup.username || '').trim().toLowerCase() === raw.toLowerCase());
+  const normalizedRaw = raw.toLowerCase();
+  const match = supervisors.find((sup) =>
+    String(sup.username || '').trim().toLowerCase() === normalizedRaw
+    || String(sup.fullName || '').trim().toLowerCase() === normalizedRaw
+  );
   if (match?.fullName) return toTitleCase(match.fullName);
+  if (match?.username) return toTitleCase(match.username);
   return toTitleCase(raw);
+};
+const parseStoredCollectorPair = (value: string | null | undefined) => {
+  const parts = String(value || '').split('|').map((part) => part.trim()).filter(Boolean);
+  if (parts.length < 2) return null;
+  return {
+    selectedName: parts.slice(0, -1).join(' | '),
+    loginName: parts[parts.length - 1]
+  };
+};
+const isSupervisorName = (value: string | null | undefined, supervisors: { username: string; fullName?: string | null }[]) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return false;
+  return supervisors.some((sup) => (
+    String(sup.username || '').trim().toLowerCase() === normalized
+    || String(sup.fullName || '').trim().toLowerCase() === normalized
+  ));
+};
+const getCollectorDisplayParts = (value: string | null | undefined, supervisors: { username: string; fullName?: string | null }[]) => {
+  const raw = String(value || '').trim();
+  if (!raw) return { primary: '-', secondary: null as string | null };
+  const pair = parseStoredCollectorPair(raw);
+  if (!pair) return { primary: getCollectorLabel(raw, supervisors), secondary: null as string | null };
+  const selectedLabel = getCollectorLabel(pair.selectedName, supervisors);
+  const loginLabel = getCollectorLabel(pair.loginName, supervisors);
+  if (String(pair.selectedName || '').trim().toLowerCase() === 'broker office sample') {
+    return { primary: 'Broker Office Sample', secondary: null as string | null };
+  }
+  if (isSupervisorName(pair.selectedName, supervisors)) {
+    return { primary: selectedLabel, secondary: null as string | null };
+  }
+  if (selectedLabel.trim().toLowerCase() === loginLabel.trim().toLowerCase()) {
+    return { primary: selectedLabel, secondary: null as string | null };
+  }
+  return { primary: selectedLabel, secondary: loginLabel };
 };
 const getDisplayPartyName = (entry: ResampleEntry) => {
   const party = String(entry.partyName || '').trim();
@@ -51,6 +91,8 @@ const getOriginalCollector = (e: any) => {
 };
 
 const ResampleAllotment: React.FC<ResampleAllotmentProps> = ({ entryType, excludeEntryType }) => {
+  const { user } = useAuth();
+  const loginDisplayName = toTitleCase(user?.fullName || user?.username || '');
   const { showNotification } = useNotification();
   const [entries, setEntries] = useState<ResampleEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -265,8 +307,39 @@ const ResampleAllotment: React.FC<ResampleAllotmentProps> = ({ entryType, exclud
                             <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left' }}>{toTitleCase(entry.variety)}</td>
                             <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left' }}>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                <div style={{ fontSize: '10px', color: '#666' }}>Orig: {getCollectorLabel(getOriginalCollector(entry), paddySupervisors)}</div>
-                                <div style={{ fontWeight: '600' }}>{getCollectorLabel(assignments[entry.id] ?? getLatestResampleAssignedName(entry), paddySupervisors)}</div>
+                                <div style={{ fontSize: '10px', color: '#666' }}>
+                                  {(() => {
+                                    const originalDisplay = getCollectorDisplayParts(getOriginalCollector(entry), paddySupervisors);
+                                    return (
+                                      <>
+                                        Orig:{' '}
+                                        <span>{originalDisplay.primary}</span>
+                                        {originalDisplay.secondary ? (
+                                          <>
+                                            {' | '}
+                                            <span style={{ color: '#9c27b0', fontWeight: 700 }}>{originalDisplay.secondary}</span>
+                                          </>
+                                        ) : null}
+                                      </>
+                                    );
+                                  })()}
+                                </div>
+                                <div style={{ fontWeight: '600' }}>
+                                  {(() => {
+                                    const assignedDisplay = getCollectorDisplayParts(assignments[entry.id] ?? getLatestResampleAssignedName(entry), paddySupervisors);
+                                    return (
+                                      <>
+                                        <span>{assignedDisplay.primary}</span>
+                                        {assignedDisplay.secondary ? (
+                                          <>
+                                            {' | '}
+                                            <span style={{ color: '#9c27b0', fontWeight: 700 }}>{assignedDisplay.secondary}</span>
+                                          </>
+                                        ) : null}
+                                      </>
+                                    );
+                                  })()}
+                                </div>
                               </div>
                             </td>
                             <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center' }}>

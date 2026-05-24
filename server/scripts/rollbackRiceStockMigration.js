@@ -85,17 +85,17 @@ class RiceStockMigrationRollback {
       INSERT INTO rice_stock_migration_log (
         migration_type, status, started_at, dry_run, metadata
       ) VALUES (
-        'rollback', 'in_progress', NOW(), $1, $2
+        'rollback', 'in_progress', NOW(), :dryRun, :metadata
       ) RETURNING id
     `, {
-      replacements: [
-        dryRun, 
-        JSON.stringify({ 
+      replacements: {
+        dryRun,
+        metadata: JSON.stringify({ 
           version: '1.0', 
           executor: 'RiceStockMigrationRollback',
           targetMigrationId: migrationId
         })
-      ]
+      }
     });
 
     return result[0].id;
@@ -111,9 +111,9 @@ class RiceStockMigrationRollback {
       query = `
         SELECT id, migration_type, started_at, completed_at, status, metadata
         FROM rice_stock_migration_log 
-        WHERE id = $1 AND migration_type = 'variety_standardization'
+        WHERE id = :migrationId AND migration_type = 'variety_standardization'
       `;
-      replacements = [migrationId];
+      replacements = { migrationId };
     } else {
       query = `
         SELECT id, migration_type, started_at, completed_at, status, metadata
@@ -122,7 +122,7 @@ class RiceStockMigrationRollback {
           AND status = 'completed'
         ORDER BY completed_at DESC
       `;
-      replacements = [];
+      replacements = {};
     }
 
     const [migrations] = await sequelize.query(query, { replacements });
@@ -176,11 +176,11 @@ class RiceStockMigrationRollback {
         SELECT id, variety, outturn_id
         FROM rice_stock_movements 
         WHERE outturn_id IS NOT NULL
-          AND updated_at >= $1
-          AND (created_at < $1 OR created_at IS NULL)
+          AND updated_at >= :startedAt
+          AND (created_at < :startedAt OR created_at IS NULL)
         ORDER BY id
       `, {
-        replacements: [migration.started_at]
+        replacements: { startedAt: migration.started_at }
       });
 
       console.log(`📦 Found ${recordsToRollback.length} records to rollback for migration ${migration.id}`);
@@ -197,10 +197,10 @@ class RiceStockMigrationRollback {
             UPDATE rice_stock_movements 
             SET outturn_id = NULL, 
                 updated_at = NOW(),
-                migration_rollback_id = $1
-            WHERE id = ANY($2::integer[])
+                migration_rollback_id = :rollbackId
+            WHERE id IN (:recordIds)
           `, {
-            replacements: [this.rollbackId, recordIds]
+            replacements: { rollbackId: this.rollbackId, recordIds }
           });
         }
 
@@ -238,8 +238,10 @@ class RiceStockMigrationRollback {
         SELECT COUNT(*) as count
         FROM rice_stock_movements 
         WHERE outturn_id IS NOT NULL
-          AND migration_rollback_id = $1
-      `);
+          AND migration_rollback_id = :rollbackId
+      `, {
+        replacements: { rollbackId: this.rollbackId }
+      });
 
       const remainingMappedRecords = parseInt(mappedRecords[0].count);
 
@@ -298,13 +300,13 @@ class RiceStockMigrationRollback {
   async logRollbackStep(step, data) {
     await sequelize.query(`
       UPDATE rice_stock_migration_log 
-      SET steps = COALESCE(steps, '[]'::jsonb) || $2::jsonb
-      WHERE id = $1
+      SET steps = COALESCE(steps, '[]'::jsonb) || :stepData::jsonb
+      WHERE id = :rollbackId
     `, {
-      replacements: [
-        this.rollbackId,
-        JSON.stringify([{ step, timestamp: new Date(), data }])
-      ]
+      replacements: {
+        rollbackId: this.rollbackId,
+        stepData: JSON.stringify([{ step, timestamp: new Date(), data }])
+      }
     });
   }
 
@@ -317,15 +319,15 @@ class RiceStockMigrationRollback {
 
     await sequelize.query(`
       UPDATE rice_stock_migration_log 
-      SET status = $2, completed_at = $3, duration_seconds = $4
-      WHERE id = $1
+      SET status = :status, completed_at = :completedAt, duration_seconds = :duration
+      WHERE id = :rollbackId
     `, {
-      replacements: [
-        this.rollbackId,
-        success ? 'completed' : 'failed',
-        endTime,
+      replacements: {
+        rollbackId: this.rollbackId,
+        status: success ? 'completed' : 'failed',
+        completedAt: endTime,
         duration
-      ]
+      }
     });
 
     console.log(`📝 Rollback log updated: ${success ? 'COMPLETED' : 'FAILED'}`);
@@ -338,10 +340,13 @@ class RiceStockMigrationRollback {
     if (this.rollbackId) {
       await sequelize.query(`
         UPDATE rice_stock_migration_log 
-        SET status = 'failed', error_message = $2, completed_at = NOW()
-        WHERE id = $1
+        SET status = 'failed', error_message = :errorMessage, completed_at = NOW()
+        WHERE id = :rollbackId
       `, {
-        replacements: [this.rollbackId, error.message]
+        replacements: {
+          rollbackId: this.rollbackId,
+          errorMessage: error.message
+        }
       });
     }
   }

@@ -283,10 +283,8 @@ Arrival.belongsTo(Arrival, { foreignKey: 'linkedShiftingId', as: 'linkedShifting
 Arrival.hasMany(Arrival, { foreignKey: 'linkedShiftingId', as: 'derivedArrivals' });
 
 // Set up Outturn association after module is loaded
-setTimeout(() => {
-  const Outturn = require('./Outturn');
-  Arrival.belongsTo(Outturn, { foreignKey: 'outturnId', as: 'outturn' });
-  Arrival.belongsTo(Outturn, { foreignKey: 'fromOutturnId', as: 'fromOutturn' });
-}, 0);
+const Outturn = require('./Outturn');
+Arrival.belongsTo(Outturn, { foreignKey: 'outturnId', as: 'outturn' });
+Arrival.belongsTo(Outturn, { foreignKey: 'fromOutturnId', as: 'fromOutturn' });
 
 module.exports = Arrival;

@@ -42,7 +42,13 @@ describe('Rice Stock Calculation Accuracy Properties', () => {
             variety: fc.constantFrom('BASMATI', 'SONA MASOORI', 'JASMINE', 'PONNI'),
             outturnId: fc.integer({ min: 1, max: 100 }),
             date: fc.date({ min: new Date('2024-01-01'), max: new Date('2025-12-31') })
-              .map(d => d.toISOString().split('T')[0])
+              .map(d => {
+                try {
+                  return d.toISOString().split('T')[0];
+                } catch (e) {
+                  return '2024-01-01';
+                }
+              })
           }),
           async ({ productType, packagingId, locationCode, variety, outturnId, date }) => {
             try {
@@ -112,7 +118,13 @@ describe('Rice Stock Calculation Accuracy Properties', () => {
             outturnId: fc.integer({ min: 1, max: 50 }),
             requestedQtls: fc.float({ min: Math.fround(0.1), max: Math.fround(100.0) }),
             date: fc.date({ min: new Date('2024-01-01'), max: new Date('2025-12-31') })
-              .map(d => d.toISOString().split('T')[0])
+              .map(d => {
+                try {
+                  return d.toISOString().split('T')[0];
+                } catch (e) {
+                  return '2024-01-01';
+                }
+              })
           }),
           async ({ productType, packagingId, locationCode, variety, outturnId, requestedQtls, date }) => {
             try {
@@ -169,7 +181,13 @@ describe('Rice Stock Calculation Accuracy Properties', () => {
         fc.asyncProperty(
           fc.record({
             beforeDate: fc.date({ min: new Date('2024-01-01'), max: new Date('2025-12-31') })
-              .map(d => d.toISOString().split('T')[0])
+              .map(d => {
+                try {
+                  return d.toISOString().split('T')[0];
+                } catch (e) {
+                  return '2024-01-01';
+                }
+              })
           }),
           async ({ beforeDate }) => {
             try {
@@ -312,35 +330,35 @@ describe('Rice Stock Calculation Accuracy Properties', () => {
               date: '2024-01-01'
             };
 
+            let result, normalizedResult;
+            let firstError;
+            
+            const normalizedVariety = variety.toString().trim().toUpperCase();
+            const normalizedParams = { ...testParams, variety: normalizedVariety };
+
             try {
-              const result = await RiceStockCalculationService.calculateAvailableStock(testParams);
-              
-              // Result should be consistent regardless of variety case/format
-              expect(result).toHaveProperty('availableQtls');
-              expect(result).toHaveProperty('calculationMethod', 'variety-string');
-              expect(result.availableQtls).toBeGreaterThanOrEqual(0);
-
-              // Test with normalized variety
-              const normalizedVariety = variety.toString().trim().toUpperCase();
-              const normalizedParams = { ...testParams, variety: normalizedVariety };
-              const normalizedResult = await RiceStockCalculationService.calculateAvailableStock(normalizedParams);
-
-              // Results should be identical for equivalent varieties
-              expect(normalizedResult.availableQtls).toBe(result.availableQtls);
-              expect(normalizedResult.availableBags).toBe(result.availableBags);
-
+              result = await RiceStockCalculationService.calculateAvailableStock(testParams);
+              normalizedResult = await RiceStockCalculationService.calculateAvailableStock(normalizedParams);
             } catch (error) {
-              // If calculation fails, it should fail consistently
-              expect(error).toBeInstanceOf(Error);
-              
-              // Test that normalized variety also fails consistently
-              const normalizedVariety = variety.toString().trim().toUpperCase();
-              const normalizedParams = { ...testParams, variety: normalizedVariety };
-              
+              firstError = error;
+            }
+
+            if (firstError) {
+              expect(firstError).toBeInstanceOf(Error);
               await expect(
                 RiceStockCalculationService.calculateAvailableStock(normalizedParams)
               ).rejects.toThrow();
+              return;
             }
+
+            // Result should be consistent regardless of variety case/format
+            expect(result).toHaveProperty('availableQtls');
+            expect(result).toHaveProperty('calculationMethod', 'variety-string');
+            expect(result.availableQtls).toBeGreaterThanOrEqual(0);
+
+            // Results should be identical for equivalent varieties
+            expect(normalizedResult.availableQtls).toBe(result.availableQtls);
+            expect(normalizedResult.availableBags).toBe(result.availableBags);
           }
         ),
         { numRuns: 50, timeout: 30000 }
@@ -420,7 +438,13 @@ describe('Rice Stock Calculation Accuracy Properties', () => {
             variety: fc.constantFrom('BASMATI', 'SONA MASOORI', 'JASMINE'),
             outturnId: fc.integer({ min: 1, max: 100 }),
             date: fc.date({ min: new Date('2024-01-01'), max: new Date('2025-12-31') })
-              .map(d => d.toISOString().split('T')[0])
+              .map(d => {
+                try {
+                  return d.toISOString().split('T')[0];
+                } catch (e) {
+                  return '2024-01-01';
+                }
+              })
           }),
           async ({ productType, packagingId, locationCode, variety, outturnId, date }) => {
             const startTime = Date.now();
@@ -470,7 +494,13 @@ describe('Rice Stock Calculation Accuracy Properties', () => {
             variety: fc.constantFrom('BASMATI', 'SONA MASOORI'),
             outturnId: fc.integer({ min: 1, max: 50 }),
             date: fc.date({ min: new Date('2024-01-01'), max: new Date('2025-12-31') })
-              .map(d => d.toISOString().split('T')[0])
+              .map(d => {
+                try {
+                  return d.toISOString().split('T')[0];
+                } catch (e) {
+                  return '2024-01-01';
+                }
+              })
           }),
           async ({ productType, packagingId, locationCode, variety, outturnId, date }) => {
             const params = {
@@ -482,22 +512,18 @@ describe('Rice Stock Calculation Accuracy Properties', () => {
               date
             };
 
+            let result1, result2, result3;
+            let firstError;
+
             try {
-              // Perform the same calculation multiple times
-              const result1 = await RiceStockCalculationService.calculateAvailableStock(params);
-              const result2 = await RiceStockCalculationService.calculateAvailableStock(params);
-              const result3 = await RiceStockCalculationService.calculateAvailableStock(params);
-
-              // All results should be identical (deterministic)
-              expect(result2.availableQtls).toBe(result1.availableQtls);
-              expect(result2.availableBags).toBe(result1.availableBags);
-              expect(result2.calculationMethod).toBe(result1.calculationMethod);
-
-              expect(result3.availableQtls).toBe(result1.availableQtls);
-              expect(result3.availableBags).toBe(result1.availableBags);
-              expect(result3.calculationMethod).toBe(result1.calculationMethod);
-
+              result1 = await RiceStockCalculationService.calculateAvailableStock(params);
+              result2 = await RiceStockCalculationService.calculateAvailableStock(params);
+              result3 = await RiceStockCalculationService.calculateAvailableStock(params);
             } catch (error) {
+              firstError = error;
+            }
+
+            if (firstError) {
               // If one calculation fails, all should fail consistently
               await expect(
                 RiceStockCalculationService.calculateAvailableStock(params)
@@ -506,7 +532,17 @@ describe('Rice Stock Calculation Accuracy Properties', () => {
               await expect(
                 RiceStockCalculationService.calculateAvailableStock(params)
               ).rejects.toThrow();
+              return;
             }
+
+            // All results should be identical (deterministic)
+            expect(result2.availableQtls).toBe(result1.availableQtls);
+            expect(result2.availableBags).toBe(result1.availableBags);
+            expect(result2.calculationMethod).toBe(result1.calculationMethod);
+
+            expect(result3.availableQtls).toBe(result1.availableQtls);
+            expect(result3.availableBags).toBe(result1.availableBags);
+            expect(result3.calculationMethod).toBe(result1.calculationMethod);
           }
         ),
         { numRuns: 30, timeout: 30000 }

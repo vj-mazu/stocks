@@ -125,10 +125,13 @@ class RiceStockMigrationExecutor {
       INSERT INTO rice_stock_migration_log (
         migration_type, status, started_at, dry_run, metadata
       ) VALUES (
-        'variety_standardization', 'in_progress', NOW(), $1, $2
+        'variety_standardization', 'in_progress', NOW(), :dryRun, :metadata
       ) RETURNING id
     `, {
-      replacements: [dryRun, JSON.stringify({ version: '1.0', executor: 'RiceStockMigrationExecutor' })]
+      replacements: {
+        dryRun,
+        metadata: JSON.stringify({ version: '1.0', executor: 'RiceStockMigrationExecutor' })
+      }
     });
 
     return result[0].id;
@@ -140,13 +143,13 @@ class RiceStockMigrationExecutor {
   async logMigrationStep(step, data) {
     await sequelize.query(`
       UPDATE rice_stock_migration_log 
-      SET steps = COALESCE(steps, '[]'::jsonb) || $2::jsonb
-      WHERE id = $1
+      SET steps = COALESCE(steps, '[]'::jsonb) || :stepData::jsonb
+      WHERE id = :migrationId
     `, {
-      replacements: [
-        this.migrationId,
-        JSON.stringify([{ step, timestamp: new Date(), data }])
-      ]
+      replacements: {
+        migrationId: this.migrationId,
+        stepData: JSON.stringify([{ step, timestamp: new Date(), data }])
+      }
     });
   }
 
@@ -360,15 +363,15 @@ class RiceStockMigrationExecutor {
 
     await sequelize.query(`
       UPDATE rice_stock_migration_log 
-      SET status = $2, completed_at = $3, duration_seconds = $4
-      WHERE id = $1
+      SET status = :status, completed_at = :completedAt, duration_seconds = :duration
+      WHERE id = :migrationId
     `, {
-      replacements: [
-        this.migrationId,
-        success ? 'completed' : 'failed',
-        endTime,
+      replacements: {
+        migrationId: this.migrationId,
+        status: success ? 'completed' : 'failed',
+        completedAt: endTime,
         duration
-      ]
+      }
     });
 
     console.log(`📝 Migration log updated: ${success ? 'COMPLETED' : 'FAILED'}`);
@@ -381,10 +384,13 @@ class RiceStockMigrationExecutor {
     if (this.migrationId) {
       await sequelize.query(`
         UPDATE rice_stock_migration_log 
-        SET status = 'failed', error_message = $2, completed_at = NOW()
-        WHERE id = $1
+        SET status = 'failed', error_message = :errorMessage, completed_at = NOW()
+        WHERE id = :migrationId
       `, {
-        replacements: [this.migrationId, error.message]
+        replacements: {
+          migrationId: this.migrationId,
+          errorMessage: error.message
+        }
       });
     }
   }

@@ -79,6 +79,7 @@ class PhysicalInspectionService {
         cutting1: inspectionData.cutting1,
         cutting2: inspectionData.cutting2,
         bend: inspectionData.bend,
+        bend2: inspectionData.bend2,
         remarks: inspectionData.remarks || null,
         isComplete: false
       };
@@ -225,6 +226,7 @@ class PhysicalInspectionService {
         cutting1: inspection.cutting1,
         cutting2: inspection.cutting2,
         bend: inspection.bend,
+        bend2: inspection.bend2,
         reportedBy: inspection.reportedBy
       }));
 

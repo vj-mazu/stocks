@@ -28,6 +28,12 @@ const toTitleCase = (str: string) => {
     return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
 };
 
+const formatDecimal = (val: any) => {
+  if (val === undefined || val === null || val === '') return '';
+  const num = Number(val);
+  return isNaN(num) ? val.toString() : num.toString();
+};
+
 const PageHeader = styled.div`
   margin-bottom: 2rem;
   display: flex;
@@ -510,8 +516,8 @@ const FinalReviewPage: React.FC = () => {
                                         <tbody>
                                             <tr>
                                                 <td style={{ fontWeight: 700 }}>{flow.inspection.bags}</td>
-                                                <td>{flow.inspection.cutting1} / {flow.inspection.cutting2 || '-'}</td>
-                                                <td>{flow.inspection.bend}</td>
+                                                 <td>{formatDecimal(flow.inspection.cutting1)} {flow.inspection.cutting2 && Number(flow.inspection.cutting2) !== 0 ? `/ ${formatDecimal(flow.inspection.cutting2)}` : ''}</td>
+                                                 <td>{formatDecimal(flow.inspection.bend)} {flow.inspection.bend2 && Number(flow.inspection.bend2) !== 0 ? `/ ${formatDecimal(flow.inspection.bend2)}` : ''}</td>
                                                 <td>{flow.inspection.remarks || 'No remarks'}</td>
                                                 <td>{flow.inspection.reportedBy?.username || '-'}</td>
                                             </tr>

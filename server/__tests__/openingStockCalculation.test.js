@@ -43,7 +43,13 @@ describe('Opening Stock Calculation Properties', () => {
           // Generate test data
           fc.record({
             beforeDate: fc.date({ min: new Date('2024-01-01'), max: new Date('2025-12-31') })
-              .map(d => d.toISOString().split('T')[0]),
+              .map(d => {
+                  try {
+                    return d.toISOString().split('T')[0];
+                  } catch (e) {
+                    return '2024-01-01';
+                  }
+                }),
             variety: fc.constantFrom('DEC25 JSR', 'SUM25 RNR', 'DEC25 P SONA'),
             location: fc.constantFrom('K1 - W1', 'K2 - W2', 'K3 - W3'),
             inwardBags: fc.integer({ min: 1, max: 1000 }),
@@ -137,7 +143,13 @@ describe('Opening Stock Calculation Properties', () => {
         fc.asyncProperty(
           fc.record({
             clearingDate: fc.date({ min: new Date('2024-06-01'), max: new Date('2024-12-31') })
-              .map(d => d.toISOString().split('T')[0]),
+              .map(d => {
+                  try {
+                    return d.toISOString().split('T')[0];
+                  } catch (e) {
+                    return '2024-01-01';
+                  }
+                }),
             variety: fc.constantFrom('DEC25 JSR', 'SUM25 RNR'),
             bags: fc.integer({ min: 10, max: 100 })
           }),
@@ -224,7 +236,13 @@ describe('Opening Stock Calculation Properties', () => {
         fc.asyncProperty(
           fc.record({
             beforeDate: fc.date({ min: new Date('2024-01-01'), max: new Date('2025-12-31') })
-              .map(d => d.toISOString().split('T')[0])
+              .map(d => {
+                  try {
+                    return d.toISOString().split('T')[0];
+                  } catch (e) {
+                    return '2024-01-01';
+                  }
+                })
           }),
           async ({ beforeDate }) => {
             const response = await request(app)
@@ -294,7 +312,13 @@ describe('Opening Stock Calculation Properties', () => {
         fc.asyncProperty(
           fc.record({
             beforeDate: fc.date({ min: new Date('2024-01-01'), max: new Date('2025-12-31') })
-              .map(d => d.toISOString().split('T')[0]),
+              .map(d => {
+                  try {
+                    return d.toISOString().split('T')[0];
+                  } catch (e) {
+                    return '2024-01-01';
+                  }
+                }),
             variety: fc.constantFrom('DEC25 JSR', 'SUM25 RNR', 'DEC25 P SONA'),
             purchaseBags: fc.integer({ min: 100, max: 500 }),
             shiftingBags: fc.integer({ min: 10, max: 100 })
@@ -392,9 +416,21 @@ describe('Opening Stock Calculation Properties', () => {
         fc.asyncProperty(
           fc.record({
             startDate: fc.date({ min: new Date('2024-01-01'), max: new Date('2024-12-31') })
-              .map(d => d.toISOString().split('T')[0]),
+              .map(d => {
+                  try {
+                    return d.toISOString().split('T')[0];
+                  } catch (e) {
+                    return '2024-01-01';
+                  }
+                }),
             endDate: fc.date({ min: new Date('2024-01-01'), max: new Date('2024-12-31') })
-              .map(d => d.toISOString().split('T')[0]),
+              .map(d => {
+                  try {
+                    return d.toISOString().split('T')[0];
+                  } catch (e) {
+                    return '2024-01-01';
+                  }
+                }),
             variety: fc.constantFrom('DEC25 JSR', 'SUM25 RNR', 'DEC25 P SONA'),
             bags: fc.integer({ min: 10, max: 100 })
           }),
@@ -620,7 +656,13 @@ describe('Opening Stock Calculation Properties', () => {
         fc.asyncProperty(
           fc.record({
             baseDate: fc.date({ min: new Date('2024-06-01'), max: new Date('2024-12-31') })
-              .map(d => d.toISOString().split('T')[0]),
+              .map(d => {
+                  try {
+                    return d.toISOString().split('T')[0];
+                  } catch (e) {
+                    return '2024-01-01';
+                  }
+                }),
             variety: fc.constantFrom('DEC25 JSR', 'SUM25 RNR'),
             recordCount: fc.integer({ min: 3, max: 5 })
           }),

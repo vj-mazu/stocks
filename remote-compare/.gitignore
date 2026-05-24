@@ -1,7 +1,0 @@
-node_modules/
-server/logs.txt
-logs.txt
-*.swp
-*~
-.DS_Store
-uploads/

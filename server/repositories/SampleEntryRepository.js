@@ -87,11 +87,31 @@ class SampleEntryRepository {
    * Build role-appropriate includes to avoid unnecessary JOINs
    * PERFORMANCE: Only load deep associations when the workflow status actually needs them
    */
-  _buildIncludesForRole(role, status) {
+  _buildIncludesForRole(role, status, staffType) {
     // Core includes - always lightweight
     const baseIncludes = [
       { model: User, as: 'creator', attributes: ['id', 'username', 'fullName'] }
     ];
+
+    // Staff acting as location supervisor needs full includes to filter by supervisor assignment
+    const assignedLocationStaffStatuses = new Set([
+      'LOT_ALLOTMENT',
+      'PHYSICAL_INSPECTION',
+      'INVENTORY_ENTRY',
+      'OWNER_FINANCIAL',
+      'MANAGER_FINANCIAL',
+      'FINAL_REVIEW',
+      'COMPLETED'
+    ]);
+    const isAssignedLocationStaffView = 
+      role === 'staff' 
+      && String(staffType || '').trim().toLowerCase() === 'location' 
+      && status 
+      && assignedLocationStaffStatuses.has(status);
+
+    if (isAssignedLocationStaffView) {
+      return this._buildFullIncludes(role);
+    }
 
     // Staff needs quality parameters for Sample Book tab (to show 100gms / quality badges)
     if (role === 'staff' && status !== 'COOKING_REPORT') {
@@ -528,7 +548,7 @@ class SampleEntryRepository {
               ? ['QUALITY_CHECK', 'LOT_SELECTION']
               : (activeStatus ? [activeStatus] : [])));
 
-    const include = this._buildIncludesForRole(role, statusesToInclude.length > 0 ? statusesToInclude[0] : null);
+    const include = this._buildIncludesForRole(role, statusesToInclude.length > 0 ? statusesToInclude[0] : null, filters.staffType);
 
     if (requestedStatus === 'COOKING_BOOK' || requestedStatus === 'RESAMPLE_COOKING_BOOK' || (requestedStatus === 'QUALITY_CHECK' && filters.entryType === 'RICE_SAMPLE')) {
       const crInclude = include.find(i => i.as === 'cookingReport');

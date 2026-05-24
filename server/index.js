@@ -138,6 +138,7 @@ app.use(logger.requestLogger);
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/auth', authRoutes);
 app.use('/api/arrivals', arrivalsRoutes);
 app.use('/api/records', recordsRoutes);
 app.use('/api/locations', locationsRoutes);
@@ -246,6 +247,10 @@ app.use('*', (req, res) => {
 
 // Database connection and server start
 const startServer = async () => {
+  if (process.env.NODE_ENV === 'test') {
+    console.log('🧪 Test environment detected: Skipping migrations and database initialization in index.js');
+    return;
+  }
   try {
     // Test database connection
     await sequelize.authenticate();
@@ -1684,11 +1689,14 @@ const startServer = async () => {
     }
 
     // Use the isVercel variable defined earlier
-    if (!isVercel) {
+    const isTest = process.env.NODE_ENV === 'test';
+    if (!isVercel && !isTest) {
       app.listen(PORT, () => {
         console.log(`🚀 Mother India Stock Management Server running on port ${PORT}`);
         console.log(`🌐 API Base URL: http://localhost:${PORT}/api`);
       });
+    } else if (isTest) {
+      console.log('🧪 Test environment detected: Skipping app.listen() to allow parallel tests.');
     } else {
       console.log('✅ Exporting app for Vercel serverless environment.');
     }

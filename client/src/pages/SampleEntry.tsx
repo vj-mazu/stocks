@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
 import axios from 'axios';
 import { generateSampleEntryPDF } from '../utils/sampleEntryPdfGenerator';
-import { getCollectedByDisplay as _sharedGetCollectedByDisplay, getConvertedEntryTypeCode, getDisplayedEntryTypeCode, getEntryTypeTextColor, getOriginalEntryTypeCode, isConvertedResampleType } from '../utils/sampleTypeDisplay';
+import { getCollectedByDisplay as _sharedGetCollectedByDisplay, getConvertedEntryTypeCode, getDisplayedEntryTypeCode, getEntryTypeTextColor, getOriginalEntryTypeCode, isConvertedResampleType, splitCollectedByLine } from '../utils/sampleTypeDisplay';
 import { SampleEntryDetailModal } from '../components/SampleEntryDetailModal';
 import { API_URL } from '../config/api';
 import { hasSavedResampleAttemptFromHistory, shouldPreserveGpsPrefill, shouldRefillQualityModal, shouldShowQualityUpdateMode } from '../utils/sampleEntryQualityModalLogic';
@@ -102,8 +102,13 @@ const SampleEntryPage: React.FC<{
     const raw = typeof value === 'string' ? value.trim() : '';
     if (!raw) return '-';
     if (raw.toLowerCase() === 'broker office sample') return 'Broker Office Sample';
-    const match = paddySupervisors.find((sup) => String(sup.username || '').trim().toLowerCase() === raw.toLowerCase());
+    const normalizedRaw = raw.toLowerCase();
+    const match = paddySupervisors.find((sup) =>
+      String(sup.username || '').trim().toLowerCase() === normalizedRaw
+      || String(sup.fullName || '').trim().toLowerCase() === normalizedRaw
+    );
     if (match?.fullName) return toTitleCase(match.fullName);
+    if (match?.username) return toTitleCase(match.username);
     return toTitleCase(raw);
   };
   const getResampleCollectorNames = (entry: SampleEntry) => {
@@ -173,7 +178,7 @@ const SampleEntryPage: React.FC<{
     .filter((value, index, arr) => (
       arr.findIndex((candidate) => candidate.toLowerCase() === value.toLowerCase()) === index
     ));
-  const getCollectedByDisplay = (entry: SampleEntry) => _sharedGetCollectedByDisplay(entry as any, paddySupervisors, { keepLoginPair: true });
+  const getCollectedByDisplay = (entry: SampleEntry) => _sharedGetCollectedByDisplay(entry as any, paddySupervisors, { keepLoginPair: true, currentUser: user });
   const isResampleWorkflowEntry = (entry: SampleEntry | any, qualityAttemptsOverride?: any[]) => {
     const qualityAttempts = qualityAttemptsOverride || getQualityAttemptsForEntry(entry as any);
     const isConvertedLocationResample = String(entry?.entryType || '').toUpperCase() === 'LOCATION_SAMPLE'
@@ -3520,18 +3525,36 @@ const SampleEntryPage: React.FC<{
                                     if (collectedByDisplay.secondary) {
                                       return (
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-                                          <span style={{ color: collectedByDisplay.highlightPrimary ? collectedByHighlightColor : '#1e293b', fontWeight: '700', fontSize: '11px' }}>
-                                            {collectedByDisplay.primary}
-                                          </span>
-                                          <span style={{ color: '#94a3b8', fontWeight: '800', fontSize: '10px' }}>|</span>
-                                          <span style={{ color: '#1e293b', fontWeight: '600', fontSize: '10px' }}>
-                                            {collectedByDisplay.secondary}
-                                          </span>
+                                          {(() => {
+                                            const primaryLine = splitCollectedByLine(collectedByDisplay.primary);
+                                            const secondaryLine = splitCollectedByLine(collectedByDisplay.secondary);
+                                            return (
+                                              <>
+                                                <span style={{ fontWeight: '700', fontSize: '11px' }}>
+                                                  <span style={{ color: collectedByDisplay.highlightPrimary ? collectedByHighlightColor : '#1e293b' }}>{primaryLine.text}</span>
+                                                  {primaryLine.accent ? <><span style={{ color: '#94a3b8', fontWeight: '800', fontSize: '10px' }}> | </span><span style={{ color: collectedByHighlightColor }}>{primaryLine.accent}</span></> : null}
+                                                </span>
+                                                <span style={{ color: '#94a3b8', fontWeight: '800', fontSize: '10px' }}>|</span>
+                                                <span style={{ fontWeight: '600', fontSize: '10px' }}>
+                                                  <span style={{ color: collectedByDisplay.highlightSecondary ? collectedByHighlightColor : '#1e293b' }}>{secondaryLine.text}</span>
+                                                  {secondaryLine.accent ? <><span style={{ color: '#94a3b8', fontWeight: '800', fontSize: '10px' }}> | </span><span style={{ color: collectedByHighlightColor }}>{secondaryLine.accent}</span></> : null}
+                                                </span>
+                                              </>
+                                            );
+                                          })()}
                                         </div>
                                       );
                                     }
 
-                                    return collectedByDisplay.primary;
+                                    return (() => {
+                                      const primaryLine = splitCollectedByLine(collectedByDisplay.primary);
+                                      return (
+                                        <span style={{ fontWeight: '700', fontSize: '11px' }}>
+                                          <span style={{ color: collectedByDisplay.highlightPrimary ? collectedByHighlightColor : '#1e293b' }}>{primaryLine.text}</span>
+                                          {primaryLine.accent ? <><span style={{ color: '#94a3b8', fontWeight: '800', fontSize: '10px' }}> | </span><span style={{ color: collectedByHighlightColor }}>{primaryLine.accent}</span></> : null}
+                                        </span>
+                                      );
+                                    })();
                                   })()}
                                 </td>
                               </tr>

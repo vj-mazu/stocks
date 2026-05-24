@@ -71,7 +71,7 @@ describe('Property Test 6: Palti Validation Logic', () => {
           outturnId: fc.constantFrom(...testOutturns.map(o => o.id)),
           productType: fc.constantFrom('Rice', 'Bran'),
           requestedBags: fc.integer({ min: 1, max: 1000 }),
-          requestedQtls: fc.float({ min: 0.1, max: 50.0 }),
+          requestedQtls: fc.float({ min: Math.fround(0.1), max: Math.fround(50.0)  }),
           date: fc.constantFrom(
             '2024-01-15', 
             '2024-02-15',
@@ -173,13 +173,13 @@ describe('Property Test 6: Palti Validation Logic', () => {
           outturnId: fc.constantFrom(...testOutturns.slice(0, 2).map(o => o.id)),
           productType: fc.constant('Rice'),
           requestedBags: fc.integer({ min: 1, max: 100 }),
-          requestedQtls: fc.float({ min: 0.1, max: 10.0 }),
+          requestedQtls: fc.float({ min: Math.fround(0.1), max: Math.fround(10.0)  }),
           date: fc.constant(new Date().toISOString().split('T')[0])
         }),
         async (testData) => {
           try {
             const response = await request(app)
-              .post('/api/rice-stock/validate-palti-location')
+              .post('/api/rice-stock-management/validate-palti-location')
               .set('Authorization', `Bearer ${authToken}`)
               .send({
                 sourceLocation: testData.sourceLocation,
@@ -265,7 +265,7 @@ describe('Property Test 6: Palti Validation Logic', () => {
           variety: fc.constantFrom('NONEXISTENT_VARIETY', 'ZERO_STOCK_VARIETY'),
           productType: fc.constantFrom('Rice', 'Bran'),
           requestedBags: fc.integer({ min: 1, max: 10 }),
-          requestedQtls: fc.float({ min: 0.1, max: 5.0 }),
+          requestedQtls: fc.float({ min: Math.fround(0.1), max: Math.fround(5.0)  }),
           date: fc.constant(new Date().toISOString().split('T')[0])
         }),
         async (testData) => {
@@ -397,7 +397,7 @@ describe('Property Test 6: Palti Validation Logic', () => {
           variety: fc.constantFrom('SUM25 RNR Raw', 'BASMATI Raw'),
           productType: fc.constant('Rice'),
           requestedBags: fc.integer({ min: 100, max: 1000 }), // Intentionally high to trigger failures
-          requestedQtls: fc.float({ min: 50.0, max: 100.0 }), // Intentionally high
+          requestedQtls: fc.float({ min: Math.fround(50.0), max: Math.fround(100.0)  }), // Intentionally high
           date: fc.constant(new Date().toISOString().split('T')[0])
         }),
         async (testData) => {

@@ -177,11 +177,11 @@ describe('Rice Stock Migration Integration Tests', () => {
             date, movement_type, product_type, variety, bags, quantity_quintals,
             location_code, status, created_at, updated_at
           ) VALUES (
-            CURRENT_DATE, 'purchase', 'Rice', $1, 10, 5.0,
+            CURRENT_DATE, 'purchase', 'Rice', :variety, 10, 5.0,
             'TEST_STORE', 'approved', NOW(), NOW()
           )
         `, {
-          replacements: [variety]
+          replacements: { variety }
         });
       } catch (error) {
         // May fail due to constraints, which is expected
@@ -290,9 +290,9 @@ describe('Rice Stock Migration Integration Tests', () => {
       SELECT id, migration_type, status, started_at, completed_at, 
              duration_seconds, dry_run, steps, metadata
       FROM rice_stock_migration_log 
-      WHERE id = $1
+      WHERE id = :migrationId
     `, {
-      replacements: [migrationResult.migrationId]
+      replacements: { migrationId: migrationResult.migrationId }
     });
 
     expect(migrationLogs.length).toBe(1);
@@ -303,10 +303,10 @@ describe('Rice Stock Migration Integration Tests', () => {
     expect(logEntry.dry_run).toBe(true);
     expect(logEntry.started_at).toBeDefined();
     expect(logEntry.completed_at).toBeDefined();
-    expect(logEntry.duration_seconds).toBeGreaterThan(0);
+    expect(Number(logEntry.duration_seconds)).toBeGreaterThan(0);
 
     // Verify steps are logged
-    const steps = JSON.parse(logEntry.steps);
+    const steps = typeof logEntry.steps === 'string' ? JSON.parse(logEntry.steps) : logEntry.steps;
     expect(Array.isArray(steps)).toBe(true);
     expect(steps.length).toBeGreaterThan(0);
 
@@ -343,11 +343,11 @@ describe('Rice Stock Migration Integration Tests', () => {
             date, movement_type, product_type, outturn_id, bags, quantity_quintals,
             location_code, status, created_at, updated_at
           ) VALUES (
-            $1, 'purchase', 'Rice', $2, 5, 2.5,
+            :testDate, 'purchase', 'Rice', :testOutturnId, 5, 2.5,
             'MIGRATION_TEST', 'approved', NOW(), NOW()
           )
         `, {
-          replacements: [testDate, testOutturnId]
+          replacements: { testDate, testOutturnId }
         });
 
         console.log('✅ Rice stock operations functional during migration');
@@ -401,11 +401,11 @@ describe('Rice Stock Migration Integration Tests', () => {
             date, movement_type, product_type, variety, bags, quantity_quintals,
             location_code, status, created_at, updated_at
           ) VALUES (
-            CURRENT_DATE - INTERVAL '1 day', 'purchase', 'Rice', $1, 10, 5.0,
+            CURRENT_DATE - INTERVAL '1 day', 'purchase', 'Rice', :variety, 10, 5.0,
             'SAMPLE_STORE', 'approved', NOW(), NOW()
           ) ON CONFLICT DO NOTHING
         `, {
-          replacements: [variety]
+          replacements: { variety }
         });
       } catch (error) {
         // Ignore conflicts - sample data may already exist

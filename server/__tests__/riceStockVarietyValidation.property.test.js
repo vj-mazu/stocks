@@ -356,7 +356,7 @@ describe('Property Test 3: Rice Stock Variety Validation Consistency', () => {
       code: 'CLEARED_TEST',
       allottedVariety: 'CLEARED_VARIETY',
       type: 'Raw',
-      is_cleared: true
+      isCleared: true
     });
 
     try {

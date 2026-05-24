@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 
+import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { SampleEntryDetailModal } from '../components/SampleEntryDetailModal';
-import { getCollectedByDisplay as getSharedCollectedByDisplay, getConvertedEntryTypeCode, getDisplayedEntryTypeCode, getEntryTypeTextColor, getOriginalEntryTypeCode, isConvertedResampleType } from '../utils/sampleTypeDisplay';
+import { getCollectedByDisplay as getSharedCollectedByDisplay, getConvertedEntryTypeCode, getDisplayedEntryTypeCode, getEntryTypeTextColor, getOriginalEntryTypeCode, isConvertedResampleType, splitCollectedByLine } from '../utils/sampleTypeDisplay';
 import { getDisplayQualityParameters } from '../utils/sampleEntryQualityModalLogic';
 
 import { API_URL } from '../config/api';
@@ -250,6 +251,7 @@ interface LotSelectionProps {
 }
 
 const LotSelection: React.FC<LotSelectionProps> = ({ entryType, excludeEntryType }) => {
+  const { user } = useAuth();
   const { showNotification } = useNotification();
   const [entries, setEntries] = useState<SampleEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -263,8 +265,13 @@ const LotSelection: React.FC<LotSelectionProps> = ({ entryType, excludeEntryType
     const raw = typeof value === 'string' ? value.trim() : '';
     if (!raw) return '-';
     if (raw.toLowerCase() === 'broker office sample') return 'Broker Office Sample';
-    const match = supervisors.find((sup) => String(sup.username || '').trim().toLowerCase() === raw.toLowerCase());
+    const normalizedRaw = raw.toLowerCase();
+    const match = supervisors.find((sup) =>
+      String(sup.username || '').trim().toLowerCase() === normalizedRaw
+      || String(sup.fullName || '').trim().toLowerCase() === normalizedRaw
+    );
     if (match?.fullName) return toTitleCase(match.fullName);
+    if (match?.username) return toTitleCase(match.username);
     return toTitleCase(raw);
   };
   const getCreatorLabel = (entry: SampleEntry) => {
@@ -284,19 +291,43 @@ const LotSelection: React.FC<LotSelectionProps> = ({ entryType, excludeEntryType
     .filter((value, index, arr) => (
       arr.findIndex((candidate) => candidate.toLowerCase() === value.toLowerCase()) === index
     ));
-  const getCollectedByDisplay = (entry: SampleEntry) => getSharedCollectedByDisplay(entry as any, supervisors, { keepLoginPair: true });
+  const getCollectedByDisplay = (entry: SampleEntry) => getSharedCollectedByDisplay(entry as any, supervisors, { keepLoginPair: true, currentUser: user });
   const renderCollectedBy = (entry: SampleEntry) => {
     const collectedByDisplay = getCollectedByDisplay(entry);
     if (collectedByDisplay.secondary) {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '1px', minWidth: 0, fontWeight: '600', lineHeight: 1.15 }}>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{collectedByDisplay.primary}</span>
+          {(() => {
+            const primaryLine = splitCollectedByLine(collectedByDisplay.primary);
+            return (
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
+                <span style={{ color: collectedByDisplay.highlightPrimary ? '#9c27b0' : undefined }}>{primaryLine.text}</span>
+                {primaryLine.accent ? <><span style={{ color: '#94a3b8' }}> | </span><span style={{ color: '#9c27b0' }}>{primaryLine.accent}</span></> : null}
+              </span>
+            );
+          })()}
           <span style={{ width: '100%', borderTop: '1px solid #cbd5e1' }} />
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '10px', color: '#333', minWidth: 0, maxWidth: '100%' }}>{collectedByDisplay.secondary}</span>
+          {(() => {
+            const secondaryLine = splitCollectedByLine(collectedByDisplay.secondary);
+            return (
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '10px', minWidth: 0, maxWidth: '100%' }}>
+                <span style={{ color: collectedByDisplay.highlightSecondary ? '#9c27b0' : '#333' }}>{secondaryLine.text}</span>
+                {secondaryLine.accent ? <><span style={{ color: '#94a3b8' }}> | </span><span style={{ color: '#9c27b0' }}>{secondaryLine.accent}</span></> : null}
+              </span>
+            );
+          })()}
         </div>
       );
     }
-    return <span style={{ fontWeight: '600' }}>{collectedByDisplay.primary}</span>;
+    return (() => {
+      const primaryLine = splitCollectedByLine(collectedByDisplay.primary);
+      return (
+        <span style={{ fontWeight: '600' }}>
+          <span style={{ color: collectedByDisplay.highlightPrimary ? '#9c27b0' : undefined }}>{primaryLine.text}</span>
+          {primaryLine.accent ? <><span style={{ color: '#94a3b8' }}> | </span><span style={{ color: '#9c27b0' }}>{primaryLine.accent}</span></> : null}
+        </span>
+      );
+    })();
   };
 
   // Pagination

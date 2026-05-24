@@ -69,7 +69,7 @@ describe('Property Test 4: Palti Stock Conservation', () => {
           outturnId: fc.constantFrom(...testOutturns.map(o => o.id)),
           productType: fc.constant('Rice'),
           bags: fc.integer({ min: 1, max: 10 }),
-          quantityQuintals: fc.float({ min: 0.1, max: 5.0 }),
+          quantityQuintals: fc.float({ min: Math.fround(0.1), max: Math.fround(5.0)  }),
           date: fc.constant(new Date().toISOString().split('T')[0])
         }),
         async (testData) => {
@@ -191,7 +191,7 @@ describe('Property Test 4: Palti Stock Conservation', () => {
           outturnId: fc.constantFrom(...testOutturns.map(o => o.id)),
           productType: fc.constant('Rice'),
           transferBags: fc.integer({ min: 1, max: 5 }),
-          transferQtls: fc.float({ min: 0.1, max: 2.0 }),
+          transferQtls: fc.float({ min: Math.fround(0.1), max: Math.fround(2.0)  }),
           date: fc.constant(new Date().toISOString().split('T')[0])
         }),
         async (testData) => {
@@ -358,7 +358,7 @@ describe('Property Test 4: Palti Stock Conservation', () => {
           operations: fc.array(
             fc.record({
               bags: fc.integer({ min: 1, max: 3 }),
-              qtls: fc.float({ min: 0.1, max: 1.0 })
+              qtls: fc.float({ min: Math.fround(0.1), max: Math.fround(1.0)  })
             }),
             { minLength: 1, maxLength: 3 }
           ),

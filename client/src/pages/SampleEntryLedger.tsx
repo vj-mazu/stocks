@@ -67,6 +67,52 @@ const EntryRow: React.FC<{
     return n % 1 === 0 ? String(Math.round(n)) : String(parseFloat(n.toFixed(2)));
   };
 
+  const handleCuttingInput = (value: string, entryType?: string) => {
+    if (entryType === 'RICE_SAMPLE') {
+      const cleaned = value.replace(/[^0-9.]/g, '');
+      if (cleaned.length > 5) return { raw: cleaned, part1: cleaned, part2: '' };
+      return { raw: cleaned, part1: cleaned, part2: '' };
+    }
+
+    let clean = value.replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×');
+    const xCount = (clean.match(/×/g) || []).length;
+    if (xCount > 1) {
+      const idx = clean.indexOf('×');
+      clean = clean.substring(0, idx + 1) + clean.substring(idx + 1).replace(/×/g, '');
+    }
+    if (clean.length === 1 && !clean.includes('×') && /^\d$/.test(clean)) {
+      clean = clean + '×';
+    }
+    const parts = clean.split('×');
+    const first = (parts[0] || '').substring(0, 4);
+    const second = (parts[1] || '').substring(0, 4);
+    clean = second !== undefined && clean.includes('×') ? `${first}×${second}` : first;
+    return { raw: clean, part1: first, part2: second || '' };
+  };
+
+  const handleBendInput = (value: string, entryType?: string) => {
+    if (entryType === 'RICE_SAMPLE') {
+      const cleaned = value.replace(/[^0-9.]/g, '');
+      if (cleaned.length > 5) return { raw: cleaned, part1: cleaned, part2: '' };
+      return { raw: cleaned, part1: cleaned, part2: '' };
+    }
+
+    let clean = value.replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×');
+    const xCount = (clean.match(/×/g) || []).length;
+    if (xCount > 1) {
+      const idx = clean.indexOf('×');
+      clean = clean.substring(0, idx + 1) + clean.substring(idx + 1).replace(/×/g, '');
+    }
+    if (clean.length === 1 && !clean.includes('×') && /^\d$/.test(clean)) {
+      clean = clean + '×';
+    }
+    const parts = clean.split('×');
+    const first = (parts[0] || '').substring(0, 4);
+    const second = (parts[1] || '').substring(0, 4);
+    clean = second !== undefined && clean.includes('×') ? `${first}×${second}` : first;
+    return { raw: clean, part1: first, part2: second || '' };
+  };
+
   return (
     <React.Fragment>
       <tr style={{ backgroundColor: rowBg, fontWeight: hasMultipleLorries ? 600 : 'normal' }}>
@@ -157,8 +203,8 @@ const EntryRow: React.FC<{
             <td style={{ ...cellStyle, fontWeight: 700 }}>{trip.lorryNumber}</td>
             <td style={cellStyle}>-</td>
             <td style={cellStyle}>-</td>
-            <td style={{ ...cellStyle, textAlign: 'center', fontWeight: 700 }}>{trip.cutting1 && trip.cutting2 ? `${trip.cutting1}x${trip.cutting2}` : (trip.cutting1 || '-')}</td>
-            <td style={{ ...cellStyle, textAlign: 'center', fontWeight: 700 }}>{trip.bend || '-'}</td>
+            <td style={{ ...cellStyle, textAlign: 'center', fontWeight: 700 }}>{trip.cutting1 && trip.cutting2 && Number(trip.cutting2) !== 0 ? `${fmt(trip.cutting1)}x${fmt(trip.cutting2)}` : (fmt(trip.cutting1) || '-')}</td>
+            <td style={{ ...cellStyle, textAlign: 'center', fontWeight: 700 }}>{trip.bend && (trip as any).bend2 && Number((trip as any).bend2) !== 0 ? `${fmt(trip.bend)}x${fmt((trip as any).bend2)}` : (fmt(trip.bend) || '-')}</td>
             <td colSpan={19} style={{ ...cellStyle, textAlign: 'center', color: '#94a3b8', fontSize: '7px', fontStyle: 'italic' }}>Trip Details: {trip.remarks || 'No remarks'}</td>
             <td style={{ ...cellStyle, textAlign: 'center', fontWeight: 700 }}>{trip.bags?.toLocaleString('en-IN')}</td>
             <td style={{ ...cellStyle, textAlign: 'right' }}>{inv?.grossWeight || '-'}</td>
@@ -306,16 +352,31 @@ const SampleEntryLedger: React.FC = () => {
       wbT: (entry.qualityParameters as any)?.wbT || '',
       paddyWb: (entry.qualityParameters as any)?.paddyWb || '',
       // Physical inspections (edit each trip)
-      physicalInspections: inspections.map((insp: any) => ({
-        id: insp.id,
-        inspectionDate: insp.inspectionDate ? insp.inspectionDate.split('T')[0] : '',
-        lorryNumber: insp.lorryNumber || '',
-        bags: insp.bags || '',
-        cutting1: insp.cutting1 || '',
-        cutting2: insp.cutting2 || '',
-        bend: insp.bend || '',
-        remarks: insp.remarks || ''
-      }))
+      physicalInspections: inspections.map((insp: any) => {
+        const formatEditDecimal = (val: any) => {
+          if (val === undefined || val === null || val === '') return '';
+          const num = Number(val);
+          return isNaN(num) ? val.toString() : num.toString();
+        };
+
+        const c1 = formatEditDecimal(insp.cutting1);
+        const c2 = formatEditDecimal(insp.cutting2);
+        const cuttingText = (c2 && c2 !== '0') ? `${c1}x${c2}` : c1;
+
+        const b1 = formatEditDecimal(insp.bend);
+        const b2 = formatEditDecimal(insp.bend2);
+        const bendText = (b2 && b2 !== '0') ? `${b1}x${b2}` : b1;
+
+        return {
+          id: insp.id,
+          inspectionDate: insp.inspectionDate ? insp.inspectionDate.split('T')[0] : '',
+          lorryNumber: insp.lorryNumber || '',
+          bags: insp.bags || '',
+          cutting: cuttingText,
+          bend: bendText,
+          remarks: insp.remarks || ''
+        };
+      })
     });
   };
 
@@ -379,9 +440,10 @@ const SampleEntryLedger: React.FC = () => {
             inspectionDate: insp.inspectionDate,
             lorryNumber: insp.lorryNumber,
             bags: Number(insp.bags),
-            cutting1: Number(insp.cutting1),
-            cutting2: Number(insp.cutting2),
-            bend: Number(insp.bend),
+            cutting1: (() => { const parts = (insp.cutting || '').split(/[xX×]/); return parseFloat(parts[0]?.trim()) || 0; })(),
+            cutting2: (() => { const parts = (insp.cutting || '').split(/[xX×]/); return parts.length > 1 ? (parseFloat(parts[1]?.trim()) || 0) : 0; })(),
+            bend: (() => { const parts = (insp.bend || '').split(/[xX×]/); return parseFloat(parts[0]?.trim()) || 0; })(),
+            bend2: (() => { const parts = (insp.bend || '').split(/[xX×]/); return parts.length > 1 ? (parseFloat(parts[1]?.trim()) || 0) : 0; })(),
             remarks: insp.remarks
           }, { headers });
         }
@@ -771,11 +833,47 @@ const SampleEntryLedger: React.FC = () => {
                     <div key={insp.id || idx} style={{ backgroundColor: '#f8faf8', padding: '8px', borderRadius: '4px', marginBottom: '6px', border: '1px solid #e8e8e8' }}>
                       <div style={{ fontSize: '10px', fontWeight: 700, color: '#555', marginBottom: '4px' }}>Trip {idx + 1}</div>
                       <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
-                        {[{ l: 'Date', f: 'inspectionDate', t: 'date' }, { l: 'Lorry', f: 'lorryNumber' }, { l: 'Bags', f: 'bags', t: 'number' }, { l: 'Cut 1', f: 'cutting1', t: 'number' }, { l: 'Cut 2', f: 'cutting2', t: 'number' }, { l: 'Bend', f: 'bend', t: 'number' }, { l: 'Remarks', f: 'remarks' }].map(({ l, f, t }) => (
+                        {[{ l: 'Date', f: 'inspectionDate', t: 'date' }, { l: 'Lorry', f: 'lorryNumber' }, { l: 'Bags', f: 'bags', t: 'number' }, { l: 'Cutting', f: 'cutting', t: 'text' }, { l: 'Bend', f: 'bend', t: 'text' }, { l: 'Remarks', f: 'remarks', t: 'text' }].map(({ l, f, t }) => (
                           <div key={f}>
                             <label style={{ display: 'block', fontSize: '9px', fontWeight: 600, color: '#666', marginBottom: '1px' }}>{l}</label>
-                            <input type={t || 'text'} value={insp[f] || ''} onChange={e => handleInspectionChange(idx, f, e.target.value)}
-                              style={{ width: '100%', padding: '4px', fontSize: '11px', border: '1px solid #ddd', borderRadius: '3px', boxSizing: 'border-box' }} />
+                            {f === 'cutting' ? (
+                              <input type="text" value={insp.cutting || ''}
+                                placeholder="1×"
+                                onFocus={() => {
+                                  if (!insp.cutting) {
+                                    const res = handleCuttingInput('1×', editEntry.entryType);
+                                    handleInspectionChange(idx, 'cutting', res.raw);
+                                  }
+                                }}
+                                onChange={e => {
+                                  const res = handleCuttingInput(e.target.value, editEntry.entryType);
+                                  handleInspectionChange(idx, 'cutting', res.raw);
+                                }}
+                                style={{ width: '100%', padding: '4px', fontSize: '11px', border: '1px solid #ddd', borderRadius: '3px', boxSizing: 'border-box' }} />
+                            ) : f === 'bend' ? (
+                              <input type="text" value={insp.bend || ''}
+                                placeholder="1×"
+                                onFocus={() => {
+                                  if (!insp.bend) {
+                                    const res = handleBendInput('1×', editEntry.entryType);
+                                    handleInspectionChange(idx, 'bend', res.raw);
+                                  }
+                                }}
+                                onChange={e => {
+                                  const res = handleBendInput(e.target.value, editEntry.entryType);
+                                  handleInspectionChange(idx, 'bend', res.raw);
+                                }}
+                                style={{ width: '100%', padding: '4px', fontSize: '11px', border: '1px solid #ddd', borderRadius: '3px', boxSizing: 'border-box' }} />
+                            ) : (
+                              <input type={t || 'text'} value={insp[f] || ''} 
+                                onChange={e => {
+                                  let val = e.target.value;
+                                  if (f === 'lorryNumber') val = val.toUpperCase();
+                                  handleInspectionChange(idx, f, val);
+                                }}
+                                maxLength={f === 'lorryNumber' ? 10 : undefined}
+                                style={{ width: '100%', padding: '4px', fontSize: '11px', border: '1px solid #ddd', borderRadius: '3px', boxSizing: 'border-box' }} />
+                            )}
                           </div>
                         ))}
                       </div>

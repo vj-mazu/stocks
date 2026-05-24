@@ -767,7 +767,7 @@ class RiceStockCalculationService {
         FROM rice_stock_movements ms
         LEFT JOIN packagings p ON ms.packaging_id = p.id
         LEFT JOIN rice_stock_locations rsl ON LOWER(REPLACE(ms.location_code, '_', ' ')) = LOWER(REPLACE(rsl.code, '_', ' '))
-        WHERE ms.date < $1
+        WHERE ms.date < ?
           AND ms.status = 'approved'
           AND COALESCE(rsl.is_direct_load, false) = false
         GROUP BY ms.variety, ms.outturn_id, ms.product_type, ms.location_code, p."brandName", p."allottedKg"

@@ -49,7 +49,7 @@ describe('Rice Stock Variety Standardization Properties', () => {
             movementType: fc.constantFrom('purchase', 'sale', 'palti'),
             productType: fc.constantFrom('Rice', 'Bran', 'Broken'),
             bags: fc.integer({ min: 1, max: 1000 }),
-            quantityQuintals: fc.float({ min: 0.1, max: 100.0, noNaN: true }),
+            quantityQuintals: fc.float({ min: Math.fround(0.1), max: Math.fround(100.0), noNaN: true  }),
             locationCode: fc.constantFrom('A1', 'B2', 'C3', 'D4')
           }),
           async ({ outturnCode, allottedVariety, type, movementType, productType, bags, quantityQuintals, locationCode }) => {
@@ -156,7 +156,7 @@ describe('Rice Stock Variety Standardization Properties', () => {
             movementType: fc.constantFrom('purchase', 'sale', 'palti'),
             productType: fc.constantFrom('Rice', 'Bran', 'Broken'),
             bags: fc.integer({ min: 1, max: 100 }),
-            quantityQuintals: fc.float({ min: 0.1, max: 10.0, noNaN: true }),
+            quantityQuintals: fc.float({ min: Math.fround(0.1), max: Math.fround(10.0), noNaN: true  }),
             locationCode: fc.constantFrom('A1', 'B2', 'C3')
           }),
           async ({ nonExistentOutturnId, movementType, productType, bags, quantityQuintals, locationCode }) => {

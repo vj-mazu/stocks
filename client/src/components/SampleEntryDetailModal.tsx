@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_URL } from '../config/api';
 import { useAuth } from '../contexts/AuthContext';
-import { getCollectedByDisplay as getSharedCollectedByDisplay } from '../utils/sampleTypeDisplay';
+import { getCollectedByDisplay as getSharedCollectedByDisplay, splitCollectedByLine } from '../utils/sampleTypeDisplay';
 
 interface SampleEntry {
     id: string;
@@ -661,7 +661,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         .filter((value, index, arr) => (
             arr.findIndex((candidate) => candidate.toLowerCase() === value.toLowerCase()) === index
         ));
-    const getCollectedByDisplay = (entry: SampleEntry) => getSharedCollectedByDisplay(entry as any, supervisors, { keepLoginPair: showCollectorLoginPair });
+    const getCollectedByDisplay = (entry: SampleEntry) => getSharedCollectedByDisplay(entry as any, supervisors, { keepLoginPair: showCollectorLoginPair, currentUser: user });
 
 
 
@@ -1253,20 +1253,38 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             if (collectedByDisplay.secondary) {
                                                 return (
                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', overflow: 'hidden' }}>
-                                                        <span style={{ fontSize: '14px', fontWeight: '700', color: collectedByDisplay.highlightPrimary ? '#9c27b0' : '#1e293b' }}>
-                                                            {collectedByDisplay.primary}
-                                                        </span>
+                                                        {(() => {
+                                                            const primaryLine = splitCollectedByLine(collectedByDisplay.primary);
+                                                            return (
+                                                                <span style={{ fontSize: '14px', fontWeight: '700' }}>
+                                                                    <span style={{ color: collectedByDisplay.highlightPrimary ? '#9c27b0' : '#1e293b' }}>{primaryLine.text}</span>
+                                                                    {primaryLine.accent ? <><span style={{ color: '#94a3b8' }}> | </span><span style={{ color: '#9c27b0' }}>{primaryLine.accent}</span></> : null}
+                                                                </span>
+                                                            );
+                                                        })()}
                                                         <div style={{ borderTop: '1px solid #cbd5e1' }} />
-                                                        <span style={{ fontSize: '12px', fontWeight: '600', color: '#333', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                            {collectedByDisplay.secondary}
-                                                        </span>
+                                                        {(() => {
+                                                            const secondaryLine = splitCollectedByLine(collectedByDisplay.secondary);
+                                                            return (
+                                                                <span style={{ fontSize: '12px', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                    <span style={{ color: collectedByDisplay.highlightSecondary ? '#9c27b0' : '#333' }}>{secondaryLine.text}</span>
+                                                                    {secondaryLine.accent ? <><span style={{ color: '#94a3b8' }}> | </span><span style={{ color: '#9c27b0' }}>{secondaryLine.accent}</span></> : null}
+                                                                </span>
+                                                            );
+                                                        })()}
                                                     </div>
                                                 );
                                             }
                                             return (
-                                                <div style={{ fontSize: '14px', fontWeight: '700', color: collectedByDisplay.highlightPrimary ? '#9c27b0' : '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                    {collectedByDisplay.primary}
-                                                </div>
+                                                (() => {
+                                                    const primaryLine = splitCollectedByLine(collectedByDisplay.primary);
+                                                    return (
+                                                        <div style={{ fontSize: '14px', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                            <span style={{ color: collectedByDisplay.highlightPrimary ? '#9c27b0' : '#1e293b' }}>{primaryLine.text}</span>
+                                                            {primaryLine.accent ? <><span style={{ color: '#94a3b8' }}> | </span><span style={{ color: '#9c27b0' }}>{primaryLine.accent}</span></> : null}
+                                                        </div>
+                                                    );
+                                                })()
                                             );
                                         })()}
                                     </div>
