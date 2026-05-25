@@ -4,6 +4,7 @@ import AdminSampleBook2 from './AdminSampleBook2';
 import AssigningSupervisor from './AssigningSupervisor';
 import AllottedSupervisors from './AllottedSupervisors';
 import LoadingLots from './LoadingLots';
+import { useAuth } from '../contexts/AuthContext';
 import CompletedLots from './CompletedLots';
 import SampleApprovalsHub from './SampleApprovalsHub';
 import SampleEntryPage from './SampleEntry';
@@ -46,6 +47,7 @@ const ManagerSampleReports: React.FC = () => {
     const [activeTab, setActiveTab] = useState<TabKey>('paddy-samples');
     const [activeSubTab, setActiveSubTab] = useState<'financials' | 'assign-supervisor' | 'assigned-lots'>('financials');
     const [approvalPendingCount, setApprovalPendingCount] = useState(0);
+    const { user } = useAuth();
     const loadApprovalPendingCount = useCallback(async () => {
         try {
             const token = localStorage.getItem('token');
@@ -160,70 +162,76 @@ const ManagerSampleReports: React.FC = () => {
                 {activeTab === 'cooking-report' && <CookingReport excludeEntryType="RICE_SAMPLE" />}
                 {activeTab === 'lots-passed' && <FinalPassLots excludeEntryType="RICE_SAMPLE" />}
                 {activeTab === 'loading-lots' && (
-                    <div style={{ padding: '0 20px' }}>
-                        {/* Sub-tabs */}
-                        <div style={{
-                            display: 'flex',
-                            gap: '10px',
-                            marginBottom: '20px',
-                            borderBottom: '2px solid #e0e0e0'
-                        }}>
-                            <button
-                                onClick={() => setActiveSubTab('financials')}
-                                style={{
-                                    padding: '10px 20px',
-                                    fontSize: '14px',
-                                    fontWeight: '600',
-                                    border: 'none',
-                                    borderBottom: activeSubTab === 'financials' ? '3px solid #f39c12' : '3px solid transparent',
-                                    backgroundColor: 'transparent',
-                                    color: activeSubTab === 'financials' ? '#f39c12' : '#666',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.3s ease'
-                                }}
-                            >
-                                Loading Lots Table
-                            </button>
-                            <button
-                                onClick={() => setActiveSubTab('assign-supervisor')}
-                                style={{
-                                    padding: '10px 20px',
-                                    fontSize: '14px',
-                                    fontWeight: '600',
-                                    border: 'none',
-                                    borderBottom: activeSubTab === 'assign-supervisor' ? '3px solid #f39c12' : '3px solid transparent',
-                                    backgroundColor: 'transparent',
-                                    color: activeSubTab === 'assign-supervisor' ? '#f39c12' : '#666',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.3s ease'
-                                }}
-                            >
-                                Assign Supervisor
-                            </button>
-                            <button
-                                onClick={() => setActiveSubTab('assigned-lots')}
-                                style={{
-                                    padding: '10px 20px',
-                                    fontSize: '14px',
-                                    fontWeight: '600',
-                                    border: 'none',
-                                    borderBottom: activeSubTab === 'assigned-lots' ? '3px solid #f39c12' : '3px solid transparent',
-                                    backgroundColor: 'transparent',
-                                    color: activeSubTab === 'assigned-lots' ? '#f39c12' : '#666',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.3s ease'
-                                }}
-                            >
-                                Assigned Loading Lots
-                            </button>
+                    user?.role === 'admin' ? (
+                        <div style={{ padding: '0 20px' }}>
+                            <LoadingLots excludeEntryType="RICE_SAMPLE" />
                         </div>
-                        
-                        <div>
-                            {activeSubTab === 'financials' && <LoadingLots excludeEntryType="RICE_SAMPLE" />}
-                            {activeSubTab === 'assign-supervisor' && <AssigningSupervisor />}
-                            {activeSubTab === 'assigned-lots' && <AllottedSupervisors />}
+                    ) : (
+                        <div style={{ padding: '0 20px' }}>
+                            {/* Sub-tabs */}
+                            <div style={{
+                                display: 'flex',
+                                gap: '10px',
+                                marginBottom: '20px',
+                                borderBottom: '2px solid #e0e0e0'
+                            }}>
+                                <button
+                                    onClick={() => setActiveSubTab('financials')}
+                                    style={{
+                                        padding: '10px 20px',
+                                        fontSize: '14px',
+                                        fontWeight: '600',
+                                        border: 'none',
+                                        borderBottom: activeSubTab === 'financials' ? '3px solid #f39c12' : '3px solid transparent',
+                                        backgroundColor: 'transparent',
+                                        color: activeSubTab === 'financials' ? '#f39c12' : '#666',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.3s ease'
+                                    }}
+                                >
+                                    Loading Lots Table
+                                </button>
+                                <button
+                                    onClick={() => setActiveSubTab('assign-supervisor')}
+                                    style={{
+                                        padding: '10px 20px',
+                                        fontSize: '14px',
+                                        fontWeight: '600',
+                                        border: 'none',
+                                        borderBottom: activeSubTab === 'assign-supervisor' ? '3px solid #f39c12' : '3px solid transparent',
+                                        backgroundColor: 'transparent',
+                                        color: activeSubTab === 'assign-supervisor' ? '#f39c12' : '#666',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.3s ease'
+                                    }}
+                                >
+                                    Assign Supervisor
+                                </button>
+                                <button
+                                    onClick={() => setActiveSubTab('assigned-lots')}
+                                    style={{
+                                        padding: '10px 20px',
+                                        fontSize: '14px',
+                                        fontWeight: '600',
+                                        border: 'none',
+                                        borderBottom: activeSubTab === 'assigned-lots' ? '3px solid #f39c12' : '3px solid transparent',
+                                        backgroundColor: 'transparent',
+                                        color: activeSubTab === 'assigned-lots' ? '#f39c12' : '#666',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.3s ease'
+                                    }}
+                                >
+                                    Assigned Loading Lots
+                                </button>
+                            </div>
+                            
+                            <div>
+                                {activeSubTab === 'financials' && <LoadingLots excludeEntryType="RICE_SAMPLE" />}
+                                {activeSubTab === 'assign-supervisor' && <AssigningSupervisor />}
+                                {activeSubTab === 'assigned-lots' && <AllottedSupervisors />}
+                            </div>
                         </div>
-                    </div>
+                    )
                 )}
                 {activeTab === 'approvals' && <SampleApprovalsHub excludeEntryType="RICE_SAMPLE" onPendingCountChange={setApprovalPendingCount} />}
                 {activeTab === 'completed-lots' && <CompletedLots excludeEntryType="RICE_SAMPLE" />}

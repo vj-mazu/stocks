@@ -19,7 +19,7 @@ interface TabConfig {
 
 const TABS: TabConfig[] = [
     { key: 'ledger', label: 'Ledger', icon: '📊', roles: ['admin', 'manager'] },
-    { key: 'allot', label: 'Allot Supervisor', icon: '👤', roles: ['admin', 'manager'] },
+    { key: 'allot', label: 'Allot Supervisor', icon: '👤', roles: ['manager'] },
     { key: 'inventory', label: 'Inventory Entry', icon: '📦', roles: ['admin', 'inventory_staff'] },
     { key: 'owner-financial', label: 'Owner Financial', icon: '💰', roles: ['admin'] },
     { key: 'manager-financial', label: 'Manager Financial', icon: '📈', roles: ['admin', 'manager'] },
