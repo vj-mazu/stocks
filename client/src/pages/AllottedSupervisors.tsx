@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useNotification } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
 import ConfirmationModal from '../components/ConfirmationModal';
+import { SampleEntryDetailModal } from '../components/SampleEntryDetailModal';
 
 import { API_URL } from '../config/api';
 import {
@@ -168,6 +169,20 @@ const AllottedSupervisors: React.FC = () => {
   const [editValuesEntry, setEditValuesEntry] = useState<SampleEntry | null>(null);
   const [editValuesData, setEditValuesData] = useState<any>({});
   const [isSavingValues, setIsSavingValues] = useState(false);
+  const [detailModalEntry, setDetailModalEntry] = useState<SampleEntry | null>(null);
+
+  const openDetailEntry = async (entry: SampleEntry) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/sample-entries/${entry.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setDetailModalEntry((response.data || entry) as SampleEntry);
+    } catch (error: any) {
+      showNotification(error.response?.data?.error || 'Failed to load entry details', 'error');
+      setDetailModalEntry(entry);
+    }
+  };
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -729,8 +744,18 @@ const AllottedSupervisors: React.FC = () => {
                                 <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'center', fontSize: '11px', color: '#1a1a1a' }}>
                                   {entry.packaging ? (String(entry.packaging).toLowerCase().includes('kg') ? entry.packaging : `${entry.packaging} Kg`) : '75 Kg'}
                                 </td>
-                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontSize: '11px', color: '#1a1a1a' }}>
-                                  {entry.partyName}
+                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontSize: '11px' }}>
+                                  <span
+                                    onClick={() => openDetailEntry(entry)}
+                                    style={{
+                                      color: '#1565c0',
+                                      textDecoration: 'underline',
+                                      cursor: 'pointer',
+                                      fontWeight: '700'
+                                    }}
+                                  >
+                                    {entry.partyName || '-'}
+                                  </span>
                                 </td>
                                 <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontSize: '11px', color: '#1a1a1a' }}>
                                   {entry.location}
@@ -1170,6 +1195,14 @@ const AllottedSupervisors: React.FC = () => {
             setIsCloseModalOpen(false);
             setClosingEntryId(null);
           }}
+        />
+      )}
+      {detailModalEntry && (
+        <SampleEntryDetailModal
+          detailEntry={detailModalEntry as any}
+          detailMode="history"
+          onClose={() => setDetailModalEntry(null)}
+          showCollectorLoginPair={false}
         />
       )}
     </div>

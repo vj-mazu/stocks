@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNotification } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
+import { SampleEntryDetailModal } from '../components/SampleEntryDetailModal';
 import {
   getDisplayedEntryTypeCode,
   getEntryTypeTextColor,
@@ -59,6 +60,20 @@ const AssigningSupervisor: React.FC = () => {
   const [selectedSupervisors, setSelectedSupervisors] = useState<{ [key: string]: number }>({});
   const [offeringCache, setOfferingCache] = useState<{ [key: string]: any }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [detailModalEntry, setDetailModalEntry] = useState<SampleEntry | null>(null);
+
+  const openDetailEntry = async (entry: SampleEntry) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/sample-entries/${entry.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setDetailModalEntry((response.data || entry) as SampleEntry);
+    } catch (error: any) {
+      showNotification(error.response?.data?.error || 'Failed to load entry details', 'error');
+      setDetailModalEntry(entry);
+    }
+  };
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -373,8 +388,18 @@ const AssigningSupervisor: React.FC = () => {
                               <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'center', fontSize: '11px', color: '#1a1a1a' }}>
                                 {entry.packaging ? (String(entry.packaging).toLowerCase().includes('kg') ? entry.packaging : `${entry.packaging} Kg`) : '75 Kg'}
                               </td>
-                              <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontSize: '11px', color: '#1a1a1a' }}>
-                                {entry.partyName}
+                              <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontSize: '11px' }}>
+                                <span
+                                  onClick={() => openDetailEntry(entry)}
+                                  style={{
+                                    color: '#1565c0',
+                                    textDecoration: 'underline',
+                                    cursor: 'pointer',
+                                    fontWeight: '700'
+                                  }}
+                                >
+                                  {entry.partyName || '-'}
+                                </span>
                               </td>
                               <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontSize: '11px', color: '#1a1a1a' }}>
                                 {entry.location}
@@ -441,6 +466,14 @@ const AssigningSupervisor: React.FC = () => {
       )}
 
       {/* Fallback modal removed as logic is now in Loading Lots */}
+      {detailModalEntry && (
+        <SampleEntryDetailModal
+          detailEntry={detailModalEntry as any}
+          detailMode="history"
+          onClose={() => setDetailModalEntry(null)}
+          showCollectorLoginPair={false}
+        />
+      )}
     </div>
   );
 };
