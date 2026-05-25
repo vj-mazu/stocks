@@ -619,6 +619,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     baseRateType: 'PD_LOOSE',
     remarks: ''
   });
+  const [cancelModal, setCancelModal] = useState({ isOpen: false, entryId: null as string | number | null, remarks: '' });
   const [managerData, setManagerData] = useState({
     sute: '', suteUnit: 'per_ton', moistureValue: '', hamali: '', hamaliUnit: 'per_bag',
     brokerage: '', brokerageUnit: 'per_quintal', lf: '', lfUnit: 'per_bag',
@@ -907,6 +908,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
           finalSute: finalEditData.finalSute ? parseFloat(finalEditData.finalSute) : null,
           finalSuteUnit: finalEditData.finalSuteUnit,
           finalBaseRate: rateValue,
+          baseRateType: finalEditData.baseRateType,
           baseRateUnit: finalEditData.baseRateUnit,
           suteEnabled: finalEditData.suteEnabled,
           moistureEnabled: finalEditData.moistureEnabled,
@@ -948,6 +950,28 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     }
   };
 
+  const handleCancelSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cancelModal.entryId || isSubmitting) return;
+
+    try {
+      setIsSubmitting(true);
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `${API_URL}/sample-entries/${cancelModal.entryId}/cancel`,
+        { remarks: cancelModal.remarks },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      showNotification('Lot cancelled successfully', 'success');
+      setCancelModal({ isOpen: false, entryId: null, remarks: '' });
+      fetchEntries();
+    } catch (error: any) {
+      showNotification(error.response?.data?.error || 'Failed to cancel lot', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleSaveValues = async () => {
     if (!selectedEntry || isSubmitting) return;
@@ -1967,7 +1991,6 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
         <div
           ref={topScrollRef}
           onScroll={() => syncHorizontalScroll('top')}
-          onWheel={handleHorizontalWheel}
           style={{
             overflowX: 'auto',
             overflowY: 'hidden',
@@ -1985,7 +2008,6 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
       <div
         ref={tableScrollRef}
         onScroll={() => syncHorizontalScroll('table')}
-        onWheel={handleHorizontalWheel}
         style={{ overflowX: 'auto', borderRadius: !isRiceMode && !isMobile ? '0 0 6px 6px' : '6px' }}
       >
             {loading ? <div style={{ textAlign: 'center', padding: '30px', color: '#888' }}>Loading...</div> : filteredEntries.length === 0 ? <div style={{ textAlign: 'center', padding: '30px', color: '#888' }}>No loading lots found in this tab</div> : Object.entries(groupedByDateBroker).map(([dateStr, brokerGroups]) => {
@@ -2022,7 +2044,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                 ))}
                               </colgroup>
                             )}
-                            <thead style={{ position: 'sticky', top: 56, zIndex: 2 }}>
+                            <thead style={{ zIndex: 2 }}>
                               <tr style={{ backgroundColor: '#1a237e', color: 'white' }}>
                               {(isRiceMode ? ['SL', 'Type', 'Bags', 'Pkg', 'Party Name', 'Rice Location', 'Variety', 'Final Rate', 'Sute', 'Mst%', 'Hamali', 'Bkrg', 'LF', 'Status', 'Action'] : ['SL No', 'Type', 'Bags', 'Pkg', 'Party Name', 'Paddy Location', 'Variety', 'Sample Collected By', 'Sample Report By', 'Quality Report', 'Cooking Report', 'Final Rate', 'Sute', 'Moist', 'Brokerage', 'LF', 'Hamali', 'CD', 'EGB', 'Bank Loan', 'Payment', 'Status', 'Action']).map((header, headerIndex) => (
                                 <th
@@ -2089,6 +2111,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                 && !Boolean((entry as any)?.resampleTriggeredAt)
                                 && !Boolean((entry as any)?.resampleDecisionAt)
                                 && !Boolean((entry as any)?.resampleAfterFinal)
+                                && !(entry.entryType === 'LOCATION_SAMPLE' && !isConvertedResampleType(entry))
                                 && normalizedLotDecision !== 'FAIL';
                               const hasGhostResamplePending =
                                 qualityRows.length >= 2
@@ -2493,6 +2516,14 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                             Edit Final
                                           </button>
                                         </div>
+                                      )}
+                                      {['admin', 'manager', 'owner'].includes(String(user?.role || '').toLowerCase()) && (
+                                        <button
+                                          onClick={() => setCancelModal({ isOpen: true, entryId: entry.id, remarks: '' })}
+                                          style={{ padding: '3px 6px', background: '#c62828', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '10px', cursor: 'pointer', fontWeight: 700 }}
+                                        >
+                                          Cancel
+                                        </button>
                                       )}
                                       {canTriggerLoadingResample && (
                                         <button
@@ -3474,7 +3505,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
               </div>
             )}
 
-            {hasEgbForRateType(selectedEntry?.offering?.baseRateType || 'PD_LOOSE') && (
+            {hasEgbForRateType(finalEditData.baseRateType || 'PD_LOOSE') && (
               <div style={{ marginBottom: '10px' }}>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#1f2937', marginBottom: '4px', display: 'block' }}>EGB</label>
                 <div style={{ display: 'flex', gap: '8px', fontSize: '11px', marginBottom: '4px' }}>
@@ -3500,6 +3531,40 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
               <button onClick={() => setShowFinalEditModal(false)} style={{ padding: '6px 10px', border: '1px solid #ddd', borderRadius: '4px', background: '#fff', fontSize: '12px', cursor: 'pointer' }}>Cancel</button>
               <button onClick={handleSaveFinalEdit} style={{ padding: '6px 12px', border: 'none', borderRadius: '4px', background: '#27ae60', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>Save Final</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {cancelModal.isOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center',
+          zIndex: 1400, padding: '12px'
+        }}>
+          <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '12px', width: '100%', maxWidth: '400px' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '15px', color: '#c62828' }}>Cancel Lot</h3>
+            <form onSubmit={handleCancelSubmit}>
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 700, color: '#1f2937', marginBottom: '4px', display: 'block' }}>Cancellation Remarks *</label>
+                <textarea
+                  required
+                  value={cancelModal.remarks}
+                  onChange={(e) => setCancelModal({ ...cancelModal, remarks: e.target.value })}
+                  style={{ width: '100%', boxSizing: 'border-box', minHeight: '80px', padding: '6px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '12px', resize: 'vertical' }}
+                  placeholder="Enter reason for cancellation..."
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button type="button" onClick={() => setCancelModal({ isOpen: false, entryId: null, remarks: '' })} disabled={isSubmitting}
+                  style={{ padding: '8px 16px', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer', background: '#f5f5f5', fontSize: '12px' }}>
+                  Close
+                </button>
+                <button type="submit" disabled={isSubmitting || !cancelModal.remarks.trim()}
+                  style={{ padding: '8px 16px', border: 'none', borderRadius: '4px', cursor: 'pointer', background: '#c62828', color: 'white', fontWeight: 'bold', fontSize: '12px' }}>
+                  {isSubmitting ? 'Cancelling...' : 'Confirm Cancel'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -5,6 +5,13 @@ import { useAuth } from '../contexts/AuthContext';
 import ConfirmationModal from '../components/ConfirmationModal';
 
 import { API_URL } from '../config/api';
+import {
+  getDisplayedEntryTypeCode,
+  getEntryTypeTextColor,
+  getOriginalEntryTypeCode,
+  getConvertedEntryTypeCode,
+  isConvertedResampleType
+} from '../utils/sampleTypeDisplay';
 
 interface SampleEntry {
   id: string;
@@ -15,6 +22,10 @@ interface SampleEntry {
   location: string;
   bags: number;
   workflowStatus: string;
+  entryType?: string;
+  originalEntryType?: string;
+  packaging?: string;
+  serialNo?: number;
   lotAllotment?: {
     id: string;
     allottedToSupervisorId: number;
@@ -119,6 +130,26 @@ interface InspectionProgress {
   progressPercentage: number;
   previousInspections: PreviousInspection[];
 }
+
+const getEffectiveDate = (entry: any) => {
+  const hasResampleFlow = String(entry?.lotSelectionDecision || '').trim().toUpperCase() === 'FAIL'
+    || (Array.isArray(entry?.resampleCollectedTimeline) && entry.resampleCollectedTimeline.length > 0)
+    || (Array.isArray(entry?.resampleCollectedHistory) && entry.resampleCollectedHistory.length > 0)
+    || Number(entry?.qualityReportAttempts || 0) > 1;
+    
+  if (hasResampleFlow && Array.isArray(entry?.resampleCollectedTimeline) && entry.resampleCollectedTimeline.length > 0) {
+    const lastAssigned = entry.resampleCollectedTimeline[entry.resampleCollectedTimeline.length - 1];
+    if (lastAssigned && lastAssigned.date) {
+      return new Date(lastAssigned.date);
+    }
+  }
+  if (hasResampleFlow) {
+    if (entry?.resampleStartAt) return new Date(entry.resampleStartAt);
+    if (entry?.lotSelectionAt) return new Date(entry.lotSelectionAt);
+    if (entry?.updatedAt) return new Date(entry.updatedAt);
+  }
+  return new Date(entry.entryDate);
+};
 
 const AllottedSupervisors: React.FC = () => {
   const { showNotification } = useNotification();
@@ -263,11 +294,22 @@ const AllottedSupervisors: React.FC = () => {
       // Apply filters
       allEntries = applyFilters(allEntries);
 
-      setTotalEntries(allEntries.length);
+      const sortedAllEntries = [...allEntries].sort((a, b) => {
+        const dateCompare = getEffectiveDate(b).getTime() - getEffectiveDate(a).getTime();
+        if (dateCompare !== 0) return dateCompare;
+        const brokerCompare = String(a.brokerName || '').localeCompare(String(b.brokerName || ''));
+        if (brokerCompare !== 0) return brokerCompare;
+        const serialA = Number.isFinite(Number(a.serialNo)) ? Number(a.serialNo) : null;
+        const serialB = Number.isFinite(Number(b.serialNo)) ? Number(b.serialNo) : null;
+        if (serialA !== null && serialB !== null && serialA !== serialB) return serialA - serialB;
+        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      });
+
+      setTotalEntries(sortedAllEntries.length);
 
       // Apply pagination
       const startIndex = (currentPage - 1) * pageSize;
-      const paginatedEntries = allEntries.slice(startIndex, startIndex + pageSize);
+      const paginatedEntries = sortedAllEntries.slice(startIndex, startIndex + pageSize);
       setEntries(paginatedEntries);
 
       // Pre-populate selected supervisors with current assignments
@@ -554,373 +596,431 @@ const AllottedSupervisors: React.FC = () => {
     }
   };
 
+  // Group entries by Date + Broker
+  const groupedEntries: Record<string, Record<string, SampleEntry[]>> = {};
+  entries.forEach(entry => {
+    const d = getEffectiveDate(entry);
+    const dateKey = entry.entryDate
+      ? `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`
+      : 'No Date';
+    const brokerKey = entry.brokerName || 'Unknown';
+    if (!groupedEntries[dateKey]) groupedEntries[dateKey] = {};
+    if (!groupedEntries[dateKey][brokerKey]) groupedEntries[dateKey][brokerKey] = [];
+    groupedEntries[dateKey][brokerKey].push(entry);
+  });
+
   return (
     <div>
       {/* Filters hidden */}
 
-      <div style={{
-        overflowX: 'auto',
-        backgroundColor: 'white',
-        border: '1px solid #999'
-      }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', tableLayout: 'auto' }}>
-          <thead>
-            <tr style={{ backgroundColor: '#4a90e2', color: 'white' }}>
-              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left' }}>Date</th>
-              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left' }}>Broker</th>
-              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left' }}>Variety</th>
-              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left' }}>Party</th>
-              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left' }}>Location</th>
-              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', whiteSpace: 'nowrap' }}>Allotted</th>
-              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', whiteSpace: 'nowrap' }}>Loaded</th>
-              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', whiteSpace: 'nowrap' }}>Balance</th>
-              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', whiteSpace: 'nowrap' }}>Progress</th>
-              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', whiteSpace: 'nowrap' }}>Supervisor</th>
-              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', whiteSpace: 'nowrap' }}>Change To</th>
-              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', whiteSpace: 'nowrap' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={12} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>Loading...</td></tr>
-            ) : entries.length === 0 ? (
-              <tr><td colSpan={12} style={{ textAlign: 'center', padding: '20px', color: '#999' }}>No allotted supervisors found</td></tr>
-            ) : (
-              entries.map((entry, index) => {
-                const currentSupervisor = entry.lotAllotment?.supervisor;
-                const hasChanged = currentSupervisor && selectedSupervisors[entry.id] !== currentSupervisor.id;
-                const progress = inspectionProgress[entry.id];
-                const progressPercentage = progress?.progressPercentage || 0;
-                const hasPreviousInspections = progress && progress.previousInspections && progress.previousInspections.length > 0;
-
-                // Check if this is a new lot (different from previous)
-                const prevEntry = entries[index - 1];
-                const isNewLot = !prevEntry || prevEntry.id !== entry.id;
+      <div style={{ overflowX: 'auto', backgroundColor: 'white', border: '1px solid #999' }}>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>Loading...</div>
+        ) : entries.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>No allotted supervisors found</div>
+        ) : (
+          Object.entries(groupedEntries).map(([dateKey, brokerGroups]) => (
+            <div key={dateKey} style={{ marginBottom: '20px' }}>
+              {Object.entries(brokerGroups).sort(([a], [b]) => a.localeCompare(b)).map(([brokerName, brokerEntries], brokerIdx) => {
+                // Sort broker entries by serialNo ascending
+                const orderedEntries = [...brokerEntries].sort((a, b) => {
+                  const serialA = Number.isFinite(Number(a.serialNo)) ? Number(a.serialNo) : null;
+                  const serialB = Number.isFinite(Number(b.serialNo)) ? Number(b.serialNo) : null;
+                  if (serialA !== null && serialB !== null && serialA !== serialB) return serialA - serialB;
+                  return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+                });
 
                 return (
-                  <React.Fragment key={entry.id}>
-                    {/* Add visual gap between different lots */}
-                    {isNewLot && index > 0 && (
-                      <tr>
-                        <td colSpan={12} style={{
-                          height: '15px',
-                          backgroundColor: '#e0e0e0',
-                          borderLeft: '3px solid #4a90e2',
-                          borderRight: '3px solid #4a90e2'
-                        }}>
-                          <div style={{
-                            fontSize: '10px',
-                            color: '#666',
-                            padding: '0 10px',
-                            fontWeight: '600'
-                          }}>
-                            📦 New Lot: {entry.partyName} - {entry.variety} ({entry.bags} bags)
-                          </div>
-                        </td>
-                      </tr>
+                  <div key={brokerName} style={{ marginBottom: '0px' }}>
+                    {/* Date bar — only first broker */}
+                    {brokerIdx === 0 && (
+                      <div style={{
+                        background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+                        color: 'white', padding: '6px 10px', fontWeight: '700', fontSize: '14px',
+                        textAlign: 'center', letterSpacing: '0.5px'
+                      }}>
+                        {dateKey} &nbsp;&nbsp; Paddy Sample
+                      </div>
                     )}
-                    <tr style={{
-                      backgroundColor: index % 2 === 0 ? '#f9f9f9' : 'white'
+                    {/* Broker name bar */}
+                    <div style={{
+                      background: '#e8eaf6',
+                      color: '#000', padding: '3px 10px', fontWeight: '700', fontSize: '12px',
+                      display: 'flex', alignItems: 'center', gap: '4px', borderBottom: '1px solid #c5cae9'
                     }}>
-                      <td style={{ border: '1px solid #999', padding: '10px 12px', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
-                        {entry.entryDate ? (() => {
-                          const date = new Date(entry.entryDate);
-                          return isNaN(date.getTime()) ? 'Invalid Date' : date.toLocaleDateString();
-                        })() : 'No Date'}
-                      </td>
-                      <td style={{ border: '1px solid #999', padding: '10px 12px', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{entry.brokerName}</td>
-                      <td style={{ border: '1px solid #999', padding: '10px 12px', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{entry.variety}</td>
-                      <td style={{ border: '1px solid #999', padding: '10px 12px', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{entry.partyName}</td>
-                      <td style={{ border: '1px solid #999', padding: '10px 12px', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{entry.location}</td>
-                      <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#10b981' }}>
-                        {entry.lotAllotment?.allottedBags || entry.bags}
-                      </td>
-                      <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#4CAF50' }}>
-                        {progress?.inspectedBags || 0}
-                      </td>
-                      {/* Remaining Bags */}
-                      <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: entry.lotAllotment?.closedAt ? '#d32f2f' : (progress?.remainingBags === 0 ? '#4CAF50' : '#FF9800') }}>
-                        {entry.lotAllotment?.closedAt ? (
-                          <span>0 <span style={{ fontSize: '9px', fontWeight: 'normal', color: '#777' }}>(Closed)</span></span>
-                        ) : (
-                          progress?.remainingBags ?? (entry.lotAllotment?.allottedBags || entry.bags)
-                        )}
-                      </td>
-                      {/* Progress Bar */}
-                      <td style={{ border: '1px solid #ddd', padding: '6px', minWidth: '100px', textAlign: 'left' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                          <div style={{
-                            flex: 1,
-                            height: '18px',
-                            backgroundColor: '#e0e0e0',
-                            borderRadius: '9px',
-                            overflow: 'hidden'
-                          }}>
-                            <div style={{
-                              height: '100%',
-                              width: `${entry.lotAllotment?.closedAt ? 100 : progressPercentage}%`,
-                              backgroundColor: entry.lotAllotment?.closedAt ? '#7f8c8d' : getProgressColor(progressPercentage),
-                              transition: 'width 0.3s ease',
-                              borderRadius: '9px'
-                            }} />
-                          </div>
-                          <span style={{ fontSize: '10px', fontWeight: '600', minWidth: '30px' }}>
-                            {entry.lotAllotment?.closedAt ? 'Closed' : `${progressPercentage.toFixed(0)}%`}
-                          </span>
-                        </div>
-                        {hasPreviousInspections && (
-                          <button
-                            onClick={() => toggleExpand(entry.id)}
-                            style={{
-                              fontSize: '9px',
-                              padding: '2px 6px',
-                              marginTop: '3px',
-                              backgroundColor: 'transparent',
-                              color: '#4a90e2',
-                              border: '1px solid #4a90e2',
-                              borderRadius: '3px',
-                              cursor: 'pointer',
-                              display: 'block',
-                              width: '100%'
-                            }}
-                          >
-                            {expandedEntries[entry.id] ? '▲ Hide Details' : `▼ ${progress.previousInspections.length} Trip(s)`}
-                          </button>
-                        )}
-                      </td>
-                      <td style={{ border: '1px solid #999', padding: '10px 12px', fontSize: '11px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
-                        {currentSupervisor ? (
-                          <span style={{
-                            color: '#111',
-                            fontWeight: '600',
-                            padding: '4px 8px',
-                            backgroundColor: '#e3f2fd',
-                            borderRadius: '3px',
-                            border: '1px solid #b3d7ff'
-                          }}>
-                            {currentSupervisor.username}
-                          </span>
-                        ) : (
-                          <span style={{ color: '#999', fontStyle: 'italic' }}>Not assigned</span>
-                        )}
-                      </td>
-                      <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left' }}>
-                        <select
-                          value={selectedSupervisors[entry.id] || ''}
-                          onChange={(e) => handleSupervisorChange(entry.id, Number(e.target.value))}
-                          disabled={!!entry.lotAllotment?.closedAt}
-                          style={{
-                            width: '100%',
-                            padding: '6px',
-                            fontSize: '11px',
-                            border: '1px solid #999',
-                            borderRadius: '3px',
-                            backgroundColor: entry.lotAllotment?.closedAt ? '#f5f5f5' : (hasChanged ? '#fff3cd' : 'white'),
-                            color: entry.lotAllotment?.closedAt ? '#777' : '#1a1a1a',
-                            fontWeight: '500',
-                            cursor: entry.lotAllotment?.closedAt ? 'not-allowed' : 'default'
-                          }}
-                        >
-                          <option value="">-- Select --</option>
-                          {supervisors.map(supervisor => (
-                            <option key={supervisor.id} value={supervisor.id}>
-                              {supervisor.fullName || supervisor.username}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left' }}>
-                        <div style={{ display: 'flex', gap: '6px', flexDirection: 'column', alignItems: 'flex-start' }}>
-                          <button
-                            onClick={() => handleOpenEditValues(entry)}
-                            style={{
-                              fontSize: '10px',
-                              padding: '4px 8px',
-                              backgroundColor: '#3498db',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '3px',
-                              cursor: 'pointer',
-                              width: '100%',
-                              marginBottom: '3px'
-                            }}
-                          >
-                            ✏️ Edit Values
-                          </button>
-                          <button
-                            onClick={() => handleReassign(entry.id)}
-                            disabled={!hasChanged || !!entry.lotAllotment?.closedAt}
-                            style={{
-                              fontSize: '10px',
-                              padding: '4px 8px',
-                              backgroundColor: (hasChanged && !entry.lotAllotment?.closedAt) ? '#FF9800' : '#ccc',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '3px',
-                              cursor: (hasChanged && !entry.lotAllotment?.closedAt) ? 'pointer' : 'not-allowed',
-                              width: '100%'
-                            }}
-                          >
-                            {(hasChanged && !entry.lotAllotment?.closedAt) ? 'Reassign' : 'No Change'}
-                          </button>
-                          {progressPercentage > 0 && progressPercentage < 100 && !entry.lotAllotment?.closedAt && (
-                            <button
-                              onClick={() => {
-                                const progress = inspectionProgress[entry.id];
-                                if (!progress || progress.inspectedBags === 0) {
-                                  showNotification('Cannot close lot with 0 inspected bags. At least one inspection trip is required.', 'error');
-                                  return;
-                                }
-                                setClosingEntryId(entry.id);
-                                setIsCloseModalOpen(true);
-                              }}
-                              style={{
-                                fontSize: '10px',
-                                padding: '4px 8px',
-                                backgroundColor: '#f44336',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '3px',
-                                cursor: 'pointer',
-                                width: '100%',
-                                marginTop: '4px'
-                              }}
-                            >
-                              ❌ Close Lot ({progress?.remainingBags || 0} bags left)
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
+                      <span style={{ fontSize: '12px', fontWeight: '800' }}>{brokerIdx + 1}.</span> {brokerName}
+                    </div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', tableLayout: 'fixed', border: '1px solid #000' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#1a237e', color: 'white' }}>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '4%' }}>SL No</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '5%' }}>Type</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '5%' }}>Bags</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '5%' }}>Pkg</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '13%' }}>Party Name</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '11%' }}>Paddy Location</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '11%' }}>Variety</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '5%' }}>Loaded</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '5%' }}>Balance</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '10%' }}>Progress</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '8%' }}>Supervisor</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '8%' }}>Change To</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '10%' }}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {orderedEntries.map((entry, index) => {
+                          const currentSupervisor = entry.lotAllotment?.supervisor;
+                          const hasChanged = currentSupervisor && selectedSupervisors[entry.id] !== currentSupervisor.id;
+                          const progress = inspectionProgress[entry.id];
+                          const progressPercentage = progress?.progressPercentage || 0;
+                          const hasPreviousInspections = progress && progress.previousInspections && progress.previousInspections.length > 0;
 
-                    {/* Expandable inspection details */}
-                    {expandedEntries[entry.id] && hasPreviousInspections && (
-                      <tr>
-                        <td colSpan={12} style={{ padding: '12px', backgroundColor: '#f0f8ff', border: '1px solid #999' }}>
-                          <div style={{ fontSize: '12px', fontWeight: '700', marginBottom: '8px', color: '#111' }}>
-                            📋 Inspection Trips ({progress.previousInspections.length}) — {progress.inspectedBags} of {progress.totalBags} bags inspected
-                          </div>
-                          <table style={{ width: '100%', maxWidth: '850px', fontSize: '11px', borderCollapse: 'collapse', border: '1px solid #999', marginTop: '6px', tableLayout: 'fixed' }}>
-                            <colgroup>
-                              <col style={{ width: '40px' }} />
-                              <col style={{ width: '90px' }} />
-                              <col style={{ width: '130px' }} />
-                              <col style={{ width: '80px' }} />
-                              <col style={{ width: '90px' }} />
-                              <col style={{ width: '90px' }} />
-                              <col style={{ width: '120px' }} />
-                              <col style={{ width: '110px' }} />
-                            </colgroup>
-                            <thead>
-                              <tr style={{ backgroundColor: '#d0e1f9', color: '#111' }}>
-                                <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>#</th>
-                                <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Date</th>
-                                <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Lorry No</th>
-                                <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Bags</th>
-                                <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Cutting</th>
-                                <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Bend</th>
-                                <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>By</th>
-                                <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {progress.previousInspections.map((inspection, idx) => (
-                                <tr key={inspection.id} style={{ backgroundColor: idx % 2 === 0 ? 'white' : '#f9f9f9' }}>
-                                  <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{idx + 1}</td>
-                                  <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
-                                    {new Date(inspection.inspectionDate).toLocaleDateString()}
-                                  </td>
-                                  {editingInspection && editingInspection.inspectionId === inspection.id ? (
-                                    <>
-                                      <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left' }}>
-                                        <input type="text" value={editingInspection.data.lorryNumber}
-                                          onChange={e => setEditingInspection({ ...editingInspection, data: { ...editingInspection.data, lorryNumber: e.target.value.toUpperCase() } })}
-                                          maxLength={10}
-                                          style={{ width: '80px', padding: '4px 6px', fontSize: '11px', border: '1px solid #3498db', borderRadius: '3px' }} />
-                                      </td>
-                                      <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left' }}>
-                                        <input type="number" value={editingInspection.data.bags}
-                                          onChange={e => setEditingInspection({ ...editingInspection, data: { ...editingInspection.data, bags: e.target.value } })}
-                                          style={{ width: '60px', padding: '4px 6px', fontSize: '11px', border: '1px solid #3498db', borderRadius: '3px' }} />
-                                      </td>
-                                      <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left' }}>
-                                        <input type="text" value={editingInspection.data.cutting}
-                                          placeholder="1×"
-                                          onFocus={() => {
-                                            if (!editingInspection.data.cutting) {
-                                              const res = handleCuttingInput('1×', entry.entryType);
-                                              setEditingInspection({ ...editingInspection, data: { ...editingInspection.data, cutting: res.raw } });
-                                            }
-                                          }}
-                                          onChange={e => {
-                                            const res = handleCuttingInput(e.target.value, entry.entryType);
-                                            setEditingInspection({ ...editingInspection, data: { ...editingInspection.data, cutting: res.raw } });
-                                          }}
-                                          style={{ width: '80px', padding: '4px 6px', fontSize: '11px', border: '1px solid #3498db', borderRadius: '3px' }} />
-                                      </td>
-                                      <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left' }}>
-                                        <input type="text" value={editingInspection.data.bend}
-                                          placeholder="1×"
-                                          onFocus={() => {
-                                            if (!editingInspection.data.bend) {
-                                              const res = handleBendInput('1×', entry.entryType);
-                                              setEditingInspection({ ...editingInspection, data: { ...editingInspection.data, bend: res.raw } });
-                                            }
-                                          }}
-                                          onChange={e => {
-                                            const res = handleBendInput(e.target.value, entry.entryType);
-                                            setEditingInspection({ ...editingInspection, data: { ...editingInspection.data, bend: res.raw } });
-                                          }}
-                                          style={{ width: '70px', padding: '4px 6px', fontSize: '11px', border: '1px solid #3498db', borderRadius: '3px' }} />
-                                      </td>
-                                      <td style={{ border: '1px solid #999', padding: '6px 8px', fontSize: '11px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{inspection.reportedBy?.username || '-'}</td>
-                                      <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left' }}>
-                                        <div style={{ display: 'flex', gap: '4px' }}>
-                                          <button onClick={handleSaveInspection}
-                                            style={{ padding: '4px 8px', fontSize: '10px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: '600' }}>💾 Save</button>
-                                          <button onClick={() => setEditingInspection(null)}
-                                            style={{ padding: '4px 8px', fontSize: '10px', backgroundColor: '#e74c3c', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>✖</button>
+                          return (
+                            <React.Fragment key={entry.id}>
+                              <tr style={{ backgroundColor: index % 2 === 0 ? '#f9f9f9' : 'white' }}>
+                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'center', fontSize: '11px', fontWeight: '700', color: '#1a1a1a' }}>
+                                  {index + 1}
+                                </td>
+                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'center', fontWeight: '700' }}>
+                                  {(() => {
+                                    const typeCode = getDisplayedEntryTypeCode(entry);
+                                    const isResample = isConvertedResampleType(entry);
+                                    if (isResample) {
+                                      const orig = getOriginalEntryTypeCode(entry);
+                                      const conv = getConvertedEntryTypeCode(entry);
+                                      return (
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px' }}>
+                                          <span style={{ fontSize: '9px', fontWeight: 800, color: getEntryTypeTextColor(orig) }}>{orig}</span>
+                                          <span style={{
+                                            display: 'inline-block',
+                                            minWidth: '28px',
+                                            padding: '1px 4px',
+                                            borderRadius: '3px',
+                                            fontSize: '11px',
+                                            fontWeight: 800,
+                                            textAlign: 'center',
+                                            color: conv === 'RL' || conv === 'LS' ? '#fff' : '#166534',
+                                            backgroundColor: conv === 'RL' ? '#1565c0' : conv === 'LS' ? '#c2410c' : '#fff',
+                                            border: conv === 'MS' ? '1px solid #166534' : 'none'
+                                          }}>{conv}</span>
                                         </div>
-                                      </td>
-                                    </>
+                                      );
+                                    }
+                                    return (
+                                      <span style={{
+                                        display: 'inline-block',
+                                        minWidth: '28px',
+                                        padding: '1px 4px',
+                                        borderRadius: '3px',
+                                        fontSize: '11px',
+                                        fontWeight: 800,
+                                        textAlign: 'center',
+                                        color: typeCode === 'RL' || typeCode === 'LS' ? '#fff' : '#166534',
+                                        backgroundColor: typeCode === 'RL' ? '#1565c0' : typeCode === 'LS' ? '#c2410c' : '#fff',
+                                        border: typeCode === 'MS' ? '1px solid #166534' : 'none'
+                                      }}>{typeCode}</span>
+                                    );
+                                  })()}
+                                </td>
+                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'center', fontSize: '11px', fontWeight: '700', color: '#1a1a1a' }}>
+                                  {entry.lotAllotment?.allottedBags || entry.bags}
+                                </td>
+                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'center', fontSize: '11px', color: '#1a1a1a' }}>
+                                  {entry.packaging ? (String(entry.packaging).toLowerCase().includes('kg') ? entry.packaging : `${entry.packaging} Kg`) : '75 Kg'}
+                                </td>
+                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontSize: '11px', color: '#1a1a1a' }}>
+                                  {entry.partyName}
+                                </td>
+                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontSize: '11px', color: '#1a1a1a' }}>
+                                  {entry.location}
+                                </td>
+                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontSize: '11px', color: '#1a1a1a' }}>
+                                  {entry.variety}
+                                </td>
+                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'center', fontSize: '11px', fontWeight: '700', color: '#4CAF50' }}>
+                                  {progress?.inspectedBags || 0}
+                                </td>
+                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'center', fontSize: '11px', fontWeight: '700', color: entry.lotAllotment?.closedAt ? '#d32f2f' : (progress?.remainingBags === 0 ? '#4CAF50' : '#FF9800') }}>
+                                  {entry.lotAllotment?.closedAt ? (
+                                    <span>0 <span style={{ fontSize: '9px', fontWeight: 'normal', color: '#777' }}>(Closed)</span></span>
                                   ) : (
-                                    <>
-                                      <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{inspection.lorryNumber}</td>
-                                      <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600', color: '#1a1a1a' }}>
-                                        {inspection.bags}
-                                      </td>
-                                      <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
-                                        {formatDecimal(inspection.cutting1)} {inspection.cutting2 && Number(inspection.cutting2) !== 0 ? `× ${formatDecimal(inspection.cutting2)}` : ''}
-                                      </td>
-                                      <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
-                                        {formatDecimal(inspection.bend)} {inspection.bend2 && Number(inspection.bend2) !== 0 ? `× ${formatDecimal(inspection.bend2)}` : ''}
-                                      </td>
-                                      <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{inspection.reportedBy?.username || '-'}</td>
-                                      <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left' }}>
-                                        <div style={{ display: 'flex', gap: '3px', flexDirection: 'column', alignItems: 'flex-start' }}>
-                                          <button onClick={() => handleEditInspection(entry.id, inspection)}
-                                            style={{ padding: '4px 8px', fontSize: '10px', backgroundColor: '#3498db', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: '600', width: '80px' }}>✏️ Edit</button>
-                                          {user?.role !== 'manager' && (
-                                            <button onClick={() => handleOpenEditValues(entry)}
-                                              style={{ padding: '4px 8px', fontSize: '10px', backgroundColor: '#27ae60', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: '600', width: '80px' }}>💰 Edit Final</button>
-                                          )}
-                                        </div>
-                                      </td>
-                                    </>
+                                    progress?.remainingBags ?? (entry.lotAllotment?.allottedBags || entry.bags)
                                   )}
+                                </td>
+                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', justifyContent: 'center' }}>
+                                    <div style={{
+                                      flex: 1,
+                                      height: '18px',
+                                      backgroundColor: '#e0e0e0',
+                                      borderRadius: '9px',
+                                      overflow: 'hidden'
+                                    }}>
+                                      <div style={{
+                                        height: '100%',
+                                        width: `${entry.lotAllotment?.closedAt ? 100 : progressPercentage}%`,
+                                        backgroundColor: entry.lotAllotment?.closedAt ? '#7f8c8d' : getProgressColor(progressPercentage),
+                                        transition: 'width 0.3s ease',
+                                        borderRadius: '9px'
+                                      }} />
+                                    </div>
+                                    <span style={{ fontSize: '10px', fontWeight: '600', minWidth: '30px' }}>
+                                      {entry.lotAllotment?.closedAt ? 'Closed' : `${progressPercentage.toFixed(0)}%`}
+                                    </span>
+                                  </div>
+                                  {hasPreviousInspections && (
+                                    <button
+                                      onClick={() => toggleExpand(entry.id)}
+                                      style={{
+                                        fontSize: '9px',
+                                        padding: '2px 6px',
+                                        marginTop: '3px',
+                                        backgroundColor: 'transparent',
+                                        color: '#4a90e2',
+                                        border: '1px solid #4a90e2',
+                                        borderRadius: '3px',
+                                        cursor: 'pointer',
+                                        display: 'block',
+                                        width: '100%'
+                                      }}
+                                    >
+                                      {expandedEntries[entry.id] ? '▲ Hide Details' : `▼ ${progress.previousInspections.length} Trip(s)`}
+                                    </button>
+                                  )}
+                                </td>
+                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontSize: '11px', color: '#1a1a1a' }}>
+                                  {currentSupervisor ? (
+                                    <span style={{
+                                      color: '#111',
+                                      fontWeight: '600',
+                                      padding: '4px 8px',
+                                      backgroundColor: '#e3f2fd',
+                                      borderRadius: '3px',
+                                      border: '1px solid #b3d7ff'
+                                    }}>
+                                      {currentSupervisor.username}
+                                    </span>
+                                  ) : (
+                                    <span style={{ color: '#999', fontStyle: 'italic' }}>Not assigned</span>
+                                  )}
+                                </td>
+                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left' }}>
+                                  <select
+                                    value={selectedSupervisors[entry.id] || ''}
+                                    onChange={(e) => handleSupervisorChange(entry.id, Number(e.target.value))}
+                                    disabled={!!entry.lotAllotment?.closedAt}
+                                    style={{
+                                      width: '100%',
+                                      padding: '6px',
+                                      fontSize: '11px',
+                                      border: '1px solid #999',
+                                      borderRadius: '3px',
+                                      backgroundColor: entry.lotAllotment?.closedAt ? '#f5f5f5' : (hasChanged ? '#fff3cd' : 'white'),
+                                      color: entry.lotAllotment?.closedAt ? '#777' : '#1a1a1a',
+                                      fontWeight: '500',
+                                      cursor: entry.lotAllotment?.closedAt ? 'not-allowed' : 'default'
+                                    }}
+                                  >
+                                    <option value="">-- Select --</option>
+                                    {supervisors.map(supervisor => (
+                                      <option key={supervisor.id} value={supervisor.id}>
+                                        {supervisor.fullName || supervisor.username}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </td>
+                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left' }}>
+                                  <div style={{ display: 'flex', gap: '6px', flexDirection: 'column', alignItems: 'flex-start' }}>
+                                    <button
+                                      onClick={() => handleOpenEditValues(entry)}
+                                      style={{
+                                        fontSize: '10px',
+                                        padding: '4px 8px',
+                                        backgroundColor: '#3498db',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '3px',
+                                        cursor: 'pointer',
+                                        width: '100%',
+                                        marginBottom: '3px'
+                                      }}
+                                    >
+                                      ✏️ Edit Values
+                                    </button>
+                                    <button
+                                      onClick={() => handleReassign(entry.id)}
+                                      disabled={!hasChanged || !!entry.lotAllotment?.closedAt}
+                                      style={{
+                                        fontSize: '10px',
+                                        padding: '4px 8px',
+                                        backgroundColor: (hasChanged && !entry.lotAllotment?.closedAt) ? '#FF9800' : '#ccc',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '3px',
+                                        cursor: (hasChanged && !entry.lotAllotment?.closedAt) ? 'pointer' : 'not-allowed',
+                                        width: '100%'
+                                      }}
+                                    >
+                                      {(hasChanged && !entry.lotAllotment?.closedAt) ? 'Reassign' : 'No Change'}
+                                    </button>
+                                    {progressPercentage > 0 && progressPercentage < 100 && !entry.lotAllotment?.closedAt && (
+                                      <button
+                                        onClick={() => {
+                                          const progress = inspectionProgress[entry.id];
+                                          if (!progress || progress.inspectedBags === 0) {
+                                            showNotification('Cannot close lot with 0 inspected bags. At least one inspection trip is required.', 'error');
+                                            return;
+                                          }
+                                          setClosingEntryId(entry.id);
+                                          setIsCloseModalOpen(true);
+                                        }}
+                                        style={{
+                                          fontSize: '10px',
+                                          padding: '4px 8px',
+                                          backgroundColor: '#f44336',
+                                          color: 'white',
+                                          border: 'none',
+                                          borderRadius: '3px',
+                                          cursor: 'pointer',
+                                          width: '100%',
+                                          marginTop: '4px'
+                                        }}
+                                      >
+                                        ❌ Close Lot ({progress?.remainingBags || 0} bags left)
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                              {expandedEntries[entry.id] && hasPreviousInspections && (
+                                <tr>
+                                  <td colSpan={13} style={{ padding: '12px', backgroundColor: '#f0f8ff', border: '1px solid #999' }}>
+                                    <div style={{ fontSize: '12px', fontWeight: '700', marginBottom: '8px', color: '#111' }}>
+                                      📋 Inspection Trips ({progress.previousInspections.length}) — {progress.inspectedBags} of {progress.totalBags} bags inspected
+                                    </div>
+                                    <table style={{ width: '100%', maxWidth: '850px', fontSize: '11px', borderCollapse: 'collapse', border: '1px solid #999', marginTop: '6px', tableLayout: 'fixed' }}>
+                                      <colgroup>
+                                        <col style={{ width: '40px' }} />
+                                        <col style={{ width: '90px' }} />
+                                        <col style={{ width: '130px' }} />
+                                        <col style={{ width: '80px' }} />
+                                        <col style={{ width: '90px' }} />
+                                        <col style={{ width: '90px' }} />
+                                        <col style={{ width: '120px' }} />
+                                        <col style={{ width: '110px' }} />
+                                      </colgroup>
+                                      <thead>
+                                        <tr style={{ backgroundColor: '#d0e1f9', color: '#111' }}>
+                                          <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>#</th>
+                                          <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Date</th>
+                                          <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Lorry No</th>
+                                          <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Bags</th>
+                                          <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Cutting</th>
+                                          <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Bend</th>
+                                          <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>By</th>
+                                          <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Actions</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {progress.previousInspections.map((inspection, idx) => (
+                                          <tr key={inspection.id} style={{ backgroundColor: idx % 2 === 0 ? 'white' : '#f9f9f9' }}>
+                                            <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{idx + 1}</td>
+                                            <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
+                                              {new Date(inspection.inspectionDate).toLocaleDateString()}
+                                            </td>
+                                            {editingInspection && editingInspection.inspectionId === inspection.id ? (
+                                              <>
+                                                <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left' }}>
+                                                  <input type="text" value={editingInspection.data.lorryNumber}
+                                                    onChange={e => setEditingInspection({ ...editingInspection, data: { ...editingInspection.data, lorryNumber: e.target.value.toUpperCase() } })}
+                                                    maxLength={10}
+                                                    style={{ width: '80px', padding: '4px 6px', fontSize: '11px', border: '1px solid #3498db', borderRadius: '3px' }} />
+                                                </td>
+                                                <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left' }}>
+                                                  <input type="number" value={editingInspection.data.bags}
+                                                    onChange={e => setEditingInspection({ ...editingInspection, data: { ...editingInspection.data, bags: e.target.value } })}
+                                                    style={{ width: '60px', padding: '4px 6px', fontSize: '11px', border: '1px solid #3498db', borderRadius: '3px' }} />
+                                                </td>
+                                                <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left' }}>
+                                                  <input type="text" value={editingInspection.data.cutting}
+                                                    placeholder="1×"
+                                                    onFocus={() => {
+                                                      if (!editingInspection.data.cutting) {
+                                                        const res = handleCuttingInput('1×', entry.entryType);
+                                                        setEditingInspection({ ...editingInspection, data: { ...editingInspection.data, cutting: res.raw } });
+                                                      }
+                                                    }}
+                                                    onChange={e => {
+                                                      const res = handleCuttingInput(e.target.value, entry.entryType);
+                                                      setEditingInspection({ ...editingInspection, data: { ...editingInspection.data, cutting: res.raw } });
+                                                    }}
+                                                    style={{ width: '80px', padding: '4px 6px', fontSize: '11px', border: '1px solid #3498db', borderRadius: '3px' }} />
+                                                </td>
+                                                <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left' }}>
+                                                  <input type="text" value={editingInspection.data.bend}
+                                                    placeholder="1×"
+                                                    onFocus={() => {
+                                                      if (!editingInspection.data.bend) {
+                                                        const res = handleBendInput('1×', entry.entryType);
+                                                        setEditingInspection({ ...editingInspection, data: { ...editingInspection.data, bend: res.raw } });
+                                                      }
+                                                    }}
+                                                    onChange={e => {
+                                                      const res = handleBendInput(e.target.value, entry.entryType);
+                                                      setEditingInspection({ ...editingInspection, data: { ...editingInspection.data, bend: res.raw } });
+                                                    }}
+                                                    style={{ width: '70px', padding: '4px 6px', fontSize: '11px', border: '1px solid #3498db', borderRadius: '3px' }} />
+                                                </td>
+                                                <td style={{ border: '1px solid #999', padding: '6px 8px', fontSize: '11px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{inspection.reportedBy?.username || '-'}</td>
+                                                <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left' }}>
+                                                  <div style={{ display: 'flex', gap: '4px' }}>
+                                                    <button onClick={handleSaveInspection}
+                                                      style={{ padding: '4px 8px', fontSize: '10px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: '600' }}>💾 Save</button>
+                                                    <button onClick={() => setEditingInspection(null)}
+                                                      style={{ padding: '4px 8px', fontSize: '10px', backgroundColor: '#e74c3c', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>✖</button>
+                                                  </div>
+                                                </td>
+                                              </>
+                                            ) : (
+                                              <>
+                                                <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{inspection.lorryNumber}</td>
+                                                <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600', color: '#1a1a1a' }}>
+                                                  {inspection.bags}
+                                                </td>
+                                                <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
+                                                  {formatDecimal(inspection.cutting1)} {inspection.cutting2 && Number(inspection.cutting2) !== 0 ? `× ${formatDecimal(inspection.cutting2)}` : ''}
+                                                </td>
+                                                <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
+                                                  {formatDecimal(inspection.bend)} {inspection.bend2 && Number(inspection.bend2) !== 0 ? `× ${formatDecimal(inspection.bend2)}` : ''}
+                                                </td>
+                                                <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{inspection.reportedBy?.username || '-'}</td>
+                                                <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left' }}>
+                                                  <div style={{ display: 'flex', gap: '3px', flexDirection: 'column', alignItems: 'flex-start' }}>
+                                                    <button onClick={() => handleEditInspection(entry.id, inspection)}
+                                                      style={{ padding: '4px 8px', fontSize: '10px', backgroundColor: '#3498db', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: '600', width: '80px' }}>✏️ Edit</button>
+                                                  </div>
+                                                </td>
+                                              </>
+                                            )}
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </td>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 );
-              })
-            )}
-          </tbody>
-        </table>
+              })}
+            </div>
+          ))
+        )}
       </div>
 
       {/* Pagination */}

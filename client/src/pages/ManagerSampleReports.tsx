@@ -38,7 +38,7 @@ const tabs: TabConfig[] = [
     { key: 'pending-lots', label: 'Pending (Sample Selection)', icon: '\u{1F4CB}', color: '#3498db' },
     { key: 'cooking-report', label: 'Cooking Book', icon: '\u{1F35A}', color: '#e67e22' },
     { key: 'lots-passed', label: 'Final Pass Lots', icon: '\u{2705}', color: '#27ae60' },
-    { key: 'loading-lots', label: 'Pending Loading Lots', icon: '\u{1F69A}', color: '#f39c12' },
+    { key: 'loading-lots', label: 'Loading Lots', icon: '\u{1F69A}', color: '#f39c12' },
     { key: 'completed-lots', label: 'Completed Lots', icon: '\u{1F4E6}', color: '#e74c3c' },
     { key: 'approvals', label: 'Approvals', icon: '\u{1F4DD}', color: '#8e44ad' },
 ];
@@ -189,7 +189,7 @@ const ManagerSampleReports: React.FC = () => {
                                         transition: 'all 0.3s ease'
                                     }}
                                 >
-                                    Loading Lots Table
+                                    Pending Loading Lots
                                 </button>
                                 <button
                                     onClick={() => setActiveSubTab('assign-supervisor')}
@@ -205,7 +205,7 @@ const ManagerSampleReports: React.FC = () => {
                                         transition: 'all 0.3s ease'
                                     }}
                                 >
-                                    Assign Supervisor
+                                    Allot Supervisor
                                 </button>
                                 <button
                                     onClick={() => setActiveSubTab('assigned-lots')}
@@ -221,7 +221,7 @@ const ManagerSampleReports: React.FC = () => {
                                         transition: 'all 0.3s ease'
                                     }}
                                 >
-                                    Assigned Loading Lots
+                                    Allotted Loading Lots
                                 </button>
                             </div>
                             

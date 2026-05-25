@@ -48,7 +48,7 @@ const AllottingSupervisors: React.FC = () => {
             transition: 'all 0.3s ease'
           }}
         >
-          Assigned Loading Lots
+          Allotted Loading Lots
         </button>
       </div>
 

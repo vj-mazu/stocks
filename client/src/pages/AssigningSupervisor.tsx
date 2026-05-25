@@ -2,6 +2,13 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNotification } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
+import {
+  getDisplayedEntryTypeCode,
+  getEntryTypeTextColor,
+  getOriginalEntryTypeCode,
+  getConvertedEntryTypeCode,
+  isConvertedResampleType
+} from '../utils/sampleTypeDisplay';
 
 import { API_URL } from '../config/api';
 
@@ -15,6 +22,18 @@ interface SampleEntry {
   location: string;
   bags: number;
   workflowStatus: string;
+  entryType?: string;
+  originalEntryType?: string;
+  packaging?: string;
+  lotSelectionDecision?: string;
+  qualityReportAttempts?: number;
+  qualityAttemptDetails?: any[];
+  resampleCollectedTimeline?: any[];
+  resampleCollectedHistory?: any[];
+  resampleStartAt?: string;
+  lotSelectionAt?: string;
+  updatedAt?: string;
+  createdAt?: string;
   lotAllotment?: {
     id: string;
     supervisor: {
@@ -67,8 +86,6 @@ const AssigningSupervisor: React.FC = () => {
 
       const data = response.data as any;
       const allPendingEntries = data.entries || [];
-      setTotal(data.total || 0);
-      setTotalPages(Math.ceil((data.total || 0) / pageSize));
 
       // Filter out entries that already have supervisor assigned
       const entriesWithoutSupervisor = allPendingEntries.filter((entry: SampleEntry) => !entry.lotAllotment);
@@ -99,8 +116,21 @@ const AssigningSupervisor: React.FC = () => {
         }
       }
 
-      setEntries(entriesWithoutSupervisor);
+      // Filter to only include entries where all required manager values are filled (needsFill is false)
+      const filteredEntries = entriesWithoutSupervisor.filter((entry: SampleEntry) => {
+        const o = offerCache[entry.id] || {};
+        const needsFill = (o.suteEnabled === false && !parseFloat(o.finalSute) && !parseFloat(o.sute)) ||
+          (o.moistureEnabled === false && !parseFloat(o.moistureValue)) ||
+          (o.hamaliEnabled === false && !parseFloat(o.hamali)) ||
+          (o.brokerageEnabled === false && !parseFloat(o.brokerage)) ||
+          (o.lfEnabled === false && !parseFloat(o.lf));
+        return !needsFill;
+      });
+
+      setEntries(filteredEntries);
       setOfferingCache(offerCache);
+      setTotal(filteredEntries.length);
+      setTotalPages(Math.ceil(filteredEntries.length / pageSize));
 
     } catch (error: any) {
       showNotification(error.response?.data?.error || 'Failed to load entries', 'error');
@@ -193,11 +223,42 @@ const AssigningSupervisor: React.FC = () => {
     }
   };
 
-  // Group entries by date + broker
+  const getEffectiveDate = (entry: any) => {
+    const hasResampleFlow = String(entry?.lotSelectionDecision || '').trim().toUpperCase() === 'FAIL'
+      || (Array.isArray(entry?.resampleCollectedTimeline) && entry.resampleCollectedTimeline.length > 0)
+      || (Array.isArray(entry?.resampleCollectedHistory) && entry.resampleCollectedHistory.length > 0)
+      || Number(entry?.qualityReportAttempts || 0) > 1;
+      
+    if (hasResampleFlow && Array.isArray(entry?.resampleCollectedTimeline) && entry.resampleCollectedTimeline.length > 0) {
+      const lastAssigned = entry.resampleCollectedTimeline[entry.resampleCollectedTimeline.length - 1];
+      if (lastAssigned && lastAssigned.date) {
+        return new Date(lastAssigned.date);
+      }
+    }
+    if (hasResampleFlow) {
+      if (entry?.resampleStartAt) return new Date(entry.resampleStartAt);
+      if (entry?.lotSelectionAt) return new Date(entry.lotSelectionAt);
+      if (entry?.updatedAt) return new Date(entry.updatedAt);
+    }
+    return new Date(entry.entryDate);
+  };
+
+  // Sort the entries before grouping: Date descending, then Serial No ascending
+  const sortedEntries = [...entries].sort((a, b) => {
+    const dateCompare = getEffectiveDate(b).getTime() - getEffectiveDate(a).getTime();
+    if (dateCompare !== 0) return dateCompare;
+    const serialA = Number.isFinite(Number(a.serialNo)) ? Number(a.serialNo) : null;
+    const serialB = Number.isFinite(Number(b.serialNo)) ? Number(b.serialNo) : null;
+    if (serialA !== null && serialB !== null && serialA !== serialB) return serialA - serialB;
+    return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+  });
+
+  // Group entries by Date + Broker
   const groupedEntries: Record<string, Record<string, SampleEntry[]>> = {};
-  entries.forEach(entry => {
+  sortedEntries.forEach(entry => {
+    const d = getEffectiveDate(entry);
     const dateKey = entry.entryDate
-      ? new Date(entry.entryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+      ? `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`
       : 'No Date';
     const brokerKey = entry.brokerName || 'Unknown';
     if (!groupedEntries[dateKey]) groupedEntries[dateKey] = {};
@@ -211,101 +272,158 @@ const AssigningSupervisor: React.FC = () => {
         {loading ? (
           <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>Loading...</div>
         ) : entries.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>No entries pending supervisor assignment</div>
+          <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>No entries pending supervisor allotment</div>
         ) : (
           Object.entries(groupedEntries).map(([dateKey, brokerGroups]) => (
-            <div key={dateKey}>
-              {Object.entries(brokerGroups).map(([brokerName, brokerEntries]) => (
-                <div key={brokerName}>
-                  {/* Date + Broker Header — matching staff-side style */}
-                  <div style={{
-                    background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-                    color: 'white', padding: '10px 14px', fontWeight: '700', fontSize: '13px',
-                    letterSpacing: '0.5px', textAlign: 'left'
-                  }}>
-                    {dateKey} — {brokerName} ({brokerEntries.length})
-                  </div>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', tableLayout: 'auto' }}>
-                    <thead>
-                      <tr style={{ backgroundColor: '#4a90e2', color: 'white' }}>
-                        <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left' }}>SL</th>
-                        <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left' }}>Bags</th>
-                        <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left' }}>Pkg</th>
-                        <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left' }}>Party</th>
-                        <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left' }}>Paddy Location</th>
-                        <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left' }}>Variety</th>
-                        <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left' }}>Select Supervisor</th>
-                        <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left' }}>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {brokerEntries.map((entry, index) => {
-                        const o = offeringCache[entry.id] || {};
+            <div key={dateKey} style={{ marginBottom: '20px' }}>
+              {Object.entries(brokerGroups).sort(([a], [b]) => a.localeCompare(b)).map(([brokerName, brokerEntries], brokerIdx) => {
+                // Sort broker entries by serialNo ascending
+                const orderedEntries = [...brokerEntries].sort((a, b) => {
+                  const serialA = Number.isFinite(Number(a.serialNo)) ? Number(a.serialNo) : null;
+                  const serialB = Number.isFinite(Number(b.serialNo)) ? Number(b.serialNo) : null;
+                  if (serialA !== null && serialB !== null && serialA !== serialB) return serialA - serialB;
+                  return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+                });
 
-                        const needsFill = (o.suteEnabled === false && !parseFloat(o.finalSute) && !parseFloat(o.sute)) ||
-                          (o.moistureEnabled === false && !parseFloat(o.moistureValue)) ||
-                          (o.hamaliEnabled === false && !parseFloat(o.hamali)) ||
-                          (o.brokerageEnabled === false && !parseFloat(o.brokerage)) ||
-                          (o.lfEnabled === false && !parseFloat(o.lf));
-
-                        return (
-                          <tr key={entry.id} style={{ backgroundColor: index % 2 === 0 ? '#f9f9f9' : 'white' }}>
-                            <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap', color: '#1a1a1a' }}>{index + 1}</td>
-                            <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap', color: '#1a1a1a', fontWeight: '600' }}>{entry.bags}</td>
-                            <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap', color: '#1a1a1a' }}>75 Kg</td>
-                            <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap', color: '#1a1a1a' }}>{entry.partyName}</td>
-                            <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap', color: '#1a1a1a' }}>{entry.location}</td>
-                            <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap', color: '#1a1a1a' }}>{entry.variety}</td>
-                            <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left' }}>
-                              {needsFill ? (
-                                <div style={{ textAlign: 'left' }}>
-                                  <span style={{ padding: '3px 8px', borderRadius: '10px', fontSize: '10px', fontWeight: '700', background: '#fff3cd', color: '#856404', whiteSpace: 'nowrap', display: 'inline-block', marginBottom: '3px', border: '1px solid #ffeeba' }}>
-                                    Manager Missing ⏳
-                                  </span>
-                                  <div style={{ fontSize: '10px', color: '#e74c3c', fontStyle: 'italic' }}>
-                                    Fill values in Loading Lots first
+                return (
+                  <div key={brokerName} style={{ marginBottom: '0px' }}>
+                    {/* Date bar — only first broker */}
+                    {brokerIdx === 0 && (
+                      <div style={{
+                        background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+                        color: 'white', padding: '6px 10px', fontWeight: '700', fontSize: '14px',
+                        textAlign: 'center', letterSpacing: '0.5px'
+                      }}>
+                        {dateKey} &nbsp;&nbsp; Paddy Sample
+                      </div>
+                    )}
+                    {/* Broker name bar */}
+                    <div style={{
+                      background: '#e8eaf6',
+                      color: '#000', padding: '3px 10px', fontWeight: '700', fontSize: '12px',
+                      display: 'flex', alignItems: 'center', gap: '4px', borderBottom: '1px solid #c5cae9'
+                    }}>
+                      <span style={{ fontSize: '12px', fontWeight: '800' }}>{brokerIdx + 1}.</span> {brokerName}
+                    </div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', tableLayout: 'fixed', border: '1px solid #000' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#1a237e', color: 'white' }}>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '5%' }}>SL No</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '6%' }}>Type</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '8%' }}>Bags</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '7%' }}>Pkg</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '20%' }}>Party Name</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '16%' }}>Paddy Location</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '14%' }}>Variety</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '14%' }}>Select Supervisor</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '10%' }}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {orderedEntries.map((entry, index) => {
+                          return (
+                            <tr key={entry.id} style={{ backgroundColor: index % 2 === 0 ? '#f9f9f9' : 'white' }}>
+                              <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'center', fontSize: '11px', fontWeight: '700', color: '#1a1a1a' }}>
+                                {index + 1}
+                              </td>
+                              <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'center', fontWeight: '700' }}>
+                                {(() => {
+                                  const typeCode = getDisplayedEntryTypeCode(entry);
+                                  const isResample = isConvertedResampleType(entry);
+                                  if (isResample) {
+                                    const orig = getOriginalEntryTypeCode(entry);
+                                    const conv = getConvertedEntryTypeCode(entry);
+                                    return (
+                                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px' }}>
+                                        <span style={{ fontSize: '9px', fontWeight: 800, color: getEntryTypeTextColor(orig) }}>{orig}</span>
+                                        <span style={{
+                                          display: 'inline-block',
+                                          minWidth: '28px',
+                                          padding: '1px 4px',
+                                          borderRadius: '3px',
+                                          fontSize: '11px',
+                                          fontWeight: 800,
+                                          textAlign: 'center',
+                                          color: conv === 'RL' || conv === 'LS' ? '#fff' : '#166534',
+                                          backgroundColor: conv === 'RL' ? '#1565c0' : conv === 'LS' ? '#c2410c' : '#fff',
+                                          border: conv === 'MS' ? '1px solid #166534' : 'none'
+                                        }}>{conv}</span>
+                                      </div>
+                                    );
+                                  }
+                                  return (
+                                    <span style={{
+                                      display: 'inline-block',
+                                      minWidth: '28px',
+                                      padding: '1px 4px',
+                                      borderRadius: '3px',
+                                      fontSize: '11px',
+                                      fontWeight: 800,
+                                      textAlign: 'center',
+                                      color: typeCode === 'RL' || typeCode === 'LS' ? '#fff' : '#166534',
+                                      backgroundColor: typeCode === 'RL' ? '#1565c0' : typeCode === 'LS' ? '#c2410c' : '#fff',
+                                      border: typeCode === 'MS' ? '1px solid #166534' : 'none'
+                                    }}>{typeCode}</span>
+                                  );
+                                })()}
+                              </td>
+                              <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'center', fontSize: '11px', fontWeight: '700', color: '#1a1a1a' }}>
+                                {entry.bags}
+                              </td>
+                              <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'center', fontSize: '11px', color: '#1a1a1a' }}>
+                                {entry.packaging ? (String(entry.packaging).toLowerCase().includes('kg') ? entry.packaging : `${entry.packaging} Kg`) : '75 Kg'}
+                              </td>
+                              <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontSize: '11px', color: '#1a1a1a' }}>
+                                {entry.partyName}
+                              </td>
+                              <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontSize: '11px', color: '#1a1a1a' }}>
+                                {entry.location}
+                              </td>
+                              <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontSize: '11px', color: '#1a1a1a' }}>
+                                {entry.variety}
+                              </td>
+                              <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left' }}>
+                                {user?.role !== 'manager' ? (
+                                  <div style={{ fontSize: '11px', color: '#7f8c8d', fontStyle: 'italic' }}>
+                                    Manager action only
                                   </div>
-                                </div>
-                              ) : user?.role !== 'manager' ? (
-                                <div style={{ fontSize: '11px', color: '#7f8c8d', fontStyle: 'italic' }}>
-                                  Manager action only
-                                </div>
-                              ) : (
-                                <select
-                                  value={selectedSupervisors[entry.id] || ''}
-                                  onChange={(e) => handleSupervisorChange(entry.id, Number(e.target.value))}
-                                  style={{ width: '100%', padding: '6px', fontSize: '11px', border: '1px solid #999', borderRadius: '3px', color: '#1a1a1a', fontWeight: '500' }}
+                                ) : (
+                                  <select
+                                    value={selectedSupervisors[entry.id] || ''}
+                                    onChange={(e) => handleSupervisorChange(entry.id, Number(e.target.value))}
+                                    style={{ width: '100%', padding: '6px', fontSize: '11px', border: '1px solid #999', borderRadius: '3px', color: '#1a1a1a', fontWeight: '500' }}
+                                  >
+                                    <option value="">-- Select Supervisor --</option>
+                                    {supervisors.map(supervisor => (
+                                      <option key={supervisor.id} value={supervisor.id}>
+                                        {supervisor.fullName || supervisor.username}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                              </td>
+                              <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left' }}>
+                                <button
+                                  onClick={() => handleAssignClick(entry)}
+                                  disabled={!selectedSupervisors[entry.id] || user?.role !== 'manager' || isSubmitting}
+                                  style={{
+                                    fontSize: '11px', padding: '6px 12px', fontWeight: '600',
+                                    backgroundColor: (selectedSupervisors[entry.id] && user?.role === 'manager' && !isSubmitting) ? '#4CAF50' : '#ccc',
+                                    color: 'white', border: 'none', borderRadius: '3px',
+                                    cursor: (selectedSupervisors[entry.id] && user?.role === 'manager' && !isSubmitting) ? 'pointer' : 'not-allowed'
+                                  }}
                                 >
-                                  <option value="">-- Select Supervisor --</option>
-                                  {supervisors.map(supervisor => (
-                                    <option key={supervisor.id} value={supervisor.id}>
-                                      {supervisor.fullName || supervisor.username}
-                                    </option>
-                                  ))}
-                                </select>
-                              )}
-                            </td>
-                            <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left' }}>
-                              <button
-                                onClick={() => handleAssignClick(entry)}
-                                disabled={needsFill || !selectedSupervisors[entry.id] || user?.role !== 'manager' || isSubmitting}
-                                style={{
-                                  fontSize: '11px', padding: '6px 12px', fontWeight: '600',
-                                  backgroundColor: (!needsFill && selectedSupervisors[entry.id] && user?.role === 'manager' && !isSubmitting) ? '#4CAF50' : '#ccc',
-                                  color: 'white', border: 'none', borderRadius: '3px',
-                                  cursor: (!needsFill && selectedSupervisors[entry.id] && user?.role === 'manager' && !isSubmitting) ? 'pointer' : 'not-allowed'
-                                }}
-                              >
-                                {isSubmitting ? '...' : 'Assign'}
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              ))}
+                                  {isSubmitting ? '...' : 'Assign'}
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })}
             </div>
           ))
         )}

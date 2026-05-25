@@ -460,7 +460,7 @@ const Navbar: React.FC = () => {
               <NavLink to="/rice-sample-entries" $active={isActive('/rice-sample-entries')}>Rice Sample Entry</NavLink>
               <NavLink to="/cooking-book" $active={isActive('/cooking-book')}>Cooking Book</NavLink>
               {user.staffType === 'location' && (
-                <NavLink to="/physical-inspection" $active={isActive('/physical-inspection')}>Lots Allotted</NavLink>
+                <NavLink to="/physical-inspection" $active={isActive('/physical-inspection')}>Loading Allotted</NavLink>
               )}
             </>
           )}

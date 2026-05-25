@@ -1934,7 +1934,10 @@ const SampleEntryPage: React.FC<{
     if (isMissing(qualityData.moisture)) { showNotification('Moisture is required', 'error'); return; }
 
     const reportedByValue = qualityData.reportedBy || '';
-    if (!isOptionalReportedBy100g && (!reportedByValue || reportedByValue.trim() === '')) { showNotification('Sample Reported By is required', 'error'); return; }
+    const effectiveReportedByValue = shouldLockReportedByForQualityEntry(selectedEntry) && !isOptionalReportedBy100g
+      ? (getEffectiveReportedByDefault(selectedEntry) || reportedByValue)
+      : reportedByValue;
+    if (!isOptionalReportedBy100g && (!effectiveReportedByValue || effectiveReportedByValue.trim() === '')) { showNotification('Sample Reported By is required', 'error'); return; }
     // Smell validation removed as it's read-only from entry
     if (!allowPaddy100gThreeFieldSave && isMissing(qualityData.grainsCount)) { showNotification('Grains count is required', 'error'); return; }
 

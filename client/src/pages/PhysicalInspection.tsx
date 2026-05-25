@@ -126,6 +126,7 @@ const PhysicalInspection: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<string | null>(null);
   const [inspectionProgress, setInspectionProgress] = useState<{ [key: string]: InspectionProgress }>({});
+  const [activeTab, setActiveTab] = useState<'paddy' | 'rice'>('paddy');
 
   // Inspection form data
   const [inspectionData, setInspectionData] = useState<{
@@ -393,14 +394,63 @@ const PhysicalInspection: React.FC = () => {
     );
   }
 
+  const filteredEntries = entries.filter(entry => {
+    if (activeTab === 'paddy') {
+      return entry.entryType !== 'RICE_SAMPLE';
+    } else {
+      return entry.entryType === 'RICE_SAMPLE';
+    }
+  });
+
   return (
     <div style={{ padding: '20px' }}>
       <h2 style={{ marginBottom: '20px', fontSize: '24px', fontWeight: '600', color: '#333' }}>
-        Lots Allotted - Physical Inspection
+        Loading Allotted - Physical Inspection
       </h2>
       <p style={{ marginBottom: '15px', fontSize: '12px', color: '#666' }}>
         Reported by: {user?.username || 'Unknown'} (Automatic)
       </p>
+
+      {/* Sub-tabs */}
+      <div style={{
+        display: 'flex',
+        gap: '10px',
+        marginBottom: '20px',
+        borderBottom: '2px solid #e0e0e0'
+      }}>
+        <button
+          onClick={() => setActiveTab('paddy')}
+          style={{
+            padding: '10px 20px',
+            fontSize: '14px',
+            fontWeight: '600',
+            border: 'none',
+            borderBottom: activeTab === 'paddy' ? '3px solid #4a90e2' : '3px solid transparent',
+            backgroundColor: 'transparent',
+            color: activeTab === 'paddy' ? '#4a90e2' : '#666',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease'
+          }}
+        >
+          Paddy Loading
+        </button>
+        <button
+          onClick={() => setActiveTab('rice')}
+          style={{
+            padding: '10px 20px',
+            fontSize: '14px',
+            fontWeight: '600',
+            border: 'none',
+            borderBottom: activeTab === 'rice' ? '3px solid #4a90e2' : '3px solid transparent',
+            backgroundColor: 'transparent',
+            color: activeTab === 'rice' ? '#4a90e2' : '#666',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease'
+          }}
+        >
+          Rice Loading
+        </button>
+      </div>
 
       <div style={{
         overflowX: 'auto',
@@ -425,15 +475,15 @@ const PhysicalInspection: React.FC = () => {
           <tbody>
             {loading ? (
               <tr><td colSpan={10} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>Loading...</td></tr>
-            ) : entries.length === 0 ? (
+            ) : filteredEntries.length === 0 ? (
               <tr><td colSpan={10} style={{ textAlign: 'center', padding: '20px', color: '#999' }}>No lots allotted for inspection</td></tr>
             ) : (
-              entries.map((entry, index) => {
+              filteredEntries.map((entry, index) => {
                 const progress = inspectionProgress[entry.id];
                 const progressPercentage = progress?.progressPercentage || 0;
 
                 // Check if this is a new lot (different from previous)
-                const prevEntry = entries[index - 1];
+                const prevEntry = filteredEntries[index - 1];
                 const isNewLot = !prevEntry || prevEntry.id !== entry.id;
 
                 return (
