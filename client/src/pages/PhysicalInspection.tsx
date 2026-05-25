@@ -404,21 +404,21 @@ const PhysicalInspection: React.FC = () => {
       <div style={{
         overflowX: 'auto',
         backgroundColor: 'white',
-        border: '1px solid #ddd'
+        border: '1px solid #999'
       }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', tableLayout: 'fixed' }}>
           <thead>
             <tr style={{ backgroundColor: '#4a90e2', color: 'white' }}>
-              <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '80px' }}>Date</th>
-              <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '80px' }}>Broker</th>
-              <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '80px' }}>Variety</th>
-              <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '100px' }}>Party</th>
-              <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '80px' }}>Location</th>
-              <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '80px' }}>Total</th>
-              <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '80px' }}>Loading</th>
-              <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '80px' }}>Balance</th>
-              <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '120px' }}>Progress</th>
-              <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '100px' }}>Actions</th>
+              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '85px' }}>Date</th>
+              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '85px' }}>Broker</th>
+              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '90px' }}>Variety</th>
+              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '120px' }}>Party</th>
+              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '90px' }}>Location</th>
+              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '85px' }}>Total</th>
+              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '85px' }}>Loaded</th>
+              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '85px' }}>Balance</th>
+              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '130px' }}>Progress</th>
+              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '110px' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -458,23 +458,23 @@ const PhysicalInspection: React.FC = () => {
                       </tr>
                     )}
                     <tr style={{ backgroundColor: index % 2 === 0 ? '#f9f9f9' : 'white' }}>
-                      <td style={{ border: '1px solid #ddd', padding: '6px', fontSize: '11px', textAlign: 'left' }}>
+                      <td style={{ border: '1px solid #999', padding: '10px 12px', fontSize: '11px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
                         {new Date(entry.entryDate).toLocaleDateString()}
                       </td>
-                      <td style={{ border: '1px solid #ddd', padding: '6px', fontSize: '11px', textAlign: 'left' }}>{entry.brokerName}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '6px', fontSize: '11px', textAlign: 'left' }}>{entry.variety}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '6px', fontSize: '11px', textAlign: 'left' }}>
+                      <td style={{ border: '1px solid #999', padding: '10px 12px', fontSize: '11px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{entry.brokerName}</td>
+                      <td style={{ border: '1px solid #999', padding: '10px 12px', fontSize: '11px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{entry.variety}</td>
+                      <td style={{ border: '1px solid #999', padding: '10px 12px', fontSize: '11px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
                         <div style={{ fontWeight: '600', color: '#1565c0' }}>{toTitleCase(entry.partyName) || (entry.entryType === 'DIRECT_LOADED_VEHICLE' ? entry.lorryNumber?.toUpperCase() : '')}</div>
                         {entry.entryType === 'DIRECT_LOADED_VEHICLE' && entry.lorryNumber && entry.partyName && <div style={{ fontSize: '10px', color: '#1565c0', fontWeight: '600' }}>{entry.lorryNumber.toUpperCase()}</div>}
                       </td>
-                      <td style={{ border: '1px solid #ddd', padding: '6px', fontSize: '11px', textAlign: 'left' }}>{entry.location}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '6px', textAlign: 'left', fontSize: '11px', fontWeight: '600' }}>
+                      <td style={{ border: '1px solid #999', padding: '10px 12px', fontSize: '11px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{entry.location}</td>
+                      <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#1a1a1a' }}>
                         {progress?.totalBags?.toLocaleString('en-IN') || entry.bags?.toLocaleString('en-IN')}
                       </td>
-                      <td style={{ border: '1px solid #ddd', padding: '6px', textAlign: 'left', fontSize: '11px', color: '#4CAF50', fontWeight: '600' }}>
+                      <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', color: '#4CAF50', fontWeight: '600' }}>
                         {progress?.inspectedBags || 0}
                       </td>
-                      <td style={{ border: '1px solid #ddd', padding: '6px', textAlign: 'left', fontSize: '11px', color: '#FF9800', fontWeight: '600' }}>
+                      <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', color: '#FF9800', fontWeight: '600' }}>
                         {progress?.remainingBags?.toLocaleString('en-IN') || entry.bags?.toLocaleString('en-IN')}
                       </td>
                       <td style={{ border: '1px solid #ddd', padding: '6px', textAlign: 'left' }}>
@@ -520,38 +520,46 @@ const PhysicalInspection: React.FC = () => {
                     {/* Show previous inspections history */}
                     {progress && progress.previousInspections && progress.previousInspections.length > 0 && (
                       <tr>
-                        <td colSpan={10} style={{ padding: '10px', backgroundColor: '#f0f8ff', border: '1px solid #ddd' }}>
-                          <div style={{ fontSize: '11px', fontWeight: '600', marginBottom: '5px', color: '#333' }}>
+                        <td colSpan={10} style={{ padding: '12px', backgroundColor: '#f0f8ff', border: '1px solid #999' }}>
+                          <div style={{ fontSize: '12px', fontWeight: '700', marginBottom: '8px', color: '#111' }}>
                             📋 Previous Inspections ({progress.previousInspections.length})
                           </div>
-                          <table style={{ width: '100%', fontSize: '10px', borderCollapse: 'collapse' }}>
+                          <table style={{ width: '100%', maxWidth: '850px', fontSize: '11px', borderCollapse: 'collapse', border: '1px solid #999', tableLayout: 'fixed' }}>
+                            <colgroup>
+                              <col style={{ width: '110px' }} />
+                              <col style={{ width: '150px' }} />
+                              <col style={{ width: '100px' }} />
+                              <col style={{ width: '120px' }} />
+                              <col style={{ width: '120px' }} />
+                              <col style={{ width: '150px' }} />
+                            </colgroup>
                             <thead>
-                              <tr style={{ backgroundColor: '#e3f2fd' }}>
-                                <th style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'left' }}>Date</th>
-                                <th style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'left' }}>Lorry Number</th>
-                                <th style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'left' }}>Bags</th>
-                                <th style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'left' }}>Cutting</th>
-                                <th style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'left' }}>Bend</th>
-                                <th style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'left' }}>Inspected By</th>
+                              <tr style={{ backgroundColor: '#d0e1f9', color: '#111' }}>
+                                <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Date</th>
+                                <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Lorry Number</th>
+                                <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Bags</th>
+                                <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Cutting</th>
+                                <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Bend</th>
+                                <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Inspected By</th>
                               </tr>
                             </thead>
                             <tbody>
                               {progress.previousInspections.map((inspection, idx) => (
                                 <tr key={inspection.id} style={{ backgroundColor: idx % 2 === 0 ? 'white' : '#f9f9f9' }}>
-                                  <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'left' }}>
+                                  <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
                                     {new Date(inspection.inspectionDate).toLocaleDateString()}
                                   </td>
-                                  <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'left' }}>{inspection.lorryNumber}</td>
-                                  <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'left', fontWeight: '600' }}>
+                                  <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{inspection.lorryNumber}</td>
+                                  <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600', color: '#1a1a1a' }}>
                                     {inspection.bags?.toLocaleString('en-IN')}
                                   </td>
-                                  <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'left' }}>
+                                  <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
                                     {formatDecimal(inspection.cutting1)} {inspection.cutting2 && Number(inspection.cutting2) !== 0 ? `x ${formatDecimal(inspection.cutting2)}` : ''}
                                   </td>
-                                  <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'left' }}>
+                                  <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
                                     {formatDecimal(inspection.bend)} {inspection.bend2 && Number(inspection.bend2) !== 0 ? `x ${formatDecimal(inspection.bend2)}` : ''}
                                   </td>
-                                  <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'left' }}>{inspection.reportedBy.username}</td>
+                                  <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{inspection.reportedBy.username}</td>
                                 </tr>
                               ))}
                             </tbody>
