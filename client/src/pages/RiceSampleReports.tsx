@@ -30,7 +30,7 @@ const RiceSampleReports: React.FC = () => {
     const [activeTab, setActiveTab] = useState<TabKey>('rice-samples');
 
     useEffect(() => {
-        document.title = 'Rice Sample Reports - Kushi Agro Foods';
+        document.title = 'Rice Sample Reports - Kui';
     }, []);
 
     return (

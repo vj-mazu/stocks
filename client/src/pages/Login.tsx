@@ -123,7 +123,7 @@ const Login: React.FC = () => {
   return (
     <LoginContainer>
       <LoginCard>
-        <Logo>Kushi Agro Foods</Logo>
+        <Logo>Kui</Logo>
         <Subtitle>Stock Management System</Subtitle>
 
         <Form onSubmit={handleSubmit}>

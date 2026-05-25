@@ -419,7 +419,7 @@ const Navbar: React.FC = () => {
   return (
     <Nav>
       <NavContainer>
-        <Logo to="/dashboard">Mother India Management</Logo>
+        <Logo to="/dashboard">Kui Stock Management</Logo>
         <HamburgerButton onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
           {mobileMenuOpen ? '✕' : '☰'}
         </HamburgerButton>

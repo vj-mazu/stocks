@@ -62,7 +62,7 @@ const ManagerSampleReports: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        document.title = 'Manager Reports - Kushi Agro Foods';
+        document.title = 'Manager Reports - Kui';
     }, []);
 
     useEffect(() => {

@@ -101,7 +101,7 @@ const OwnerSampleReports: React.FC = () => {
   }, [isManager]);
 
   useEffect(() => {
-    document.title = 'Sample Reports - Kushi Agro Foods';
+    document.title = 'Sample Reports - Kui';
   }, []);
 
   useEffect(() => {
