@@ -571,162 +571,197 @@ const PhysicalInspection: React.FC = () => {
                     {/* Inspection form */}
                     {selectedEntry === entry.id && (
                       <tr>
-                        <td colSpan={10} style={{ padding: '15px', backgroundColor: '#fff3e0', border: '1px solid #ddd' }}>
-                          <div style={{ maxWidth: '900px' }}>
-                            <h3 style={{ marginBottom: '15px', fontSize: '14px', fontWeight: '600', color: '#333' }}>
+                        <td colSpan={10} style={{ padding: '15px', backgroundColor: '#fff3e0', border: '1px solid #999' }}>
+                          <div style={{
+                            maxWidth: '500px',
+                            backgroundColor: '#ffffff',
+                            padding: '16px 20px',
+                            borderRadius: '8px',
+                            border: '1px solid #e0b380',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                          }}>
+                            <h3 style={{ marginBottom: '16px', fontSize: '13px', fontWeight: '700', color: '#e67e22', borderBottom: '2px solid #fff3e0', paddingBottom: '8px' }}>
                               Add New Inspection - Remaining Bags: {progress?.remainingBags || entry.bags}
                             </h3>
-                            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
-                              <div>
-                                <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '600' }}>
-                                  Inspection date *
-                                </label>
-                                <input
-                                  type="date"
-                                  value={inspectionData[entry.id]?.inspectionDate || ''}
-                                  onChange={(e) => handleInputChange(entry.id, 'inspectionDate', e.target.value)}
-                                  style={{
-                                    width: '100%',
-                                    padding: '6px',
-                                    fontSize: '11px',
-                                    border: '1px solid #ddd',
-                                    borderRadius: '3px'
-                                  }}
-                                />
-                              </div>
-                              <div>
-                                <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '600' }}>
-                                  Lorry number *
-                                </label>
-                                <input
-                                  type="text"
-                                  value={inspectionData[entry.id]?.lorryNumber || ''}
-                                  onChange={(e) => handleInputChange(entry.id, 'lorryNumber', e.target.value.toUpperCase())}
-                                  placeholder="Enter lorry number"
-                                  maxLength={10}
-                                  style={{
-                                    width: '100%',
-                                    padding: '6px',
-                                    fontSize: '11px',
-                                    border: '1px solid #ddd',
-                                    borderRadius: '3px',
-                                    textTransform: 'uppercase'
-                                  }}
-                                />
-                              </div>
-                              <div>
-                                <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '600' }}>
-                                  Actual bags (this lorry) *
-                                </label>
-                                <input
-                                  type="number"
-                                  value={inspectionData[entry.id]?.actualBags || ''}
-                                  onChange={(e) => handleInputChange(entry.id, 'actualBags', Number(e.target.value))}
-                                  placeholder={`Max: ${progress?.remainingBags || entry.bags}`}
-                                  max={progress?.remainingBags || entry.bags}
-                                  style={{
-                                    width: '100%',
-                                    padding: '6px',
-                                    fontSize: '11px',
-                                    border: '1px solid #ddd',
-                                    borderRadius: '3px'
-                                  }}
-                                />
-                              </div>
-                              <div style={{ gridColumn: '1 / -1' }}>
-                                <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-end' }}>
-                                  <div style={{ flex: 1 }}>
-                                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '600' }}>
-                                      Cutting *
-                                    </label>
-                                    <input
-                                      type="text"
-                                      value={inspectionData[entry.id]?.cutting || ''}
-                                      placeholder="1×"
-                                      onFocus={() => {
-                                        if (!inspectionData[entry.id]?.cutting) {
-                                          const res = handleCuttingInput('1×', entry.entryType);
-                                          handleInputChange(entry.id, 'cutting', res.raw);
-                                        }
-                                      }}
-                                      onChange={(e) => {
-                                        const res = handleCuttingInput(e.target.value, entry.entryType);
-                                        handleInputChange(entry.id, 'cutting', res.raw);
-                                      }}
-                                      style={{
-                                        width: '100%',
-                                        padding: '6px',
-                                        fontSize: '11px',
-                                        border: '1px solid #ddd',
-                                        borderRadius: '3px'
-                                      }}
-                                    />
-                                  </div>
-                                  <div style={{ flex: 1 }}>
-                                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '600' }}>
-                                      Bend *
-                                    </label>
-                                    <input
-                                      type="text"
-                                      value={inspectionData[entry.id]?.bend || ''}
-                                      placeholder="1×"
-                                      onFocus={() => {
-                                        if (!inspectionData[entry.id]?.bend) {
-                                          const res = handleBendInput('1×', entry.entryType);
-                                          handleInputChange(entry.id, 'bend', res.raw);
-                                        }
-                                      }}
-                                      onChange={(e) => {
-                                        const res = handleBendInput(e.target.value, entry.entryType);
-                                        handleInputChange(entry.id, 'bend', res.raw);
-                                      }}
-                                      style={{
-                                        width: '100%',
-                                        padding: '6px',
-                                        fontSize: '11px',
-                                        border: '1px solid #ddd',
-                                        borderRadius: '3px'
-                                      }}
-                                    />
-                                  </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                              {/* Row 1: Date & Lorry Number */}
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                                <div style={{ flex: '1 1 200px' }}>
+                                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '600', color: '#444' }}>
+                                    Inspection date *
+                                  </label>
+                                  <input
+                                    type="date"
+                                    value={inspectionData[entry.id]?.inspectionDate || ''}
+                                    onChange={(e) => handleInputChange(entry.id, 'inspectionDate', e.target.value)}
+                                    style={{
+                                      width: '100%',
+                                      padding: '8px',
+                                      fontSize: '11px',
+                                      border: '1px solid #999',
+                                      borderRadius: '4px',
+                                      color: '#1a1a1a',
+                                      backgroundColor: '#fff'
+                                    }}
+                                  />
+                                </div>
+                                <div style={{ flex: '1 1 200px' }}>
+                                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '600', color: '#444' }}>
+                                    Lorry number *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={inspectionData[entry.id]?.lorryNumber || ''}
+                                    onChange={(e) => handleInputChange(entry.id, 'lorryNumber', e.target.value.toUpperCase())}
+                                    placeholder="Enter lorry number"
+                                    maxLength={10}
+                                    style={{
+                                      width: '100%',
+                                      padding: '8px',
+                                      fontSize: '11px',
+                                      border: '1px solid #999',
+                                      borderRadius: '4px',
+                                      color: '#1a1a1a',
+                                      backgroundColor: '#fff',
+                                      textTransform: 'uppercase'
+                                    }}
+                                  />
                                 </div>
                               </div>
-                              <div>
-                                <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '600' }}>
-                                  Half lorry image (optional)
-                                </label>
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={(e) => handleFileChange(entry.id, 'halfLorryImage', e.target.files?.[0] || null)}
-                                  style={{
-                                    width: '100%',
-                                    padding: '6px',
-                                    fontSize: '11px',
-                                    border: '1px solid #ddd',
-                                    borderRadius: '3px'
-                                  }}
-                                />
+
+                              {/* Row 2: Actual Bags */}
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                                <div style={{ flex: '1 1 200px' }}>
+                                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '600', color: '#444' }}>
+                                    Actual bags (this lorry) *
+                                  </label>
+                                  <input
+                                    type="number"
+                                    value={inspectionData[entry.id]?.actualBags || ''}
+                                    onChange={(e) => handleInputChange(entry.id, 'actualBags', Number(e.target.value))}
+                                    placeholder={`Max: ${progress?.remainingBags || entry.bags}`}
+                                    max={progress?.remainingBags || entry.bags}
+                                    style={{
+                                      width: '100%',
+                                      padding: '8px',
+                                      fontSize: '11px',
+                                      border: '1px solid #999',
+                                      borderRadius: '4px',
+                                      color: '#1a1a1a',
+                                      backgroundColor: '#fff'
+                                    }}
+                                  />
+                                </div>
+                                <div style={{ flex: '1 1 200px', display: 'flex', alignItems: 'flex-end' }}>
+                                  {/* Empty space for alignment */}
+                                </div>
                               </div>
-                              <div>
-                                <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '600' }}>
-                                  Full lorry image (optional)
-                                </label>
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={(e) => handleFileChange(entry.id, 'fullLorryImage', e.target.files?.[0] || null)}
-                                  style={{
-                                    width: '100%',
-                                    padding: '6px',
-                                    fontSize: '11px',
-                                    border: '1px solid #ddd',
-                                    borderRadius: '3px'
-                                  }}
-                                />
+
+                              {/* Row 3: Quality Parameters (Cutting & Bend) */}
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                                <div style={{ flex: '1 1 200px' }}>
+                                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '600', color: '#444' }}>
+                                    Cutting *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={inspectionData[entry.id]?.cutting || ''}
+                                    placeholder="1×"
+                                    onFocus={() => {
+                                      if (!inspectionData[entry.id]?.cutting) {
+                                        const res = handleCuttingInput('1×', entry.entryType);
+                                        handleInputChange(entry.id, 'cutting', res.raw);
+                                      }
+                                    }}
+                                    onChange={(e) => {
+                                      const res = handleCuttingInput(e.target.value, entry.entryType);
+                                      handleInputChange(entry.id, 'cutting', res.raw);
+                                    }}
+                                    style={{
+                                      width: '100%',
+                                      padding: '8px',
+                                      fontSize: '11px',
+                                      border: '1px solid #999',
+                                      borderRadius: '4px',
+                                      color: '#1a1a1a',
+                                      backgroundColor: '#fff'
+                                    }}
+                                  />
+                                </div>
+                                <div style={{ flex: '1 1 200px' }}>
+                                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '600', color: '#444' }}>
+                                    Bend *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={inspectionData[entry.id]?.bend || ''}
+                                    placeholder="1×"
+                                    onFocus={() => {
+                                      if (!inspectionData[entry.id]?.bend) {
+                                        const res = handleBendInput('1×', entry.entryType);
+                                        handleInputChange(entry.id, 'bend', res.raw);
+                                      }
+                                    }}
+                                    onChange={(e) => {
+                                      const res = handleBendInput(e.target.value, entry.entryType);
+                                      handleInputChange(entry.id, 'bend', res.raw);
+                                    }}
+                                    style={{
+                                      width: '100%',
+                                      padding: '8px',
+                                      fontSize: '11px',
+                                      border: '1px solid #999',
+                                      borderRadius: '4px',
+                                      color: '#1a1a1a',
+                                      backgroundColor: '#fff'
+                                    }}
+                                  />
+                                </div>
                               </div>
-                              <div style={{ gridColumn: '1 / -1' }}>
-                                <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '600' }}>
+
+                              {/* Row 4: Lorry Images */}
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                                <div style={{ flex: '1 1 200px' }}>
+                                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '600', color: '#444' }}>
+                                    Half lorry image (optional)
+                                  </label>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => handleFileChange(entry.id, 'halfLorryImage', e.target.files?.[0] || null)}
+                                    style={{
+                                      width: '100%',
+                                      padding: '6px',
+                                      fontSize: '11px',
+                                      border: '1px solid #999',
+                                      borderRadius: '4px',
+                                      backgroundColor: '#fff'
+                                    }}
+                                  />
+                                </div>
+                                <div style={{ flex: '1 1 200px' }}>
+                                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '600', color: '#444' }}>
+                                    Full lorry image (optional)
+                                  </label>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => handleFileChange(entry.id, 'fullLorryImage', e.target.files?.[0] || null)}
+                                    style={{
+                                      width: '100%',
+                                      padding: '6px',
+                                      fontSize: '11px',
+                                      border: '1px solid #999',
+                                      borderRadius: '4px',
+                                      backgroundColor: '#fff'
+                                    }}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Row 5: Remarks */}
+                              <div style={{ width: '100%' }}>
+                                <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '600', color: '#444' }}>
                                   Remarks
                                 </label>
                                 <textarea
@@ -736,25 +771,30 @@ const PhysicalInspection: React.FC = () => {
                                   rows={3}
                                   style={{
                                     width: '100%',
-                                    padding: '6px',
+                                    padding: '8px',
                                     fontSize: '11px',
-                                    border: '1px solid #ddd',
-                                    borderRadius: '3px',
+                                    border: '1px solid #999',
+                                    borderRadius: '4px',
+                                    color: '#1a1a1a',
+                                    backgroundColor: '#fff',
                                     resize: 'vertical'
                                   }}
                                 />
                               </div>
                             </div>
-                            <div style={{ marginTop: '15px', display: 'flex', gap: '10px' }}>
+
+                            {/* Buttons */}
+                            <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
                               <button
                                 onClick={() => handleSubmitInspection(entry.id)}
                                 style={{
-                                  fontSize: '11px',
-                                  padding: '6px 12px',
+                                  fontSize: '12px',
+                                  padding: '8px 16px',
+                                  fontWeight: '600',
                                   backgroundColor: '#4CAF50',
                                   color: 'white',
                                   border: 'none',
-                                  borderRadius: '3px',
+                                  borderRadius: '4px',
                                   cursor: 'pointer'
                                 }}
                               >
@@ -763,12 +803,13 @@ const PhysicalInspection: React.FC = () => {
                               <button
                                 onClick={() => setSelectedEntry(null)}
                                 style={{
-                                  fontSize: '11px',
-                                  padding: '6px 12px',
+                                  fontSize: '12px',
+                                  padding: '8px 16px',
+                                  fontWeight: '600',
                                   backgroundColor: '#f44336',
                                   color: 'white',
                                   border: 'none',
-                                  borderRadius: '3px',
+                                  borderRadius: '4px',
                                   cursor: 'pointer'
                                 }}
                               >
