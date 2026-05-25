@@ -207,7 +207,7 @@ const AssigningSupervisor: React.FC = () => {
 
   return (
     <div>
-      <div style={{ overflowX: 'auto', backgroundColor: 'white', border: '1px solid #ddd' }}>
+      <div style={{ overflowX: 'auto', backgroundColor: 'white', border: '1px solid #999' }}>
         {loading ? (
           <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>Loading...</div>
         ) : entries.length === 0 ? (
@@ -220,22 +220,22 @@ const AssigningSupervisor: React.FC = () => {
                   {/* Date + Broker Header — matching staff-side style */}
                   <div style={{
                     background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-                    color: 'white', padding: '8px 12px', fontWeight: '700', fontSize: '13px',
-                    letterSpacing: '0.5px', textAlign: 'center'
+                    color: 'white', padding: '10px 14px', fontWeight: '700', fontSize: '13px',
+                    letterSpacing: '0.5px', textAlign: 'left'
                   }}>
                     {dateKey} — {brokerName} ({brokerEntries.length})
                   </div>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', tableLayout: 'auto' }}>
                     <thead>
                       <tr style={{ backgroundColor: '#4a90e2', color: 'white' }}>
-                        <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'center' }}>SL</th>
-                        <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'center' }}>Bags</th>
-                        <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'center' }}>Pkg</th>
-                        <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left' }}>Party</th>
-                        <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left' }}>Paddy Location</th>
-                        <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left' }}>Variety</th>
-                        <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap' }}>Select Supervisor</th>
-                        <th style={{ border: '1px solid #357abd', padding: '8px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap' }}>Actions</th>
+                        <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left' }}>SL</th>
+                        <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left' }}>Bags</th>
+                        <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left' }}>Pkg</th>
+                        <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left' }}>Party</th>
+                        <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left' }}>Paddy Location</th>
+                        <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left' }}>Variety</th>
+                        <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left' }}>Select Supervisor</th>
+                        <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'left' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -250,19 +250,19 @@ const AssigningSupervisor: React.FC = () => {
 
                         return (
                           <tr key={entry.id} style={{ backgroundColor: index % 2 === 0 ? '#f9f9f9' : 'white' }}>
-                            <td style={{ border: '1px solid #ddd', padding: '6px', textAlign: 'center', fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' }}>{index + 1}</td>
-                            <td style={{ border: '1px solid #ddd', padding: '6px', textAlign: 'center', fontSize: '11px', whiteSpace: 'nowrap' }}>{entry.bags}</td>
-                            <td style={{ border: '1px solid #ddd', padding: '6px', textAlign: 'center', fontSize: '11px', whiteSpace: 'nowrap' }}>75 Kg</td>
-                            <td style={{ border: '1px solid #ddd', padding: '6px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap' }}>{entry.partyName}</td>
-                            <td style={{ border: '1px solid #ddd', padding: '6px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap' }}>{entry.location}</td>
-                            <td style={{ border: '1px solid #ddd', padding: '6px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap' }}>{entry.variety}</td>
-                            <td style={{ border: '1px solid #ddd', padding: '6px' }}>
+                            <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap', color: '#1a1a1a' }}>{index + 1}</td>
+                            <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap', color: '#1a1a1a', fontWeight: '600' }}>{entry.bags}</td>
+                            <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap', color: '#1a1a1a' }}>75 Kg</td>
+                            <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap', color: '#1a1a1a' }}>{entry.partyName}</td>
+                            <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap', color: '#1a1a1a' }}>{entry.location}</td>
+                            <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap', color: '#1a1a1a' }}>{entry.variety}</td>
+                            <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left' }}>
                               {needsFill ? (
-                                <div style={{ textAlign: 'center' }}>
-                                  <span style={{ padding: '2px 6px', borderRadius: '10px', fontSize: '10px', fontWeight: '700', background: '#fff3cd', color: '#856404', whiteSpace: 'nowrap', display: 'inline-block', marginBottom: '3px', border: '1px solid #ffeeba' }}>
+                                <div style={{ textAlign: 'left' }}>
+                                  <span style={{ padding: '3px 8px', borderRadius: '10px', fontSize: '10px', fontWeight: '700', background: '#fff3cd', color: '#856404', whiteSpace: 'nowrap', display: 'inline-block', marginBottom: '3px', border: '1px solid #ffeeba' }}>
                                     Manager Missing ⏳
                                   </span>
-                                  <div style={{ fontSize: '9px', color: '#e74c3c', fontStyle: 'italic' }}>
+                                  <div style={{ fontSize: '10px', color: '#e74c3c', fontStyle: 'italic' }}>
                                     Fill values in Loading Lots first
                                   </div>
                                 </div>
@@ -274,7 +274,7 @@ const AssigningSupervisor: React.FC = () => {
                                 <select
                                   value={selectedSupervisors[entry.id] || ''}
                                   onChange={(e) => handleSupervisorChange(entry.id, Number(e.target.value))}
-                                  style={{ width: '100%', padding: '4px', fontSize: '11px', border: '1px solid #ddd', borderRadius: '3px' }}
+                                  style={{ width: '100%', padding: '6px', fontSize: '11px', border: '1px solid #999', borderRadius: '3px', color: '#1a1a1a', fontWeight: '500' }}
                                 >
                                   <option value="">-- Select Supervisor --</option>
                                   {supervisors.map(supervisor => (
@@ -285,12 +285,12 @@ const AssigningSupervisor: React.FC = () => {
                                 </select>
                               )}
                             </td>
-                            <td style={{ border: '1px solid #ddd', padding: '6px', textAlign: 'center' }}>
+                            <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left' }}>
                               <button
                                 onClick={() => handleAssignClick(entry)}
                                 disabled={needsFill || !selectedSupervisors[entry.id] || user?.role !== 'manager' || isSubmitting}
                                 style={{
-                                  fontSize: '10px', padding: '4px 8px',
+                                  fontSize: '11px', padding: '6px 12px', fontWeight: '600',
                                   backgroundColor: (!needsFill && selectedSupervisors[entry.id] && user?.role === 'manager' && !isSubmitting) ? '#4CAF50' : '#ccc',
                                   color: 'white', border: 'none', borderRadius: '3px',
                                   cursor: (!needsFill && selectedSupervisors[entry.id] && user?.role === 'manager' && !isSubmitting) ? 'pointer' : 'not-allowed'
@@ -314,11 +314,11 @@ const AssigningSupervisor: React.FC = () => {
       {/* Pagination */}
       {totalPages > 1 && (
         <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', marginTop: '12px', alignItems: 'center' }}>
-          <button onClick={() => setPage(1)} disabled={page === 1} style={{ padding: '6px 12px', border: '1px solid #ddd', borderRadius: '4px', cursor: page === 1 ? 'not-allowed' : 'pointer', background: page === 1 ? '#f5f5f5' : 'white' }}>First</button>
-          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: '6px 12px', border: '1px solid #ddd', borderRadius: '4px', cursor: page === 1 ? 'not-allowed' : 'pointer', background: page === 1 ? '#f5f5f5' : 'white' }}>Prev</button>
+          <button onClick={() => setPage(1)} disabled={page === 1} style={{ padding: '6px 12px', border: '1px solid #bbb', borderRadius: '4px', cursor: page === 1 ? 'not-allowed' : 'pointer', background: page === 1 ? '#f5f5f5' : 'white' }}>First</button>
+          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: '6px 12px', border: '1px solid #bbb', borderRadius: '4px', cursor: page === 1 ? 'not-allowed' : 'pointer', background: page === 1 ? '#f5f5f5' : 'white' }}>Prev</button>
           <span style={{ padding: '6px 12px', fontSize: '13px', color: '#666' }}>Page {page} of {totalPages} ({total} total)</span>
-          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ padding: '6px 12px', border: '1px solid #ddd', borderRadius: '4px', cursor: page === totalPages ? 'not-allowed' : 'pointer', background: page === totalPages ? '#f5f5f5' : 'white' }}>Next</button>
-          <button onClick={() => setPage(totalPages)} disabled={page === totalPages} style={{ padding: '6px 12px', border: '1px solid #ddd', borderRadius: '4px', cursor: page === totalPages ? 'not-allowed' : 'pointer', background: page === totalPages ? '#f5f5f5' : 'white' }}>Last</button>
+          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ padding: '6px 12px', border: '1px solid #bbb', borderRadius: '4px', cursor: page === totalPages ? 'not-allowed' : 'pointer', background: page === totalPages ? '#f5f5f5' : 'white' }}>Next</button>
+          <button onClick={() => setPage(totalPages)} disabled={page === totalPages} style={{ padding: '6px 12px', border: '1px solid #bbb', borderRadius: '4px', cursor: page === totalPages ? 'not-allowed' : 'pointer', background: page === totalPages ? '#f5f5f5' : 'white' }}>Last</button>
         </div>
       )}
 
