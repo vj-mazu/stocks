@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNotification } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 import { API_URL } from '../config/api';
 
@@ -18,6 +19,7 @@ interface SampleEntry {
     id: string;
     allottedToSupervisorId: number;
     allottedBags?: number;
+    closedAt?: string | null;
     supervisor: {
       id: number;
       username: string;
@@ -128,7 +130,7 @@ const AllottedSupervisors: React.FC = () => {
   const [inspectionProgress, setInspectionProgress] = useState<{ [key: string]: InspectionProgress }>({});
   const [expandedEntries, setExpandedEntries] = useState<{ [key: string]: boolean }>({});
   const [closingEntryId, setClosingEntryId] = useState<string | null>(null);
-  const [closeLotReason, setCloseLotReason] = useState('');
+  const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [offeringCache, setOfferingCache] = useState<{ [key: string]: any }>({});
   const [editingInspection, setEditingInspection] = useState<{ entryId: string; inspectionId: string; data: any } | null>(null);
@@ -308,8 +310,8 @@ const AllottedSupervisors: React.FC = () => {
         const totalBags = entry.lotAllotment?.allottedBags || entry.bags || 0;
         const inspections = entry.lotAllotment?.physicalInspections || [];
         const inspectedBags = inspections.reduce((sum, inspection) => sum + (inspection.bags || 0), 0);
-        const remainingBags = Math.max(0, totalBags - inspectedBags);
-        const progressPercentage = totalBags > 0 ? (inspectedBags / totalBags) * 100 : 0;
+        const remainingBags = entry.lotAllotment?.closedAt ? 0 : Math.max(0, totalBags - inspectedBags);
+        const progressPercentage = entry.lotAllotment?.closedAt ? 100 : (totalBags > 0 ? (inspectedBags / totalBags) * 100 : 0);
         
         progressCache[entry.id] = {
           totalBags,
@@ -418,30 +420,19 @@ const AllottedSupervisors: React.FC = () => {
     }
   };
 
-  const handleCloseLot = async (entryId: string) => {
+  const handleCloseLot = async (entryId: string, reason?: string) => {
     const progress = inspectionProgress[entryId];
-    const entry = entries.find(e => e.id === entryId);
 
     if (!progress || progress.inspectedBags === 0) {
       showNotification('Cannot close lot with 0 inspected bags. At least one inspection trip is required.', 'error');
       return;
     }
 
-    const confirmMsg = `Are you sure you want to close this lot?\n\n` +
-      `Party: ${entry?.partyName || 'Unknown'}\n` +
-      `Allotted: ${progress.totalBags} bags\n` +
-      `Inspected: ${progress.inspectedBags} bags\n` +
-      `Remaining (not sent): ${progress.remainingBags} bags\n\n` +
-      `The ${progress.inspectedBags} inspected bags will proceed to inventory.\n` +
-      `The remaining ${progress.remainingBags} bags will be marked as not received.`;
-
-    if (!window.confirm(confirmMsg)) return;
-
     try {
       const token = localStorage.getItem('token');
       await axios.post(
         `${API_URL}/sample-entries/${entryId}/close-lot`,
-        { reason: closeLotReason || `Party did not send remaining ${progress.remainingBags} bags` },
+        { reason: reason || `Party did not send remaining ${progress.remainingBags} bags` },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -449,8 +440,8 @@ const AllottedSupervisors: React.FC = () => {
         `Lot closed successfully! ${progress.inspectedBags} bags proceed to inventory. ${progress.remainingBags} bags marked as not received.`,
         'success'
       );
+      setIsCloseModalOpen(false);
       setClosingEntryId(null);
-      setCloseLotReason('');
       loadEntries();
     } catch (error: any) {
       showNotification(error.response?.data?.error || 'Failed to close lot', 'error');
@@ -644,13 +635,16 @@ const AllottedSupervisors: React.FC = () => {
                       <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#10b981' }}>
                         {entry.lotAllotment?.allottedBags || entry.bags}
                       </td>
-                      {/* Inspected Bags */}
                       <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#4CAF50' }}>
                         {progress?.inspectedBags || 0}
                       </td>
                       {/* Remaining Bags */}
-                      <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: progress?.remainingBags === 0 ? '#4CAF50' : '#FF9800' }}>
-                        {progress?.remainingBags ?? (entry.lotAllotment?.allottedBags || entry.bags)}
+                      <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: entry.lotAllotment?.closedAt ? '#d32f2f' : (progress?.remainingBags === 0 ? '#4CAF50' : '#FF9800') }}>
+                        {entry.lotAllotment?.closedAt ? (
+                          <span>0 <span style={{ fontSize: '9px', fontWeight: 'normal', color: '#777' }}>(Closed)</span></span>
+                        ) : (
+                          progress?.remainingBags ?? (entry.lotAllotment?.allottedBags || entry.bags)
+                        )}
                       </td>
                       {/* Progress Bar */}
                       <td style={{ border: '1px solid #ddd', padding: '6px', minWidth: '100px', textAlign: 'left' }}>
@@ -664,14 +658,14 @@ const AllottedSupervisors: React.FC = () => {
                           }}>
                             <div style={{
                               height: '100%',
-                              width: `${progressPercentage}%`,
-                              backgroundColor: getProgressColor(progressPercentage),
+                              width: `${entry.lotAllotment?.closedAt ? 100 : progressPercentage}%`,
+                              backgroundColor: entry.lotAllotment?.closedAt ? '#7f8c8d' : getProgressColor(progressPercentage),
                               transition: 'width 0.3s ease',
                               borderRadius: '9px'
                             }} />
                           </div>
                           <span style={{ fontSize: '10px', fontWeight: '600', minWidth: '30px' }}>
-                            {progressPercentage.toFixed(0)}%
+                            {entry.lotAllotment?.closedAt ? 'Closed' : `${progressPercentage.toFixed(0)}%`}
                           </span>
                         </div>
                         {hasPreviousInspections && (
@@ -714,15 +708,17 @@ const AllottedSupervisors: React.FC = () => {
                         <select
                           value={selectedSupervisors[entry.id] || ''}
                           onChange={(e) => handleSupervisorChange(entry.id, Number(e.target.value))}
+                          disabled={!!entry.lotAllotment?.closedAt}
                           style={{
                             width: '100%',
                             padding: '6px',
                             fontSize: '11px',
                             border: '1px solid #999',
                             borderRadius: '3px',
-                            backgroundColor: hasChanged ? '#fff3cd' : 'white',
-                            color: '#1a1a1a',
-                            fontWeight: '500'
+                            backgroundColor: entry.lotAllotment?.closedAt ? '#f5f5f5' : (hasChanged ? '#fff3cd' : 'white'),
+                            color: entry.lotAllotment?.closedAt ? '#777' : '#1a1a1a',
+                            fontWeight: '500',
+                            cursor: entry.lotAllotment?.closedAt ? 'not-allowed' : 'default'
                           }}
                         >
                           <option value="">-- Select --</option>
@@ -753,77 +749,47 @@ const AllottedSupervisors: React.FC = () => {
                           </button>
                           <button
                             onClick={() => handleReassign(entry.id)}
-                            disabled={!hasChanged}
+                            disabled={!hasChanged || !!entry.lotAllotment?.closedAt}
                             style={{
                               fontSize: '10px',
                               padding: '4px 8px',
-                              backgroundColor: hasChanged ? '#FF9800' : '#ccc',
+                              backgroundColor: (hasChanged && !entry.lotAllotment?.closedAt) ? '#FF9800' : '#ccc',
                               color: 'white',
                               border: 'none',
                               borderRadius: '3px',
-                              cursor: hasChanged ? 'pointer' : 'not-allowed',
+                              cursor: (hasChanged && !entry.lotAllotment?.closedAt) ? 'pointer' : 'not-allowed',
                               width: '100%'
                             }}
                           >
-                            {hasChanged ? 'Reassign' : 'No Change'}
+                            {(hasChanged && !entry.lotAllotment?.closedAt) ? 'Reassign' : 'No Change'}
                           </button>
-                          {progressPercentage > 0 && progressPercentage < 100 && (
+                          {progressPercentage > 0 && progressPercentage < 100 && !entry.lotAllotment?.closedAt && (
                             <button
                               onClick={() => {
-                                if (closingEntryId === entry.id) {
-                                  handleCloseLot(entry.id);
-                                } else {
-                                  setClosingEntryId(entry.id);
+                                const progress = inspectionProgress[entry.id];
+                                if (!progress || progress.inspectedBags === 0) {
+                                  showNotification('Cannot close lot with 0 inspected bags. At least one inspection trip is required.', 'error');
+                                  return;
                                 }
+                                setClosingEntryId(entry.id);
+                                setIsCloseModalOpen(true);
                               }}
                               style={{
                                 fontSize: '10px',
                                 padding: '4px 8px',
-                                backgroundColor: closingEntryId === entry.id ? '#d32f2f' : '#f44336',
+                                backgroundColor: '#f44336',
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: '3px',
                                 cursor: 'pointer',
-                                width: '100%'
+                                width: '100%',
+                                marginTop: '4px'
                               }}
                             >
-                              {closingEntryId === entry.id ? '⚠️ Confirm Close' : `❌ Close Lot (${progress?.remainingBags || 0} bags left)`}
+                              ❌ Close Lot ({progress?.remainingBags || 0} bags left)
                             </button>
                           )}
                         </div>
-                        {closingEntryId === entry.id && (
-                          <div style={{ marginTop: '5px' }}>
-                            <input
-                              type="text"
-                              placeholder="Reason (optional)"
-                              value={closeLotReason}
-                              onChange={(e) => setCloseLotReason(e.target.value)}
-                              style={{
-                                width: '100%',
-                                padding: '3px 5px',
-                                fontSize: '10px',
-                                border: '1px solid #f44336',
-                                borderRadius: '3px'
-                              }}
-                            />
-                            <button
-                              onClick={() => { setClosingEntryId(null); setCloseLotReason(''); }}
-                              style={{
-                                fontSize: '9px',
-                                padding: '2px 6px',
-                                marginTop: '3px',
-                                backgroundColor: '#9e9e9e',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '3px',
-                                cursor: 'pointer',
-                                width: '100%'
-                              }}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        )}
                       </td>
                     </tr>
 
@@ -1086,6 +1052,25 @@ const AllottedSupervisors: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+      {closingEntryId && (
+        <ConfirmationModal
+          isOpen={isCloseModalOpen}
+          title="Close Lot Early"
+          message={`Are you sure you want to close this lot?\n\nParty: ${entries.find(e => e.id === closingEntryId)?.partyName || 'Unknown'}\nAllotted: ${inspectionProgress[closingEntryId]?.totalBags || 0} bags\nInspected: ${inspectionProgress[closingEntryId]?.inspectedBags || 0} bags\nRemaining (not sent): ${inspectionProgress[closingEntryId]?.remainingBags || 0} bags\n\nThe inspected bags will proceed to inventory, and the remaining bags will be marked as not received.`}
+          type="confirm"
+          showInput={true}
+          inputPlaceholder="Reason for closing lot (optional)..."
+          confirmText="Close Lot"
+          cancelText="Cancel"
+          onConfirm={(reason) => {
+            handleCloseLot(closingEntryId, reason);
+          }}
+          onCancel={() => {
+            setIsCloseModalOpen(false);
+            setClosingEntryId(null);
+          }}
+        />
       )}
     </div>
   );

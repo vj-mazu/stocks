@@ -23,6 +23,7 @@ interface SampleEntry {
     id: string;
     allottedToSupervisorId: number;
     allottedBags?: number;
+    closedAt?: string | null;
     supervisor: {
       id: number;
       username: string;
@@ -197,8 +198,8 @@ const PhysicalInspection: React.FC = () => {
         const totalBags = entry.lotAllotment?.allottedBags || entry.bags || 0;
         const inspections = entry.lotAllotment?.physicalInspections || [];
         const inspectedBags = inspections.reduce((sum, inspection) => sum + (inspection.bags || 0), 0);
-        const remainingBags = Math.max(0, totalBags - inspectedBags);
-        const progressPercentage = totalBags > 0 ? (inspectedBags / totalBags) * 100 : 0;
+        const remainingBags = entry.lotAllotment?.closedAt ? 0 : Math.max(0, totalBags - inspectedBags);
+        const progressPercentage = entry.lotAllotment?.closedAt ? 100 : (totalBags > 0 ? (inspectedBags / totalBags) * 100 : 0);
         
         progressCache[entry.id] = {
           totalBags,
@@ -474,8 +475,12 @@ const PhysicalInspection: React.FC = () => {
                       <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', color: '#4CAF50', fontWeight: '600' }}>
                         {progress?.inspectedBags || 0}
                       </td>
-                      <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', color: '#FF9800', fontWeight: '600' }}>
-                        {progress?.remainingBags?.toLocaleString('en-IN') || entry.bags?.toLocaleString('en-IN')}
+                      <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', color: entry.lotAllotment?.closedAt ? '#d32f2f' : '#FF9800', fontWeight: '600' }}>
+                        {entry.lotAllotment?.closedAt ? (
+                          <span>0 <span style={{ fontSize: '9px', fontWeight: 'normal', color: '#777' }}>(Closed)</span></span>
+                        ) : (
+                          progress?.remainingBags?.toLocaleString('en-IN') || entry.bags?.toLocaleString('en-IN')
+                        )}
                       </td>
                       <td style={{ border: '1px solid #ddd', padding: '6px', textAlign: 'left' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -488,31 +493,31 @@ const PhysicalInspection: React.FC = () => {
                           }}>
                             <div style={{
                               height: '100%',
-                              width: `${progressPercentage}%`,
-                              backgroundColor: getProgressColor(progressPercentage),
+                              width: `${entry.lotAllotment?.closedAt ? 100 : progressPercentage}%`,
+                              backgroundColor: entry.lotAllotment?.closedAt ? '#7f8c8d' : getProgressColor(progressPercentage),
                               transition: 'width 0.3s ease'
                             }} />
                           </div>
                           <span style={{ fontSize: '10px', fontWeight: '600', minWidth: '35px' }}>
-                            {progressPercentage.toFixed(0)}%
+                            {entry.lotAllotment?.closedAt ? 'Closed' : `${progressPercentage.toFixed(0)}%`}
                           </span>
                         </div>
                       </td>
                       <td style={{ border: '1px solid #ddd', padding: '6px', textAlign: 'left' }}>
                         <button
                           onClick={() => initializeInspectionData(entry.id)}
-                          disabled={progressPercentage >= 100}
+                          disabled={progressPercentage >= 100 || !!entry.lotAllotment?.closedAt}
                           style={{
                             fontSize: '10px',
                             padding: '4px 8px',
-                            backgroundColor: progressPercentage >= 100 ? '#ccc' : (selectedEntry === entry.id ? '#FF9800' : '#4CAF50'),
+                            backgroundColor: (progressPercentage >= 100 || entry.lotAllotment?.closedAt) ? '#ccc' : (selectedEntry === entry.id ? '#FF9800' : '#4CAF50'),
                             color: 'white',
                             border: 'none',
                             borderRadius: '3px',
-                            cursor: progressPercentage >= 100 ? 'not-allowed' : 'pointer'
+                            cursor: (progressPercentage >= 100 || entry.lotAllotment?.closedAt) ? 'not-allowed' : 'pointer'
                           }}
                         >
-                          {progressPercentage >= 100 ? 'Complete' : (selectedEntry === entry.id ? 'Editing...' : 'Add Inspection')}
+                          {entry.lotAllotment?.closedAt ? 'Closed' : (progressPercentage >= 100 ? 'Complete' : (selectedEntry === entry.id ? 'Editing...' : 'Add Inspection'))}
                         </button>
                       </td>
                     </tr>

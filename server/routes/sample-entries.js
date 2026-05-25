@@ -3148,10 +3148,18 @@ router.post('/:id/close-lot', authenticateToken, async (req, res) => {
         closedAt: new Date(),
         closedByUserId: req.user.userId,
         closedReason: reason || `Lot closed by manager. ${inspectedBags} of ${progress.totalBags} bags inspected. Party did not send remaining ${progress.remainingBags} bags.`,
-        inspectedBags: inspectedBags
+        inspectedBags: inspectedBags,
+        allottedBags: inspectedBags
       },
       req.user.userId
     );
+
+    // Update sample entry bags to actual inspected bags (cancelling the remaining bags)
+    const entry = await SampleEntry.findByPk(sampleEntryId);
+    if (entry) {
+      entry.bags = inspectedBags;
+      await entry.save();
+    }
 
     // Transition workflow to INVENTORY_ENTRY (skipping remaining bags)
     await WorkflowEngine.transitionTo(
@@ -3167,6 +3175,9 @@ router.post('/:id/close-lot', authenticateToken, async (req, res) => {
         reason: reason || 'Party did not send remaining bags'
       }
     );
+
+    // Invalidate caches so the UI updates immediately
+    invalidateSampleEntryTabCaches();
 
     res.json({
       message: 'Lot closed successfully',
