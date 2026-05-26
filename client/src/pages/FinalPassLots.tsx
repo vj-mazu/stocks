@@ -2032,12 +2032,14 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                                           >
                                             Sold Out
                                           </button>
-                                          <button
-                                            onClick={() => handleLotAction(entry.id, 'RESAMPLE')}
-                                            style={{ fontSize: '10px', padding: '3px 7px', backgroundColor: '#ef6c00', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: '700' }}
-                                          >
-                                            Re-sample
-                                          </button>
+                                          {entry.entryType !== 'LOCATION_SAMPLE' && (
+                                            <button
+                                              onClick={() => handleLotAction(entry.id, 'RESAMPLE')}
+                                              style={{ fontSize: '10px', padding: '3px 7px', backgroundColor: '#ef6c00', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: '700' }}
+                                            >
+                                              Re-sample
+                                            </button>
+                                          )}
                                           <button
                                             onClick={() => setCancelModal({ isOpen: true, entryId: entry.id, remarks: '' })}
                                             style={{ fontSize: '10px', padding: '3px 7px', backgroundColor: '#e91e63', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: '700' }}
