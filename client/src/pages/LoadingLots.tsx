@@ -740,7 +740,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
       console.error('Error fetching loading lots:', err);
     }
     setLoading(false);
-  }, [page, appliedFilters, entryType, excludeEntryType, paddySupervisors]);
+  }, [page, appliedFilters, entryType, excludeEntryType]);
 
   useEffect(() => { fetchEntries(); }, [fetchEntries]);
 
