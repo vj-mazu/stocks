@@ -636,16 +636,46 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
   const fetchSupervisors = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(
-        `${API_URL}/sample-entries/paddy-supervisors`,
-        {
+      const normalizeUsers = (users: any[]) => users
+        .filter((u: any) => u && (u.username || u.fullName))
+        .map((u: any) => ({
+          id: u.id,
+          username: String(u.username || '').trim(),
+          fullName: String(u.fullName || u.username || '').trim()
+        }));
+
+      let mergedUsers: any[] = [];
+
+      // Try /admin/users first (to fetch Admins, Managers, Owners)
+      try {
+        const adminResponse = await axios.get(`${API_URL}/admin/users`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined
+        });
+        const adminData: any = adminResponse.data;
+        const adminUsers = Array.isArray(adminData) ? adminData : (adminData.users || []);
+        mergedUsers = normalizeUsers(adminUsers);
+      } catch (_adminError) {
+        // Fallback to paddy-supervisors
+        const supervisorResponse = await axios.get(`${API_URL}/sample-entries/paddy-supervisors`, {
           params: { staffType: 'location' },
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
-      const data = res.data as any;
-      setPaddySupervisors(data.users || []);
-    } catch {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined
+        });
+        const supervisorData: any = supervisorResponse.data;
+        const supervisorUsers = Array.isArray(supervisorData)
+          ? supervisorData
+          : (supervisorData.users || supervisorData.data || []);
+        mergedUsers = normalizeUsers(supervisorUsers);
+      }
+
+      // Deduplicate by id
+      const unique = new Map<string, any>();
+      mergedUsers.forEach((user) => {
+        const idKey = String(user.id || '').trim();
+        if (idKey && !unique.has(idKey)) unique.set(idKey, user);
+      });
+      setPaddySupervisors(Array.from(unique.values()));
+    } catch (error) {
+      console.error('Error loading users:', error);
       setPaddySupervisors([]);
     }
   };
