@@ -403,19 +403,12 @@ const PhysicalInspection: React.FC = () => {
   });
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h2 style={{ marginBottom: '20px', fontSize: '24px', fontWeight: '600', color: '#333' }}>
-        Loading Allotted - Physical Inspection
-      </h2>
-      <p style={{ marginBottom: '15px', fontSize: '12px', color: '#666' }}>
-        Reported by: {user?.username || 'Unknown'} (Automatic)
-      </p>
-
+    <div style={{ padding: '0px 20px 20px 20px' }}>
       {/* Sub-tabs */}
       <div style={{
         display: 'flex',
         gap: '10px',
-        marginBottom: '20px',
+        marginBottom: '10px',
         borderBottom: '2px solid #e0e0e0'
       }}>
         <button
@@ -457,26 +450,27 @@ const PhysicalInspection: React.FC = () => {
         backgroundColor: 'white',
         border: '1px solid #999'
       }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', tableLayout: 'fixed' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', tableLayout: 'fixed' }}>
           <thead>
             <tr style={{ backgroundColor: '#4a90e2', color: 'white' }}>
-              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '85px' }}>Date</th>
-              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '85px' }}>Broker</th>
-              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '90px' }}>Variety</th>
-              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '120px' }}>Party</th>
-              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '90px' }}>Location</th>
-              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '85px' }}>Total</th>
-              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '85px' }}>Loaded</th>
-              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '85px' }}>Balance</th>
-              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '130px' }}>Progress</th>
-              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '11px', textAlign: 'left', width: '110px' }}>Actions</th>
+              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '60px' }}>SL No</th>
+              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '95px' }}>Date</th>
+              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '100px' }}>Broker</th>
+              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '110px' }}>Variety</th>
+              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '140px' }}>Party</th>
+              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '110px' }}>Location</th>
+              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '95px' }}>Total</th>
+              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '95px' }}>Loaded</th>
+              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '95px' }}>Balance</th>
+              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '140px' }}>Progress</th>
+              <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '120px' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>Loading...</td></tr>
+              <tr><td colSpan={11} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>Loading...</td></tr>
             ) : filteredEntries.length === 0 ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', padding: '20px', color: '#999' }}>No lots allotted for inspection</td></tr>
+              <tr><td colSpan={11} style={{ textAlign: 'center', padding: '20px', color: '#999' }}>No lots allotted for inspection</td></tr>
             ) : (
               filteredEntries.map((entry, index) => {
                 const progress = inspectionProgress[entry.id];
@@ -488,51 +482,39 @@ const PhysicalInspection: React.FC = () => {
 
                 return (
                   <React.Fragment key={entry.id}>
-                    {/* Add visual gap between different lots */}
-                    {isNewLot && index > 0 && (
-                      <tr>
-                        <td colSpan={10} style={{
-                          height: '15px',
-                          backgroundColor: '#e0e0e0',
-                          borderLeft: '3px solid #4a90e2',
-                          borderRight: '3px solid #4a90e2'
-                        }}>
-                          <div style={{
-                            fontSize: '10px',
-                            color: '#666',
-                            padding: '0 10px',
-                            fontWeight: '600'
-                          }}>
-                            📦 New Lot: {toTitleCase(entry.partyName) || entry.lorryNumber?.toUpperCase()} - {entry.variety} ({entry.bags?.toLocaleString('en-IN')} bags)
-                          </div>
-                        </td>
+                    {index > 0 && (
+                      <tr style={{ backgroundColor: '#ffd700', height: '14px' }}>
+                        <td colSpan={11} style={{ padding: 0, height: '14px', border: 'none', borderTop: '2px solid #b8860b', borderBottom: '2px solid #b8860b' }} />
                       </tr>
                     )}
-                    <tr style={{ backgroundColor: index % 2 === 0 ? '#f9f9f9' : 'white' }}>
-                      <td style={{ border: '1px solid #999', padding: '10px 12px', fontSize: '11px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
+                    <tr style={{ backgroundColor: index % 2 === 0 ? '#f9f9f9' : 'white', borderBottom: '3px solid #666' }}>
+                      <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '10px 12px', fontSize: '13px', textAlign: 'left', color: '#1a1a1a', fontWeight: '600' }}>
+                        {index + 1}
+                      </td>
+                      <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '10px 12px', fontSize: '13px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
                         {new Date(entry.entryDate).toLocaleDateString()}
                       </td>
-                      <td style={{ border: '1px solid #999', padding: '10px 12px', fontSize: '11px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{entry.brokerName}</td>
-                      <td style={{ border: '1px solid #999', padding: '10px 12px', fontSize: '11px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{entry.variety}</td>
-                      <td style={{ border: '1px solid #999', padding: '10px 12px', fontSize: '11px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
-                        <div style={{ fontWeight: '600', color: '#1565c0' }}>{toTitleCase(entry.partyName) || (entry.entryType === 'DIRECT_LOADED_VEHICLE' ? entry.lorryNumber?.toUpperCase() : '')}</div>
-                        {entry.entryType === 'DIRECT_LOADED_VEHICLE' && entry.lorryNumber && entry.partyName && <div style={{ fontSize: '10px', color: '#1565c0', fontWeight: '600' }}>{entry.lorryNumber.toUpperCase()}</div>}
+                      <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '10px 12px', fontSize: '13px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{entry.brokerName}</td>
+                      <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '10px 12px', fontSize: '13px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{entry.variety}</td>
+                      <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '10px 12px', fontSize: '13px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
+                        <div style={{ fontWeight: '700', color: '#1565c0', fontSize: '14px' }}>{toTitleCase(entry.partyName) || (entry.entryType === 'DIRECT_LOADED_VEHICLE' ? entry.lorryNumber?.toUpperCase() : '')}</div>
+                        {entry.entryType === 'DIRECT_LOADED_VEHICLE' && entry.lorryNumber && entry.partyName && <div style={{ fontSize: '12px', color: '#1565c0', fontWeight: '700' }}>{entry.lorryNumber.toUpperCase()}</div>}
                       </td>
-                      <td style={{ border: '1px solid #999', padding: '10px 12px', fontSize: '11px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{entry.location}</td>
-                      <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#1a1a1a' }}>
+                      <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '10px 12px', fontSize: '13px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{entry.location}</td>
+                      <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '10px 12px', textAlign: 'left', fontSize: '13px', fontWeight: '700', color: '#1a1a1a' }}>
                         {progress?.totalBags?.toLocaleString('en-IN') || entry.bags?.toLocaleString('en-IN')}
                       </td>
-                      <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', color: '#4CAF50', fontWeight: '600' }}>
+                      <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '10px 12px', textAlign: 'left', fontSize: '13px', color: '#4CAF50', fontWeight: '700' }}>
                         {progress?.inspectedBags || 0}
                       </td>
-                      <td style={{ border: '1px solid #999', padding: '10px 12px', textAlign: 'left', fontSize: '11px', color: entry.lotAllotment?.closedAt ? '#d32f2f' : '#FF9800', fontWeight: '600' }}>
+                      <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '10px 12px', textAlign: 'left', fontSize: '13px', color: entry.lotAllotment?.closedAt ? '#d32f2f' : '#FF9800', fontWeight: '700' }}>
                         {entry.lotAllotment?.closedAt ? (
-                          <span>0 <span style={{ fontSize: '9px', fontWeight: 'normal', color: '#777' }}>(Closed)</span></span>
+                           <span>0 <span style={{ fontSize: '10px', fontWeight: 'normal', color: '#777' }}>(Closed)</span></span>
                         ) : (
                           progress?.remainingBags?.toLocaleString('en-IN') || entry.bags?.toLocaleString('en-IN')
                         )}
                       </td>
-                      <td style={{ border: '1px solid #ddd', padding: '6px', textAlign: 'left' }}>
+                      <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '6px', textAlign: 'left' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                           <div style={{
                             flex: 1,
@@ -548,18 +530,19 @@ const PhysicalInspection: React.FC = () => {
                               transition: 'width 0.3s ease'
                             }} />
                           </div>
-                          <span style={{ fontSize: '10px', fontWeight: '600', minWidth: '35px' }}>
+                          <span style={{ fontSize: '12px', fontWeight: '700', minWidth: '35px' }}>
                             {entry.lotAllotment?.closedAt ? 'Closed' : `${progressPercentage.toFixed(0)}%`}
                           </span>
                         </div>
                       </td>
-                      <td style={{ border: '1px solid #ddd', padding: '6px', textAlign: 'left' }}>
+                      <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '6px', textAlign: 'left' }}>
                         <button
                           onClick={() => initializeInspectionData(entry.id)}
                           disabled={progressPercentage >= 100 || !!entry.lotAllotment?.closedAt}
                           style={{
-                            fontSize: '10px',
-                            padding: '4px 8px',
+                            fontSize: '12px',
+                            padding: '6px 12px',
+                            fontWeight: '700',
                             backgroundColor: (progressPercentage >= 100 || entry.lotAllotment?.closedAt) ? '#ccc' : (selectedEntry === entry.id ? '#FF9800' : '#4CAF50'),
                             color: 'white',
                             border: 'none',
@@ -574,47 +557,47 @@ const PhysicalInspection: React.FC = () => {
 
                     {/* Show previous inspections history */}
                     {progress && progress.previousInspections && progress.previousInspections.length > 0 && (
-                      <tr>
-                        <td colSpan={10} style={{ padding: '12px', backgroundColor: '#f0f8ff', border: '1px solid #999' }}>
-                          <div style={{ fontSize: '12px', fontWeight: '700', marginBottom: '8px', color: '#111' }}>
-                            📋 Previous Inspections ({progress.previousInspections.length})
+                      <tr style={{ borderBottom: '3px solid #444' }}>
+                        <td colSpan={11} style={{ padding: '12px', backgroundColor: '#f0f8ff', border: '1px solid #666', borderBottom: '3px solid #444' }}>
+                          <div style={{ fontSize: '14px', fontWeight: '800', marginBottom: '8px', color: '#111' }}>
+                            📋 Lorry Loading Details ({progress.previousInspections.length})
                           </div>
-                          <table style={{ width: '100%', maxWidth: '850px', fontSize: '11px', borderCollapse: 'collapse', border: '1px solid #999', tableLayout: 'fixed' }}>
+                          <table style={{ width: '100%', maxWidth: '950px', fontSize: '13px', borderCollapse: 'collapse', border: '1px solid #444', tableLayout: 'fixed' }}>
                             <colgroup>
+                              <col style={{ width: '120px' }} />
+                              <col style={{ width: '160px' }} />
                               <col style={{ width: '110px' }} />
-                              <col style={{ width: '150px' }} />
-                              <col style={{ width: '100px' }} />
-                              <col style={{ width: '120px' }} />
-                              <col style={{ width: '120px' }} />
-                              <col style={{ width: '150px' }} />
+                              <col style={{ width: '130px' }} />
+                              <col style={{ width: '130px' }} />
+                              <col style={{ width: '160px' }} />
                             </colgroup>
                             <thead>
                               <tr style={{ backgroundColor: '#d0e1f9', color: '#111' }}>
-                                <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Date</th>
-                                <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Lorry Number</th>
-                                <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Bags</th>
-                                <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Cutting</th>
-                                <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Bend</th>
-                                <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Inspected By</th>
+                                <th style={{ border: '1px solid #444', padding: '8px 10px', textAlign: 'left', fontWeight: '700' }}>Date</th>
+                                <th style={{ border: '1px solid #444', padding: '8px 10px', textAlign: 'left', fontWeight: '700' }}>Lorry Number</th>
+                                <th style={{ border: '1px solid #444', padding: '8px 10px', textAlign: 'left', fontWeight: '700' }}>Bags</th>
+                                <th style={{ border: '1px solid #444', padding: '8px 10px', textAlign: 'left', fontWeight: '700' }}>Cutting</th>
+                                <th style={{ border: '1px solid #444', padding: '8px 10px', textAlign: 'left', fontWeight: '700' }}>Bend</th>
+                                <th style={{ border: '1px solid #444', padding: '8px 10px', textAlign: 'left', fontWeight: '700' }}>Loaded By</th>
                               </tr>
                             </thead>
                             <tbody>
                               {progress.previousInspections.map((inspection, idx) => (
                                 <tr key={inspection.id} style={{ backgroundColor: idx % 2 === 0 ? 'white' : '#f9f9f9' }}>
-                                  <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
+                                  <td style={{ border: '1px solid #444', padding: '8px 10px', textAlign: 'left', color: '#1a1a1a', fontWeight: '600' }}>
                                     {new Date(inspection.inspectionDate).toLocaleDateString()}
                                   </td>
-                                  <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{inspection.lorryNumber}</td>
-                                  <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600', color: '#1a1a1a' }}>
+                                  <td style={{ border: '1px solid #444', padding: '8px 10px', textAlign: 'left', color: '#1a1a1a', fontWeight: '600' }}>{inspection.lorryNumber}</td>
+                                  <td style={{ border: '1px solid #444', padding: '8px 10px', textAlign: 'left', fontWeight: '700', color: '#1a1a1a' }}>
                                     {inspection.bags?.toLocaleString('en-IN')}
                                   </td>
-                                  <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
+                                  <td style={{ border: '1px solid #444', padding: '8px 10px', textAlign: 'left', color: '#1a1a1a', fontWeight: '600' }}>
                                     {formatDecimal(inspection.cutting1)} {inspection.cutting2 && Number(inspection.cutting2) !== 0 ? `x ${formatDecimal(inspection.cutting2)}` : ''}
                                   </td>
-                                  <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
+                                  <td style={{ border: '1px solid #444', padding: '8px 10px', textAlign: 'left', color: '#1a1a1a', fontWeight: '600' }}>
                                     {formatDecimal(inspection.bend)} {inspection.bend2 && Number(inspection.bend2) !== 0 ? `x ${formatDecimal(inspection.bend2)}` : ''}
                                   </td>
-                                  <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{inspection.reportedBy.username}</td>
+                                  <td style={{ border: '1px solid #444', padding: '8px 10px', textAlign: 'left', color: '#1a1a1a', fontWeight: '600' }}>{inspection.reportedBy.username}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -626,7 +609,7 @@ const PhysicalInspection: React.FC = () => {
                     {/* Inspection form */}
                     {selectedEntry === entry.id && (
                       <tr>
-                        <td colSpan={10} style={{ padding: '15px', backgroundColor: '#fff3e0', border: '1px solid #999' }}>
+                        <td colSpan={11} style={{ padding: '15px', backgroundColor: '#fff3e0', border: '1px solid #999' }}>
                           <div style={{
                             maxWidth: '500px',
                             backgroundColor: '#ffffff',
