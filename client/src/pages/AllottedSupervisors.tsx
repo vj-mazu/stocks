@@ -27,6 +27,7 @@ interface SampleEntry {
   originalEntryType?: string;
   packaging?: string;
   serialNo?: number;
+  lorryNumber?: string;
   lotAllotment?: {
     id: string;
     allottedToSupervisorId: number;
@@ -665,22 +666,22 @@ const AllottedSupervisors: React.FC = () => {
                     }}>
                       <span style={{ fontSize: '12px', fontWeight: '800' }}>{brokerIdx + 1}.</span> {brokerName}
                     </div>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', tableLayout: 'fixed', border: '1px solid #000' }}>
+                    <table style={{ width: '100%', minWidth: '1300px', borderCollapse: 'collapse', fontSize: '12px', tableLayout: 'fixed', border: '1px solid #000' }}>
                       <thead>
                         <tr style={{ backgroundColor: '#1a237e', color: 'white' }}>
-                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '4%' }}>SL No</th>
-                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '5%' }}>Type</th>
-                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '5%' }}>Bags</th>
-                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '5%' }}>Pkg</th>
-                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '13%' }}>Party Name</th>
-                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '11%' }}>Paddy Location</th>
-                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '11%' }}>Variety</th>
-                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '5%' }}>Loaded</th>
-                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '5%' }}>Balance</th>
-                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '10%' }}>Progress</th>
-                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '8%' }}>Supervisor</th>
-                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '8%' }}>Change To</th>
-                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '10%' }}>Actions</th>
+                          <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'center', whiteSpace: 'normal', wordBreak: 'break-word', width: '3.5%' }}>SL No</th>
+                          <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'center', whiteSpace: 'normal', wordBreak: 'break-word', width: '3.5%' }}>Type</th>
+                          <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'center', whiteSpace: 'normal', wordBreak: 'break-word', width: '4.5%' }}>Bags</th>
+                          <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'center', whiteSpace: 'normal', wordBreak: 'break-word', width: '3.5%' }}>Pkg</th>
+                          <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'left',   whiteSpace: 'normal', wordBreak: 'break-word', width: '15%' }}>Party Name</th>
+                          <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'left',   whiteSpace: 'normal', wordBreak: 'break-word', width: '11%' }}>Paddy Location</th>
+                          <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'left',   whiteSpace: 'normal', wordBreak: 'break-word', width: '11%' }}>Variety</th>
+                          <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'center', whiteSpace: 'normal', wordBreak: 'break-word', width: '5.5%' }}>Loaded</th>
+                          <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'center', whiteSpace: 'normal', wordBreak: 'break-word', width: '5.5%' }}>Balance</th>
+                          <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'center', whiteSpace: 'normal', wordBreak: 'break-word', width: '9%' }}>Progress</th>
+                          <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'left',   whiteSpace: 'normal', wordBreak: 'break-word', width: '9%' }}>Supervisor</th>
+                          <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'left',   whiteSpace: 'normal', wordBreak: 'break-word', width: '9%' }}>Change To</th>
+                          <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'left',   whiteSpace: 'normal', wordBreak: 'break-word', width: '10%' }}>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -691,13 +692,23 @@ const AllottedSupervisors: React.FC = () => {
                           const progressPercentage = progress?.progressPercentage || 0;
                           const hasPreviousInspections = progress && progress.previousInspections && progress.previousInspections.length > 0;
 
+                          const formatTitleCase = (str: string) => str ? str.replace(/\b\w/g, c => c.toUpperCase()) : '';
+                          const partyNameText = entry.partyName ? formatTitleCase(entry.partyName).trim() : '';
+                          const lorryText = entry.lorryNumber ? entry.lorryNumber.toUpperCase() : '';
+                          const isRLEntry = entry.entryType === 'DIRECT_LOADED_VEHICLE' || (entry as any).originalEntryType === 'DIRECT_LOADED_VEHICLE';
+                          const partyLabel = partyNameText || lorryText || '-';
+                          const showLorrySecondLine = isRLEntry
+                            && !!partyNameText
+                            && !!lorryText
+                            && partyNameText.toUpperCase() !== lorryText;
+
                           return (
                             <React.Fragment key={entry.id}>
                               <tr style={{ backgroundColor: index % 2 === 0 ? '#f9f9f9' : 'white' }}>
-                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'center', fontSize: '11px', fontWeight: '700', color: '#1a1a1a' }}>
+                                <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontSize: '12px', fontWeight: '700', color: '#1a1a1a' }}>
                                   {index + 1}
                                 </td>
-                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'center', fontWeight: '700' }}>
+                                <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontWeight: '700' }}>
                                   {(() => {
                                     const typeCode = getDisplayedEntryTypeCode(entry);
                                     const isResample = isConvertedResampleType(entry);
@@ -738,42 +749,48 @@ const AllottedSupervisors: React.FC = () => {
                                     );
                                   })()}
                                 </td>
-                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'center', fontSize: '11px', fontWeight: '700', color: '#1a1a1a' }}>
+                                <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontSize: '12px', fontWeight: '700', color: '#1a1a1a' }}>
                                   {entry.lotAllotment?.allottedBags || entry.bags}
                                 </td>
-                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'center', fontSize: '11px', color: '#1a1a1a' }}>
+                                <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontSize: '12px', color: '#1a1a1a' }}>
                                   {entry.packaging ? (String(entry.packaging).toLowerCase().includes('kg') ? entry.packaging : `${entry.packaging} Kg`) : '75 Kg'}
                                 </td>
-                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontSize: '11px' }}>
-                                  <span
-                                    onClick={() => openDetailEntry(entry)}
-                                    style={{
-                                      color: '#1565c0',
-                                      textDecoration: 'underline',
-                                      cursor: 'pointer',
-                                      fontWeight: '700'
-                                    }}
-                                  >
-                                    {entry.partyName || '-'}
-                                  </span>
+                                <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '12px' }}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                    <span
+                                      onClick={() => openDetailEntry(entry)}
+                                      style={{
+                                        color: '#1565c0',
+                                        textDecoration: 'underline',
+                                        cursor: 'pointer',
+                                        fontWeight: '700',
+                                        fontSize: '13px'
+                                      }}
+                                    >
+                                      {partyLabel}
+                                    </span>
+                                    {showLorrySecondLine ? (
+                                      <div style={{ fontSize: '11px', color: '#1565c0', fontWeight: '600' }}>{lorryText}</div>
+                                    ) : null}
+                                  </div>
                                 </td>
-                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontSize: '11px', color: '#1a1a1a' }}>
-                                  {entry.location}
+                                <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '12px', color: '#1a1a1a' }}>
+                                  {entry.location ? formatTitleCase(entry.location) : '-'}
                                 </td>
-                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontSize: '11px', color: '#1a1a1a' }}>
-                                  {entry.variety}
+                                <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '12px', color: '#1a1a1a' }}>
+                                  {entry.variety ? formatTitleCase(entry.variety) : '-'}
                                 </td>
-                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'center', fontSize: '11px', fontWeight: '700', color: '#4CAF50' }}>
+                                <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontSize: '12px', fontWeight: '700', color: '#4CAF50' }}>
                                   {progress?.inspectedBags || 0}
                                 </td>
-                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'center', fontSize: '11px', fontWeight: '700', color: entry.lotAllotment?.closedAt ? '#d32f2f' : (progress?.remainingBags === 0 ? '#4CAF50' : '#FF9800') }}>
+                                <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontSize: '12px', fontWeight: '700', color: entry.lotAllotment?.closedAt ? '#d32f2f' : (progress?.remainingBags === 0 ? '#4CAF50' : '#FF9800') }}>
                                   {entry.lotAllotment?.closedAt ? (
                                     <span>0 <span style={{ fontSize: '9px', fontWeight: 'normal', color: '#777' }}>(Closed)</span></span>
                                   ) : (
                                     progress?.remainingBags ?? (entry.lotAllotment?.allottedBags || entry.bags)
                                   )}
                                 </td>
-                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
+                                <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center' }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '5px', justifyContent: 'center' }}>
                                     <div style={{
                                       flex: 1,
@@ -814,12 +831,12 @@ const AllottedSupervisors: React.FC = () => {
                                     </button>
                                   )}
                                 </td>
-                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontSize: '11px', color: '#1a1a1a' }}>
+                                <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '12px', color: '#1a1a1a' }}>
                                   {currentSupervisor ? (
                                     <span style={{
                                       color: '#111',
                                       fontWeight: '600',
-                                      padding: '4px 8px',
+                                      padding: '3px 4px',
                                       backgroundColor: '#e3f2fd',
                                       borderRadius: '3px',
                                       border: '1px solid #b3d7ff'
@@ -830,15 +847,15 @@ const AllottedSupervisors: React.FC = () => {
                                     <span style={{ color: '#999', fontStyle: 'italic' }}>Not assigned</span>
                                   )}
                                 </td>
-                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left' }}>
+                                <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left' }}>
                                   <select
                                     value={selectedSupervisors[entry.id] || ''}
                                     onChange={(e) => handleSupervisorChange(entry.id, Number(e.target.value))}
                                     disabled={!!entry.lotAllotment?.closedAt}
                                     style={{
                                       width: '100%',
-                                      padding: '6px',
-                                      fontSize: '11px',
+                                      padding: '3px 4px',
+                                      fontSize: '12px',
                                       border: '1px solid #999',
                                       borderRadius: '3px',
                                       backgroundColor: entry.lotAllotment?.closedAt ? '#f5f5f5' : (hasChanged ? '#fff3cd' : 'white'),
@@ -855,7 +872,7 @@ const AllottedSupervisors: React.FC = () => {
                                     ))}
                                   </select>
                                 </td>
-                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left' }}>
+                                <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left' }}>
                                   <div style={{ display: 'flex', gap: '6px', flexDirection: 'column', alignItems: 'flex-start' }}>
                                     <button
                                       onClick={() => handleOpenEditValues(entry)}

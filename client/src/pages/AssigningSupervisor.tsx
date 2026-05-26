@@ -323,25 +323,25 @@ const AssigningSupervisor: React.FC = () => {
                     }}>
                       <span style={{ fontSize: '12px', fontWeight: '800' }}>{brokerIdx + 1}.</span> {brokerName}
                     </div>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', tableLayout: 'fixed', border: '1px solid #000' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', tableLayout: 'fixed', border: '1px solid #000' }}>
                       <thead>
                         <tr style={{ backgroundColor: '#1a237e', color: 'white' }}>
-                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '5%' }}>SL No</th>
-                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '6%' }}>Type</th>
-                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '8%' }}>Bags</th>
-                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '7%' }}>Pkg</th>
-                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '20%' }}>Party Name</th>
-                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '16%' }}>Paddy Location</th>
-                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '14%' }}>Variety</th>
-                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '14%' }}>Select Supervisor</th>
-                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '10%' }}>Actions</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '13px', textAlign: 'center', width: '4%' }}>SL No</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '13px', textAlign: 'center', width: '4%' }}>Type</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '13px', textAlign: 'center', width: '5%' }}>Bags</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '13px', textAlign: 'center', width: '4%' }}>Pkg</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '13px', textAlign: 'left', width: '20%' }}>Party Name</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '13px', textAlign: 'left', width: '18%' }}>Paddy Location</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '13px', textAlign: 'left', width: '15%' }}>Variety</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '13px', textAlign: 'left', width: '18%' }}>Select Supervisor</th>
+                          <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: '700', fontSize: '13px', textAlign: 'left', width: '12%' }}>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {orderedEntries.map((entry, index) => {
                           return (
                             <tr key={entry.id} style={{ backgroundColor: index % 2 === 0 ? '#f9f9f9' : 'white' }}>
-                              <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'center', fontSize: '11px', fontWeight: '700', color: '#1a1a1a' }}>
+                              <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'center', fontSize: '13px', fontWeight: '700', color: '#1a1a1a' }}>
                                 {index + 1}
                               </td>
                               <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'center', fontWeight: '700' }}>
@@ -353,13 +353,13 @@ const AssigningSupervisor: React.FC = () => {
                                     const conv = getConvertedEntryTypeCode(entry);
                                     return (
                                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px' }}>
-                                        <span style={{ fontSize: '9px', fontWeight: 800, color: getEntryTypeTextColor(orig) }}>{orig}</span>
+                                        <span style={{ fontSize: '10px', fontWeight: 800, color: getEntryTypeTextColor(orig) }}>{orig}</span>
                                         <span style={{
                                           display: 'inline-block',
                                           minWidth: '28px',
                                           padding: '1px 4px',
                                           borderRadius: '3px',
-                                          fontSize: '11px',
+                                          fontSize: '13px',
                                           fontWeight: 800,
                                           textAlign: 'center',
                                           color: conv === 'RL' || conv === 'LS' ? '#fff' : '#166534',
@@ -375,7 +375,7 @@ const AssigningSupervisor: React.FC = () => {
                                       minWidth: '28px',
                                       padding: '1px 4px',
                                       borderRadius: '3px',
-                                      fontSize: '11px',
+                                      fontSize: '13px',
                                       fontWeight: 800,
                                       textAlign: 'center',
                                       color: typeCode === 'RL' || typeCode === 'LS' ? '#fff' : '#166534',
@@ -385,13 +385,13 @@ const AssigningSupervisor: React.FC = () => {
                                   );
                                 })()}
                               </td>
-                              <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'center', fontSize: '11px', fontWeight: '700', color: '#1a1a1a' }}>
+                              <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'center', fontSize: '13px', fontWeight: '700', color: '#1a1a1a' }}>
                                 {entry.bags}
                               </td>
-                              <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'center', fontSize: '11px', color: '#1a1a1a' }}>
+                              <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'center', fontSize: '13px', color: '#1a1a1a' }}>
                                 {entry.packaging ? (String(entry.packaging).toLowerCase().includes('kg') ? entry.packaging : `${entry.packaging} Kg`) : '75 Kg'}
                               </td>
-                              <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontSize: '11px' }}>
+                              <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontSize: '14px', fontWeight: '600' }}>
                                 <span
                                   onClick={() => openDetailEntry(entry)}
                                   style={{
@@ -404,22 +404,22 @@ const AssigningSupervisor: React.FC = () => {
                                   {entry.partyName || '-'}
                                 </span>
                               </td>
-                              <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontSize: '11px', color: '#1a1a1a' }}>
+                              <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontSize: '13px', color: '#1a1a1a' }}>
                                 {entry.location}
                               </td>
-                              <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontSize: '11px', color: '#1a1a1a' }}>
+                              <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontSize: '13px', color: '#1a1a1a' }}>
                                 {entry.variety}
                               </td>
                               <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left' }}>
                                 {user?.role !== 'manager' ? (
-                                  <div style={{ fontSize: '11px', color: '#7f8c8d', fontStyle: 'italic' }}>
+                                  <div style={{ fontSize: '13px', color: '#7f8c8d', fontStyle: 'italic' }}>
                                     Manager action only
                                   </div>
                                 ) : (
                                   <select
                                     value={selectedSupervisors[entry.id] || ''}
                                     onChange={(e) => handleSupervisorChange(entry.id, Number(e.target.value))}
-                                    style={{ width: '100%', padding: '6px', fontSize: '11px', border: '1px solid #999', borderRadius: '3px', color: '#1a1a1a', fontWeight: '500' }}
+                                    style={{ width: '100%', padding: '6px', fontSize: '13px', border: '1px solid #999', borderRadius: '3px', color: '#1a1a1a', fontWeight: '500' }}
                                   >
                                     <option value="">-- Select Supervisor --</option>
                                     {supervisors.map(supervisor => (
@@ -435,7 +435,7 @@ const AssigningSupervisor: React.FC = () => {
                                   onClick={() => handleAssignClick(entry)}
                                   disabled={!selectedSupervisors[entry.id] || user?.role !== 'manager' || isSubmitting}
                                   style={{
-                                    fontSize: '11px', padding: '6px 12px', fontWeight: '600',
+                                    fontSize: '13px', padding: '6px 12px', fontWeight: '600',
                                     backgroundColor: (selectedSupervisors[entry.id] && user?.role === 'manager' && !isSubmitting) ? '#4CAF50' : '#ccc',
                                     color: 'white', border: 'none', borderRadius: '3px',
                                     cursor: (selectedSupervisors[entry.id] && user?.role === 'manager' && !isSubmitting) ? 'pointer' : 'not-allowed'
