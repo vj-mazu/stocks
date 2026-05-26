@@ -292,6 +292,26 @@ const SampleEntryOffering = sequelize.define('SampleEntryOffering', {
         defaultValue: false,
         field: 'is_finalized'
     },
+    disputeBaseRate: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true,
+        field: 'dispute_base_rate'
+    },
+    disputeBaseRateType: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+        field: 'dispute_base_rate_type'
+    },
+    revisedHamali: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true,
+        field: 'revised_hamali'
+    },
+    revisedLf: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true,
+        field: 'revised_lf'
+    },
     pendingManagerValueApprovalStatus: {
         type: DataTypes.STRING(20),
         allowNull: true,

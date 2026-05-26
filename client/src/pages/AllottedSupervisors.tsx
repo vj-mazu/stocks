@@ -168,6 +168,7 @@ const AllottedSupervisors: React.FC = () => {
   const [offeringCache, setOfferingCache] = useState<{ [key: string]: any }>({});
   const [editingInspection, setEditingInspection] = useState<{ entryId: string; inspectionId: string; data: any } | null>(null);
   const [editValuesEntry, setEditValuesEntry] = useState<SampleEntry | null>(null);
+  const [editMode, setEditMode] = useState<'dispute' | 'hmlf' | null>(null);
   const [editValuesData, setEditValuesData] = useState<any>({});
   const [isSavingValues, setIsSavingValues] = useState(false);
   const [detailModalEntry, setDetailModalEntry] = useState<SampleEntry | null>(null);
@@ -547,9 +548,10 @@ const AllottedSupervisors: React.FC = () => {
     });
   };
 
-  const handleOpenEditValues = (entry: SampleEntry) => {
+  const handleOpenEditValues = (entry: SampleEntry, mode: 'dispute' | 'hmlf') => {
     const o = offeringCache[entry.id] || {};
     setEditValuesEntry(entry);
+    setEditMode(mode);
     setEditValuesData({
       finalBaseRate: o.finalBaseRate?.toString() ?? o.offerBaseRateValue?.toString() ?? '',
       baseRateType: o.baseRateType || 'PD_LOOSE',
@@ -563,7 +565,11 @@ const AllottedSupervisors: React.FC = () => {
       lf: o.lf?.toString() ?? '',
       lfUnit: o.lfUnit || 'per_bag',
       egbValue: o.egbValue?.toString() ?? '',
-      egbType: o.egbType || ((o.egbValue && parseFloat(o.egbValue) > 0) ? 'purchase' : 'mill')
+      egbType: o.egbType || ((o.egbValue && parseFloat(o.egbValue) > 0) ? 'purchase' : 'mill'),
+      disputeBaseRate: o.disputeBaseRate?.toString() ?? o.finalBaseRate?.toString() ?? o.offerBaseRateValue?.toString() ?? '',
+      disputeBaseRateType: o.disputeBaseRateType || o.baseRateType || 'PD_LOOSE',
+      revisedHamali: o.revisedHamali?.toString() ?? o.hamali?.toString() ?? '',
+      revisedLf: o.revisedLf?.toString() ?? o.lf?.toString() ?? ''
     });
   };
 
@@ -572,13 +578,34 @@ const AllottedSupervisors: React.FC = () => {
     try {
       setIsSavingValues(true);
       const token = localStorage.getItem('token');
+      
+      const payload: any = { isFinalized: true };
+      const isManager = user?.role === 'manager';
+      if (isManager) {
+        payload.fillMissingValues = true;
+      }
+      
+      if (editMode === 'dispute') {
+        payload.disputeBaseRate = editValuesData.disputeBaseRate;
+        payload.disputeBaseRateType = editValuesData.disputeBaseRateType;
+        payload.finalSute = editValuesData.sute;
+        payload.finalSuteUnit = editValuesData.suteUnit;
+        payload.moistureValue = editValuesData.moistureValue;
+      } else if (editMode === 'hmlf') {
+        payload.revisedHamali = editValuesData.revisedHamali;
+        payload.hamaliUnit = editValuesData.hamaliUnit;
+        payload.revisedLf = editValuesData.revisedLf;
+        payload.lfUnit = editValuesData.lfUnit;
+      }
+      
       await axios.post(
         `${API_URL}/sample-entries/${editValuesEntry.id}/final-price`,
-        { ...editValuesData, isFinalized: true },
+        payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       showNotification('Values updated successfully', 'success');
       setEditValuesEntry(null);
+      setEditMode(null);
       loadEntries();
     } catch (error: any) {
       showNotification(error.response?.data?.error || 'Failed to save values', 'error');
@@ -873,23 +900,92 @@ const AllottedSupervisors: React.FC = () => {
                                   </select>
                                 </td>
                                 <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left' }}>
-                                  <div style={{ display: 'flex', gap: '6px', flexDirection: 'column', alignItems: 'flex-start' }}>
-                                    <button
-                                      onClick={() => handleOpenEditValues(entry)}
-                                      style={{
-                                        fontSize: '10px',
-                                        padding: '4px 8px',
-                                        backgroundColor: '#3498db',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '3px',
-                                        cursor: 'pointer',
-                                        width: '100%',
-                                        marginBottom: '3px'
-                                      }}
-                                    >
-                                      ✏️ Edit Values
-                                    </button>
+                                   <div style={{ display: 'flex', gap: '6px', flexDirection: 'column', alignItems: 'flex-start' }}>
+                                     {(() => {
+                                       const o = offeringCache[entry.id] || {};
+                                       const isPending = String(o.pendingManagerValueApprovalStatus || '').toLowerCase() === 'pending';
+                                       const pendingData = o.pendingManagerValueApprovalData || {};
+
+                                       const hasPendingDispute = isPending && pendingData.disputeBaseRate !== undefined && pendingData.disputeBaseRate !== null && pendingData.disputeBaseRate !== '';
+                                       const hasPendingRevision = isPending && (
+                                         (pendingData.revisedHamali !== undefined && pendingData.revisedHamali !== null && pendingData.revisedHamali !== '') ||
+                                         (pendingData.revisedLf !== undefined && pendingData.revisedLf !== null && pendingData.revisedLf !== '')
+                                       );
+
+                                       return (
+                                         <>
+                                           {hasPendingDispute ? (
+                                             <div style={{
+                                               fontSize: '9px',
+                                               padding: '4px 6px',
+                                               backgroundColor: '#ffebee',
+                                               color: '#c62828',
+                                               border: '1px solid #c62828',
+                                               borderRadius: '3px',
+                                               textAlign: 'center',
+                                               width: '100%',
+                                               marginBottom: '3px',
+                                               fontWeight: '800'
+                                             }}>
+                                               ⚖️ Dispute Pending
+                                             </div>
+                                           ) : (
+                                             <button
+                                               onClick={() => handleOpenEditValues(entry, 'dispute')}
+                                               style={{
+                                                 fontSize: '10px',
+                                                 padding: '4px 8px',
+                                                 backgroundColor: '#e74c3c',
+                                                 color: 'white',
+                                                 border: 'none',
+                                                 borderRadius: '3px',
+                                                 cursor: 'pointer',
+                                                 width: '100%',
+                                                 marginBottom: '3px',
+                                                 fontWeight: '700'
+                                               }}
+                                             >
+                                               ⚖️ Dispute Rate
+                                             </button>
+                                           )}
+
+                                           {hasPendingRevision ? (
+                                             <div style={{
+                                               fontSize: '9px',
+                                               padding: '4px 6px',
+                                               backgroundColor: '#f3e5f5',
+                                               color: '#6a1b9a',
+                                               border: '1px solid #6a1b9a',
+                                               borderRadius: '3px',
+                                               textAlign: 'center',
+                                               width: '100%',
+                                               marginBottom: '3px',
+                                               fontWeight: '800'
+                                             }}>
+                                               ⚙️ Revision Pending
+                                             </div>
+                                           ) : (
+                                             <button
+                                               onClick={() => handleOpenEditValues(entry, 'hmlf')}
+                                               style={{
+                                                 fontSize: '10px',
+                                                 padding: '4px 8px',
+                                                 backgroundColor: '#8e44ad',
+                                                 color: 'white',
+                                                 border: 'none',
+                                                 borderRadius: '3px',
+                                                 cursor: 'pointer',
+                                                 width: '100%',
+                                                 marginBottom: '3px',
+                                                 fontWeight: '700'
+                                               }}
+                                             >
+                                               ⚙️ Revise HM | LF
+                                             </button>
+                                           )}
+                                         </>
+                                       );
+                                     })()}
                                     <button
                                       onClick={() => handleReassign(entry.id)}
                                       disabled={!hasChanged || !!entry.lotAllotment?.closedAt}
@@ -1076,116 +1172,98 @@ const AllottedSupervisors: React.FC = () => {
         </div>
       )}
 
-      {/* Edit Values Modal */}
+      {/* Edit Dispute / HM-LF Modal */}
       {editValuesEntry && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: '16px', borderRadius: '10px', width: '90%', maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-            <h3 style={{ marginTop: 0, color: '#2c3e50', borderBottom: '2px solid #3498db', paddingBottom: '8px', fontSize: '14px' }}>
-              ✏️ Edit Values — {editValuesEntry.brokerName} / {editValuesEntry.partyName}
-            </h3>
-            <div style={{ background: '#f8f9fa', padding: '6px 10px', borderRadius: '4px', marginBottom: '10px', fontSize: '11px', textAlign: 'center' }}>
-              Bags: <b>{editValuesEntry.bags}</b> | Variety: <b>{editValuesEntry.variety}</b> | Location: <b>{editValuesEntry.location}</b>
-            </div>
-            {/* Form fields */}
-            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '6px' }}>
-              <div>
-                <label style={{ fontSize: '10px', fontWeight: 700, display: 'block', marginBottom: '2px' }}>Final Base Rate</label>
-                <input type="number" step="0.01" value={editValuesData.finalBaseRate}
-                  onChange={e => setEditValuesData({ ...editValuesData, finalBaseRate: e.target.value })}
-                  style={{ width: '100%', padding: '4px 6px', fontSize: '11px', border: '1px solid #3498db', borderRadius: '3px', boxSizing: 'border-box' }} />
-              </div>
-              <div>
-                <label style={{ fontSize: '10px', fontWeight: 700, display: 'block', marginBottom: '2px' }}>Base Rate Type</label>
-                <select value={editValuesData.baseRateType} onChange={e => setEditValuesData({ ...editValuesData, baseRateType: e.target.value })}
-                  style={{ width: '100%', padding: '4px 6px', fontSize: '11px', border: '1px solid #3498db', borderRadius: '3px', boxSizing: 'border-box' }}>
-                  <option value="PD_LOOSE">PD/Loose</option>
-                  <option value="PD_WB">PD/WB</option>
-                  <option value="MD_WB">MD/WB</option>
-                  <option value="MD_LOOSE">MD/Loose</option>
-                </select>
-              </div>
-            </div>
-            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '6px' }}>
-              <div>
-                <label style={{ fontSize: '10px', fontWeight: 700, display: 'block', marginBottom: '2px' }}>Sute</label>
-                <div style={{ display: 'flex', gap: '3px' }}>
-                  <input type="number" step="0.01" value={editValuesData.sute}
-                    onChange={e => setEditValuesData({ ...editValuesData, sute: e.target.value })}
-                    style={{ flex: 1, padding: '4px 6px', fontSize: '11px', border: '1px solid #3498db', borderRadius: '3px', minWidth: 0 }} />
-                  <select value={editValuesData.suteUnit} onChange={e => setEditValuesData({ ...editValuesData, suteUnit: e.target.value })}
-                    style={{ padding: '4px', fontSize: '10px', border: '1px solid #3498db', borderRadius: '3px', minWidth: '55px' }}>
-                    <option value="per_bag">/Bag</option>
-                    <option value="per_ton">/Ton</option>
-                  </select>
+            {editMode === 'dispute' ? (
+              <>
+                <h3 style={{ marginTop: 0, color: '#e74c3c', borderBottom: '2px solid #e74c3c', paddingBottom: '8px', fontSize: '14px', fontWeight: '800' }}>
+                  Edit Dispute Rate — {editValuesEntry.brokerName} / {editValuesEntry.partyName}
+                </h3>
+                <div style={{ background: '#f8f9fa', padding: '6px 10px', borderRadius: '4px', marginBottom: '10px', fontSize: '11px', textAlign: 'center' }}>
+                  Bags: <b>{editValuesEntry.bags}</b> | Variety: <b>{editValuesEntry.variety}</b> | Location: <b>{editValuesEntry.location}</b>
                 </div>
-              </div>
-              <div>
-                <label style={{ fontSize: '10px', fontWeight: 700, display: 'block', marginBottom: '2px' }}>Moisture %</label>
-                <input type="number" step="0.01" value={editValuesData.moistureValue}
-                  onChange={e => setEditValuesData({ ...editValuesData, moistureValue: e.target.value })}
-                  style={{ width: '100%', padding: '4px 6px', fontSize: '11px', border: '1px solid #3498db', borderRadius: '3px', boxSizing: 'border-box' }} />
-              </div>
-            </div>
-            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', marginBottom: '6px' }}>
-              <div>
-                <label style={{ fontSize: '10px', fontWeight: 700, display: 'block', marginBottom: '2px' }}>Hamali</label>
-                <div style={{ display: 'flex', gap: '3px' }}>
-                  <input type="number" step="0.01" value={editValuesData.hamali}
-                    onChange={e => setEditValuesData({ ...editValuesData, hamali: e.target.value })}
-                    style={{ flex: 1, padding: '4px 6px', fontSize: '11px', border: '1px solid #3498db', borderRadius: '3px', minWidth: 0 }} />
-                  <select value={editValuesData.hamaliUnit} onChange={e => setEditValuesData({ ...editValuesData, hamaliUnit: e.target.value })}
-                    style={{ padding: '4px', fontSize: '10px', border: '1px solid #3498db', borderRadius: '3px', minWidth: '50px' }}>
-                    <option value="per_bag">/Bag</option>
-                    <option value="per_quintal">/Qtl</option>
-                  </select>
+                <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '6px' }}>
+                  <div>
+                    <label style={{ fontSize: '10px', fontWeight: 800, display: 'block', marginBottom: '2px', color: '#e74c3c' }}>Dispute Rate</label>
+                    <input type="number" step="0.01" value={editValuesData.disputeBaseRate}
+                      onChange={e => setEditValuesData({ ...editValuesData, disputeBaseRate: e.target.value })}
+                      style={{ width: '100%', padding: '4px 6px', fontSize: '11px', border: '1px solid #e74c3c', borderRadius: '3px', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '10px', fontWeight: 800, display: 'block', marginBottom: '2px', color: '#e74c3c' }}>Type</label>
+                    <select value={editValuesData.disputeBaseRateType} onChange={e => setEditValuesData({ ...editValuesData, disputeBaseRateType: e.target.value })}
+                      style={{ width: '100%', padding: '4px 6px', fontSize: '11px', border: '1px solid #e74c3c', borderRadius: '3px', boxSizing: 'border-box' }}>
+                      <option value="PD_LOOSE">PD/Loose</option>
+                      <option value="PD_WB">PD/WB</option>
+                      <option value="MD_WB">MD/WB</option>
+                      <option value="MD_LOOSE">MD/Loose</option>
+                    </select>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <label style={{ fontSize: '10px', fontWeight: 700, display: 'block', marginBottom: '2px' }}>Brokerage</label>
-                <div style={{ display: 'flex', gap: '3px' }}>
-                  <input type="number" step="0.01" value={editValuesData.brokerage}
-                    onChange={e => setEditValuesData({ ...editValuesData, brokerage: e.target.value })}
-                    style={{ flex: 1, padding: '4px 6px', fontSize: '11px', border: '1px solid #3498db', borderRadius: '3px', minWidth: 0 }} />
-                  <select value={editValuesData.brokerageUnit} onChange={e => setEditValuesData({ ...editValuesData, brokerageUnit: e.target.value })}
-                    style={{ padding: '4px', fontSize: '10px', border: '1px solid #3498db', borderRadius: '3px', minWidth: '50px' }}>
-                    <option value="per_bag">/Bag</option>
-                    <option value="per_quintal">/Qtl</option>
-                  </select>
+                <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '6px' }}>
+                  <div>
+                    <label style={{ fontSize: '10px', fontWeight: 700, display: 'block', marginBottom: '2px' }}>Sute</label>
+                    <div style={{ display: 'flex', gap: '3px' }}>
+                      <input type="number" step="0.01" value={editValuesData.sute}
+                        onChange={e => setEditValuesData({ ...editValuesData, sute: e.target.value })}
+                        style={{ flex: 1, padding: '4px 6px', fontSize: '11px', border: '1px solid #3498db', borderRadius: '3px', minWidth: 0 }} />
+                      <select value={editValuesData.suteUnit} onChange={e => setEditValuesData({ ...editValuesData, suteUnit: e.target.value })}
+                        style={{ padding: '4px', fontSize: '10px', border: '1px solid #3498db', borderRadius: '3px', minWidth: '55px' }}>
+                        <option value="per_bag">/Bag</option>
+                        <option value="per_ton">/Ton</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '10px', fontWeight: 700, display: 'block', marginBottom: '2px' }}>Moisture %</label>
+                    <input type="number" step="0.01" value={editValuesData.moistureValue}
+                      onChange={e => setEditValuesData({ ...editValuesData, moistureValue: e.target.value })}
+                      style={{ width: '100%', padding: '4px 6px', fontSize: '11px', border: '1px solid #3498db', borderRadius: '3px', boxSizing: 'border-box' }} />
+                  </div>
                 </div>
-              </div>
-              <div>
-                <label style={{ fontSize: '10px', fontWeight: 700, display: 'block', marginBottom: '2px' }}>LF</label>
-                <div style={{ display: 'flex', gap: '3px' }}>
-                  <input type="number" step="0.01" value={editValuesData.lf}
-                    onChange={e => setEditValuesData({ ...editValuesData, lf: e.target.value })}
-                    style={{ flex: 1, padding: '4px 6px', fontSize: '11px', border: '1px solid #3498db', borderRadius: '3px', minWidth: 0 }} />
-                  <select value={editValuesData.lfUnit} onChange={e => setEditValuesData({ ...editValuesData, lfUnit: e.target.value })}
-                    style={{ padding: '4px', fontSize: '10px', border: '1px solid #3498db', borderRadius: '3px', minWidth: '50px' }}>
-                    <option value="per_bag">/Bag</option>
-                    <option value="per_quintal">/Qtl</option>
-                  </select>
+              </>
+            ) : (
+              <>
+                <h3 style={{ marginTop: 0, color: '#8e44ad', borderBottom: '2px solid #8e44ad', paddingBottom: '8px', fontSize: '14px', fontWeight: '800' }}>
+                  Edit HM | LF — {editValuesEntry.brokerName} / {editValuesEntry.partyName}
+                </h3>
+                <div style={{ background: '#f8f9fa', padding: '6px 10px', borderRadius: '4px', marginBottom: '10px', fontSize: '11px', textAlign: 'center' }}>
+                  Bags: <b>{editValuesEntry.bags}</b> | Variety: <b>{editValuesEntry.variety}</b> | Location: <b>{editValuesEntry.location}</b>
                 </div>
-              </div>
-            </div>
-            <div style={{ marginBottom: '8px' }}>
-              <label style={{ fontSize: '10px', fontWeight: 700, display: 'block', marginBottom: '2px' }}>EGB</label>
-              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', cursor: 'pointer' }}>
-                  <input type="radio" value="mill" checked={editValuesData.egbType === 'mill'}
-                    onChange={() => setEditValuesData({ ...editValuesData, egbType: 'mill', egbValue: '0' })} /> Mill
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', cursor: 'pointer' }}>
-                  <input type="radio" value="purchase" checked={editValuesData.egbType === 'purchase'}
-                    onChange={() => setEditValuesData({ ...editValuesData, egbType: 'purchase' })} /> Purchase
-                </label>
-                <input type="number" step="0.01" value={editValuesData.egbValue}
-                  onChange={e => setEditValuesData({ ...editValuesData, egbValue: e.target.value })}
-                  disabled={editValuesData.egbType === 'mill'}
-                  style={{ flex: 1, padding: '4px 6px', fontSize: '11px', border: `1px solid ${editValuesData.egbType === 'mill' ? '#ccc' : '#3498db'}`, borderRadius: '3px', backgroundColor: editValuesData.egbType === 'mill' ? '#f5f5f5' : 'white', minWidth: 0 }} />
-              </div>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid #eee', paddingTop: '10px' }}>
-              <button onClick={() => setEditValuesEntry(null)} disabled={isSavingValues}
+                <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '6px' }}>
+                  <div>
+                    <label style={{ fontSize: '10px', fontWeight: 800, display: 'block', marginBottom: '2px', color: '#e74c3c' }}>Revised Hamali</label>
+                    <div style={{ display: 'flex', gap: '3px' }}>
+                      <input type="number" step="0.01" value={editValuesData.revisedHamali}
+                        onChange={e => setEditValuesData({ ...editValuesData, revisedHamali: e.target.value })}
+                        style={{ flex: 1, padding: '4px 6px', fontSize: '11px', border: '1px solid #e74c3c', borderRadius: '3px', minWidth: 0 }} />
+                      <select value={editValuesData.hamaliUnit} onChange={e => setEditValuesData({ ...editValuesData, hamaliUnit: e.target.value })}
+                        style={{ padding: '4px', fontSize: '10px', border: '1px solid #e74c3c', borderRadius: '3px', minWidth: '50px' }}>
+                        <option value="per_bag">/Bag</option>
+                        <option value="per_quintal">/Qtl</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '10px', fontWeight: 800, display: 'block', marginBottom: '2px', color: '#e74c3c' }}>Revised LF</label>
+                    <div style={{ display: 'flex', gap: '3px' }}>
+                      <input type="number" step="0.01" value={editValuesData.revisedLf}
+                        onChange={e => setEditValuesData({ ...editValuesData, revisedLf: e.target.value })}
+                        style={{ flex: 1, padding: '4px 6px', fontSize: '11px', border: '1px solid #e74c3c', borderRadius: '3px', minWidth: 0 }} />
+                      <select value={editValuesData.lfUnit} onChange={e => setEditValuesData({ ...editValuesData, lfUnit: e.target.value })}
+                        style={{ padding: '4px', fontSize: '10px', border: '1px solid #e74c3c', borderRadius: '3px', minWidth: '50px' }}>
+                        <option value="per_bag">/Bag</option>
+                        <option value="per_quintal">/Qtl</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid #eee', paddingTop: '10px', marginTop: '14px' }}>
+              <button onClick={() => { setEditValuesEntry(null); setEditMode(null); }} disabled={isSavingValues}
                 style={{ padding: '6px 14px', border: '1px solid #ddd', borderRadius: '4px', background: 'white', cursor: 'pointer', fontSize: '12px' }}>Cancel</button>
               <button onClick={handleSaveEditValues} disabled={isSavingValues}
                 style={{ padding: '6px 18px', border: 'none', borderRadius: '4px', background: isSavingValues ? '#95a5a6' : '#27ae60', color: 'white', fontWeight: 700, cursor: isSavingValues ? 'not-allowed' : 'pointer', fontSize: '12px' }}>

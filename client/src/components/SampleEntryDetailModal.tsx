@@ -98,6 +98,10 @@ interface SampleEntry {
         paymentConditionUnit?: string;
         updatedBy?: string;
         createdBy?: string;
+        disputeBaseRate?: number | string;
+        disputeBaseRateType?: string;
+        revisedHamali?: number | string;
+        revisedLf?: number | string;
         offerVersions?: Array<{
             key: string;
             offerBaseRateValue?: number;
@@ -614,8 +618,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         return toTitleCase(raw);
     };
 
-    const getCollectorWithRole = (value?: string | null) => {
-        const raw = typeof value === 'string' ? value.trim() : '';
+    const getCollectorWithRole = (value?: string | number | null) => {
+        const raw = (value !== null && value !== undefined) ? String(value).trim() : '';
         if (!raw) return '-';
         if (raw.toLowerCase() === 'broker office sample') return 'Broker Office Sample';
         const normalizedRaw = raw.toLowerCase();
@@ -921,6 +925,109 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 formatUnitValueText(o.egbValue ?? 0, toTitleCase(o.egbType || 'Mill')),
                 o.cdValue ? formatFlexibleValue(o.cdValue) : '-',
                 o.bankLoanValue ? `Rs ${formatIndianCurrencyFlexible(o.bankLoanValue)}` : '-',
+                <span style={{ fontWeight: 600 }}>{formatPaymentText(o.paymentConditionValue || 15, o.paymentConditionUnit || 'Days')}</span>
+            ]);
+        }
+
+        // Check for approved or pending dispute rate or revised Hamali/LF
+        const isPending = String((o as any).pendingManagerValueApprovalStatus || '').toLowerCase() === 'pending';
+        const pendingData = (o as any).pendingManagerValueApprovalData || {};
+
+        const hasDisputeRate = (o.disputeBaseRate !== undefined && o.disputeBaseRate !== null && o.disputeBaseRate !== '')
+            || (isPending && pendingData.disputeBaseRate !== undefined && pendingData.disputeBaseRate !== null && pendingData.disputeBaseRate !== '');
+
+        const hasRevisedHmLf = ((o.revisedHamali !== undefined && o.revisedHamali !== null && o.revisedHamali !== '') ||
+            (o.revisedLf !== undefined && o.revisedLf !== null && o.revisedLf !== ''))
+            || (isPending && ((pendingData.revisedHamali !== undefined && pendingData.revisedHamali !== null && pendingData.revisedHamali !== '') ||
+                (pendingData.revisedLf !== undefined && pendingData.revisedLf !== null && pendingData.revisedLf !== '')));
+
+        if (hasDisputeRate || hasRevisedHmLf) {
+            const disputeReporter = getCollectorWithRole(o.updatedByFullName || o.createdByFullName || o.updatedBy || o.createdBy);
+            const disputeDate = formatShortDateTime((o as any).updatedAt || (o as any).createdAt) || '-';
+
+            // Determine the dynamic label based on what actually changed
+            let baseLabel = 'Dispute Rate';
+            if (hasDisputeRate && !hasRevisedHmLf) {
+                baseLabel = 'Dispute Rate';
+            } else if (!hasDisputeRate && hasRevisedHmLf) {
+                baseLabel = 'Revised HM | LF';
+            } else if (hasDisputeRate && hasRevisedHmLf) {
+                baseLabel = 'Dispute Rate & Revised HM | LF';
+            }
+
+            // Determine if it is a pending dispute row
+            const isPendingRow = isPending && (
+                (pendingData.disputeBaseRate !== undefined && pendingData.disputeBaseRate !== null && pendingData.disputeBaseRate !== '') ||
+                (pendingData.revisedHamali !== undefined && pendingData.revisedHamali !== null && pendingData.revisedHamali !== '') ||
+                (pendingData.revisedLf !== undefined && pendingData.revisedLf !== null && pendingData.revisedLf !== '')
+            );
+            const disputeLabel = isPendingRow ? `${baseLabel} (Pending)` : baseLabel;
+
+            // Rate values
+            const displayDisputeRate = o.disputeBaseRate !== undefined && o.disputeBaseRate !== null && o.disputeBaseRate !== ''
+                ? o.disputeBaseRate
+                : pendingData.disputeBaseRate;
+            const displayDisputeType = o.disputeBaseRate !== undefined && o.disputeBaseRate !== null && o.disputeBaseRate !== ''
+                ? (o.disputeBaseRateType || o.baseRateType || 'PD/WB')
+                : (pendingData.disputeBaseRateType || o.baseRateType || 'PD/WB');
+
+            // Hamali values
+            const displayRevisedHamali = o.revisedHamali !== undefined && o.revisedHamali !== null && o.revisedHamali !== ''
+                ? o.revisedHamali
+                : pendingData.revisedHamali;
+            const hasHamaliChanged = displayRevisedHamali !== undefined && displayRevisedHamali !== null && displayRevisedHamali !== '';
+
+            // LF values
+            const displayRevisedLf = o.revisedLf !== undefined && o.revisedLf !== null && o.revisedLf !== ''
+                ? o.revisedLf
+                : pendingData.revisedLf;
+            const hasLfChanged = displayRevisedLf !== undefined && displayRevisedLf !== null && displayRevisedLf !== '';
+
+            rows.push([
+                <span style={{ color: '#dc2626', fontWeight: 700 }}>{disputeLabel}</span>,
+                disputeReporter,
+                disputeDate,
+                // RATE
+                hasDisputeRate ? (
+                    <span style={{ fontWeight: 700, color: '#dc2626' }}>Rs {formatFlexibleValue(displayDisputeRate)}</span>
+                ) : (
+                    <span>Rs {toNumberText(o.finalPrice || o.finalBaseRate || 0, 0)}</span>
+                ),
+                // RATE TYPE
+                hasDisputeRate ? (
+                    <span style={{ color: '#dc2626' }}>{`${displayDisputeType.replace(/_/g, '/')} / ${formatRateUnitLabel(o.finalBaseRateUnit || o.baseRateUnit)}`}</span>
+                ) : (
+                    <span>{`${(o.finalBaseRateType || o.baseRateType || 'PD/WB').replace(/_/g, '/')} / ${formatRateUnitLabel(o.finalBaseRateUnit || o.baseRateUnit)}`}</span>
+                ),
+                // SUTE
+                <span>{`${toNumberText(o.finalSute || o.sute || 0, 2)} / ${formatRateUnitLabel(o.finalSuteUnit || o.suteUnit || 'per_ton')}`}</span>,
+                // MOISTURE
+                o.moistureValue ? formatMeasurementText(o.moistureValue, '%') : '-',
+                // HAMALI
+                hasHamaliChanged ? (
+                    <span style={{ color: '#dc2626', fontWeight: 600 }}>
+                        {formatFlexibleValue(displayRevisedHamali)} / {formatToggleUnitLabel(o.hamaliUnit || pendingData.hamaliUnit || 'per_bag')}
+                    </span>
+                ) : (
+                    o.hamali ? formatFlexibleValue(o.hamali) : '-'
+                ),
+                // BROKERAGE
+                o.brokerage ? formatFlexibleValue(o.brokerage) : '-',
+                // LF
+                hasLfChanged ? (
+                    <span style={{ color: '#dc2626', fontWeight: 600 }}>
+                        {formatFlexibleValue(displayRevisedLf)} / {formatToggleUnitLabel(o.lfUnit || pendingData.lfUnit || 'per_bag')}
+                    </span>
+                ) : (
+                    o.lf ? formatFlexibleValue(o.lf) : '-'
+                ),
+                // EGB
+                formatUnitValueText(o.egbValue ?? 0, toTitleCase(o.egbType || 'Mill')),
+                // CD
+                o.cdValue ? formatFlexibleValue(o.cdValue) : '-',
+                // BANK LOAN
+                o.bankLoanValue ? `Rs ${formatIndianCurrencyFlexible(o.bankLoanValue)}` : '-',
+                // PAYMENT
                 <span style={{ fontWeight: 600 }}>{formatPaymentText(o.paymentConditionValue || 15, o.paymentConditionUnit || 'Days')}</span>
             ]);
         }
@@ -1478,7 +1585,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             const isFinalMode = mode === 'final';
                                             const suteValue = isFinalMode ? offInfo.finalSute : offInfo.sute;
                                             const suteUnit = isFinalMode ? offInfo.finalSuteUnit : offInfo.suteUnit;
-                                            return [
+                                            const baseRows = [
                                                 [isFinalMode ? 'Final Rate' : 'Offer Rate', isFinalMode ? getFinalRateText(offInfo) : getOfferRateText(offInfo)],
                                                 ['Sute', suteValue ? `${toNumberText(suteValue)} / ${formatRateUnitLabel(suteUnit || undefined)}` : '-'],
                                                 ['Moisture', offInfo.moistureValue ? formatMeasurementText(offInfo.moistureValue, '%') : '-'],
@@ -1490,6 +1597,67 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                 ['Bank Loan', offInfo.bankLoanEnabled ? offInfo.bankLoanValue ? `Rs ${formatIndianCurrencyFlexible(offInfo.bankLoanValue)} / ${formatToggleUnitLabel(offInfo.bankLoanUnit)}` : 'Pending' : '-'],
                                                 ['Payment', offInfo.paymentConditionValue ? formatPaymentText(offInfo.paymentConditionValue, offInfo.paymentConditionUnit) : '-']
                                             ];
+
+                                            if (isFinalMode) {
+                                                const o = offInfo as any;
+                                                const isPending = String(o.pendingManagerValueApprovalStatus || '').toLowerCase() === 'pending';
+                                                const pendingData = o.pendingManagerValueApprovalData || {};
+
+                                                // Dispute Rate
+                                                const hasDispute = (o.disputeBaseRate !== undefined && o.disputeBaseRate !== null && o.disputeBaseRate !== '')
+                                                    || (isPending && pendingData.disputeBaseRate !== undefined && pendingData.disputeBaseRate !== null && pendingData.disputeBaseRate !== '');
+                                                const displayDisputeRate = o.disputeBaseRate !== undefined && o.disputeBaseRate !== null && o.disputeBaseRate !== ''
+                                                    ? o.disputeBaseRate
+                                                    : pendingData.disputeBaseRate;
+                                                const displayDisputeType = o.disputeBaseRate !== undefined && o.disputeBaseRate !== null && o.disputeBaseRate !== ''
+                                                    ? (o.disputeBaseRateType || o.baseRateType || 'PD/WB')
+                                                    : (pendingData.disputeBaseRateType || o.baseRateType || 'PD/WB');
+                                                const disputeLabel = o.disputeBaseRate !== undefined && o.disputeBaseRate !== null && o.disputeBaseRate !== ''
+                                                    ? 'Dispute Rate'
+                                                    : 'Dispute Rate (Pending)';
+
+                                                if (hasDispute) {
+                                                    baseRows.push([
+                                                        disputeLabel,
+                                                        `Rs ${formatFlexibleValue(displayDisputeRate)} / ${displayDisputeType.replace(/_/g, '/')} / ${formatRateUnitLabel(o.finalBaseRateUnit || o.baseRateUnit)}`
+                                                    ]);
+                                                }
+
+                                                // Revised Hamali
+                                                const hasRevHamali = (o.revisedHamali !== undefined && o.revisedHamali !== null && o.revisedHamali !== '')
+                                                    || (isPending && pendingData.revisedHamali !== undefined && pendingData.revisedHamali !== null && pendingData.revisedHamali !== '');
+                                                const displayRevHamali = o.revisedHamali !== undefined && o.revisedHamali !== null && o.revisedHamali !== ''
+                                                    ? o.revisedHamali
+                                                    : pendingData.revisedHamali;
+                                                const revHamaliLabel = o.revisedHamali !== undefined && o.revisedHamali !== null && o.revisedHamali !== ''
+                                                    ? 'Revised Hamali'
+                                                    : 'Revised Hamali (Pending)';
+
+                                                if (hasRevHamali) {
+                                                    baseRows.push([
+                                                        revHamaliLabel,
+                                                        `${formatFlexibleValue(displayRevHamali)} / ${formatToggleUnitLabel(o.hamaliUnit || pendingData.hamaliUnit || 'per_bag')}`
+                                                    ]);
+                                                }
+
+                                                // Revised LF
+                                                const hasRevLf = (o.revisedLf !== undefined && o.revisedLf !== null && o.revisedLf !== '')
+                                                    || (isPending && pendingData.revisedLf !== undefined && pendingData.revisedLf !== null && pendingData.revisedLf !== '');
+                                                const displayRevLf = o.revisedLf !== undefined && o.revisedLf !== null && o.revisedLf !== ''
+                                                    ? o.revisedLf
+                                                    : pendingData.revisedLf;
+                                                const revLfLabel = o.revisedLf !== undefined && o.revisedLf !== null && o.revisedLf !== ''
+                                                    ? 'Revised LF'
+                                                    : 'Revised LF (Pending)';
+
+                                                if (hasRevLf) {
+                                                    baseRows.push([
+                                                        revLfLabel,
+                                                        `${formatFlexibleValue(displayRevLf)} / ${formatToggleUnitLabel(o.lfUnit || pendingData.lfUnit || 'per_bag')}`
+                                                    ]);
+                                                }
+                                            }
+                                            return baseRows;
                                         };
 
                                         const renderGrid = (rows: any[], keyPrefix: string) => (

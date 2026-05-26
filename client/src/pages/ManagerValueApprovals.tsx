@@ -82,7 +82,7 @@ const standardPendingFieldTone: PendingSummaryRow['tone'] = {
   textColor: '#1e3a8a'
 };
 
-const managerHighlightedFieldKeys = new Set(['hamali', 'brokerage', 'lf']);
+const managerHighlightedFieldKeys = new Set(['hamali', 'brokerage', 'lf', 'disputeBaseRate', 'revisedHamali', 'revisedLf']);
 
 const normalizeComparableValue = (value: any) => {
   if (value === null || value === undefined) return '';
@@ -103,7 +103,10 @@ const pendingComparisonKeysMap: Record<string, string[]> = {
   cdValue: ['cdValue', 'cdUnit', 'cdEnabled'],
   bankLoanValue: ['bankLoanValue', 'bankLoanUnit', 'bankLoanEnabled'],
   paymentConditionValue: ['paymentConditionValue', 'paymentConditionUnit'],
-  egbValue: ['egbValue', 'egbType']
+  egbValue: ['egbValue', 'egbType'],
+  disputeBaseRate: ['disputeBaseRate', 'disputeBaseRateType'],
+  revisedHamali: ['revisedHamali', 'hamaliUnit'],
+  revisedLf: ['revisedLf', 'lfUnit']
 };
 
 const hasPendingFieldChanged = (offering: Record<string, any> | undefined, pendingData: Record<string, any> | null | undefined, rowKey: string) => {
@@ -126,11 +129,20 @@ const buildPendingSummary = (data?: Record<string, any> | null, offering?: Recor
       tone: shouldHighlight ? managerPendingFieldTone : standardPendingFieldTone
     });
   };
+  if (pendingData.disputeBaseRate !== undefined && pendingData.disputeBaseRate !== null && pendingData.disputeBaseRate !== '') {
+    pushRow('disputeBaseRate', 'Dispute Rate', `₹${toDisplayNumber(pendingData.disputeBaseRate)} (${pendingData.disputeBaseRateType || 'PD/WB'})`);
+  }
   if (pendingData.finalSute !== undefined && pendingData.finalSute !== null && pendingData.finalSute !== '') {
     pushRow('finalSute', 'Sute', `${toDisplayNumber(pendingData.finalSute)} ${formatChargeUnit(pendingData.finalSuteUnit)}`.trim());
   }
   if (pendingData.moistureValue !== undefined && pendingData.moistureValue !== null && pendingData.moistureValue !== '') {
     pushRow('moistureValue', 'Moisture', `${toDisplayNumber(pendingData.moistureValue)}%`);
+  }
+  if (pendingData.revisedHamali !== undefined && pendingData.revisedHamali !== null && pendingData.revisedHamali !== '') {
+    pushRow('revisedHamali', 'Rev. Hamali', `₹${toDisplayNumber(pendingData.revisedHamali)} ${formatChargeUnit(pendingData.hamaliUnit || offering?.hamaliUnit)}`.trim());
+  }
+  if (pendingData.revisedLf !== undefined && pendingData.revisedLf !== null && pendingData.revisedLf !== '') {
+    pushRow('revisedLf', 'Rev. LF', `₹${toDisplayNumber(pendingData.revisedLf)} ${formatChargeUnit(pendingData.lfUnit || offering?.lfUnit)}`.trim());
   }
   if (pendingData.hamali !== undefined && pendingData.hamali !== null && pendingData.hamali !== '') {
     pushRow('hamali', 'Hamali', `${toDisplayNumber(pendingData.hamali)} ${formatChargeUnit(pendingData.hamaliUnit)}`.trim());
@@ -165,15 +177,30 @@ const buildPendingSummary = (data?: Record<string, any> | null, offering?: Recor
 
 interface ManagerValueApprovalsProps {
   onCountChange?: (count: number) => void;
+  filterType?: 'standard' | 'lorry';
 }
 
-const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountChange }) => {
+const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountChange, filterType }) => {
   const { user } = useAuth();
   const { showNotification } = useNotification();
   const [entries, setEntries] = useState<ApprovalEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
   const canManageApprovals = ['admin', 'owner'].includes(String(user?.role || '').toLowerCase());
+
+  const filteredEntries = useMemo(() => {
+    return entries.filter((entry) => {
+      const pendingData = entry.offering?.pendingManagerValueApprovalData || {};
+      const hasLorryFields = pendingData.disputeBaseRate !== undefined || pendingData.revisedHamali !== undefined || pendingData.revisedLf !== undefined;
+      
+      if (filterType === 'lorry') {
+        return hasLorryFields;
+      } else if (filterType === 'standard') {
+        return !hasLorryFields;
+      }
+      return true;
+    });
+  }, [entries, filterType]);
 
   const loadEntries = useCallback(async () => {
     try {
@@ -199,11 +226,11 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
   }, [canManageApprovals, loadEntries]);
 
   useEffect(() => {
-    onCountChange?.(canManageApprovals ? entries.length : 0);
-  }, [canManageApprovals, entries.length, onCountChange]);
+    onCountChange?.(canManageApprovals ? filteredEntries.length : 0);
+  }, [canManageApprovals, filteredEntries.length, onCountChange]);
 
   const pendingCountBadge = useMemo(() => (
-    entries.length > 0 ? (
+    filteredEntries.length > 0 ? (
       <span style={{
         marginLeft: '8px',
         minWidth: '22px',
@@ -218,10 +245,10 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
         fontSize: '11px',
         fontWeight: 800
       }}>
-        {entries.length}
+        {filteredEntries.length}
       </span>
     ) : null
-  ), [entries.length]);
+  ), [filteredEntries.length]);
 
   const handleDecision = async (entryId: string, decision: 'approve' | 'reject') => {
     try {
@@ -252,13 +279,13 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
   return (
     <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
       <div style={{ padding: '14px 16px', borderBottom: '1px solid #e2e8f0', background: '#eff6ff', color: '#1e3a8a', fontWeight: 800 }}>
-        Approval For Manager
+        {filterType === 'lorry' ? 'Lorry Value Approvals' : 'Manager Value Approvals'}
         {pendingCountBadge}
       </div>
       {loading ? (
         <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>Loading...</div>
-      ) : entries.length === 0 ? (
-        <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8' }}>No manager approvals pending</div>
+      ) : filteredEntries.length === 0 ? (
+        <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8' }}>No approvals pending</div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', minWidth: '980px', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
@@ -282,7 +309,7 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
               </tr>
             </thead>
             <tbody>
-              {entries.map((entry, index) => {
+              {filteredEntries.map((entry, index) => {
                 const summaryRows = buildPendingSummary(entry.offering?.pendingManagerValueApprovalData, entry.offering);
                 return (
                   <tr key={entry.id} style={{ background: index % 2 === 0 ? '#fff7ed' : '#fffbeb' }}>

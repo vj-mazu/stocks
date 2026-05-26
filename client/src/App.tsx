@@ -256,7 +256,7 @@ const AppContent: React.FC = () => {
               <Route
                 path="/allotting-supervisors"
                 element={
-                  <ProtectedRoute roles={['manager']}>
+                  <ProtectedRoute roles={['manager', 'admin']}>
                     <Layout>
                       <AllottingSupervisors />
                     </Layout>

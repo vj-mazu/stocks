@@ -419,7 +419,7 @@ const Navbar: React.FC = () => {
   return (
     <Nav>
       <NavContainer>
-        <Logo to="/dashboard">Kui Stock Management</Logo>
+        <Logo to="/dashboard">KUI Stock Management</Logo>
         <HamburgerButton onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
           {mobileMenuOpen ? '✕' : '☰'}
         </HamburgerButton>
@@ -566,6 +566,7 @@ const Navbar: React.FC = () => {
                       )}
                       <DropdownLink to="/manager-financial" $active={isActive('/manager-financial')}>Manager Financial</DropdownLink>
                       <DropdownLink to="/final-review" $active={isActive('/final-review')}>Final Review</DropdownLink>
+                      <DropdownLink to="/allotting-supervisors" $active={isActive('/allotting-supervisors')}>Allot Supervisor</DropdownLink>
                     </>
                   )}
                   {user.role === 'admin' && (

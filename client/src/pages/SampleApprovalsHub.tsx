@@ -8,7 +8,7 @@ interface SampleApprovalsHubProps {
   onPendingCountChange?: (count: number) => void;
 }
 
-type ApprovalTabKey = 'approval-for-edits' | 'approval-for-manager';
+type ApprovalTabKey = 'approval-for-edits' | 'approval-for-manager' | 'lorry-approvals';
 
 interface ApprovalTabConfig {
   key: ApprovalTabKey;
@@ -19,6 +19,7 @@ interface ApprovalTabConfig {
 const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excludeEntryType, onPendingCountChange }) => {
   const [editApprovalCount, setEditApprovalCount] = useState(0);
   const [managerApprovalCount, setManagerApprovalCount] = useState(0);
+  const [lorryApprovalCount, setLorryApprovalCount] = useState(0);
   const currentUser = useMemo(() => {
     try {
       return JSON.parse(localStorage.getItem('user') || 'null');
@@ -32,17 +33,19 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
       { key: 'approval-for-edits', label: 'Approval For Edits', color: '#8e44ad' }
     ];
     if (canAccessManagerApprovals) {
-      baseTabs.push({ key: 'approval-for-manager', label: 'Approval For Manager', color: '#16a34a' });
+      baseTabs.push({ key: 'approval-for-manager', label: 'Manager Value Approvals', color: '#16a34a' });
+      baseTabs.push({ key: 'lorry-approvals', label: 'Lorry Approvals', color: '#f39c12' });
     }
     return baseTabs;
   }, [canAccessManagerApprovals]);
   const [activeTab, setActiveTab] = useState<ApprovalTabKey>('approval-for-edits');
-  const totalPendingCount = editApprovalCount + (canAccessManagerApprovals ? managerApprovalCount : 0);
+  const totalPendingCount = editApprovalCount + (canAccessManagerApprovals ? (managerApprovalCount + lorryApprovalCount) : 0);
 
   useEffect(() => {
     if (!canAccessManagerApprovals) {
       setManagerApprovalCount(0);
-      if (activeTab === 'approval-for-manager') {
+      setLorryApprovalCount(0);
+      if (activeTab === 'approval-for-manager' || activeTab === 'lorry-approvals') {
         setActiveTab('approval-for-edits');
       }
     }
@@ -69,7 +72,11 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
       }}>
         {tabs.map((tab) => {
           const isActive = activeTab === tab.key;
-          const tabCount = tab.key === 'approval-for-edits' ? editApprovalCount : managerApprovalCount;
+          const tabCount = tab.key === 'approval-for-edits' 
+            ? editApprovalCount 
+            : tab.key === 'approval-for-manager' 
+              ? managerApprovalCount 
+              : lorryApprovalCount;
           return (
             <button
               key={tab.key}
@@ -115,7 +122,12 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
         {activeTab === 'approval-for-edits' && (
           <SampleEditApprovals entryType={entryType} excludeEntryType={excludeEntryType} onCountChange={setEditApprovalCount} />
         )}
-        {canAccessManagerApprovals && activeTab === 'approval-for-manager' && <ManagerValueApprovals onCountChange={setManagerApprovalCount} />}
+        {canAccessManagerApprovals && activeTab === 'approval-for-manager' && (
+          <ManagerValueApprovals filterType="standard" onCountChange={setManagerApprovalCount} />
+        )}
+        {canAccessManagerApprovals && activeTab === 'lorry-approvals' && (
+          <ManagerValueApprovals filterType="lorry" onCountChange={setLorryApprovalCount} />
+        )}
       </div>
     </div>
   );

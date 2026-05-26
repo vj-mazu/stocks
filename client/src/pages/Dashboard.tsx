@@ -160,7 +160,7 @@ const Dashboard: React.FC = () => {
     <DashboardContainer>
       <Header>
         <Title>Welcome back, {user?.username}!</Title>
-        <Subtitle>Kui Stock Management Dashboard</Subtitle>
+        <Subtitle>KUI Stock Management Dashboard</Subtitle>
       </Header>
 
       <StatsGrid>

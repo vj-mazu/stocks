@@ -953,15 +953,36 @@ class SampleEntryService {
         ['cdEnabled', 'cdValue', 'cdUnit'],
         ['bankLoanEnabled', 'bankLoanValue', 'bankLoanUnit'],
         ['paymentConditionValue', 'paymentConditionUnit'],
-        ['isFinalized']
+        ['isFinalized'],
+        ['disputeBaseRate', 'disputeBaseRateType'],
+        ['revisedHamali', 'hamaliUnit'],
+        ['revisedLf', 'lfUnit']
       ];
 
       for (const fieldGroup of pendingFieldGroups) {
         const providedKeys = fieldGroup.filter((key) => finalData[key] !== undefined);
         if (providedKeys.length === 0) continue;
-        const groupHasChange = providedKeys.some((key) => hasMeaningfulChange(key, finalData[key]));
+        
+        let filteredKeys = [...providedKeys];
+        if (providedKeys.includes('revisedHamali')) {
+          const baselineHamali = normalizeComparableValue(offering.hamali);
+          const newRevisedHamali = normalizeComparableValue(finalData.revisedHamali);
+          if (baselineHamali === newRevisedHamali) {
+            filteredKeys = filteredKeys.filter(k => k !== 'revisedHamali' && k !== 'hamaliUnit');
+          }
+        }
+        if (providedKeys.includes('revisedLf')) {
+          const baselineLf = normalizeComparableValue(offering.lf);
+          const newRevisedLf = normalizeComparableValue(finalData.revisedLf);
+          if (baselineLf === newRevisedLf) {
+            filteredKeys = filteredKeys.filter(k => k !== 'revisedLf' && k !== 'lfUnit');
+          }
+        }
+        
+        if (filteredKeys.length === 0) continue;
+        const groupHasChange = filteredKeys.some((key) => hasMeaningfulChange(key, finalData[key]));
         if (!groupHasChange) continue;
-        for (const key of providedKeys) {
+        for (const key of filteredKeys) {
           pendingData[key] = finalData[key];
         }
       }
@@ -1021,6 +1042,10 @@ class SampleEntryService {
       if (finalData.paymentConditionUnit !== undefined) updates.paymentConditionUnit = finalData.paymentConditionUnit;
       if (finalData.remarks !== undefined) updates.finalRemarks = finalData.remarks || null;
       if (finalData.isFinalized !== undefined) updates.isFinalized = finalData.isFinalized;
+      if (finalData.disputeBaseRate !== undefined) updates.disputeBaseRate = finalData.disputeBaseRate;
+      if (finalData.disputeBaseRateType !== undefined) updates.disputeBaseRateType = finalData.disputeBaseRateType;
+      if (finalData.revisedHamali !== undefined) updates.revisedHamali = finalData.revisedHamali;
+      if (finalData.revisedLf !== undefined) updates.revisedLf = finalData.revisedLf;
     }
 
     if (userRole === 'manager') {
@@ -1052,6 +1077,10 @@ class SampleEntryService {
       if (finalData.paymentConditionUnit !== undefined) updates.paymentConditionUnit = finalData.paymentConditionUnit;
       if (finalData.remarks !== undefined) updates.finalRemarks = finalData.remarks || null;
       if (finalData.isFinalized !== undefined) updates.isFinalized = finalData.isFinalized;
+      if (finalData.disputeBaseRate !== undefined) updates.disputeBaseRate = finalData.disputeBaseRate;
+      if (finalData.disputeBaseRateType !== undefined) updates.disputeBaseRateType = finalData.disputeBaseRateType;
+      if (finalData.revisedHamali !== undefined) updates.revisedHamali = finalData.revisedHamali;
+      if (finalData.revisedLf !== undefined) updates.revisedLf = finalData.revisedLf;
     }
 
     await offering.update(updates);
