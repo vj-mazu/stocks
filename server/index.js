@@ -1670,6 +1670,14 @@ const startServer = async () => {
         console.log('Migration 126 warning:', error.message);
       }
 
+      try {
+        const addDisputeAndRevisedFields = require('./migrations/127_add_dispute_and_revised_fields_to_offerings');
+        await addDisputeAndRevisedFields.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('Migration 127: dispute and revised fields added');
+      } catch (error) {
+        console.log('Migration 127 warning:', error.message);
+      }
+
     // Default warehouses removed - users should create their own warehouses
 
     // Create default users if they don't exist
