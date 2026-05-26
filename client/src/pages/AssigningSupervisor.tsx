@@ -40,8 +40,8 @@ interface SampleEntry {
     supervisor: {
       id: number;
       username: string;
-    };
-  };
+    } | null;
+  } | null;
 }
 
 interface Supervisor {
@@ -103,7 +103,10 @@ const AssigningSupervisor: React.FC = () => {
       const allPendingEntries = data.entries || [];
 
       // Filter out entries that already have supervisor assigned
-      const entriesWithoutSupervisor = allPendingEntries.filter((entry: SampleEntry) => !entry.lotAllotment);
+      // Also include resample lots that have a lotAllotment record but no supervisor assigned yet
+      const entriesWithoutSupervisor = allPendingEntries.filter((entry: SampleEntry) =>
+        !entry.lotAllotment || !entry.lotAllotment.supervisor
+      );
 
       // Load offering data for each entry
       const offerCache: { [key: string]: any } = {};
