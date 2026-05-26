@@ -2517,7 +2517,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                           </button>
                                         </div>
                                       )}
-                                      {['admin', 'manager', 'owner'].includes(String(user?.role || '').toLowerCase()) && (
+                                      {['admin', 'owner'].includes(String(user?.role || '').toLowerCase()) && (
                                         <button
                                           onClick={() => setCancelModal({ isOpen: true, entryId: entry.id, remarks: '' })}
                                           style={{ padding: '3px 6px', background: '#c62828', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '10px', cursor: 'pointer', fontWeight: 700 }}
