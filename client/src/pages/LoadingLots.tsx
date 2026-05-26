@@ -636,6 +636,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
   const fetchSupervisors = async () => {
     try {
       const token = localStorage.getItem('token');
+      const authHeaders = token ? { Authorization: `Bearer ${token}` } : undefined;
       const normalizeUsers = (users: any[]) => users
         .filter((u: any) => u && (u.username || u.fullName))
         .map((u: any) => ({
@@ -645,33 +646,47 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
         }));
 
       let mergedUsers: any[] = [];
+      let adminLoaded = false;
 
       // Try /admin/users first (to fetch Admins, Managers, Owners)
+      // Use validateStatus to prevent the global 401 interceptor from logging out the user
       try {
         const adminResponse = await axios.get(`${API_URL}/admin/users`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined
+          headers: authHeaders,
+          validateStatus: (status) => status < 500
         });
-        const adminData: any = adminResponse.data;
-        const adminUsers = Array.isArray(adminData) ? adminData : (adminData.users || []);
-        mergedUsers = normalizeUsers(adminUsers);
+        if (adminResponse.status >= 200 && adminResponse.status < 300) {
+          const adminData: any = adminResponse.data;
+          const adminUsers = Array.isArray(adminData) ? adminData : (adminData.users || []);
+          mergedUsers = normalizeUsers(adminUsers);
+          adminLoaded = mergedUsers.length > 0;
+        }
       } catch (_adminError) {
-        // Fallback to paddy-supervisors
-        const supervisorResponse = await axios.get(`${API_URL}/sample-entries/paddy-supervisors`, {
-          params: { staffType: 'location' },
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined
-        });
-        const supervisorData: any = supervisorResponse.data;
-        const supervisorUsers = Array.isArray(supervisorData)
-          ? supervisorData
-          : (supervisorData.users || supervisorData.data || []);
-        mergedUsers = normalizeUsers(supervisorUsers);
+        // Network error or server error — will fall through to paddy-supervisors
+      }
+
+      // Fallback to paddy-supervisors if /admin/users didn't return data
+      if (!adminLoaded) {
+        try {
+          const supervisorResponse = await axios.get(`${API_URL}/sample-entries/paddy-supervisors`, {
+            params: { staffType: 'location' },
+            headers: authHeaders
+          });
+          const supervisorData: any = supervisorResponse.data;
+          const supervisorUsers = Array.isArray(supervisorData)
+            ? supervisorData
+            : (supervisorData.users || supervisorData.data || []);
+          mergedUsers = normalizeUsers(supervisorUsers);
+        } catch (_supError) {
+          // Both sources failed
+        }
       }
 
       // Deduplicate by id
       const unique = new Map<string, any>();
-      mergedUsers.forEach((user) => {
-        const idKey = String(user.id || '').trim();
-        if (idKey && !unique.has(idKey)) unique.set(idKey, user);
+      mergedUsers.forEach((u) => {
+        const idKey = String(u.id || '').trim();
+        if (idKey && !unique.has(idKey)) unique.set(idKey, u);
       });
       setPaddySupervisors(Array.from(unique.values()));
     } catch (error) {
