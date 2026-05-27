@@ -1048,44 +1048,7 @@ const AllottedSupervisors: React.FC = () => {
                                          </>
                                        );
                                       })()}
-                                     {(() => {
-                                       const o = offeringCache[entry.id] || {};
-                                       const pendingQueue = String(o.pendingManagerValueApprovalStatus || '').toLowerCase() === 'pending'
-                                         ? normalizePendingManagerApprovalQueue(o)
-                                         : [];
-                                       const pendingDisputeCount = pendingQueue.filter((request: any) => {
-                                         const data = request?.data || {};
-                                         return data.disputeBaseRate !== undefined && data.disputeBaseRate !== null && data.disputeBaseRate !== '';
-                                       }).length;
-                                       const pendingRevisionCount = pendingQueue.filter((request: any) => {
-                                         const data = request?.data || {};
-                                         return (data.revisedHamali !== undefined && data.revisedHamali !== null && data.revisedHamali !== '')
-                                           || (data.revisedLf !== undefined && data.revisedLf !== null && data.revisedLf !== '');
-                                       }).length;
-                                       return (
-                                         <>
-                                           {pendingDisputeCount > 0 && (
-                                             <button
-                                               onClick={() => handleOpenEditValues(entry, 'dispute')}
-                                               style={{
-                                                 fontSize: '10px',
-                                                 padding: '4px 8px',
-                                                 backgroundColor: '#e74c3c',
-                                                 color: 'white',
-                                                 border: 'none',
-                                                 borderRadius: '3px',
-                                                 cursor: 'pointer',
-                                                 width: '100%',
-                                                 marginBottom: '3px',
-                                                 fontWeight: '700'
-                                               }}
-                                             >
-                                               Add New Dispute ({pendingDisputeCount})
-                                             </button>
-                                           )}
-                                         </>
-                                       );
-                                     })()}
+
                                      <button
                                        onClick={() => handleReassign(entry.id)}
                                       disabled={!hasChanged || !!entry.lotAllotment?.closedAt}

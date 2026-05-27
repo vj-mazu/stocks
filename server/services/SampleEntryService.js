@@ -1004,31 +1004,17 @@ class SampleEntryService {
         if (providedKeys.length === 0) continue;
         
         let filteredKeys = [...providedKeys];
-        if (providedKeys.includes('revisedHamali')) {
-          // Compare against already-approved revisedHamali (if any), else fall back to original hamali
-          // This allows a manager to submit a new revision even after a prior one was approved
-          const baselineHamali = normalizeComparableValue(
-            offering.revisedHamali != null ? offering.revisedHamali : offering.hamali
-          );
-          const newRevisedHamali = normalizeComparableValue(finalData.revisedHamali);
-          if (baselineHamali === newRevisedHamali) {
-            filteredKeys = filteredKeys.filter(k => k !== 'revisedHamali' && k !== 'hamaliUnit');
-          }
-        }
-        if (providedKeys.includes('revisedLf')) {
-          // Compare against already-approved revisedLf (if any), else fall back to original lf
-          const baselineLf = normalizeComparableValue(
-            offering.revisedLf != null ? offering.revisedLf : offering.lf
-          );
-          const newRevisedLf = normalizeComparableValue(finalData.revisedLf);
-          if (baselineLf === newRevisedLf) {
-            filteredKeys = filteredKeys.filter(k => k !== 'revisedLf' && k !== 'lfUnit');
-          }
+        
+        const isDisputeGroup = providedKeys.includes('disputeBaseRate');
+        const isRevisionGroup = providedKeys.includes('revisedHamali') || providedKeys.includes('revisedLf') || providedKeys.includes('revisedRateOption');
+        
+        if (!isDisputeGroup && !isRevisionGroup) {
+          const groupHasChange = filteredKeys.some((key) => hasMeaningfulChange(key, finalData[key]));
+          if (!groupHasChange) continue;
+        } else {
+          // Dispute/Revision values bypass change checks so they are ALWAYS submitted as a new pending request
         }
         
-        if (filteredKeys.length === 0) continue;
-        const groupHasChange = filteredKeys.some((key) => hasMeaningfulChange(key, finalData[key]));
-        if (!groupHasChange) continue;
         for (const key of filteredKeys) {
           pendingData[key] = finalData[key];
         }
@@ -1175,6 +1161,66 @@ class SampleEntryService {
       if (finalData.revisedHamali !== undefined) updates.revisedHamali = finalData.revisedHamali;
       if (finalData.revisedLf !== undefined) updates.revisedLf = finalData.revisedLf;
       if (finalData.revisedRateOption !== undefined) updates.revisedRateOption = finalData.revisedRateOption;
+
+      // When the admin directly submits/updates a dispute or revision, automatically create and append to disputeVersions
+      const isDispute = finalData.disputeBaseRate !== undefined && finalData.disputeBaseRate !== null && finalData.disputeBaseRate !== '';
+      const isRevision = (finalData.revisedHamali !== undefined && finalData.revisedHamali !== null && finalData.revisedHamali !== '')
+        || (finalData.revisedLf !== undefined && finalData.revisedLf !== null && finalData.revisedLf !== '');
+
+      if (isDispute || isRevision) {
+        const disputeVersions = Array.isArray(offering.disputeVersions) ? [...offering.disputeVersions] : [];
+        let hasChangesToAppend = false;
+
+        if (isDispute) {
+          disputeVersions.push({
+            id: `disp-${Date.now()}-d-${Math.random().toString(36).slice(2, 6)}`,
+            type: 'dispute',
+            disputeBaseRate: finalData.disputeBaseRate,
+            disputeBaseRateType: finalData.disputeBaseRateType || null,
+            revisedHamali: null,
+            revisedLf: null,
+            revisedRateOption: null,
+            hamaliUnit: offering.hamaliUnit || 'per_bag',
+            lfUnit: offering.lfUnit || 'per_bag',
+            requestedBy: userId,
+            requestedByName: updatedByFullName,
+            requestedAt: new Date(),
+            approvedBy: userId,
+            approvedByName: updatedByFullName,
+            approvedAt: new Date(),
+            linkedDisputeRequestId: null,
+            linkedDisputeLabel: null
+          });
+          hasChangesToAppend = true;
+        }
+
+        if (isRevision) {
+          disputeVersions.push({
+            id: `disp-${Date.now()}-r-${Math.random().toString(36).slice(2, 6)}`,
+            type: 'revision',
+            disputeBaseRate: null,
+            disputeBaseRateType: null,
+            revisedHamali: finalData.revisedHamali !== undefined ? finalData.revisedHamali : null,
+            revisedLf: finalData.revisedLf !== undefined ? finalData.revisedLf : null,
+            revisedRateOption: finalData.revisedRateOption || null,
+            hamaliUnit: finalData.hamaliUnit || offering.hamaliUnit || 'per_bag',
+            lfUnit: finalData.lfUnit || offering.lfUnit || 'per_bag',
+            requestedBy: userId,
+            requestedByName: updatedByFullName,
+            requestedAt: new Date(),
+            approvedBy: userId,
+            approvedByName: updatedByFullName,
+            approvedAt: new Date(),
+            linkedDisputeRequestId: finalData.linkedDisputeRequestId || null,
+            linkedDisputeLabel: finalData.linkedDisputeLabel || null
+          });
+          hasChangesToAppend = true;
+        }
+
+        if (hasChangesToAppend) {
+          updates.disputeVersions = disputeVersions;
+        }
+      }
     }
 
     if (userRole === 'manager') {
