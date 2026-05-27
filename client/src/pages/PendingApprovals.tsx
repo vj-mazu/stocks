@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import axios from 'axios';
+import { API_URL } from '../config/api';
 import { toast } from '../utils/toast';
 import { useAuth } from '../contexts/AuthContext';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -9,6 +10,13 @@ import ConfirmationModal from '../components/ConfirmationModal';
 const formatCutting = (cutting: string | null | undefined): string => {
     if (!cutting) return '-';
     return cutting.replace(/[Xx]/g, ' x ').replace(/\s+/g, ' ').trim();
+};
+const resolveMediaUrl = (value?: string | null) => {
+    const url = String(value || '').trim();
+    if (!url) return '';
+    if (/^https?:\/\//i.test(url)) return url;
+    const baseUrl = API_URL.replace(/\/api\/?$/, '');
+    return url.startsWith('/') ? `${baseUrl}${url}` : `${baseUrl}/${url}`;
 };
 const Container = styled.div`
   animation: fadeIn 0.5s ease-in;
@@ -645,7 +653,7 @@ interface PendingRiceHamali {
     creatorRole?: string;
 }
 
-type TabType = 'arrivals' | 'rice-production' | 'rice-stock' | 'paddy-hamali' | 'rice-hamali' | 'purchase-rates';
+type TabType = 'arrivals' | 'rice-production' | 'rice-stock' | 'paddy-hamali' | 'rice-hamali' | 'purchase-rates' | 'lorry-quality';
 
 const PendingApprovals: React.FC = () => {
     const { user } = useAuth();
@@ -657,6 +665,8 @@ const PendingApprovals: React.FC = () => {
     const [pendingArrivals, setPendingArrivals] = useState<PendingArrival[]>([]);
     const [pendingRiceProductions, setPendingRiceProductions] = useState<PendingRiceProduction[]>([]);
     const [pendingPurchaseRates, setPendingPurchaseRates] = useState<PendingPurchaseRate[]>([]);
+    const [pendingLorryInspections, setPendingLorryInspections] = useState<any[]>([]);
+    const [selectedLorryForComparison, setSelectedLorryForComparison] = useState<any>(null);
 
     // Selection states
     const [selectedArrivalIds, setSelectedArrivalIds] = useState<number[]>([]);
@@ -724,6 +734,12 @@ const PendingApprovals: React.FC = () => {
                 const data = response.data as { rates: PendingPurchaseRate[] };
                 setPendingPurchaseRates(data.rates || []);
                 setSelectedRateIds([]);
+            } else if (activeTab === 'lorry-quality') {
+                const token = localStorage.getItem('token');
+                const response = await axios.get(`${API_URL}/sample-entries/by-role?status=PHYSICAL_INSPECTION`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setPendingLorryInspections(response.data.entries || []);
             }
         } catch (error) {
             console.error('Error fetching pending data:', error);
@@ -1051,6 +1067,141 @@ const PendingApprovals: React.FC = () => {
             setProcessing(false);
             setModalConfig({ isOpen: false, title: '', message: '', type: 'confirm', actionType: null });
         }
+    };
+
+    const handleApproveLorryQuality = async (entryId: string) => {
+        try {
+            setProcessing(true);
+            const token = localStorage.getItem('token');
+            await axios.post(
+                `${API_URL}/sample-entries/${entryId}/transition`,
+                { toStatus: 'INVENTORY_ENTRY' },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            toast.success('Lorry Loaded Quality Approved! Status moved to Inventory Entry.');
+            fetchData();
+        } catch (error: any) {
+            console.error('Error approving lorry quality:', error);
+            toast.error(error.response?.data?.error || 'Failed to approve lorry quality');
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    const handleRejectLorryQuality = async (entryId: string) => {
+        try {
+            setProcessing(true);
+            const token = localStorage.getItem('token');
+            await axios.post(
+                `${API_URL}/sample-entries/${entryId}/transition`,
+                { toStatus: 'LOT_ALLOTMENT' },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            toast.success('Lorry Loaded Quality Rejected! Moved back to Lot Allotment.');
+            fetchData();
+        } catch (error: any) {
+            console.error('Error rejecting lorry quality:', error);
+            toast.error(error.response?.data?.error || 'Failed to reject lorry quality');
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    const renderLorryQualityTable = () => {
+        if (pendingLorryInspections.length === 0) {
+            return (
+                <div style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8', fontSize: '1.1rem' }}>
+                    No pending lorry quality approvals.
+                </div>
+            );
+        }
+
+        return (
+            <TableContainer className="table-container">
+                <Table className="lorry-quality-table">
+                    <thead>
+                        <tr>
+                            <th>Party Name</th>
+                            <th>Variety</th>
+                            <th>Location</th>
+                            <th>Total Bags Allotted</th>
+                            <th>Lorry Numbers & Progress</th>
+                            <th>Last Sampled Date</th>
+                            <th>Reported By</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {pendingLorryInspections.map((entry) => {
+                            return (
+                                <tr key={entry.id}>
+                                    <td style={{ fontWeight: 'bold' }}>{entry.partyName || '-'}</td>
+                                    <td>{entry.variety || '-'}</td>
+                                    <td>{entry.location || '-'}</td>
+                                    <td>{entry.lotAllotment?.allottedBags || entry.bags || 0} Bags</td>
+                                    <td>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                            {entry.physicalInspections?.map((insp: any) => {
+                                                const stages = insp.samplingStages || {};
+                                                const stageNames = Object.keys(stages).map(s => s.toUpperCase().replace('_', ' ')).join(', ');
+                                                return (
+                                                    <div key={insp.id}>
+                                                        <span
+                                                            onClick={() => setSelectedLorryForComparison(insp)}
+                                                            style={{ color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', fontWeight: '700' }}
+                                                            title="Click to view side-by-side stage comparison"
+                                                        >
+                                                            {insp.lorryNumber?.toUpperCase()}
+                                                        </span>
+                                                        <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '6px' }}>({stageNames || 'None'})</span>
+                                                    </div>
+                                                );
+                                            }) || 'No inspections'}
+                                        </div>
+                                    </td>
+                                    <td>{entry.physicalInspections?.[0]?.inspectionDate || '-'}</td>
+                                    <td>{entry.physicalInspections?.[0]?.reportedBy?.username || '-'}</td>
+                                    <td>
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            <button
+                                                onClick={() => handleApproveLorryQuality(entry.id)}
+                                                style={{
+                                                    padding: '6px 12px',
+                                                    backgroundColor: '#27ae60',
+                                                    color: 'white',
+                                                    border: 'none',
+                                                    borderRadius: '4px',
+                                                    fontWeight: 'bold',
+                                                    cursor: 'pointer',
+                                                    fontSize: '11px'
+                                                }}
+                                            >
+                                                Approve
+                                            </button>
+                                            <button
+                                                onClick={() => handleRejectLorryQuality(entry.id)}
+                                                style={{
+                                                    padding: '6px 12px',
+                                                    backgroundColor: '#e74c3c',
+                                                    color: 'white',
+                                                    border: 'none',
+                                                    borderRadius: '4px',
+                                                    fontWeight: 'bold',
+                                                    cursor: 'pointer',
+                                                    fontSize: '11px'
+                                                }}
+                                            >
+                                                Reject
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </Table>
+            </TableContainer>
+        );
     };
 
     const getDestination = (arrival: PendingArrival) => {
@@ -1740,6 +1891,10 @@ const PendingApprovals: React.FC = () => {
                         {pendingPurchaseRates.length > 0 && <Badge color="#8b5cf6">{pendingPurchaseRates.length}</Badge>}
                     </Tab>
                 )}
+                <Tab $active={activeTab === 'lorry-quality'} onClick={() => setActiveTab('lorry-quality')}>
+                    Lorry Quality
+                    {pendingLorryInspections.length > 0 && <Badge color="#1565c0">{pendingLorryInspections.length}</Badge>}
+                </Tab>
             </TabContainer>
 
             <ContentArea>
@@ -1749,6 +1904,7 @@ const PendingApprovals: React.FC = () => {
                 {activeTab === 'paddy-hamali' && renderPaddyHamaliTable()}
                 {activeTab === 'rice-hamali' && renderRiceHamaliTable()}
                 {activeTab === 'purchase-rates' && renderPurchaseRatesTable()}
+                {activeTab === 'lorry-quality' && renderLorryQualityTable()}
             </ContentArea>
 
             <ConfirmationModal
@@ -1761,6 +1917,149 @@ const PendingApprovals: React.FC = () => {
                 onCancel={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}
                 confirmText={modalConfig.type === 'approve' ? 'Approve' : (modalConfig.type === 'reject' ? 'Reject' : 'Confirm')}
             />
+
+            {selectedLorryForComparison && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        backgroundColor: 'rgba(0,0,0,0.55)',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        zIndex: 20000,
+                        padding: '16px'
+                    }}
+                    onClick={() => setSelectedLorryForComparison(null)}
+                >
+                    <div
+                        style={{
+                            background: '#ffffff',
+                            width: '100%',
+                            maxWidth: '1200px',
+                            borderRadius: '10px',
+                            boxShadow: '0 16px 50px rgba(0,0,0,0.25)',
+                            overflow: 'hidden',
+                            maxHeight: '90vh',
+                            display: 'flex',
+                            flexDirection: 'column'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div style={{ background: '#1565c0', color: '#fff', padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div>
+                                <div style={{ fontSize: '18px', fontWeight: '800' }}>
+                                    Lorry Sampling Stage Comparison
+                                </div>
+                                <div style={{ fontSize: '12px', opacity: 0.95, marginTop: '4px' }}>
+                                    Lorry Number: {selectedLorryForComparison.lorryNumber?.toUpperCase()} | Date: {selectedLorryForComparison.inspectionDate}
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setSelectedLorryForComparison(null)}
+                                style={{
+                                    background: 'rgba(255,255,255,0.2)',
+                                    border: 'none',
+                                    borderRadius: '50%',
+                                    width: '30px',
+                                    height: '30px',
+                                    color: 'white',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold',
+                                    fontSize: '14px'
+                                }}
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div style={{ padding: '16px 18px 18px', overflowY: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                                <thead>
+                                    <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '2px solid #cbd5e1' }}>
+                                        <th style={{ padding: '10px', textAlign: 'left', fontWeight: '800', width: '20%' }}>Parameter</th>
+                                        <th style={{ padding: '10px', textAlign: 'center', fontWeight: '800', backgroundColor: '#e0f2fe' }}>Lot Avg</th>
+                                        <th style={{ padding: '10px', textAlign: 'center', fontWeight: '800' }}>Half Lorry</th>
+                                        <th style={{ padding: '10px', textAlign: 'center', fontWeight: '800' }}>Nit Avg</th>
+                                        <th style={{ padding: '10px', textAlign: 'center', fontWeight: '800', backgroundColor: '#f0fdf4' }}>Full Avg Lorry</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {(() => {
+                                        const stages = selectedLorryForComparison.samplingStages || {};
+                                        const lot = stages.lot_avg || {};
+                                        const half = stages.half_lorry || {};
+                                        const nit = stages.nit_avg || {};
+                                        const full = stages.full_avg || {};
+
+                                        const formatField = (val: any) => {
+                                            if (val === null || val === undefined || val === '') return '-';
+                                            return String(val);
+                                        };
+
+                                        const formatMoisture = (stageObj: any) => {
+                                            const raw = stageObj.moistureRaw;
+                                            const val = stageObj.moisture;
+                                            if (raw) return `${raw}%`;
+                                            if (val) return `${val}%`;
+                                            return '-';
+                                        };
+
+                                        const formatCutting = (stageObj: any) => {
+                                            if (stageObj.cutting1 === undefined || stageObj.cutting1 === null) return '-';
+                                            return `${stageObj.cutting1} x ${stageObj.cutting2 || 0}`;
+                                        };
+
+                                        const formatBend = (stageObj: any) => {
+                                            if (stageObj.bend1 === undefined || stageObj.bend1 === null) return '-';
+                                            return `${stageObj.bend1} x ${stageObj.bend2 || 0}`;
+                                        };
+
+                                        const rows = [
+                                            ['Reported By', formatField(lot.reportedBy), formatField(half.reportedBy), formatField(nit.reportedBy), formatField(full.reportedBy)],
+                                            ['Reported At', lot.reportedAt ? new Date(lot.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-', half.reportedAt ? new Date(half.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-', nit.reportedAt ? new Date(nit.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-', full.reportedAt ? new Date(full.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-'],
+                                            ['Loaded Bags', '-', '-', '-', formatField(selectedLorryForComparison.bags)],
+                                            ['Photo', 
+                                                lot.imageUrl ? <a href={resolveMediaUrl(lot.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View Photo</a> : '-', 
+                                                half.imageUrl ? <a href={resolveMediaUrl(half.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View Photo</a> : '-', 
+                                                nit.imageUrl ? <a href={resolveMediaUrl(nit.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View Photo</a> : '-', 
+                                                full.imageUrl ? <a href={resolveMediaUrl(full.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View Photo</a> : '-'
+                                            ],
+                                            ['Moisture', formatMoisture(lot), formatMoisture(half), formatMoisture(nit), formatMoisture(full)],
+                                            ['Grains Count', formatField(lot.grainsCountRaw || lot.grainsCount), formatField(half.grainsCountRaw || half.grainsCount), formatField(nit.grainsCountRaw || nit.grainsCount), formatField(full.grainsCountRaw || full.grainsCount)],
+                                            ['Cutting', formatCutting(lot), formatCutting(half), formatCutting(nit), formatCutting(full)],
+                                            ['Bend', formatBend(lot), formatBend(half), formatBend(nit), formatBend(full)],
+                                            ['Mix', formatField(lot.mixRaw || lot.mix), formatField(half.mixRaw || half.mix), formatField(nit.mixRaw || nit.mix), formatField(full.mixRaw || full.mix)],
+                                            ['S Mix', lot.smixEnabled ? formatField((lot as any).mixSRaw || lot.mixS) || 'Yes' : 'No', half.smixEnabled ? formatField((half as any).mixSRaw || half.mixS) || 'Yes' : 'No', nit.smixEnabled ? formatField((nit as any).mixSRaw || nit.mixS) || 'Yes' : 'No', full.smixEnabled ? formatField((full as any).mixSRaw || full.mixS) || 'Yes' : 'No'],
+                                            ['L Mix', lot.lmixEnabled ? formatField((lot as any).mixLRaw || lot.mixL) || 'Yes' : 'No', half.lmixEnabled ? formatField((half as any).mixLRaw || half.mixL) || 'Yes' : 'No', nit.lmixEnabled ? formatField((nit as any).mixLRaw || nit.mixL) || 'Yes' : 'No', full.lmixEnabled ? formatField((full as any).mixLRaw || full.mixL) || 'Yes' : 'No'],
+                                            ['SK', formatField(lot.skRaw || lot.sk), formatField(half.skRaw || half.sk), formatField(nit.skRaw || nit.sk), formatField(full.skRaw || full.sk)],
+                                            ['Kandu', formatField(lot.kanduRaw || lot.kandu), formatField(half.kanduRaw || half.kandu), formatField(nit.kanduRaw || nit.kandu), formatField(full.kanduRaw || full.kandu)],
+                                            ['Oil', formatField(lot.oilRaw || lot.oil), formatField(half.oilRaw || half.oil), formatField(nit.oilRaw || nit.oil), formatField(full.oilRaw || full.oil)],
+                                            ['Smell', lot.smellHas ? 'Yes' : 'No', half.smellHas ? 'Yes' : 'No', nit.smellHas ? 'Yes' : 'No', full.smellHas ? 'Yes' : 'No'],
+                                            ['Paddy WB', lot.paddyWbEnabled ? formatField(lot.paddyWbRaw || lot.paddyWb) : 'No', half.paddyWbEnabled ? formatField(half.paddyWbRaw || half.paddyWb) : 'No', nit.paddyWbEnabled ? formatField(nit.paddyWbRaw || nit.paddyWb) : 'No', full.paddyWbEnabled ? formatField(full.paddyWbRaw || full.paddyWb) : 'No']
+                                        ];
+
+                                        return rows.map(([label, lotVal, halfVal, nitVal, fullVal], index) => (
+                                            <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                                <td style={{ padding: '8px 10px', fontWeight: '700', color: '#475569' }}>{label}</td>
+                                                <td style={{ padding: '8px 10px', textAlign: 'center', backgroundColor: '#f0f9ff' }}>{lotVal}</td>
+                                                <td style={{ padding: '8px 10px', textAlign: 'center' }}>{halfVal}</td>
+                                                <td style={{ padding: '8px 10px', textAlign: 'center' }}>{nitVal}</td>
+                                                <td style={{ padding: '8px 10px', textAlign: 'center', backgroundColor: '#f0fdf4' }}>{fullVal}</td>
+                                            </tr>
+                                        ));
+                                    })()}
+                                </tbody>
+                            </table>
+                            <button
+                                onClick={() => setSelectedLorryForComparison(null)}
+                                style={{ marginTop: '16px', width: '100%', padding: '9px', background: '#1565c0', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </Container>
     );
 };

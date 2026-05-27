@@ -976,75 +976,113 @@ const AllottedSupervisors: React.FC = () => {
 
                                        return (
                                          <>
-                                           {hasPendingDispute ? (
-                                             <div style={{
-                                               fontSize: '9px',
-                                               padding: '4px 6px',
-                                               backgroundColor: '#ffebee',
-                                               color: '#c62828',
-                                               border: '1px solid #c62828',
-                                               borderRadius: '3px',
-                                               textAlign: 'center',
-                                               width: '100%',
-                                               marginBottom: '3px',
-                                               fontWeight: '800'
-                                             }}>
-                                               ⚖️ Dispute Pending
-                                             </div>
-                                           ) : (
-                                             <button
-                                               onClick={() => handleOpenEditValues(entry, 'dispute')}
-                                               style={{
-                                                 fontSize: '10px',
-                                                 padding: '4px 8px',
-                                                 backgroundColor: '#e74c3c',
-                                                 color: 'white',
-                                                 border: 'none',
-                                                 borderRadius: '3px',
-                                                 cursor: 'pointer',
-                                                 width: '100%',
-                                                 marginBottom: '3px',
-                                                 fontWeight: '700'
-                                               }}
-                                             >
-                                               ⚖️ Dispute Rate
-                                             </button>
-                                           )}
+                                            {hasPendingDispute ? (
+                                              <div style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: '3px', marginBottom: '3px' }}>
+                                                <div style={{
+                                                  fontSize: '9px',
+                                                  padding: '4px 6px',
+                                                  backgroundColor: '#ffebee',
+                                                  color: '#c62828',
+                                                  border: '1px solid #c62828',
+                                                  borderRadius: '3px',
+                                                  textAlign: 'center',
+                                                  width: '100%',
+                                                  fontWeight: '800'
+                                                }}>
+                                                  ⚖️ Dispute Pending
+                                                </div>
+                                                {user?.role === 'admin' && (
+                                                  <button
+                                                    onClick={() => handleOpenEditValues(entry, 'dispute')}
+                                                    style={{
+                                                      fontSize: '10px',
+                                                      padding: '4px 8px',
+                                                      backgroundColor: '#f39c12',
+                                                      color: 'white',
+                                                      border: 'none',
+                                                      borderRadius: '3px',
+                                                      cursor: 'pointer',
+                                                      width: '100%',
+                                                      fontWeight: '700'
+                                                    }}
+                                                  >
+                                                    Update Dispute
+                                                  </button>
+                                                )}
+                                              </div>
+                                            ) : (
+                                              <button
+                                                onClick={() => handleOpenEditValues(entry, 'dispute')}
+                                                style={{
+                                                  fontSize: '10px',
+                                                  padding: '4px 8px',
+                                                  backgroundColor: '#e74c3c',
+                                                  color: 'white',
+                                                  border: 'none',
+                                                  borderRadius: '3px',
+                                                  cursor: 'pointer',
+                                                  width: '100%',
+                                                  marginBottom: '3px',
+                                                  fontWeight: '700'
+                                                }}
+                                              >
+                                                ⚖️ Dispute Rate
+                                              </button>
+                                            )}
 
-                                           {hasPendingRevision ? (
-                                             <div style={{
-                                               fontSize: '9px',
-                                               padding: '4px 6px',
-                                               backgroundColor: '#f3e5f5',
-                                               color: '#6a1b9a',
-                                               border: '1px solid #6a1b9a',
-                                               borderRadius: '3px',
-                                               textAlign: 'center',
-                                               width: '100%',
-                                               marginBottom: '3px',
-                                               fontWeight: '800'
-                                             }}>
-                                               ⚙️ Revision Pending
-                                             </div>
-                                           ) : (
-                                             <button
-                                               onClick={() => handleOpenEditValues(entry, 'hmlf')}
-                                               style={{
-                                                 fontSize: '10px',
-                                                 padding: '4px 8px',
-                                                 backgroundColor: '#8e44ad',
-                                                 color: 'white',
-                                                 border: 'none',
-                                                 borderRadius: '3px',
-                                                 cursor: 'pointer',
-                                                 width: '100%',
-                                                 marginBottom: '3px',
-                                                 fontWeight: '700'
-                                               }}
-                                             >
-                                               ⚙️ Revise HM | LF
-                                             </button>
-                                           )}
+                                            {hasPendingRevision ? (
+                                              <div style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: '3px', marginBottom: '3px' }}>
+                                                <div style={{
+                                                  fontSize: '9px',
+                                                  padding: '4px 6px',
+                                                  backgroundColor: '#f3e5f5',
+                                                  color: '#6a1b9a',
+                                                  border: '1px solid #6a1b9a',
+                                                  borderRadius: '3px',
+                                                  textAlign: 'center',
+                                                  width: '100%',
+                                                  fontWeight: '800'
+                                                }}>
+                                                  ⚙️ Revision Pending
+                                                </div>
+                                                {user?.role === 'admin' && (
+                                                  <button
+                                                    onClick={() => handleOpenEditValues(entry, 'hmlf')}
+                                                    style={{
+                                                      fontSize: '10px',
+                                                      padding: '4px 8px',
+                                                      backgroundColor: '#f39c12',
+                                                      color: 'white',
+                                                      border: 'none',
+                                                      borderRadius: '3px',
+                                                      cursor: 'pointer',
+                                                      width: '100%',
+                                                      fontWeight: '700'
+                                                    }}
+                                                  >
+                                                    Update Revision
+                                                  </button>
+                                                )}
+                                              </div>
+                                            ) : (
+                                              <button
+                                                onClick={() => handleOpenEditValues(entry, 'hmlf')}
+                                                style={{
+                                                  fontSize: '10px',
+                                                  padding: '4px 8px',
+                                                  backgroundColor: '#8e44ad',
+                                                  color: 'white',
+                                                  border: 'none',
+                                                  borderRadius: '3px',
+                                                  cursor: 'pointer',
+                                                  width: '100%',
+                                                  marginBottom: '3px',
+                                                  fontWeight: '700'
+                                                }}
+                                              >
+                                                ⚙️ Revise HM | LF
+                                              </button>
+                                            )}
                                          </>
                                        );
                                       })()}

@@ -295,7 +295,7 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
         headers: { Authorization: `Bearer ${token}` }
       });
       showNotification((response.data as any)?.message || `Request ${decision}d`, 'success');
-      setEntries((current) => current.filter((entry) => entry.id !== entryId));
+      setEntries((current) => current.filter((entry) => entry.pendingManagerValueApprovalRequestId !== requestId));
     } catch (error: any) {
       showNotification(error.response?.data?.error || 'Failed to update manager approval', 'error');
     } finally {

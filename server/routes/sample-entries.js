@@ -3346,7 +3346,8 @@ router.post('/:id/physical-inspection', authenticateToken, async (req, res) => {
 
     upload.fields([
       { name: 'halfLorryImage', maxCount: 1 },
-      { name: 'fullLorryImage', maxCount: 1 }
+      { name: 'fullLorryImage', maxCount: 1 },
+      { name: 'stageImage', maxCount: 1 }
     ])(req, res, async (err) => {
       if (err) {
         return res.status(400).json({ error: err.message });
@@ -3358,13 +3359,40 @@ router.post('/:id/physical-inspection', authenticateToken, async (req, res) => {
           sampleEntryId: req.params.id, // Keep as UUID string
           inspectionDate: req.body.inspectionDate,
           lorryNumber: req.body.lorryNumber,
-          actualBags: Number.parseInt(req.body.actualBags),
-          cutting1: Number.parseFloat(req.body.cutting1),
-          cutting2: Number.parseFloat(req.body.cutting2),
-          bend: req.body.bend1 ? Number.parseFloat(req.body.bend1) : Number.parseFloat(req.body.bend),
-          bend1: req.body.bend1 ? Number.parseFloat(req.body.bend1) : Number.parseFloat(req.body.bend),
-          bend2: req.body.bend2 ? Number.parseFloat(req.body.bend2) : 0,
-          remarks: req.body.remarks || null
+          stage: req.body.stage || null,
+          actualBags: req.body.actualBags ? Number.parseInt(req.body.actualBags) : 0,
+          moisture: req.body.moisture ? Number.parseFloat(req.body.moisture) : undefined,
+          moistureRaw: req.body.moistureRaw || null,
+          dryMoisture: req.body.dryMoisture ? Number.parseFloat(req.body.dryMoisture) : undefined,
+          dryMoistureRaw: req.body.dryMoistureRaw || null,
+          grainsCount: req.body.grainsCount ? Number.parseInt(req.body.grainsCount) : undefined,
+          grainsCountRaw: req.body.grainsCountRaw || null,
+          cutting1: req.body.cutting1 ? Number.parseFloat(req.body.cutting1) : undefined,
+          cutting2: req.body.cutting2 ? Number.parseFloat(req.body.cutting2) : undefined,
+          bend: req.body.bend1 ? Number.parseFloat(req.body.bend1) : (req.body.bend ? Number.parseFloat(req.body.bend) : undefined),
+          bend1: req.body.bend1 ? Number.parseFloat(req.body.bend1) : undefined,
+          bend2: req.body.bend2 ? Number.parseFloat(req.body.bend2) : undefined,
+          mix: req.body.mix || null,
+          mixRaw: req.body.mixRaw || null,
+          smixEnabled: req.body.smixEnabled,
+          mixS: req.body.mixS || null,
+          mixSRaw: req.body.mixS || null,
+          lmixEnabled: req.body.lmixEnabled,
+          mixL: req.body.mixL || null,
+          mixLRaw: req.body.mixL || null,
+          sk: req.body.sk || null,
+          skRaw: req.body.skRaw || null,
+          kandu: req.body.kandu || null,
+          kanduRaw: req.body.kanduRaw || null,
+          oil: req.body.oil || null,
+          oilRaw: req.body.oilRaw || null,
+          smellHas: req.body.smellHas,
+          smellType: req.body.smellType || null,
+          paddyWbEnabled: req.body.paddyWbEnabled,
+          paddyWb: req.body.paddyWb ? Number.parseFloat(req.body.paddyWb) : undefined,
+          paddyWbRaw: req.body.paddyWbRaw || null,
+          remarks: req.body.remarks || null,
+          reportedBy: req.user.username // Username of the supervisor
         };
 
         const inspection = await PhysicalInspectionService.createPhysicalInspection(
@@ -3374,12 +3402,13 @@ router.post('/:id/physical-inspection', authenticateToken, async (req, res) => {
         );
 
         // Upload images if provided (optional - don't fail if images not provided)
-        if (req.files && (req.files.halfLorryImage || req.files.fullLorryImage)) {
+        if (req.files && (req.files.halfLorryImage || req.files.fullLorryImage || req.files.stageImage)) {
           try {
             await PhysicalInspectionService.uploadInspectionImages(
               inspection.id,
               req.files,
-              req.user.userId
+              req.user.userId,
+              req.body.stage
             );
           } catch (imageError) {
             console.error('Error uploading images (non-critical):', imageError);
