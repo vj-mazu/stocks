@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 interface ApprovalEntry {
   id: string;
+  pendingManagerValueApprovalRequestId?: string;
   serialNo?: number;
   entryDate: string;
   brokerName?: string;
@@ -14,6 +15,9 @@ interface ApprovalEntry {
   variety?: string;
   bags?: number;
   packaging?: string;
+  entryType?: string;
+  originalEntryType?: string;
+  lorryNumber?: string;
   pendingManagerValueApprovalRequestedByName?: string;
   offering?: {
     pendingManagerValueApprovalRequestedAt?: string | null;
@@ -175,6 +179,36 @@ const buildPendingSummary = (data?: Record<string, any> | null, offering?: Recor
   return rows;
 };
 
+const buildOriginalSummary = (data?: Record<string, any> | null, offering?: Record<string, any>): PendingSummaryRow[] => {
+  const pendingData = data || {};
+  const rows: PendingSummaryRow[] = [];
+  const pushRow = (key: string, label: string, value: string) => {
+    rows.push({
+      key,
+      label,
+      value,
+      tone: {
+        background: '#f8fafc',
+        textColor: '#64748b',
+        border: '#cbd5e1',
+        labelBackground: '#e2e8f0',
+        labelColor: '#475569'
+      }
+    });
+  };
+
+  if (pendingData.disputeBaseRate !== undefined && pendingData.disputeBaseRate !== null && pendingData.disputeBaseRate !== '') {
+    pushRow('disputeBaseRate', 'Orig. Rate', `₹${toDisplayNumber(offering?.finalBaseRate ?? offering?.offerBaseRateValue)} (${offering?.baseRateType || 'PD/WB'})`);
+  }
+  if (pendingData.revisedHamali !== undefined && pendingData.revisedHamali !== null && pendingData.revisedHamali !== '') {
+    pushRow('revisedHamali', 'Orig. Hamali', `₹${toDisplayNumber(offering?.hamali)} ${formatChargeUnit(offering?.hamaliUnit)}`.trim());
+  }
+  if (pendingData.revisedLf !== undefined && pendingData.revisedLf !== null && pendingData.revisedLf !== '') {
+    pushRow('revisedLf', 'Orig. LF', `₹${toDisplayNumber(offering?.lf)} ${formatChargeUnit(offering?.lfUnit)}`.trim());
+  }
+  return rows;
+};
+
 interface ManagerValueApprovalsProps {
   onCountChange?: (count: number) => void;
   filterType?: 'standard' | 'lorry';
@@ -250,12 +284,13 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
     ) : null
   ), [filteredEntries.length]);
 
-  const handleDecision = async (entryId: string, decision: 'approve' | 'reject') => {
+  const handleDecision = async (entryId: string, requestId: string | undefined, decision: 'approve' | 'reject') => {
     try {
       setSubmittingId(entryId);
       const token = localStorage.getItem('token');
       const response = await axios.post(`${API_URL}/sample-entries/${entryId}/manager-value-approval-decision`, {
-        decision
+        decision,
+        requestId
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -295,7 +330,8 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
               <col style={{ width: '120px' }} />
               <col style={{ width: '110px' }} />
               <col style={{ width: '110px' }} />
-              <col style={{ width: '90px' }} />
+              <col style={{ width: '110px' }} />
+              {filterType === 'lorry' && <col style={{ width: '150px' }} />}
               <col style={{ width: '150px' }} />
               <col style={{ width: '110px' }} />
               <col style={{ width: '120px' }} />
@@ -303,7 +339,7 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
             </colgroup>
             <thead>
               <tr style={{ background: '#0f172a', color: '#fff' }}>
-                {['Sl No', 'Broker', 'Party', 'Location', 'Variety', 'Bags', 'Pending Values', 'Requested By', 'Requested At', 'Action'].map((header) => (
+                {['Sl No', 'Broker', 'Party', 'Location', 'Variety', 'Bags', ...(filterType === 'lorry' ? ['Original Values'] : []), 'Pending Values', 'Requested By', 'Requested At', 'Action'].map((header) => (
                   <th key={header} style={{ padding: '6px 8px', border: '1.5px solid #0f172a', fontSize: '11px', textAlign: 'left', whiteSpace: 'nowrap', lineHeight: 1.15 }}>{header}</th>
                 ))}
               </tr>
@@ -312,31 +348,67 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
               {filteredEntries.map((entry, index) => {
                 const summaryRows = buildPendingSummary(entry.offering?.pendingManagerValueApprovalData, entry.offering);
                 return (
-                  <tr key={entry.id} style={{ background: index % 2 === 0 ? '#fff7ed' : '#fffbeb' }}>
+                  <tr key={`${entry.id}-${entry.pendingManagerValueApprovalRequestId || index}`} style={{ background: index % 2 === 0 ? '#fff7ed' : '#fffbeb' }}>
                     <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', fontWeight: 700, fontSize: '11px', verticalAlign: 'top', textAlign: 'left' }}>{index + 1}</td>
                     <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', verticalAlign: 'top', fontWeight: 700, fontSize: '13px', color: '#0f172a', lineHeight: 1.2, textAlign: 'left' }}>
                       {toTitleCase(entry.brokerName || '-')}
                     </td>
                     <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', verticalAlign: 'top', textAlign: 'left' }}>
-                      <div style={{ fontWeight: 700, fontSize: '13px', color: '#334155', lineHeight: 1.2 }}>{toTitleCase(entry.partyName || '-')}</div>
+                      {(() => {
+                        const isLorryEntry = entry.entryType === 'DIRECT_LOADED_VEHICLE' || 
+                                             entry.entryType === 'READY_LORRY' || 
+                                             entry.originalEntryType === 'DIRECT_LOADED_VEHICLE' || 
+                                             entry.originalEntryType === 'READY_LORRY';
+                        const partyText = toTitleCase(entry.partyName || '').trim();
+                        const lorryText = entry.lorryNumber ? entry.lorryNumber.toUpperCase().trim() : '';
+                        const primaryText = isLorryEntry ? (lorryText || partyText || '-') : (partyText || lorryText || '-');
+                        const secondaryText = isLorryEntry && partyText && lorryText && partyText.toUpperCase() !== lorryText ? partyText : '';
+
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <div style={{ fontWeight: 700, fontSize: '13px', color: '#1e3a8a', lineHeight: 1.2 }}>{primaryText}</div>
+                            {secondaryText && <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>{secondaryText}</div>}
+                          </div>
+                        );
+                      })()}
                       <div style={{
-                        marginTop: '4px',
+                        marginTop: '6px',
                         display: 'inline-flex',
                         alignItems: 'center',
                         padding: '2px 6px',
                         borderRadius: '999px',
-                        fontSize: '10px',
+                        fontSize: '9px',
                         fontWeight: 800,
-                        color: '#9a3412',
-                        background: '#ffedd5',
-                        border: '1px solid #fdba74'
+                        color: filterType === 'lorry' ? '#7e22ce' : '#9a3412',
+                        background: filterType === 'lorry' ? '#f3e8ff' : '#ffedd5',
+                        border: filterType === 'lorry' ? '1px solid #d8b4fe' : '1px solid #fdba74'
                       }}>
-                        Manager Added Pending Approval
+                        {filterType === 'lorry' ? 'Dispute / Revised Pending Approval' : 'Manager Added Pending Approval'}
                       </div>
                     </td>
                     <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', fontSize: '13px', fontWeight: 700, color: '#334155', verticalAlign: 'top', lineHeight: 1.15, textAlign: 'left' }}>{toTitleCase(entry.location || '-')}</td>
                     <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', fontSize: '13px', fontWeight: 700, color: '#334155', verticalAlign: 'top', lineHeight: 1.15, textAlign: 'left' }}>{toTitleCase(entry.variety || '-')}</td>
                     <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', fontSize: '13px', fontWeight: 700, color: '#334155', verticalAlign: 'top', lineHeight: 1.15, textAlign: 'left' }}>{entry.bags || '-'} | {formatPackagingLabel(entry.packaging || '-')}</td>
+                    {filterType === 'lorry' && (
+                      <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', verticalAlign: 'top', textAlign: 'left' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          {(() => {
+                            const origRows = buildOriginalSummary(entry.offering?.pendingManagerValueApprovalData, entry.offering);
+                            if (origRows.length === 0) {
+                              return (
+                                <div style={{ fontSize: '12px', color: '#64748b', background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '4px 6px', lineHeight: 1.2 }}>-</div>
+                              );
+                            }
+                            return origRows.map((row) => (
+                              <div key={row.key} style={{ fontSize: '11px', color: row.tone.textColor, background: row.tone.background, border: `1.5px solid ${row.tone.border}`, borderRadius: '7px', padding: '3px 5px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'nowrap', justifyContent: 'space-between', width: '100%', lineHeight: 1.15 }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '62px', flexShrink: 0, padding: '2px 5px', borderRadius: '999px', background: row.tone.labelBackground, color: row.tone.labelColor, fontSize: '11px', fontWeight: 800 }}>{row.label}</span>
+                                <span style={{ fontWeight: 700, fontSize: '12px', color: row.tone.textColor, flex: 1, minWidth: 0, textAlign: 'right', whiteSpace: 'normal', overflowWrap: 'anywhere', lineHeight: 1.1 }}>{row.value}</span>
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                      </td>
+                    )}
                     <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', verticalAlign: 'top', textAlign: 'left' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                         {summaryRows.length === 0 ? (
@@ -392,14 +464,14 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
                     <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', verticalAlign: 'top', textAlign: 'left' }}>
                       <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-start' }}>
                         <button
-                          onClick={() => handleDecision(entry.id, 'approve')}
+                          onClick={() => handleDecision(entry.id, entry.pendingManagerValueApprovalRequestId, 'approve')}
                           disabled={submittingId === entry.id}
                           style={{ padding: '5px 9px', border: 'none', borderRadius: '6px', background: '#16a34a', color: '#fff', fontWeight: 700, cursor: submittingId === entry.id ? 'not-allowed' : 'pointer', fontSize: '11px', lineHeight: 1.1 }}
                         >
                           Approve
                         </button>
                         <button
-                          onClick={() => handleDecision(entry.id, 'reject')}
+                          onClick={() => handleDecision(entry.id, entry.pendingManagerValueApprovalRequestId, 'reject')}
                           disabled={submittingId === entry.id}
                           style={{ padding: '5px 9px', border: 'none', borderRadius: '6px', background: '#dc2626', color: '#fff', fontWeight: 700, cursor: submittingId === entry.id ? 'not-allowed' : 'pointer', fontSize: '11px', lineHeight: 1.1 }}
                         >

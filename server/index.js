@@ -1678,6 +1678,30 @@ const startServer = async () => {
         console.log('Migration 127 warning:', error.message);
       }
 
+      try {
+        const addRevisedRateOption = require('./migrations/128_add_revised_rate_option_to_offerings');
+        await addRevisedRateOption.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('Migration 128: revised_rate_option field added');
+      } catch (error) {
+        console.log('Migration 128 warning:', error.message);
+      }
+
+      try {
+        const addPendingManagerValueApprovalQueue = require('./migrations/129_add_pending_manager_value_approval_queue_to_offerings');
+        await addPendingManagerValueApprovalQueue.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('Migration 129: pending_manager_value_approval_queue field added');
+      } catch (error) {
+        console.log('Migration 129 warning:', error.message);
+      }
+
+      try {
+        const addDisputeVersions = require('./migrations/130_add_dispute_versions_to_offerings');
+        await addDisputeVersions.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('Migration 130: dispute_versions field added');
+      } catch (error) {
+        console.log('Migration 130 warning:', error.message);
+      }
+
     // Default warehouses removed - users should create their own warehouses
 
     // Create default users if they don't exist

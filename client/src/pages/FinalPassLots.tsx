@@ -1141,7 +1141,7 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
   const handleOpenFinalModal = async (entry: SampleEntry) => {
     setSelectedEntry(entry);
     setFinalResample(false);
-    setResampleCollectedBy(entry.sampleCollectedBy || '');
+    setResampleCollectedBy('');
     // Fetch offering data to auto-populate
     try {
       const token = localStorage.getItem('token');
@@ -1308,7 +1308,7 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
           remarks: finalData.remarks,
           isFinalized: true,
           resampleAfterFinal: finalResample,
-          resampleCollectedBy: finalResample ? resampleCollectedBy : null
+          resampleCollectedBy: finalResample && selectedEntry.entryType === 'LOCATION_SAMPLE' ? resampleCollectedBy : null
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );

@@ -197,6 +197,12 @@ const SampleEntryOffering = sequelize.define('SampleEntryOffering', {
         defaultValue: [],
         field: 'offer_versions'
     },
+    disputeVersions: {
+        type: DataTypes.JSONB,
+        allowNull: true,
+        defaultValue: [],
+        field: 'dispute_versions'
+    },
     activeOfferKey: {
         type: DataTypes.STRING(20),
         allowNull: true,
@@ -312,6 +318,12 @@ const SampleEntryOffering = sequelize.define('SampleEntryOffering', {
         allowNull: true,
         field: 'revised_lf'
     },
+    revisedRateOption: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+        defaultValue: 'final',
+        field: 'revised_rate_option'
+    },
     pendingManagerValueApprovalStatus: {
         type: DataTypes.STRING(20),
         allowNull: true,
@@ -321,6 +333,11 @@ const SampleEntryOffering = sequelize.define('SampleEntryOffering', {
         type: DataTypes.JSONB,
         allowNull: true,
         field: 'pending_manager_value_approval_data'
+    },
+    pendingManagerValueApprovalQueue: {
+        type: DataTypes.JSONB,
+        allowNull: true,
+        field: 'pending_manager_value_approval_queue'
     },
     pendingManagerValueApprovalRequestedBy: {
         type: DataTypes.INTEGER,

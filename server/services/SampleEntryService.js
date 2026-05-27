@@ -423,6 +423,43 @@ const getActiveOffer = (versions = [], activeOfferKey) => {
   return versions.find((offer) => offer.key === activeOfferKey) || getLatestOffer(versions);
 };
 
+const createPendingManagerApprovalRequest = (data, requestedBy, requestedAt = new Date()) => ({
+  id: typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `mgr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  data: data || {},
+  requestedBy: requestedBy || null,
+  requestedAt: requestedAt instanceof Date ? requestedAt.toISOString() : requestedAt
+});
+
+const normalizePendingManagerApprovalQueue = (offering) => {
+  const queue = Array.isArray(offering?.pendingManagerValueApprovalQueue)
+    ? offering.pendingManagerValueApprovalQueue
+        .filter((item) => item && typeof item === 'object' && item.data && typeof item.data === 'object')
+        .map((item) => ({
+          id: item.id || `mgr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          data: item.data || {},
+          requestedBy: item.requestedBy ?? null,
+          requestedAt: item.requestedAt || null
+        }))
+    : [];
+
+  if (queue.length > 0) return queue;
+
+  const legacyData = offering?.pendingManagerValueApprovalData;
+  if (legacyData && typeof legacyData === 'object' && Object.keys(legacyData).length > 0) {
+    return [
+      createPendingManagerApprovalRequest(
+        legacyData,
+        offering?.pendingManagerValueApprovalRequestedBy || null,
+        offering?.pendingManagerValueApprovalRequestedAt || new Date()
+      )
+    ];
+  }
+
+  return [];
+};
+
 const buildOfferPayload = (priceData, existingOffer = {}, slotKey) => {
   const baseRateType = String(priceData.baseRateType || existingOffer.baseRateType || priceData.offerBaseRate || 'PD_WB').trim().toUpperCase();
   const baseRateUnit = normalizeRateUnit(priceData.baseRateUnit || existingOffer.baseRateUnit || priceData.perUnit || 'per_bag');
@@ -583,12 +620,14 @@ class SampleEntryService {
 
     const plain = typeof offeringRecord.toJSON === 'function' ? offeringRecord.toJSON() : offeringRecord;
     const offerVersions = ensureOfferVersions(plain);
+    const disputeVersions = Array.isArray(plain.disputeVersions) ? plain.disputeVersions : [];
     const latestOffer = getLatestOffer(offerVersions);
     const activeOffer = getActiveOffer(offerVersions, plain.activeOfferKey);
 
     return {
       ...plain,
       offerVersions,
+      disputeVersions,
       offerCount: offerVersions.length,
       hasMultipleOffers: offerVersions.length > 1,
       activeOfferKey: activeOffer?.key || plain.activeOfferKey || null,
@@ -956,7 +995,8 @@ class SampleEntryService {
         ['isFinalized'],
         ['disputeBaseRate', 'disputeBaseRateType'],
         ['revisedHamali', 'hamaliUnit'],
-        ['revisedLf', 'lfUnit']
+        ['revisedLf', 'lfUnit'],
+        ['revisedRateOption']
       ];
 
       for (const fieldGroup of pendingFieldGroups) {
@@ -965,14 +1005,21 @@ class SampleEntryService {
         
         let filteredKeys = [...providedKeys];
         if (providedKeys.includes('revisedHamali')) {
-          const baselineHamali = normalizeComparableValue(offering.hamali);
+          // Compare against already-approved revisedHamali (if any), else fall back to original hamali
+          // This allows a manager to submit a new revision even after a prior one was approved
+          const baselineHamali = normalizeComparableValue(
+            offering.revisedHamali != null ? offering.revisedHamali : offering.hamali
+          );
           const newRevisedHamali = normalizeComparableValue(finalData.revisedHamali);
           if (baselineHamali === newRevisedHamali) {
             filteredKeys = filteredKeys.filter(k => k !== 'revisedHamali' && k !== 'hamaliUnit');
           }
         }
         if (providedKeys.includes('revisedLf')) {
-          const baselineLf = normalizeComparableValue(offering.lf);
+          // Compare against already-approved revisedLf (if any), else fall back to original lf
+          const baselineLf = normalizeComparableValue(
+            offering.revisedLf != null ? offering.revisedLf : offering.lf
+          );
           const newRevisedLf = normalizeComparableValue(finalData.revisedLf);
           if (baselineLf === newRevisedLf) {
             filteredKeys = filteredKeys.filter(k => k !== 'revisedLf' && k !== 'lfUnit');
@@ -987,13 +1034,94 @@ class SampleEntryService {
         }
       }
 
+      if (Object.keys(pendingData).length === 0) {
+        return this.formatOfferingPayload(offering);
+      }
+
+      const pendingQueue = normalizePendingManagerApprovalQueue(offering);
+
+      const queueDisputeRequests = pendingQueue.filter((request) => {
+        const requestData = request?.data || {};
+        return requestData.disputeBaseRate !== undefined && requestData.disputeBaseRate !== null && requestData.disputeBaseRate !== '';
+      });
+      const isDisputeRequest = pendingData.disputeBaseRate !== undefined && pendingData.disputeBaseRate !== null && pendingData.disputeBaseRate !== '';
+      const isRevisionRequest =
+        (pendingData.revisedHamali !== undefined && pendingData.revisedHamali !== null && pendingData.revisedHamali !== '')
+        || (pendingData.revisedLf !== undefined && pendingData.revisedLf !== null && pendingData.revisedLf !== '');
+
+      if (isDisputeRequest) {
+        pendingData.__requestType = 'dispute';
+      }
+
+      if (isRevisionRequest) {
+        pendingData.__requestType = 'revision';
+        pendingData.__rateTarget = pendingData.revisedRateOption || 'final';
+      }
+
+      // Validate: if revised rate is targeted for dispute, a dispute base rate must exist
+      if (pendingData.revisedRateOption === 'dispute') {
+        const existingDisputeRate = offering.disputeBaseRate;
+        const incomingDisputeRate = pendingData.disputeBaseRate;
+        if ((existingDisputeRate == null || existingDisputeRate === '') &&
+            (incomingDisputeRate == null || incomingDisputeRate === '')) {
+          throw new Error('Cannot set revised rate for dispute: no dispute rate exists for this lot. Please set a dispute rate first.');
+        }
+
+        const linkedDisputeRequestId = String(finalData.linkedDisputeRequestId || '').trim();
+        if (linkedDisputeRequestId) {
+          const linkedPending = queueDisputeRequests.find((request) => request.id === linkedDisputeRequestId);
+          const approvedDisputes = Array.isArray(offering.disputeVersions)
+            ? offering.disputeVersions.filter((v) => v.type === 'dispute' || (v.disputeBaseRate !== undefined && v.disputeBaseRate !== null && v.disputeBaseRate !== ''))
+            : [];
+          const linkedApproved = approvedDisputes.find((v) => v.id === linkedDisputeRequestId);
+
+          if (linkedPending) {
+            pendingData.__linkedDisputeRequestId = linkedDisputeRequestId;
+            pendingData.__linkedDisputeLabel = `Dispute ${linkedPending.data.disputeBaseRate} (${linkedPending.data.disputeBaseRateType || 'PD/WB'})`;
+          } else if (linkedApproved) {
+            pendingData.__linkedDisputeRequestId = linkedDisputeRequestId;
+            pendingData.__linkedDisputeLabel = `Dispute ${linkedApproved.disputeBaseRate} (${linkedApproved.disputeBaseRateType || 'PD/WB'})`;
+          } else if (linkedDisputeRequestId === 'legacy-approved' && offering.disputeBaseRate) {
+            pendingData.__linkedDisputeRequestId = 'legacy-approved';
+            pendingData.__linkedDisputeLabel = `Dispute ${offering.disputeBaseRate} (${offering.disputeBaseRateType || 'PD/WB'})`;
+          } else {
+            throw new Error('Selected dispute request was not found for this lot.');
+          }
+        } else {
+          const approvedDisputes = Array.isArray(offering.disputeVersions)
+            ? offering.disputeVersions.filter((v) => v.type === 'dispute' || (v.disputeBaseRate !== undefined && v.disputeBaseRate !== null && v.disputeBaseRate !== ''))
+            : [];
+          const hasLegacyApproved = (approvedDisputes.length === 0 && offering.disputeBaseRate != null && offering.disputeBaseRate !== '');
+          const totalDisputes = approvedDisputes.length + queueDisputeRequests.length + (hasLegacyApproved ? 1 : 0);
+
+          if (totalDisputes > 1) {
+            throw new Error('Please select which dispute this HM/LF revision belongs to.');
+          } else if (queueDisputeRequests.length === 1) {
+            const req = queueDisputeRequests[0];
+            pendingData.__linkedDisputeRequestId = req.id;
+            pendingData.__linkedDisputeLabel = `Dispute ${req.data.disputeBaseRate} (${req.data.disputeBaseRateType || 'PD/WB'})`;
+          } else if (approvedDisputes.length === 1) {
+            const req = approvedDisputes[0];
+            pendingData.__linkedDisputeRequestId = req.id;
+            pendingData.__linkedDisputeLabel = `Dispute ${req.disputeBaseRate} (${req.disputeBaseRateType || 'PD/WB'})`;
+          } else if (hasLegacyApproved) {
+            pendingData.__linkedDisputeRequestId = 'legacy-approved';
+            pendingData.__linkedDisputeLabel = `Dispute ${offering.disputeBaseRate} (${offering.disputeBaseRateType || 'PD/WB'})`;
+          }
+        }
+      }
+
+      const requestedAt = new Date();
+      pendingQueue.push(createPendingManagerApprovalRequest(pendingData, userId, requestedAt));
+
       await offering.update({
         updatedBy: userId,
         updatedByFullName,
         pendingManagerValueApprovalStatus: 'pending',
         pendingManagerValueApprovalData: pendingData,
+        pendingManagerValueApprovalQueue: pendingQueue,
         pendingManagerValueApprovalRequestedBy: userId,
-        pendingManagerValueApprovalRequestedAt: new Date(),
+        pendingManagerValueApprovalRequestedAt: requestedAt,
         pendingManagerValueApprovalApprovedBy: null,
         pendingManagerValueApprovalApprovedAt: null
       });
@@ -1046,6 +1174,7 @@ class SampleEntryService {
       if (finalData.disputeBaseRateType !== undefined) updates.disputeBaseRateType = finalData.disputeBaseRateType;
       if (finalData.revisedHamali !== undefined) updates.revisedHamali = finalData.revisedHamali;
       if (finalData.revisedLf !== undefined) updates.revisedLf = finalData.revisedLf;
+      if (finalData.revisedRateOption !== undefined) updates.revisedRateOption = finalData.revisedRateOption;
     }
 
     if (userRole === 'manager') {
@@ -1081,6 +1210,7 @@ class SampleEntryService {
       if (finalData.disputeBaseRateType !== undefined) updates.disputeBaseRateType = finalData.disputeBaseRateType;
       if (finalData.revisedHamali !== undefined) updates.revisedHamali = finalData.revisedHamali;
       if (finalData.revisedLf !== undefined) updates.revisedLf = finalData.revisedLf;
+      if (finalData.revisedRateOption !== undefined) updates.revisedRateOption = finalData.revisedRateOption;
     }
 
     await offering.update(updates);

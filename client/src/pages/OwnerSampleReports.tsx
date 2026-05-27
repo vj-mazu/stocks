@@ -42,7 +42,7 @@ const baseTabs: TabConfig[] = [
 ];
 
 const approvalTabs: TabConfig[] = [
-  { key: 'approvals', label: 'Approvals', icon: '\u{1F4DD}', color: '#8e44ad' }
+  { key: 'approvals', label: 'Paddy Approvals', icon: '\u{1F4DD}', color: '#8e44ad' }
 ];
 
 const OwnerSampleReports: React.FC = () => {

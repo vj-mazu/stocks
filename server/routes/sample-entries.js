@@ -1,5 +1,42 @@
 const express = require('express');
 const router = express.Router();
+
+const createPendingManagerApprovalRequest = (data, requestedBy, requestedAt = new Date()) => ({
+  id: typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `mgr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  data: data || {},
+  requestedBy: requestedBy || null,
+  requestedAt: requestedAt instanceof Date ? requestedAt.toISOString() : requestedAt
+});
+
+const normalizePendingManagerApprovalQueue = (offering) => {
+  const queue = Array.isArray(offering?.pendingManagerValueApprovalQueue)
+    ? offering.pendingManagerValueApprovalQueue
+        .filter((item) => item && typeof item === 'object' && item.data && typeof item.data === 'object')
+        .map((item) => ({
+          id: item.id || `mgr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          data: item.data || {},
+          requestedBy: item.requestedBy ?? null,
+          requestedAt: item.requestedAt || null
+        }))
+    : [];
+
+  if (queue.length > 0) return queue;
+
+  const legacyData = offering?.pendingManagerValueApprovalData;
+  if (legacyData && typeof legacyData === 'object' && Object.keys(legacyData).length > 0) {
+    return [
+      createPendingManagerApprovalRequest(
+        legacyData,
+        offering?.pendingManagerValueApprovalRequestedBy || null,
+        offering?.pendingManagerValueApprovalRequestedAt || new Date()
+      )
+    ];
+  }
+
+  return [];
+};
 const { auth: authenticateToken } = require('../middleware/auth');
 const SampleEntryService = require('../services/SampleEntryService');
 const QualityParametersService = require('../services/QualityParametersService');
@@ -1211,23 +1248,29 @@ router.get('/tabs/manager-value-approvals', authenticateToken, cacheMiddleware(1
       ]
     });
 
-    const requestUserIds = Array.from(new Set(entries
-      .map((entry) => entry?.offering?.pendingManagerValueApprovalRequestedBy)
-      .filter(Boolean)));
+    const pendingRequests = entries.flatMap((entry) => normalizePendingManagerApprovalQueue(entry?.offering));
+    const requestUserIds = Array.from(new Set(pendingRequests.map((request) => request.requestedBy).filter(Boolean)));
     const users = requestUserIds.length
       ? await User.findAll({ where: { id: requestUserIds }, attributes: ['id', 'username', 'fullName'], raw: true })
       : [];
     const userMap = new Map(users.map((user) => [user.id, user]));
 
-    const payload = entries.map((entry) => {
+    const payload = entries.flatMap((entry) => {
       const plain = entry.toJSON ? entry.toJSON() : entry;
-      const requester = plain.offering?.pendingManagerValueApprovalRequestedBy
-        ? userMap.get(plain.offering.pendingManagerValueApprovalRequestedBy)
-        : null;
-      return {
-        ...plain,
-        pendingManagerValueApprovalRequestedByName: requester?.fullName || requester?.username || ''
-      };
+      const queue = normalizePendingManagerApprovalQueue(plain.offering);
+      return queue.map((request) => {
+        const requester = request.requestedBy ? userMap.get(request.requestedBy) : null;
+        return {
+          ...plain,
+          pendingManagerValueApprovalRequestId: request.id,
+          pendingManagerValueApprovalRequestedByName: requester?.fullName || requester?.username || '',
+          offering: {
+            ...plain.offering,
+            pendingManagerValueApprovalData: request.data,
+            pendingManagerValueApprovalRequestedAt: request.requestedAt
+          }
+        };
+      });
     });
 
     return res.json({ entries: payload });
@@ -1350,6 +1393,7 @@ router.post('/:id/manager-value-approval-decision', authenticateToken, async (re
     }
 
     const nextDecision = String(req.body?.decision || '').trim().toLowerCase();
+    const requestId = String(req.body?.requestId || '').trim();
     if (!['approve', 'reject'].includes(nextDecision)) {
       return res.status(400).json({ error: 'Decision must be approve or reject' });
     }
@@ -1366,18 +1410,68 @@ router.post('/:id/manager-value-approval-decision', authenticateToken, async (re
       return res.status(400).json({ error: 'No pending manager approval found for this lot' });
     }
 
+    const pendingQueue = normalizePendingManagerApprovalQueue(offering);
+    if (pendingQueue.length === 0) {
+      return res.status(400).json({ error: 'No pending manager approval found for this lot' });
+    }
+
+    const requestIndex = requestId
+      ? pendingQueue.findIndex((item) => item.id === requestId)
+      : pendingQueue.length - 1;
+    if (requestIndex < 0) {
+      return res.status(404).json({ error: 'Pending manager approval request not found' });
+    }
+    const targetRequest = pendingQueue[requestIndex];
+
     if (nextDecision === 'reject') {
+      const remainingQueue = pendingQueue.filter((_, index) => index !== requestIndex);
+      const latestPending = remainingQueue[remainingQueue.length - 1] || null;
       await offering.update({
-        pendingManagerValueApprovalStatus: 'rejected',
-        pendingManagerValueApprovalApprovedBy: req.user.userId,
-        pendingManagerValueApprovalApprovedAt: new Date(),
-        pendingManagerValueApprovalData: null
+        pendingManagerValueApprovalStatus: latestPending ? 'pending' : 'rejected',
+        pendingManagerValueApprovalQueue: remainingQueue,
+        pendingManagerValueApprovalApprovedBy: latestPending ? null : req.user.userId,
+        pendingManagerValueApprovalApprovedAt: latestPending ? null : new Date(),
+        pendingManagerValueApprovalData: latestPending ? latestPending.data : null,
+        pendingManagerValueApprovalRequestedBy: latestPending ? latestPending.requestedBy : null,
+        pendingManagerValueApprovalRequestedAt: latestPending ? latestPending.requestedAt : null
       });
       invalidateSampleEntryTabCaches();
       return res.json({ success: true, message: 'Manager value request rejected' });
     }
 
-    const pendingData = offering.pendingManagerValueApprovalData || {};
+    const pendingData = targetRequest.data || {};
+
+    const requesterUser = await User.findByPk(targetRequest.requestedBy, { attributes: ['fullName', 'username'] });
+    const requesterName = requesterUser?.fullName || requesterUser?.username || 'Manager';
+    const approverUser = await User.findByPk(req.user.userId, { attributes: ['fullName', 'username'] });
+    const approverName = approverUser?.fullName || approverUser?.username || 'Admin';
+
+    const isDispute = pendingData.disputeBaseRate !== undefined && pendingData.disputeBaseRate !== null && pendingData.disputeBaseRate !== '';
+    const isRevision = (pendingData.revisedHamali !== undefined && pendingData.revisedHamali !== null && pendingData.revisedHamali !== '')
+      || (pendingData.revisedLf !== undefined && pendingData.revisedLf !== null && pendingData.revisedLf !== '');
+
+    const disputeVersions = Array.isArray(offering.disputeVersions) ? [...offering.disputeVersions] : [];
+    const newVersion = {
+      id: targetRequest.id || `disp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      type: pendingData.__requestType || (isDispute ? 'dispute' : 'revision'),
+      disputeBaseRate: pendingData.disputeBaseRate !== undefined ? pendingData.disputeBaseRate : null,
+      disputeBaseRateType: pendingData.disputeBaseRateType || null,
+      revisedHamali: pendingData.revisedHamali !== undefined ? pendingData.revisedHamali : null,
+      revisedLf: pendingData.revisedLf !== undefined ? pendingData.revisedLf : null,
+      revisedRateOption: pendingData.revisedRateOption || null,
+      hamaliUnit: pendingData.hamaliUnit || offering.hamaliUnit || 'per_bag',
+      lfUnit: pendingData.lfUnit || offering.lfUnit || 'per_bag',
+      requestedBy: targetRequest.requestedBy,
+      requestedByName: requesterName,
+      requestedAt: targetRequest.requestedAt || new Date(),
+      approvedBy: req.user.userId,
+      approvedByName: approverName,
+      approvedAt: new Date(),
+      linkedDisputeRequestId: pendingData.__linkedDisputeRequestId || null,
+      linkedDisputeLabel: pendingData.__linkedDisputeLabel || null
+    };
+    disputeVersions.push(newVersion);
+
     await SampleEntryService.setFinalPrice(
       req.params.id,
       { ...pendingData, fillMissingValues: false },
@@ -1390,12 +1484,19 @@ router.post('/:id/manager-value-approval-decision', authenticateToken, async (re
     if (pendingData.brokerage !== undefined || pendingData.brokerageUnit !== undefined) managerFieldUpdates.brokerageBy = 'manager';
     if (pendingData.lf !== undefined || pendingData.lfUnit !== undefined) managerFieldUpdates.lfBy = 'manager';
 
+    const remainingQueue = pendingQueue.filter((_, index) => index !== requestIndex);
+    const latestPending = remainingQueue[remainingQueue.length - 1] || null;
+
     await offering.update({
       ...managerFieldUpdates,
-      pendingManagerValueApprovalStatus: 'approved',
-      pendingManagerValueApprovalApprovedBy: req.user.userId,
-      pendingManagerValueApprovalApprovedAt: new Date(),
-      pendingManagerValueApprovalData: null
+      disputeVersions,
+      pendingManagerValueApprovalStatus: latestPending ? 'pending' : 'approved',
+      pendingManagerValueApprovalApprovedBy: latestPending ? null : req.user.userId,
+      pendingManagerValueApprovalApprovedAt: latestPending ? null : new Date(),
+      pendingManagerValueApprovalQueue: remainingQueue,
+      pendingManagerValueApprovalData: latestPending ? latestPending.data : null,
+      pendingManagerValueApprovalRequestedBy: latestPending ? latestPending.requestedBy : null,
+      pendingManagerValueApprovalRequestedAt: latestPending ? latestPending.requestedAt : null
     });
 
     if (pendingData.isFinalized) {
@@ -2971,7 +3072,17 @@ router.post('/:id/final-price', authenticateToken, async (req, res) => {
         resampleUpdate.sampleCollectedBy = req.body.resampleCollectedBy;
       }
       await SampleEntryService.updateSampleEntry(req.params.id, resampleUpdate, req.user.userId);
-      console.log(`[FINAL-PRICE] Resample flagged for ${req.params.id}`);
+      
+      // Reset supervisor allotment so it has to be manually assigned
+      const existingAllotment = await LotAllotmentService.getLotAllotmentBySampleEntry(req.params.id);
+      if (existingAllotment?.id) {
+        await LotAllotmentService.updateLotAllotment(
+          existingAllotment.id,
+          { allottedToSupervisorId: null },
+          req.user.userId
+        );
+      }
+      console.log(`[FINAL-PRICE] Resample flagged and supervisor allotment reset for ${req.params.id}`);
     }
 
     // After updating the final price, ALWAYS check if we can transition to LOT_ALLOTMENT

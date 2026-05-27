@@ -544,7 +544,7 @@ const Navbar: React.FC = () => {
                     <>
                       <DropdownLink to="/sample-workflow" $active={isActive('/sample-workflow')}>Workflow Board</DropdownLink>
                       <DropdownLink to="/pending-approvals" $active={isActive('/pending-approvals')}>
-                        Pending Approvals {pendingCount > 0 ? `(${pendingCount})` : ''}
+                        Paddy Approvals {pendingCount > 0 ? `(${pendingCount})` : ''}
                       </DropdownLink>
                     </>
                   )}

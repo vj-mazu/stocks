@@ -59,6 +59,38 @@ interface Supervisor {
   staffType?: string | null;
 }
 
+const normalizePendingManagerApprovalQueue = (offering: any) => {
+  const queue = Array.isArray(offering?.pendingManagerValueApprovalQueue)
+    ? offering.pendingManagerValueApprovalQueue
+        .filter((item: any) => item && typeof item === 'object' && item.data && typeof item.data === 'object')
+        .map((item: any) => ({
+          id: item.id || `mgr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          data: item.data || {},
+          requestedBy: item.requestedBy ?? null,
+          requestedAt: item.requestedAt || null
+        }))
+    : [];
+
+  if (queue.length > 0) return queue;
+
+  const legacyData = offering?.pendingManagerValueApprovalData;
+  if (legacyData && typeof legacyData === 'object' && Object.keys(legacyData).length > 0) {
+    return [{
+      id: `mgr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      data: legacyData,
+      requestedBy: offering?.pendingManagerValueApprovalRequestedBy ?? null,
+      requestedAt: offering?.pendingManagerValueApprovalRequestedAt || null
+    }];
+  }
+
+  return [];
+};
+
+const getPendingDisputeRequests = (offering: any) => normalizePendingManagerApprovalQueue(offering).filter((request: any) => {
+  const data = request?.data || {};
+  return data.disputeBaseRate !== undefined && data.disputeBaseRate !== null && data.disputeBaseRate !== '';
+});
+
 const formatDecimal = (val: any) => {
   if (val === undefined || val === null || val === '') return '';
   const num = Number(val);
@@ -569,7 +601,9 @@ const AllottedSupervisors: React.FC = () => {
       disputeBaseRate: o.disputeBaseRate?.toString() ?? o.finalBaseRate?.toString() ?? o.offerBaseRateValue?.toString() ?? '',
       disputeBaseRateType: o.disputeBaseRateType || o.baseRateType || 'PD_LOOSE',
       revisedHamali: o.revisedHamali?.toString() ?? o.hamali?.toString() ?? '',
-      revisedLf: o.revisedLf?.toString() ?? o.lf?.toString() ?? ''
+      revisedLf: o.revisedLf?.toString() ?? o.lf?.toString() ?? '',
+      revisedRateOption: o.revisedRateOption || 'final',
+      linkedDisputeRequestId: ''
     });
   };
 
@@ -592,10 +626,29 @@ const AllottedSupervisors: React.FC = () => {
         payload.finalSuteUnit = editValuesData.suteUnit;
         payload.moistureValue = editValuesData.moistureValue;
       } else if (editMode === 'hmlf') {
+        const o = offeringCache[editValuesEntry.id] || {};
+        const pendingDisputeRequests = getPendingDisputeRequests(o);
+        const hasApprovedDispute = !(o.disputeBaseRate === undefined || o.disputeBaseRate === null || o.disputeBaseRate === '');
+        if (editValuesData.revisedRateOption === 'dispute') {
+          if (!hasApprovedDispute && pendingDisputeRequests.length === 0) {
+            showNotification('Cannot set revised rate for dispute: no dispute rate exists for this lot. Please set a dispute rate first.', 'error');
+            setIsSavingValues(false);
+            return;
+          }
+          if (pendingDisputeRequests.length > 0 && !String(editValuesData.linkedDisputeRequestId || '').trim()) {
+            showNotification('Please select which dispute this HM/LF revision belongs to.', 'error');
+            setIsSavingValues(false);
+            return;
+          }
+        }
         payload.revisedHamali = editValuesData.revisedHamali;
         payload.hamaliUnit = editValuesData.hamaliUnit;
         payload.revisedLf = editValuesData.revisedLf;
         payload.lfUnit = editValuesData.lfUnit;
+        payload.revisedRateOption = editValuesData.revisedRateOption;
+        if (editValuesData.revisedRateOption === 'dispute' && String(editValuesData.linkedDisputeRequestId || '').trim()) {
+          payload.linkedDisputeRequestId = editValuesData.linkedDisputeRequestId;
+        }
       }
       
       await axios.post(
@@ -722,8 +775,11 @@ const AllottedSupervisors: React.FC = () => {
                           const formatTitleCase = (str: string) => str ? str.replace(/\b\w/g, c => c.toUpperCase()) : '';
                           const partyNameText = entry.partyName ? formatTitleCase(entry.partyName).trim() : '';
                           const lorryText = entry.lorryNumber ? entry.lorryNumber.toUpperCase() : '';
-                          const isRLEntry = entry.entryType === 'DIRECT_LOADED_VEHICLE' || (entry as any).originalEntryType === 'DIRECT_LOADED_VEHICLE';
-                          const partyLabel = partyNameText || lorryText || '-';
+                          const isRLEntry = entry.entryType === 'DIRECT_LOADED_VEHICLE' || 
+                                            entry.entryType === 'READY_LORRY' || 
+                                            (entry as any).originalEntryType === 'DIRECT_LOADED_VEHICLE' || 
+                                            (entry as any).originalEntryType === 'READY_LORRY';
+                          const partyLabel = isRLEntry ? (lorryText || partyNameText || '-') : (partyNameText || lorryText || '-');
                           const showLorrySecondLine = isRLEntry
                             && !!partyNameText
                             && !!lorryText
@@ -797,7 +853,7 @@ const AllottedSupervisors: React.FC = () => {
                                       {partyLabel}
                                     </span>
                                     {showLorrySecondLine ? (
-                                      <div style={{ fontSize: '11px', color: '#1565c0', fontWeight: '600' }}>{lorryText}</div>
+                                      <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>{partyNameText}</div>
                                     ) : null}
                                   </div>
                                 </td>
@@ -903,14 +959,20 @@ const AllottedSupervisors: React.FC = () => {
                                    <div style={{ display: 'flex', gap: '6px', flexDirection: 'column', alignItems: 'flex-start' }}>
                                      {(() => {
                                        const o = offeringCache[entry.id] || {};
-                                       const isPending = String(o.pendingManagerValueApprovalStatus || '').toLowerCase() === 'pending';
-                                       const pendingData = o.pendingManagerValueApprovalData || {};
-
-                                       const hasPendingDispute = isPending && pendingData.disputeBaseRate !== undefined && pendingData.disputeBaseRate !== null && pendingData.disputeBaseRate !== '';
-                                       const hasPendingRevision = isPending && (
-                                         (pendingData.revisedHamali !== undefined && pendingData.revisedHamali !== null && pendingData.revisedHamali !== '') ||
-                                         (pendingData.revisedLf !== undefined && pendingData.revisedLf !== null && pendingData.revisedLf !== '')
-                                       );
+                                        const pendingQueue = String(o.pendingManagerValueApprovalStatus || '').toLowerCase() === 'pending'
+                                          ? normalizePendingManagerApprovalQueue(o)
+                                          : [];
+                                        const pendingDisputeCount = pendingQueue.filter((request: any) => {
+                                          const data = request?.data || {};
+                                          return data.disputeBaseRate !== undefined && data.disputeBaseRate !== null && data.disputeBaseRate !== '';
+                                        }).length;
+                                        const pendingRevisionCount = pendingQueue.filter((request: any) => {
+                                          const data = request?.data || {};
+                                          return (data.revisedHamali !== undefined && data.revisedHamali !== null && data.revisedHamali !== '')
+                                            || (data.revisedLf !== undefined && data.revisedLf !== null && data.revisedLf !== '');
+                                        }).length;
+                                        const hasPendingDispute = pendingDisputeCount > 0;
+                                        const hasPendingRevision = pendingRevisionCount > 0;
 
                                        return (
                                          <>
@@ -985,9 +1047,47 @@ const AllottedSupervisors: React.FC = () => {
                                            )}
                                          </>
                                        );
+                                      })()}
+                                     {(() => {
+                                       const o = offeringCache[entry.id] || {};
+                                       const pendingQueue = String(o.pendingManagerValueApprovalStatus || '').toLowerCase() === 'pending'
+                                         ? normalizePendingManagerApprovalQueue(o)
+                                         : [];
+                                       const pendingDisputeCount = pendingQueue.filter((request: any) => {
+                                         const data = request?.data || {};
+                                         return data.disputeBaseRate !== undefined && data.disputeBaseRate !== null && data.disputeBaseRate !== '';
+                                       }).length;
+                                       const pendingRevisionCount = pendingQueue.filter((request: any) => {
+                                         const data = request?.data || {};
+                                         return (data.revisedHamali !== undefined && data.revisedHamali !== null && data.revisedHamali !== '')
+                                           || (data.revisedLf !== undefined && data.revisedLf !== null && data.revisedLf !== '');
+                                       }).length;
+                                       return (
+                                         <>
+                                           {pendingDisputeCount > 0 && (
+                                             <button
+                                               onClick={() => handleOpenEditValues(entry, 'dispute')}
+                                               style={{
+                                                 fontSize: '10px',
+                                                 padding: '4px 8px',
+                                                 backgroundColor: '#e74c3c',
+                                                 color: 'white',
+                                                 border: 'none',
+                                                 borderRadius: '3px',
+                                                 cursor: 'pointer',
+                                                 width: '100%',
+                                                 marginBottom: '3px',
+                                                 fontWeight: '700'
+                                               }}
+                                             >
+                                               Add New Dispute ({pendingDisputeCount})
+                                             </button>
+                                           )}
+                                         </>
+                                       );
                                      })()}
-                                    <button
-                                      onClick={() => handleReassign(entry.id)}
+                                     <button
+                                       onClick={() => handleReassign(entry.id)}
                                       disabled={!hasChanged || !!entry.lotAllotment?.closedAt}
                                       style={{
                                         fontSize: '10px',
@@ -1175,7 +1275,7 @@ const AllottedSupervisors: React.FC = () => {
       {/* Edit Dispute / HM-LF Modal */}
       {editValuesEntry && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
-          <div style={{ backgroundColor: 'white', padding: '16px', borderRadius: '10px', width: '90%', maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+          <div style={{ backgroundColor: 'white', padding: '24px', borderRadius: '12px', width: '90%', maxWidth: '450px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
             {editMode === 'dispute' ? (
               <>
                 <h3 style={{ marginTop: 0, color: '#e74c3c', borderBottom: '2px solid #e74c3c', paddingBottom: '8px', fontSize: '14px', fontWeight: '800' }}>
@@ -1184,43 +1284,41 @@ const AllottedSupervisors: React.FC = () => {
                 <div style={{ background: '#f8f9fa', padding: '6px 10px', borderRadius: '4px', marginBottom: '10px', fontSize: '11px', textAlign: 'center' }}>
                   Bags: <b>{editValuesEntry.bags}</b> | Variety: <b>{editValuesEntry.variety}</b> | Location: <b>{editValuesEntry.location}</b>
                 </div>
-                <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '6px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
                   <div>
-                    <label style={{ fontSize: '10px', fontWeight: 800, display: 'block', marginBottom: '2px', color: '#e74c3c' }}>Dispute Rate</label>
+                    <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Dispute Rate</label>
                     <input type="number" step="0.01" value={editValuesData.disputeBaseRate}
                       onChange={e => setEditValuesData({ ...editValuesData, disputeBaseRate: e.target.value })}
-                      style={{ width: '100%', padding: '4px 6px', fontSize: '11px', border: '1px solid #e74c3c', borderRadius: '3px', boxSizing: 'border-box' }} />
+                      style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box' }} />
                   </div>
                   <div>
-                    <label style={{ fontSize: '10px', fontWeight: 800, display: 'block', marginBottom: '2px', color: '#e74c3c' }}>Type</label>
+                    <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Type</label>
                     <select value={editValuesData.disputeBaseRateType} onChange={e => setEditValuesData({ ...editValuesData, disputeBaseRateType: e.target.value })}
-                      style={{ width: '100%', padding: '4px 6px', fontSize: '11px', border: '1px solid #e74c3c', borderRadius: '3px', boxSizing: 'border-box' }}>
+                      style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box' }}>
                       <option value="PD_LOOSE">PD/Loose</option>
                       <option value="PD_WB">PD/WB</option>
                       <option value="MD_WB">MD/WB</option>
                       <option value="MD_LOOSE">MD/Loose</option>
                     </select>
                   </div>
-                </div>
-                <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '6px' }}>
                   <div>
-                    <label style={{ fontSize: '10px', fontWeight: 700, display: 'block', marginBottom: '2px' }}>Sute</label>
-                    <div style={{ display: 'flex', gap: '3px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Sute</label>
+                    <div style={{ display: 'flex', gap: '8px' }}>
                       <input type="number" step="0.01" value={editValuesData.sute}
                         onChange={e => setEditValuesData({ ...editValuesData, sute: e.target.value })}
-                        style={{ flex: 1, padding: '4px 6px', fontSize: '11px', border: '1px solid #3498db', borderRadius: '3px', minWidth: 0 }} />
+                        style={{ flex: 1, padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', minWidth: 0 }} />
                       <select value={editValuesData.suteUnit} onChange={e => setEditValuesData({ ...editValuesData, suteUnit: e.target.value })}
-                        style={{ padding: '4px', fontSize: '10px', border: '1px solid #3498db', borderRadius: '3px', minWidth: '55px' }}>
+                        style={{ padding: '8px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', minWidth: '80px' }}>
                         <option value="per_bag">/Bag</option>
                         <option value="per_ton">/Ton</option>
                       </select>
                     </div>
                   </div>
                   <div>
-                    <label style={{ fontSize: '10px', fontWeight: 700, display: 'block', marginBottom: '2px' }}>Moisture %</label>
+                    <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Moisture %</label>
                     <input type="number" step="0.01" value={editValuesData.moistureValue}
                       onChange={e => setEditValuesData({ ...editValuesData, moistureValue: e.target.value })}
-                      style={{ width: '100%', padding: '4px 6px', fontSize: '11px', border: '1px solid #3498db', borderRadius: '3px', boxSizing: 'border-box' }} />
+                      style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box' }} />
                   </div>
                 </div>
               </>
@@ -1232,33 +1330,101 @@ const AllottedSupervisors: React.FC = () => {
                 <div style={{ background: '#f8f9fa', padding: '6px 10px', borderRadius: '4px', marginBottom: '10px', fontSize: '11px', textAlign: 'center' }}>
                   Bags: <b>{editValuesEntry.bags}</b> | Variety: <b>{editValuesEntry.variety}</b> | Location: <b>{editValuesEntry.location}</b>
                 </div>
-                <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '6px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
                   <div>
-                    <label style={{ fontSize: '10px', fontWeight: 800, display: 'block', marginBottom: '2px', color: '#e74c3c' }}>Revised Hamali</label>
-                    <div style={{ display: 'flex', gap: '3px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Revised Hamali</label>
+                    <div style={{ display: 'flex', gap: '8px' }}>
                       <input type="number" step="0.01" value={editValuesData.revisedHamali}
                         onChange={e => setEditValuesData({ ...editValuesData, revisedHamali: e.target.value })}
-                        style={{ flex: 1, padding: '4px 6px', fontSize: '11px', border: '1px solid #e74c3c', borderRadius: '3px', minWidth: 0 }} />
+                        style={{ flex: 1, padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', minWidth: 0 }} />
                       <select value={editValuesData.hamaliUnit} onChange={e => setEditValuesData({ ...editValuesData, hamaliUnit: e.target.value })}
-                        style={{ padding: '4px', fontSize: '10px', border: '1px solid #e74c3c', borderRadius: '3px', minWidth: '50px' }}>
+                        style={{ padding: '8px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', minWidth: '80px' }}>
                         <option value="per_bag">/Bag</option>
                         <option value="per_quintal">/Qtl</option>
                       </select>
                     </div>
                   </div>
                   <div>
-                    <label style={{ fontSize: '10px', fontWeight: 800, display: 'block', marginBottom: '2px', color: '#e74c3c' }}>Revised LF</label>
-                    <div style={{ display: 'flex', gap: '3px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Revised LF</label>
+                    <div style={{ display: 'flex', gap: '8px' }}>
                       <input type="number" step="0.01" value={editValuesData.revisedLf}
                         onChange={e => setEditValuesData({ ...editValuesData, revisedLf: e.target.value })}
-                        style={{ flex: 1, padding: '4px 6px', fontSize: '11px', border: '1px solid #e74c3c', borderRadius: '3px', minWidth: 0 }} />
+                        style={{ flex: 1, padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', minWidth: 0 }} />
                       <select value={editValuesData.lfUnit} onChange={e => setEditValuesData({ ...editValuesData, lfUnit: e.target.value })}
-                        style={{ padding: '4px', fontSize: '10px', border: '1px solid #e74c3c', borderRadius: '3px', minWidth: '50px' }}>
+                        style={{ padding: '8px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', minWidth: '80px' }}>
                         <option value="per_bag">/Bag</option>
                         <option value="per_quintal">/Qtl</option>
                       </select>
                     </div>
                   </div>
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Rate Target</label>
+                    <select value={editValuesData.revisedRateOption} onChange={e => setEditValuesData({ ...editValuesData, revisedRateOption: e.target.value })}
+                      style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box' }}>
+                      <option value="dispute">Add for Dispute</option>
+                      <option value="final">Add for Final Rate</option>
+                    </select>
+                  </div>
+                  {editValuesData.revisedRateOption === 'dispute' && (() => {
+                    const offering = editValuesEntry ? (offeringCache[editValuesEntry.id] || {}) : {};
+                    const pendingDisputes = getPendingDisputeRequests(offering);
+                    
+                    const approvedDisputes = Array.isArray(offering.disputeVersions)
+                      ? offering.disputeVersions.filter((v: any) => v.type === 'dispute' || (v.disputeBaseRate !== undefined && v.disputeBaseRate !== null && v.disputeBaseRate !== ''))
+                      : [];
+                    const legacyApprovedDisputes = (approvedDisputes.length === 0 && offering.disputeBaseRate !== undefined && offering.disputeBaseRate !== null && offering.disputeBaseRate !== '')
+                      ? [{ id: 'legacy-approved', disputeBaseRate: offering.disputeBaseRate, disputeBaseRateType: offering.disputeBaseRateType || 'PD/WB' }]
+                      : [];
+                    const allApprovedDisputes = [...approvedDisputes, ...legacyApprovedDisputes];
+
+                    const totalDisputes = allApprovedDisputes.length + pendingDisputes.length;
+
+                    if (totalDisputes === 0) {
+                      return (
+                        <div style={{ fontSize: '11px', color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', padding: '8px 10px' }}>
+                          No dispute exists yet for this lot. Please add a dispute rate first.
+                        </div>
+                      );
+                    }
+
+                    if (totalDisputes === 1) {
+                      const single = allApprovedDisputes.length === 1 ? allApprovedDisputes[0] : pendingDisputes[0].data;
+                      const rateVal = single.disputeBaseRate || single.data?.disputeBaseRate;
+                      const typeVal = single.disputeBaseRateType || single.data?.disputeBaseRateType || 'PD/WB';
+                      return (
+                        <div style={{ fontSize: '11px', color: '#475569', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px 10px' }}>
+                          Will apply to current dispute {rateVal} ({typeVal})
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div>
+                        <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Select Dispute</label>
+                        <select
+                          value={editValuesData.linkedDisputeRequestId || ''}
+                          onChange={e => setEditValuesData({ ...editValuesData, linkedDisputeRequestId: e.target.value })}
+                          style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box' }}
+                        >
+                          <option value="">-- Select Dispute --</option>
+                          {allApprovedDisputes.map((disp: any, index: number) => (
+                            <option key={`approved-${disp.id || index}`} value={disp.id || `approved-${index}`}>
+                              {`Dispute ${index + 1} (Approved): ${disp.disputeBaseRate} (${disp.disputeBaseRateType || 'PD/WB'})`}
+                            </option>
+                          ))}
+                          {pendingDisputes.map((request: any, index: number) => {
+                            const data = request?.data || {};
+                            const displayNum = allApprovedDisputes.length + index + 1;
+                            return (
+                              <option key={`pending-${request.id || index}`} value={request.id}>
+                                {`Dispute ${displayNum} (Pending): ${data.disputeBaseRate} (${data.disputeBaseRateType || 'PD/WB'})`}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+                    );
+                  })()}
                 </div>
               </>
             )}
@@ -1267,7 +1433,7 @@ const AllottedSupervisors: React.FC = () => {
                 style={{ padding: '6px 14px', border: '1px solid #ddd', borderRadius: '4px', background: 'white', cursor: 'pointer', fontSize: '12px' }}>Cancel</button>
               <button onClick={handleSaveEditValues} disabled={isSavingValues}
                 style={{ padding: '6px 18px', border: 'none', borderRadius: '4px', background: isSavingValues ? '#95a5a6' : '#27ae60', color: 'white', fontWeight: 700, cursor: isSavingValues ? 'not-allowed' : 'pointer', fontSize: '12px' }}>
-                {isSavingValues ? 'Saving...' : '💾 Save Values'}
+                {isSavingValues ? 'Saving...' : 'Save Values'}
               </button>
             </div>
           </div>

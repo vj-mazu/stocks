@@ -25,6 +25,7 @@ interface SampleEntry {
   workflowStatus: string;
   entryType?: string;
   originalEntryType?: string;
+  lorryNumber?: string;
   packaging?: string;
   lotSelectionDecision?: string;
   qualityReportAttempts?: number;
@@ -392,17 +393,39 @@ const AssigningSupervisor: React.FC = () => {
                                 {entry.packaging ? (String(entry.packaging).toLowerCase().includes('kg') ? entry.packaging : `${entry.packaging} Kg`) : '75 Kg'}
                               </td>
                               <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontSize: '14px', fontWeight: '600' }}>
-                                <span
-                                  onClick={() => openDetailEntry(entry)}
-                                  style={{
-                                    color: '#1565c0',
-                                    textDecoration: 'underline',
-                                    cursor: 'pointer',
-                                    fontWeight: '700'
-                                  }}
-                                >
-                                  {entry.partyName || '-'}
-                                </span>
+                                {(() => {
+                                  const typeCode = getDisplayedEntryTypeCode(entry);
+                                  const isLorryEntry = typeCode === 'RL' || 
+                                                       entry.entryType === 'DIRECT_LOADED_VEHICLE' || 
+                                                       entry.entryType === 'READY_LORRY' || 
+                                                       entry.originalEntryType === 'DIRECT_LOADED_VEHICLE' || 
+                                                       entry.originalEntryType === 'READY_LORRY';
+                                  const partyText = String(entry.partyName || '').trim();
+                                  const lorryText = entry.lorryNumber ? String(entry.lorryNumber).toUpperCase().trim() : '';
+                                  const primaryText = isLorryEntry ? (lorryText || partyText || '-') : (partyText || lorryText || '-');
+                                  const secondaryText = isLorryEntry && partyText && lorryText && partyText.toUpperCase() !== lorryText ? partyText : '';
+
+                                  return (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                      <span
+                                        onClick={() => openDetailEntry(entry)}
+                                        style={{
+                                          color: '#1565c0',
+                                          textDecoration: 'underline',
+                                          cursor: 'pointer',
+                                          fontWeight: '700'
+                                        }}
+                                      >
+                                        {primaryText}
+                                      </span>
+                                      {secondaryText && (
+                                        <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>
+                                          {secondaryText}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
                               </td>
                               <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontSize: '13px', color: '#1a1a1a' }}>
                                 {entry.location}

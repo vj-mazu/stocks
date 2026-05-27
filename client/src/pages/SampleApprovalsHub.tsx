@@ -30,11 +30,11 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
   const canAccessManagerApprovals = ['admin', 'owner'].includes(String(currentUser?.role || '').toLowerCase());
   const tabs = useMemo<ApprovalTabConfig[]>(() => {
     const baseTabs: ApprovalTabConfig[] = [
-      { key: 'approval-for-edits', label: 'Approval For Edits', color: '#8e44ad' }
+      { key: 'approval-for-edits', label: 'Paddy Sample', color: '#8e44ad' }
     ];
     if (canAccessManagerApprovals) {
-      baseTabs.push({ key: 'approval-for-manager', label: 'Manager Value Approvals', color: '#16a34a' });
-      baseTabs.push({ key: 'lorry-approvals', label: 'Lorry Approvals', color: '#f39c12' });
+      baseTabs.push({ key: 'approval-for-manager', label: 'Loading Lots', color: '#16a34a' });
+      baseTabs.push({ key: 'lorry-approvals', label: 'Dispute Approval', color: '#f39c12' });
     }
     return baseTabs;
   }, [canAccessManagerApprovals]);
