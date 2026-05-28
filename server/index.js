@@ -1710,6 +1710,14 @@ const startServer = async () => {
         console.log('Migration 131 warning:', error.message);
       }
 
+      try {
+        const alterBagsAllowNull = require('./migrations/132_alter_bags_allow_null_physical_inspections');
+        await alterBagsAllowNull.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('Migration 132: bags column altered to allow NULL in physical_inspections');
+      } catch (error) {
+        console.log('Migration 132 warning:', error.message);
+      }
+
     // Default warehouses removed - users should create their own warehouses
 
     // Create default users if they don't exist
