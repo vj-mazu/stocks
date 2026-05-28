@@ -206,6 +206,31 @@ const WORKFLOW_TRANSITIONS = [
     allowedRoles: ['physical_supervisor', 'manager', 'admin'],
     requiredData: []
   },
+  // Allow going back from later stages to PHYSICAL_INSPECTION when a new lorry trip is added
+  {
+    fromStatus: 'INVENTORY_ENTRY',
+    toStatus: 'PHYSICAL_INSPECTION',
+    allowedRoles: ['physical_supervisor', 'manager', 'admin'],
+    requiredData: []
+  },
+  {
+    fromStatus: 'OWNER_FINANCIAL',
+    toStatus: 'PHYSICAL_INSPECTION',
+    allowedRoles: ['physical_supervisor', 'manager', 'admin'],
+    requiredData: []
+  },
+  {
+    fromStatus: 'MANAGER_FINANCIAL',
+    toStatus: 'PHYSICAL_INSPECTION',
+    allowedRoles: ['physical_supervisor', 'manager', 'admin'],
+    requiredData: []
+  },
+  {
+    fromStatus: 'FINAL_REVIEW',
+    toStatus: 'PHYSICAL_INSPECTION',
+    allowedRoles: ['physical_supervisor', 'manager', 'admin'],
+    requiredData: []
+  },
   // Allow manager/admin to reject and send back to LOT_ALLOTMENT
   {
     fromStatus: 'PHYSICAL_INSPECTION',

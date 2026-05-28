@@ -75,7 +75,16 @@ class PhysicalInspectionService {
         const inspection = await PhysicalInspectionRepository.create(newInspectionData);
         await AuditService.logCreate(userId, 'physical_inspections', inspection.id, inspection);
 
-        if (existingInspections.length === 0) {
+        const currentStatus = entry.workflowStatus;
+        if (currentStatus !== 'PHYSICAL_INSPECTION' && ['LOT_ALLOTMENT', 'INVENTORY_ENTRY', 'OWNER_FINANCIAL', 'MANAGER_FINANCIAL', 'FINAL_REVIEW'].includes(currentStatus)) {
+          await WorkflowEngine.transitionTo(
+            inspectionData.sampleEntryId,
+            'PHYSICAL_INSPECTION',
+            userId,
+            userRole,
+            { physicalInspectionId: inspection.id, reason: 'New progressive lorry added (legacy flow)' }
+          );
+        } else if (existingInspections.length === 0) {
           await WorkflowEngine.transitionTo(
             inspectionData.sampleEntryId,
             'PHYSICAL_INSPECTION',
@@ -167,7 +176,16 @@ class PhysicalInspectionService {
         inspection = await PhysicalInspectionRepository.create(newInspectionData);
         await AuditService.logCreate(userId, 'physical_inspections', inspection.id, inspection);
 
-        if (existingInspections.length === 0) {
+        const currentStatus = entry.workflowStatus;
+        if (currentStatus !== 'PHYSICAL_INSPECTION' && ['LOT_ALLOTMENT', 'INVENTORY_ENTRY', 'OWNER_FINANCIAL', 'MANAGER_FINANCIAL', 'FINAL_REVIEW'].includes(currentStatus)) {
+          await WorkflowEngine.transitionTo(
+            inspectionData.sampleEntryId,
+            'PHYSICAL_INSPECTION',
+            userId,
+            userRole,
+            { physicalInspectionId: inspection.id, reason: 'New progressive lorry added' }
+          );
+        } else if (existingInspections.length === 0) {
           await WorkflowEngine.transitionTo(
             inspectionData.sampleEntryId,
             'PHYSICAL_INSPECTION',

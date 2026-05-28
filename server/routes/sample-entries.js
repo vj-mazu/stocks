@@ -3455,6 +3455,78 @@ router.post('/:id/inspection-images', authenticateToken, async (req, res) => {
   }
 });
 
+// Reject a specific trip/physical inspection (Admin/Manager/Quality Supervisor)
+router.delete('/:id/physical-inspection/:inspectionId', authenticateToken, async (req, res) => {
+  try {
+    const PhysicalInspection = require('../models/PhysicalInspection');
+    const AuditService = require('../services/AuditService');
+
+    // Only quality supervisor, manager, admin, or owner can reject/delete a trip
+    const allowedRoles = ['quality_supervisor', 'manager', 'admin', 'owner'];
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ error: 'Only quality supervisor or manager can reject a trip' });
+    }
+
+    const inspection = await PhysicalInspection.findByPk(req.params.inspectionId);
+    if (!inspection) {
+      return res.status(404).json({ error: 'Trip inspection record not found' });
+    }
+
+    // Check if it belongs to this entry
+    if (inspection.sampleEntryId !== req.params.id) {
+      return res.status(400).json({ error: 'Trip inspection does not belong to this lot' });
+    }
+
+    // Log deletion in audit
+    await AuditService.logDelete(req.user.userId, 'physical_inspections', inspection.id, inspection);
+
+    // Delete the record
+    await inspection.destroy();
+
+    // Recalculate remaining status
+    const remainingCount = await PhysicalInspection.count({
+      where: { sampleEntryId: req.params.id }
+    });
+
+    const SampleEntry = require('../models/SampleEntry');
+    const entry = await SampleEntry.findByPk(req.params.id);
+
+    if (entry) {
+      if (remainingCount === 0) {
+        entry.workflowStatus = 'LOT_ALLOTMENT';
+        await entry.save();
+      } else {
+        const InventoryData = require('../models/InventoryData');
+        const inspections = await PhysicalInspection.findAll({
+          where: { sampleEntryId: req.params.id }
+        });
+        let allHaveInventory = true;
+        for (const insp of inspections) {
+          const inv = await InventoryData.findOne({ where: { physicalInspectionId: insp.id } });
+          if (!inv) {
+            allHaveInventory = false;
+            break;
+          }
+        }
+        if (allHaveInventory) {
+          entry.workflowStatus = 'INVENTORY_ENTRY';
+        } else {
+          entry.workflowStatus = 'PHYSICAL_INSPECTION';
+        }
+        await entry.save();
+      }
+    }
+
+    // Invalidate caches
+    invalidateSampleEntryTabCaches();
+
+    res.json({ message: 'Trip rejected and removed successfully' });
+  } catch (error) {
+    console.error('Error rejecting trip:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // Create inventory data (Inventory Staff)
 router.post('/:id/inventory-data', authenticateToken, async (req, res) => {
   try {

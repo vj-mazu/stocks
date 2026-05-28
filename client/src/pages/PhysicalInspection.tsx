@@ -157,7 +157,17 @@ const PhysicalInspection: React.FC = () => {
     }
 
     if (progress && progress.previousInspections && progress.previousInspections.length > 0) {
-      setSelectedLorryForComparison(progress.previousInspections[0]);
+      setSelectedLorryForComparison({
+        partyName: entry.partyName || entry.lorryNumber || 'DIRECT LOADED VEHICLE',
+        variety: entry.variety || '',
+        location: entry.location || '',
+        totalBags: progress.totalBags,
+        inspectedBags: progress.inspectedBags,
+        remainingBags: progress.remainingBags,
+        previousInspections: progress.previousInspections,
+        lotAllotment: entry.lotAllotment,
+        singleLorryMode: false
+      });
     } else {
       showNotification('No progressive physical inspection trips loaded/submitted yet for this lot.', 'error');
     }
@@ -614,6 +624,27 @@ const PhysicalInspection: React.FC = () => {
       }));
 
       await loadEntries();
+
+      // Reset form states if Full Avg Lorry is saved (trip is completed)
+      if (stage === 'full_avg') {
+        setSelectedEntry(null);
+        setActiveCards(prev => ({
+          ...prev,
+          [entryId]: []
+        }));
+        setSamplingStageData(prev => ({
+          ...prev,
+          [entryId]: {}
+        }));
+        setInspectionData(prev => ({
+          ...prev,
+          [entryId]: {
+            inspectionDate: new Date().toISOString().split('T')[0],
+            lorryNumber: '',
+            remarks: ''
+          }
+        }));
+      }
     } catch (error: any) {
       showNotification(error.response?.data?.error || `Failed to save ${stage}`, 'error');
     }
@@ -880,7 +911,7 @@ const PhysicalInspection: React.FC = () => {
                                     justifyContent: 'space-between',
                                     alignItems: 'center'
                                   }}>
-                                    <span>Lorry Number: <b style={{ fontSize: '13px' }}>{inspection.lorryNumber?.toUpperCase()}</b> | Bags Loaded: {inspection.bags}</span>
+                                    <span>Lorry Number: <b style={{ fontSize: '13px', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setSelectedLorryForComparison({ lorryNumber: inspection.lorryNumber, previousInspections: [inspection], lotAllotment: inspection.lotAllotment, singleLorryMode: true })}>{inspection.lorryNumber?.toUpperCase()}</b> | Bags Loaded: {inspection.bags} <span style={{ marginLeft: '10px', fontSize: '11px', color: '#ffd700', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setSelectedLorryForComparison({ lorryNumber: inspection.lorryNumber, previousInspections: [inspection], lotAllotment: inspection.lotAllotment, singleLorryMode: true })}>🔍 View Stage Comparison</span></span>
                                     <span>Loaded By: {inspection.reportedBy?.username || '-'} | Date: {new Date(inspection.inspectionDate).toLocaleDateString()}</span>
                                   </div>
 
@@ -1560,12 +1591,14 @@ const PhysicalInspection: React.FC = () => {
             <div style={{ background: '#1565c0', color: '#fff', padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <div style={{ fontSize: '18px', fontWeight: '800' }}>
-                  Lorry Sampling Stage Comparison
+                  {selectedLorryForComparison.singleLorryMode ? 'Lorry Sampling Stage Comparison' : 'Lorry Progressive Inspection Trips & Comparison'}
                 </div>
                 <div style={{ fontSize: '12px', opacity: 0.95, marginTop: '4px' }}>
-                  Lorry Number: {selectedLorryForComparison.lorryNumber?.toUpperCase()} | Date: {selectedLorryForComparison.inspectionDate ? new Date(selectedLorryForComparison.inspectionDate).toLocaleDateString() : '-'}
-                  {selectedLorryForComparison.lotAllotment?.manager && ` | Allotted By: ${selectedLorryForComparison.lotAllotment.manager.fullName || selectedLorryForComparison.lotAllotment.manager.username}`}
-                  {selectedLorryForComparison.lotAllotment?.supervisor && ` | Supervisor: ${selectedLorryForComparison.lotAllotment.supervisor.fullName || selectedLorryForComparison.lotAllotment.supervisor.username}`}
+                  {selectedLorryForComparison.singleLorryMode ? (
+                    `Lorry Number: ${selectedLorryForComparison.lorryNumber?.toUpperCase()}`
+                  ) : (
+                    `Party Name: ${selectedLorryForComparison.partyName || 'Direct'} | Variety: ${selectedLorryForComparison.variety} | Allotted: ${selectedLorryForComparison.totalBags} Bags | Inspected: ${selectedLorryForComparison.inspectedBags} Bags`
+                  )}
                 </div>
               </div>
               <button
@@ -1585,97 +1618,103 @@ const PhysicalInspection: React.FC = () => {
                 ✕
               </button>
             </div>
-            <div style={{ padding: '16px 18px 18px', overflowY: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
-                <thead>
-                  <tr style={{ backgroundColor: '#1a237e', color: '#fff', borderBottom: '2px solid #cbd5e1' }}>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'left' }}>SAMPLE / STAGE</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>REPORTED BY</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>REPORTED AT</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>MOISTURE</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>CUTTING</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>BEND</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>GRAINS COUNT</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>MIX</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>S MIX</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>L MIX</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>KANDU</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>OIL</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>SK</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>SMELL</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>PADDY WB</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>LOADED BAGS</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>PHOTO</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const stages = selectedLorryForComparison.samplingStages || {};
-                    const lot = stages.lot_avg || {};
-                    const half = stages.half_lorry || {};
-                    const full = stages.full_avg || {};
+            <div style={{ padding: '16px 18px 18px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {selectedLorryForComparison.previousInspections && selectedLorryForComparison.previousInspections.map((inspection: any, idx: number) => {
+                const stages = inspection.samplingStages || {};
+                const lot = stages.lot_avg || {};
+                const half = stages.half_lorry || {};
+                const full = stages.full_avg || {};
 
-                    const formatField = (val: any) => {
-                      if (val === null || val === undefined || val === '') return '-';
-                      return String(val);
-                    };
+                const formatField = (val: any) => {
+                  if (val === null || val === undefined || val === '') return '-';
+                  return String(val);
+                };
 
-                    const formatMoisture = (stageObj: any) => {
-                      const raw = stageObj.moistureRaw;
-                      const val = stageObj.moisture;
-                      if (raw) return `${raw}%`;
-                      if (val !== undefined && val !== null) return `${val}%`;
-                      return '-';
-                    };
+                const formatMoisture = (stageObj: any) => {
+                  const raw = stageObj.moistureRaw;
+                  const val = stageObj.moisture;
+                  if (raw) return `${raw}%`;
+                  if (val !== undefined && val !== null) return `${val}%`;
+                  return '-';
+                };
 
-                    const formatCutting = (stageObj: any) => {
-                      if (stageObj.cutting1 === undefined || stageObj.cutting1 === null) return '-';
-                      return `${stageObj.cutting1}x${stageObj.cutting2 || 0}`;
-                    };
+                const formatCutting = (stageObj: any) => {
+                  if (stageObj.cutting1 === undefined || stageObj.cutting1 === null) return '-';
+                  return `${stageObj.cutting1}x${stageObj.cutting2 || 0}`;
+                };
 
-                    const formatBend = (stageObj: any) => {
-                      if (stageObj.bend1 === undefined || stageObj.bend1 === null) return '-';
-                      return `${stageObj.bend1}x${stageObj.bend2 || 0}`;
-                    };
+                const formatBend = (stageObj: any) => {
+                  if (stageObj.bend1 === undefined || stageObj.bend1 === null) return '-';
+                  return `${stageObj.bend1}x${stageObj.bend2 || 0}`;
+                };
 
-                    const renderRow = (name: string, color: string, bgColor: string, stageObj: any, isFull: boolean) => {
-                      return (
-                        <tr style={{ borderBottom: '1px solid #cbd5e1', backgroundColor: bgColor }}>
-                          <td style={{ padding: '8px 10px', fontWeight: '800', color: color }}>{name}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.reportedBy)}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>
-                            {stageObj.reportedAt ? new Date(stageObj.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-'}
-                          </td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatMoisture(stageObj)}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatCutting(stageObj)}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatBend(stageObj)}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>({formatField(stageObj.grainsCountRaw || stageObj.grainsCount)})</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.mixRaw || stageObj.mix)}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.smixEnabled ? formatField(stageObj.mixSRaw || stageObj.mixS) || 'Yes' : '-'}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.lmixEnabled ? formatField(stageObj.mixLRaw || stageObj.mixL) || 'Yes' : '-'}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.kanduRaw || stageObj.kandu)}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.oilRaw || stageObj.oil)}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.smellHas ? 'Yes' : '-'}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.paddyWbEnabled ? formatField(stageObj.paddyWbRaw || stageObj.paddyWb) : '-'}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{isFull ? formatField(selectedLorryForComparison.bags) : '-'}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                            {stageObj.imageUrl ? <a href={resolveMediaUrl(stageObj.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
-                          </td>
-                        </tr>
-                      );
-                    };
+                const renderRow = (name: string, color: string, bgColor: string, stageObj: any, isFull: boolean) => {
+                  return (
+                    <tr style={{ borderBottom: '1px solid #cbd5e1', backgroundColor: bgColor }}>
+                      <td style={{ padding: '8px 10px', fontWeight: '800', color: color }}>{name}</td>
+                      <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.reportedBy)}</td>
+                      <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>
+                        {stageObj.reportedAt ? new Date(stageObj.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                      </td>
+                      <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatMoisture(stageObj)}</td>
+                      <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatCutting(stageObj)}</td>
+                      <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatBend(stageObj)}</td>
+                      <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>({formatField(stageObj.grainsCountRaw || stageObj.grainsCount)})</td>
+                      <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.mixRaw || stageObj.mix)}</td>
+                      <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.smixEnabled ? formatField(stageObj.mixSRaw || stageObj.mixS) || 'Yes' : '-'}</td>
+                      <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.lmixEnabled ? formatField(stageObj.mixLRaw || stageObj.mixL) || 'Yes' : '-'}</td>
+                      <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.kanduRaw || stageObj.kandu)}</td>
+                      <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.oilRaw || stageObj.oil)}</td>
+                      <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
+                      <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.smellHas ? 'Yes' : '-'}</td>
+                      <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.paddyWbEnabled ? formatField(stageObj.paddyWbRaw || stageObj.paddyWb) : '-'}</td>
+                      <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{isFull ? formatField(inspection.bags) : '-'}</td>
+                      <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                        {stageObj.imageUrl ? <a href={resolveMediaUrl(stageObj.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
+                      </td>
+                    </tr>
+                  );
+                };
 
-                    return (
-                      <>
-                        {renderRow('Lot Avg', '#1565c0', '#f0f9ff', lot, false)}
-                        {renderRow('Half Lorry', '#b45309', '#fffbeb', half, false)}
-                        {renderRow('Full Avg Lorry', '#15803d', '#f0fdf4', full, true)}
-                      </>
-                    );
-                  })()}
-                </tbody>
-              </table>
+                return (
+                  <div key={inspection.id} style={{ border: '1px solid #f2cfb6', borderRadius: '8px', overflow: 'hidden' }}>
+                    <div style={{ background: 'linear-gradient(90deg, #f2711c 0%, #f26202 100%)', padding: '8px 12px', fontWeight: 'bold', fontSize: '12px', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Trip #{idx + 1} | Lorry No: {inspection.lorryNumber?.toUpperCase()} | Bags Loaded: {inspection.bags || '-'}</span>
+                      <span>Reported By: {inspection.reportedBy?.username || 'System'} | Date: {new Date(inspection.inspectionDate).toLocaleDateString()}</span>
+                    </div>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #f2cfb6' }}>
+                        <thead>
+                          <tr style={{ background: '#f1f5f9', color: '#334155', borderBottom: '2px solid #cbd5e1' }}>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'left', border: '1px solid #cbd5e1' }}>SAMPLE / STAGE</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>REPORTED BY</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>REPORTED AT</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>MOISTURE</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>CUTTING</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BEND</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>GRAINS COUNT</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>MIX</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>S MIX</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>L MIX</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>KANDU</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>OIL</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>SK</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>SMELL</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PADDY WB</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>LOADED BAGS</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PHOTO</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {lot && lot.reportedBy && renderRow('Lot Avg', '#d05d00', '#fffaf5', lot, false)}
+                          {half && half.reportedBy && renderRow('Half Lorry', '#b45309', '#fffdfa', half, false)}
+                          {full && full.reportedBy && renderRow('Full Avg Lorry', '#15803d', '#fffaf0', full, true)}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })}
               <button
                 onClick={() => setSelectedLorryForComparison(null)}
                 style={{ marginTop: '16px', width: '100%', padding: '9px', background: '#1565c0', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}

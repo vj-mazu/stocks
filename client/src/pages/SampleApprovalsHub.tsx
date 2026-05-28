@@ -151,6 +151,27 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     }
   };
 
+  const handleRejectSpecificLorry = async (entryId: string, inspectionId: string, lorryNumber: string) => {
+    if (!window.confirm(`Are you sure you want to reject and delete the trip for Lorry ${lorryNumber || ''}?`)) {
+      return;
+    }
+    try {
+      setProcessingLorry(true);
+      const token = localStorage.getItem('token');
+      await axios.delete(
+        `${API_URL}/sample-entries/${entryId}/physical-inspection/${inspectionId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success(`Trip for Lorry ${lorryNumber || ''} rejected and removed successfully.`);
+      fetchLoadingQuality();
+    } catch (error: any) {
+      console.error('Error rejecting specific lorry trip:', error);
+      toast.error(error.response?.data?.error || 'Failed to reject lorry trip');
+    } finally {
+      setProcessingLorry(false);
+    }
+  };
+
   const renderLorryQualityTable = () => {
     if (loadingQuality) {
       return <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>Loading quality approvals...</div>;
@@ -229,22 +250,6 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                   >
                     Approve
                   </button>
-                  <button
-                    onClick={() => handleRejectLorryQuality(entry.id)}
-                    disabled={processingLorry}
-                    style={{
-                      padding: '4px 12px',
-                      backgroundColor: '#e74c3c',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      fontWeight: 'bold',
-                      cursor: processingLorry ? 'not-allowed' : 'pointer',
-                      fontSize: '11px'
-                    }}
-                  >
-                    Reject
-                  </button>
                 </div>
               </div>
 
@@ -264,10 +269,30 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                     return (
                       <div key={insp.id} style={{ marginBottom: inspIndex === inspections.length - 1 ? 0 : '16px' }}>
                         {/* Lorry Header */}
-                        <div style={{ backgroundColor: '#f1f5f9', borderLeft: '4px solid #f2711c', padding: '6px 12px', fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                          <span>Lorry Number: {insp.lorryNumber?.toUpperCase() || '-'}</span>
-                          <span>Bags loaded in trip: {insp.bags || '-'}</span>
-                          <span>Last Sampled: {insp.inspectionDate || '-'}</span>
+                        <div style={{ backgroundColor: '#f1f5f9', borderLeft: '4px solid #f2711c', padding: '6px 12px', fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <div>
+                            <span>Lorry Number: {insp.lorryNumber?.toUpperCase() || '-'}</span>
+                            <span style={{ marginLeft: '12px' }}>Bags loaded in trip: {insp.bags || '-'}</span>
+                            <span style={{ marginLeft: '12px' }}>Last Sampled: {insp.inspectionDate || '-'}</span>
+                          </div>
+                          <div>
+                            <button
+                              onClick={() => handleRejectSpecificLorry(entry.id, insp.id, insp.lorryNumber)}
+                              disabled={processingLorry}
+                              style={{
+                                padding: '3px 10px',
+                                backgroundColor: '#dc2626',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                fontWeight: 'bold',
+                                cursor: processingLorry ? 'not-allowed' : 'pointer',
+                                fontSize: '11px'
+                              }}
+                            >
+                              Reject Trip
+                            </button>
+                          </div>
                         </div>
 
                         {/* Quality parameters grid transposed inline */}
