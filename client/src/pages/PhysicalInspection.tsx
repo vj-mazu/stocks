@@ -106,6 +106,7 @@ interface PreviousInspection {
   cutting2: number;
   bend: number;
   bend2?: number;
+  samplingStages?: any;
   reportedBy: {
     username: string;
   };
@@ -127,18 +128,79 @@ const PhysicalInspection: React.FC = () => {
   const [selectedEntry, setSelectedEntry] = useState<string | null>(null);
   const [inspectionProgress, setInspectionProgress] = useState<{ [key: string]: InspectionProgress }>({});
   const [activeTab, setActiveTab] = useState<'paddy' | 'rice'>('paddy');
+  const [selectedLorryForComparison, setSelectedLorryForComparison] = useState<any>(null);
+
+  const resolveMediaUrl = (value?: string | null) => {
+    const url = String(value || '').trim();
+    if (!url) return '';
+    if (/^https?:\/\//i.test(url)) return url;
+    const baseUrl = API_URL.replace(/\/api\/?$/, '');
+    return url.startsWith('/') ? `${baseUrl}${url}` : `${baseUrl}/${url}`;
+  };
+
+  const handlePartyClick = async (entry: any) => {
+    let progress = inspectionProgress[entry.id];
+    if (!progress) {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${API_URL}/sample-entries/${entry.id}/inspection-progress`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        progress = response.data;
+        setInspectionProgress(prev => ({ ...prev, [entry.id]: progress }));
+      } catch (err) {
+        console.error('Error loading inspection progress for comparison:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (progress && progress.previousInspections && progress.previousInspections.length > 0) {
+      setSelectedLorryForComparison(progress.previousInspections[0]);
+    } else {
+      showNotification('No progressive physical inspection trips loaded/submitted yet for this lot.', 'error');
+    }
+  };
 
   // Inspection form data
   const [inspectionData, setInspectionData] = useState<{
     [key: string]: {
       inspectionDate: string;
       lorryNumber: string;
-      actualBags: number;
-      cutting: string;
-      bend: string;
-      halfLorryImage: File | null;
-      fullLorryImage: File | null;
       remarks: string;
+    }
+  }>({});
+
+  const [selectedStage, setSelectedStage] = useState<{ [entryId: string]: string }>({});
+  const [activeCards, setActiveCards] = useState<{ [entryId: string]: string[] }>({});
+  const [samplingStageData, setSamplingStageData] = useState<{
+    [entryId: string]: {
+      [stage: string]: {
+        moisture: string;
+        dryMoisture: string;
+        dryMoistureValue?: string;
+        grainsCount: string;
+        cutting: string;
+        bend: string;
+        mix: string;
+        smixEnabled: string;
+        mixS: string;
+        lmixEnabled: string;
+        mixL: string;
+        sk: string;
+        kandu: string;
+        oil: string;
+        smellHas: string;
+        smellType?: string;
+        paddyWbEnabled: string;
+        paddyWb: string;
+        actualBags?: string;
+        stageImage: File | null;
+        reportedBy: string;
+        isLocked?: boolean;
+        imageUrl?: string | null;
+      }
     }
   }>({});
 
@@ -216,6 +278,7 @@ const PhysicalInspection: React.FC = () => {
             cutting2: inspection.cutting2,
             bend: inspection.bend,
             bend2: (inspection as any).bend2,
+            samplingStages: (inspection as any).samplingStages,
             reportedBy: inspection.reportedBy || { username: 'System' }
           }))
         };
@@ -265,69 +328,265 @@ const PhysicalInspection: React.FC = () => {
     }));
   };
 
-  const handleFileChange = (entryId: string, field: 'halfLorryImage' | 'fullLorryImage', file: File | null) => {
-    setInspectionData(prev => ({
+  const handleStageInputChange = (entryId: string, stage: string, field: string, value: any) => {
+    let finalValue = value;
+
+    if (field === 'cutting' || field === 'bend') {
+      let clean = String(value || '').replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×');
+      const xCount = (clean.match(/×/g) || []).length;
+      if (xCount > 1) {
+        const idx = clean.indexOf('×');
+        clean = clean.substring(0, idx + 1) + clean.substring(idx + 1).replace(/×/g, '');
+      }
+      if (clean.length === 1 && !clean.includes('×') && /^\d$/.test(clean)) {
+        clean = clean + '×';
+      }
+      const parts = clean.split('×');
+      const first = (parts[0] || '').substring(0, 1);
+      const second = (parts[1] || '').substring(0, 4);
+      clean = second !== undefined && clean.includes('×') ? `${first}×${second}` : first;
+      finalValue = clean;
+    } else if (field === 'moisture' || field === 'dryMoistureValue' || field === 'grainsCount' || field === 'mix' || field === 'mixS' || field === 'mixL' || field === 'sk' || field === 'kandu' || field === 'oil' || field === 'paddyWb') {
+      const alphaFields = ['mix', 'mixS', 'mixL', 'oil', 'kandu', 'sk'];
+      let cleaned = '';
+
+      if (alphaFields.includes(field)) {
+        cleaned = String(value || '').replace(/[^0-9.a-zA-Z]/g, '');
+        const alphaMatch = cleaned.match(/[a-zA-Z]/g);
+        if (alphaMatch && alphaMatch.length > 1) {
+          let firstAlphaFound = false;
+          cleaned = Array.from(cleaned).filter(char => {
+            if (/[a-zA-Z]/.test(char)) {
+              if (!firstAlphaFound) {
+                firstAlphaFound = true;
+                return true;
+              }
+              return false;
+            }
+            return true;
+          }).join('');
+        }
+      } else {
+        cleaned = String(value || '').replace(/[^0-9.]/g, '');
+      }
+
+      if (field === 'grainsCount') {
+        if (cleaned.length > 3) return;
+      } else {
+        if (cleaned.length > 5) return;
+      }
+      finalValue = cleaned;
+    }
+
+    setSamplingStageData(prev => ({
       ...prev,
       [entryId]: {
         ...prev[entryId],
-        [field]: file
+        [stage]: {
+          ...prev[entryId]?.[stage],
+          [field]: finalValue
+        }
       }
     }));
   };
 
-  const handleSubmitInspection = async (entryId: string) => {
-    const data = inspectionData[entryId];
-    const progress = inspectionProgress[entryId];
+  const handleLorryNumberChange = (entryId: string, lorryNo: string) => {
+    handleInputChange(entryId, 'lorryNumber', lorryNo.toUpperCase());
 
-    if (!data || !data.inspectionDate || !data.lorryNumber || !data.actualBags ||
-      !data.cutting || !data.bend) {
-      showNotification('Please fill all required fields', 'error');
+    const cleanLorry = lorryNo.trim().toUpperCase();
+    const progress = inspectionProgress[entryId];
+    const prevLorryInspection = progress?.previousInspections?.find(
+      i => (i.lorryNumber || '').trim().toUpperCase() === cleanLorry
+    );
+
+    if (prevLorryInspection && prevLorryInspection.samplingStages) {
+      const stages = prevLorryInspection.samplingStages || {};
+      const stageKeys = Object.keys(stages);
+      
+      const newStageData: any = {};
+      stageKeys.forEach(key => {
+        const dbStage = stages[key] || {};
+        newStageData[key] = {
+          moisture: dbStage.moisture !== null && dbStage.moisture !== undefined ? dbStage.moisture.toString() : '',
+          dryMoisture: dbStage.dryMoisture ? 'Y' : 'N',
+          dryMoistureValue: dbStage.dryMoistureRaw || (dbStage.dryMoisture !== null && dbStage.dryMoisture !== undefined ? dbStage.dryMoisture.toString() : ''),
+          grainsCount: dbStage.grainsCount !== null && dbStage.grainsCount !== undefined ? dbStage.grainsCount.toString() : '',
+          cutting: dbStage.cutting1 !== null && dbStage.cutting1 !== undefined ? `${dbStage.cutting1}${dbStage.cutting2 ? `×${dbStage.cutting2}` : ''}` : '',
+          bend: dbStage.bend1 !== null && dbStage.bend1 !== undefined ? `${dbStage.bend1}${dbStage.bend2 ? `×${dbStage.bend2}` : ''}` : '',
+          mix: dbStage.mix || '',
+          smixEnabled: dbStage.smixEnabled ? 'Y' : 'N',
+          mixS: dbStage.mixS || dbStage.mix_s || '',
+          lmixEnabled: dbStage.lmixEnabled ? 'Y' : 'N',
+          mixL: dbStage.mixL || dbStage.mix_l || '',
+          sk: dbStage.sk || '',
+          kandu: dbStage.kandu || '',
+          oil: dbStage.oil || '',
+          smellHas: dbStage.smellHas ? 'Yes' : 'No',
+          smellType: dbStage.smellType || '',
+          paddyWbEnabled: dbStage.paddyWbEnabled ? 'Y' : 'N',
+          paddyWb: dbStage.paddyWb !== null && dbStage.paddyWb !== undefined ? dbStage.paddyWb.toString() : '',
+          actualBags: dbStage.bags !== null && dbStage.bags !== undefined ? dbStage.bags.toString() : '',
+          imageUrl: dbStage.imageUrl || null,
+          reportedBy: dbStage.reportedBy || 'System',
+          isLocked: true
+        };
+      });
+
+      setActiveCards(prev => ({
+        ...prev,
+        [entryId]: stageKeys
+      }));
+
+      setSamplingStageData(prev => ({
+        ...prev,
+        [entryId]: {
+          ...prev[entryId],
+          ...newStageData
+        }
+      }));
+    } else {
+      setActiveCards(prev => ({
+        ...prev,
+        [entryId]: []
+      }));
+      setSamplingStageData(prev => ({
+        ...prev,
+        [entryId]: {}
+      }));
+    }
+  };
+
+  const handleAddStage = (entryId: string) => {
+    const stage = selectedStage[entryId];
+    if (!stage) {
+      showNotification('Please select a sampling stage from the dropdown', 'error');
       return;
     }
 
-    // Parse cutting: e.g. "12x20" → cutting1=12, cutting2=20
-    const cuttingParts = data.cutting.split(/[xX×]/);
+    const currentActive = activeCards[entryId] || [];
+    if (currentActive.includes(stage)) {
+      showNotification('This card is already open', 'error');
+      return;
+    }
+
+    if (stage !== 'lot_avg') {
+      const hasLotAvg = currentActive.includes('lot_avg') && samplingStageData[entryId]?.['lot_avg']?.isLocked;
+      if (!hasLotAvg) {
+        showNotification('Must submit Lot Avg Sampling first for this lorry', 'error');
+        return;
+      }
+    }
+
+    setSamplingStageData(prev => ({
+      ...prev,
+      [entryId]: {
+        ...prev[entryId],
+        [stage]: {
+          moisture: '',
+          dryMoisture: 'N',
+          dryMoistureValue: '',
+          grainsCount: '',
+          cutting: '',
+          bend: '',
+          mix: '',
+          smixEnabled: 'N',
+          mixS: '',
+          lmixEnabled: 'N',
+          mixL: '',
+          sk: '',
+          kandu: '',
+          oil: '',
+          smellHas: 'No',
+          smellType: '',
+          paddyWbEnabled: 'N',
+          paddyWb: '',
+          actualBags: '',
+          stageImage: null,
+          reportedBy: user?.username || 'System',
+          isLocked: false
+        }
+      }
+    }));
+
+    setActiveCards(prev => ({
+      ...prev,
+      [entryId]: [...currentActive, stage]
+    }));
+  };
+
+  const handleSaveStage = async (entryId: string, stage: string) => {
+    const data = inspectionData[entryId];
+    const stageVal = samplingStageData[entryId]?.[stage];
+    const progress = inspectionProgress[entryId];
+
+    if (!data || !data.lorryNumber) {
+      showNotification('Lorry number is required', 'error');
+      return;
+    }
+
+    if (!stageVal) return;
+
+    if (stage === 'full_avg' && (!stageVal.actualBags || Number(stageVal.actualBags) <= 0)) {
+      showNotification('Loaded Bags is required for Full Avg Lorry', 'error');
+      return;
+    }
+
+    const cuttingParts = (stageVal.cutting || '').split(/[xX×]/);
     const cutting1 = parseFloat(cuttingParts[0]?.trim()) || 0;
     const cutting2 = cuttingParts.length > 1 ? (parseFloat(cuttingParts[1]?.trim()) || 0) : 0;
 
-    // Parse bend: e.g. "12x15" → bend1 = 12, bend2 = 15
-    const bendParts = data.bend.split(/[xX×]/);
+    const bendParts = (stageVal.bend || '').split(/[xX×]/);
     const bend1 = parseFloat(bendParts[0]?.trim()) || 0;
     const bend2 = bendParts.length > 1 ? (parseFloat(bendParts[1]?.trim()) || 0) : 0;
 
-    // Validate bags don't exceed remaining
-    if (progress && data.actualBags > progress.remainingBags) {
-      showNotification(`Cannot inspect ${data.actualBags} bags. Only ${progress.remainingBags} bags remaining.`, 'error');
-      return;
-    }
+    if (stage === 'full_avg' && progress) {
+      const actualBags = Number(stageVal.actualBags);
+      const totalInspected = progress.previousInspections
+        .filter(i => (i.lorryNumber || '').trim().toUpperCase() !== data.lorryNumber.trim().toUpperCase())
+        .reduce((sum, i) => sum + (i.bags || 0), 0);
+      const remainingBags = progress.totalBags - totalInspected;
 
-    // Validate bags is not zero or negative
-    if (!data.actualBags || data.actualBags <= 0) {
-      showNotification('Please enter valid number of bags', 'error');
-      return;
+      if (actualBags > remainingBags) {
+        showNotification(`Cannot inspect ${actualBags} bags. Only ${remainingBags} bags remaining.`, 'error');
+        return;
+      }
     }
 
     try {
       const token = localStorage.getItem('token');
-
-      // Create FormData for file upload
       const formData = new FormData();
       formData.append('inspectionDate', data.inspectionDate);
       formData.append('lorryNumber', data.lorryNumber);
-      formData.append('actualBags', data.actualBags.toString());
+      formData.append('stage', stage);
+      formData.append('moisture', stageVal.moisture || '0');
+      formData.append('dryMoisture', stageVal.dryMoisture === 'Y' ? (stageVal.dryMoistureValue || '1') : '0');
+      formData.append('dryMoistureRaw', stageVal.dryMoisture === 'Y' ? (stageVal.dryMoistureValue || 'Y') : 'N');
+      formData.append('grainsCount', stageVal.grainsCount || '0');
       formData.append('cutting1', cutting1.toString());
       formData.append('cutting2', cutting2.toString());
-      formData.append('bend', data.bend);
       formData.append('bend1', bend1.toString());
       formData.append('bend2', bend2.toString());
-      if (data.remarks) formData.append('remarks', data.remarks);
+      formData.append('mix', stageVal.mix || '0');
+      formData.append('smixEnabled', stageVal.smixEnabled === 'Y' ? 'true' : 'false');
+      formData.append('mixS', stageVal.smixEnabled === 'Y' ? stageVal.mixS || '' : '');
+      formData.append('lmixEnabled', stageVal.lmixEnabled === 'Y' ? 'true' : 'false');
+      formData.append('mixL', stageVal.lmixEnabled === 'Y' ? stageVal.mixL || '' : '');
+      formData.append('sk', stageVal.sk || '0');
+      formData.append('kandu', stageVal.kandu || '0');
+      formData.append('oil', stageVal.oil || '0');
+      formData.append('smellHas', stageVal.smellHas === 'Yes' ? 'true' : 'false');
+      formData.append('smellType', stageVal.smellHas === 'Yes' ? (stageVal.smellType || '') : '');
+      formData.append('paddyWbEnabled', stageVal.paddyWbEnabled === 'Y' ? 'true' : 'false');
+      formData.append('paddyWb', stageVal.paddyWb || '0');
+      formData.append('remarks', data.remarks || '');
+      formData.append('reportedBy', user?.username || 'System');
 
-      // Add images if selected
-      if (data.halfLorryImage) {
-        formData.append('halfLorryImage', data.halfLorryImage);
+      if (stage === 'full_avg') {
+        formData.append('actualBags', stageVal.actualBags || '0');
       }
-      if (data.fullLorryImage) {
-        formData.append('fullLorryImage', data.fullLorryImage);
+
+      if (stageVal.stageImage) {
+        formData.append('stageImage', stageVal.stageImage);
       }
 
       await axios.post(
@@ -341,36 +600,38 @@ const PhysicalInspection: React.FC = () => {
         }
       );
 
-      showNotification('Physical inspection submitted successfully', 'success');
-      setSelectedEntry(null);
-      setInspectionData(prev => {
-        const newData = { ...prev };
-        delete newData[entryId];
-        return newData;
-      });
+      showNotification(`${stage.toUpperCase().replace('_', ' ')} saved successfully`, 'success');
+      
+      setSamplingStageData(prev => ({
+        ...prev,
+        [entryId]: {
+          ...prev[entryId],
+          [stage]: {
+            ...prev[entryId]?.[stage],
+            isLocked: true
+          }
+        }
+      }));
 
-      // Reload entries and progress
       await loadEntries();
     } catch (error: any) {
-      showNotification(error.response?.data?.error || 'Failed to submit inspection', 'error');
+      showNotification(error.response?.data?.error || `Failed to save ${stage}`, 'error');
     }
   };
 
   const initializeInspectionData = (entryId: string) => {
-    const progress = inspectionProgress[entryId];
     if (!inspectionData[entryId]) {
       setInspectionData(prev => ({
         ...prev,
         [entryId]: {
           inspectionDate: new Date().toISOString().split('T')[0],
           lorryNumber: '',
-          actualBags: progress?.remainingBags || 0,
-          cutting: '',
-          bend: '',
-          halfLorryImage: null,
-          fullLorryImage: null,
           remarks: ''
         }
+      }));
+      setSelectedStage(prev => ({
+        ...prev,
+        [entryId]: 'lot_avg'
       }));
     }
     setSelectedEntry(entryId);
@@ -496,8 +757,20 @@ const PhysicalInspection: React.FC = () => {
                       </td>
                       <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '10px 12px', fontSize: '13px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{entry.brokerName}</td>
                       <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '10px 12px', fontSize: '13px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
-                        <div style={{ fontWeight: '700', color: '#1565c0', fontSize: '14px' }}>{toTitleCase(entry.partyName) || (entry.entryType === 'DIRECT_LOADED_VEHICLE' ? entry.lorryNumber?.toUpperCase() : '')}</div>
-                        {entry.entryType === 'DIRECT_LOADED_VEHICLE' && entry.lorryNumber && entry.partyName && <div style={{ fontSize: '12px', color: '#1565c0', fontWeight: '700' }}>{entry.lorryNumber.toUpperCase()}</div>}
+                        <div 
+                          onClick={() => handlePartyClick(entry)}
+                          style={{ fontWeight: '700', color: '#1565c0', fontSize: '14px', cursor: 'pointer', textDecoration: 'underline' }}
+                        >
+                          {entry.partyName && entry.partyName.trim() ? toTitleCase(entry.partyName) : (entry.lorryNumber ? entry.lorryNumber.toUpperCase() : 'Lorry Details')}
+                        </div>
+                        {entry.lorryNumber && entry.partyName && entry.partyName.trim() && (
+                          <div 
+                            onClick={() => handlePartyClick(entry)}
+                            style={{ fontSize: '12px', color: '#1565c0', fontWeight: '700', cursor: 'pointer', textDecoration: 'underline' }}
+                          >
+                            {entry.lorryNumber.toUpperCase()}
+                          </div>
+                        )}
                       </td>
                       <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '10px 12px', fontSize: '13px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{entry.location}</td>
                       <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '10px 12px', fontSize: '13px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{entry.variety}</td>
@@ -550,58 +823,169 @@ const PhysicalInspection: React.FC = () => {
                             cursor: (progressPercentage >= 100 || entry.lotAllotment?.closedAt) ? 'not-allowed' : 'pointer'
                           }}
                         >
-                          {entry.lotAllotment?.closedAt ? 'Closed' : (progressPercentage >= 100 ? 'Complete' : (selectedEntry === entry.id ? 'Editing...' : 'Add Inspection'))}
+                          {entry.lotAllotment?.closedAt ? 'Closed' : (progressPercentage >= 100 ? 'Complete' : (selectedEntry === entry.id ? 'Editing...' : 'Add Lorry Load'))}
                         </button>
                       </td>
                     </tr>
 
-                    {/* Show previous inspections history */}
+                    {/* Show previous inspections history with beautiful inline comparative orange grid */}
                     {progress && progress.previousInspections && progress.previousInspections.length > 0 && (
                       <tr style={{ borderBottom: '3px solid #444' }}>
-                        <td colSpan={11} style={{ padding: '12px', backgroundColor: '#f0f8ff', border: '1px solid #666', borderBottom: '3px solid #444' }}>
-                          <div style={{ fontSize: '14px', fontWeight: '800', marginBottom: '8px', color: '#111' }}>
-                            📋 Lorry Loading Details ({progress.previousInspections.length})
+                        <td colSpan={11} style={{ padding: '12px', backgroundColor: '#fdf6f0', border: '1px solid #f2711c', borderBottom: '3px solid #444' }}>
+                          <div style={{ fontSize: '14px', fontWeight: '800', marginBottom: '8px', color: '#d05d00', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>📋 Lorry Loading Details & Comparative Differences ({progress.previousInspections.length})</span>
+                            <span style={{ fontSize: '11px', color: '#666', fontWeight: 'normal' }}>*Orange tables show Progressive Sampling differences (Lot Avg, Half, Full Lorry)</span>
                           </div>
-                          <table style={{ width: '100%', maxWidth: '950px', fontSize: '13px', borderCollapse: 'collapse', border: '1px solid #444', tableLayout: 'fixed' }}>
-                            <colgroup>
-                              <col style={{ width: '120px' }} />
-                              <col style={{ width: '160px' }} />
-                              <col style={{ width: '110px' }} />
-                              <col style={{ width: '130px' }} />
-                              <col style={{ width: '130px' }} />
-                              <col style={{ width: '160px' }} />
-                            </colgroup>
-                            <thead>
-                              <tr style={{ backgroundColor: '#d0e1f9', color: '#111' }}>
-                                <th style={{ border: '1px solid #444', padding: '8px 10px', textAlign: 'left', fontWeight: '700' }}>Date</th>
-                                <th style={{ border: '1px solid #444', padding: '8px 10px', textAlign: 'left', fontWeight: '700' }}>Lorry Number</th>
-                                <th style={{ border: '1px solid #444', padding: '8px 10px', textAlign: 'left', fontWeight: '700' }}>Bags</th>
-                                <th style={{ border: '1px solid #444', padding: '8px 10px', textAlign: 'left', fontWeight: '700' }}>Cutting</th>
-                                <th style={{ border: '1px solid #444', padding: '8px 10px', textAlign: 'left', fontWeight: '700' }}>Bend</th>
-                                <th style={{ border: '1px solid #444', padding: '8px 10px', textAlign: 'left', fontWeight: '700' }}>Loaded By</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {progress.previousInspections.map((inspection, idx) => (
-                                <tr key={inspection.id} style={{ backgroundColor: idx % 2 === 0 ? 'white' : '#f9f9f9' }}>
-                                  <td style={{ border: '1px solid #444', padding: '8px 10px', textAlign: 'left', color: '#1a1a1a', fontWeight: '600' }}>
-                                    {new Date(inspection.inspectionDate).toLocaleDateString()}
-                                  </td>
-                                  <td style={{ border: '1px solid #444', padding: '8px 10px', textAlign: 'left', color: '#1a1a1a', fontWeight: '600' }}>{inspection.lorryNumber}</td>
-                                  <td style={{ border: '1px solid #444', padding: '8px 10px', textAlign: 'left', fontWeight: '700', color: '#1a1a1a' }}>
-                                    {inspection.bags?.toLocaleString('en-IN')}
-                                  </td>
-                                  <td style={{ border: '1px solid #444', padding: '8px 10px', textAlign: 'left', color: '#1a1a1a', fontWeight: '600' }}>
-                                    {formatDecimal(inspection.cutting1)} {inspection.cutting2 && Number(inspection.cutting2) !== 0 ? `x ${formatDecimal(inspection.cutting2)}` : ''}
-                                  </td>
-                                  <td style={{ border: '1px solid #444', padding: '8px 10px', textAlign: 'left', color: '#1a1a1a', fontWeight: '600' }}>
-                                    {formatDecimal(inspection.bend)} {inspection.bend2 && Number(inspection.bend2) !== 0 ? `x ${formatDecimal(inspection.bend2)}` : ''}
-                                  </td>
-                                  <td style={{ border: '1px solid #444', padding: '8px 10px', textAlign: 'left', color: '#1a1a1a', fontWeight: '600' }}>{inspection.reportedBy.username}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                          
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            {progress.previousInspections.map((inspection, idx) => {
+                              const stages = inspection.samplingStages || {};
+                              const lot = stages.lot_avg || {};
+                              const half = stages.half_lorry || {};
+                              const full = stages.full_avg || {};
+
+                              const formatField = (val: any) => {
+                                if (val === null || val === undefined || val === '') return '-';
+                                return String(val);
+                              };
+
+                              const formatMoisture = (stageObj: any) => {
+                                const raw = stageObj.moistureRaw;
+                                const val = stageObj.moisture;
+                                if (raw) return `${raw}%`;
+                                if (val !== undefined && val !== null) return `${val}%`;
+                                return '-';
+                              };
+
+                              const formatCutting = (stageObj: any) => {
+                                if (stageObj.cutting1 === undefined || stageObj.cutting1 === null) return '-';
+                                return `${stageObj.cutting1}x${stageObj.cutting2 || 0}`;
+                              };
+
+                              const formatBend = (stageObj: any) => {
+                                if (stageObj.bend1 === undefined || stageObj.bend1 === null) return '-';
+                                return `${stageObj.bend1}x${stageObj.bend2 || 0}`;
+                              };
+
+                              return (
+                                <div key={inspection.id} style={{ background: '#ffffff', border: '1px solid #f2cfb6', borderRadius: '6px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                                  {/* Trip/Lorry Header */}
+                                  <div style={{
+                                    background: 'linear-gradient(90deg, #f2711c 0%, #f26202 100%)',
+                                    color: 'white',
+                                    padding: '6px 12px',
+                                    fontWeight: '700',
+                                    fontSize: '12px',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center'
+                                  }}>
+                                    <span>Lorry Number: <b style={{ fontSize: '13px' }}>{inspection.lorryNumber?.toUpperCase()}</b> | Bags Loaded: {inspection.bags}</span>
+                                    <span>Loaded By: {inspection.reportedBy?.username || '-'} | Date: {new Date(inspection.inspectionDate).toLocaleDateString()}</span>
+                                  </div>
+
+                                  {/* Comparative parameters Grid */}
+                                  <div style={{ overflowX: 'auto', padding: '6px' }}>
+                                    <table style={{ width: '100%', minWidth: '1150px', borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #f2a672' }}>
+                                      <thead>
+                                        <tr style={{ background: 'linear-gradient(90deg, #f2711c 0%, #f26202 100%)', color: 'white' }}>
+                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'left', width: '10%' }}>SAMPLE</th>
+                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '7%' }}>REPORTED BY</th>
+                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '7%' }}>REPORTED AT</th>
+                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '6%' }}>MOISTURE</th>
+                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '6%' }}>CUTTING</th>
+                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '6%' }}>BEND</th>
+                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '6%' }}>GRAINS COUNT</th>
+                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '4%' }}>MIX</th>
+                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '4%' }}>S MIX</th>
+                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '4%' }}>L MIX</th>
+                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '4%' }}>KANDU</th>
+                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '4%' }}>OIL</th>
+                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '4%' }}>SK</th>
+                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '5%' }}>SMELL</th>
+                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '6%' }}>PADDY WB</th>
+                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '5%' }}>PHOTO</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {/* 1st Sample / Lot Avg */}
+                                        <tr style={{ borderBottom: '1px solid #f2cfb6', backgroundColor: '#fffaf5' }}>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', fontWeight: '800', color: '#d05d00' }}>1st Sample (Lot Avg)</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(lot.reportedBy)}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>
+                                            {lot.reportedAt ? new Date(lot.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                                          </td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatMoisture(lot)}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatCutting(lot)}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatBend(lot)}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>({formatField(lot.grainsCountRaw || lot.grainsCount)})</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(lot.mixRaw || lot.mix)}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{lot.smixEnabled ? formatField(lot.mixSRaw || lot.mixS) || 'Yes' : '-'}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{lot.lmixEnabled ? formatField(lot.mixLRaw || lot.mixL) || 'Yes' : '-'}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(lot.kanduRaw || lot.kandu)}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(lot.oilRaw || lot.oil)}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(lot.skRaw || lot.sk)}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{lot.smellHas ? 'Yes' : '-'}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{lot.paddyWbEnabled ? formatField(lot.paddyWbRaw || lot.paddyWb) : '-'}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center' }}>
+                                            {lot.imageUrl ? <a href={resolveMediaUrl(lot.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#f26202', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
+                                          </td>
+                                        </tr>
+
+                                        {/* 2nd Sample / Half Lorry */}
+                                        <tr style={{ borderBottom: '1px solid #f2cfb6', backgroundColor: '#fffdfa' }}>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', fontWeight: '800', color: '#b45309' }}>2nd Sample (Half Lorry)</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(half.reportedBy)}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>
+                                            {half.reportedAt ? new Date(half.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                                          </td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatMoisture(half)}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatCutting(half)}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatBend(half)}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>({formatField(half.grainsCountRaw || half.grainsCount)})</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(half.mixRaw || half.mix)}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{half.smixEnabled ? formatField(half.mixSRaw || half.mixS) || 'Yes' : '-'}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{half.lmixEnabled ? formatField(half.mixLRaw || half.mixL) || 'Yes' : '-'}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(half.kanduRaw || half.kandu)}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(half.oilRaw || half.oil)}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(half.skRaw || half.sk)}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{half.smellHas ? 'Yes' : '-'}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{half.paddyWbEnabled ? formatField(half.paddyWbRaw || half.paddyWb) : '-'}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center' }}>
+                                            {half.imageUrl ? <a href={resolveMediaUrl(half.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#f26202', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
+                                          </td>
+                                        </tr>
+
+                                        {/* 3rd Sample / Full Lorry */}
+                                        <tr style={{ borderBottom: '1px solid #f2cfb6', backgroundColor: '#fffaf0' }}>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', fontWeight: '800', color: '#15803d' }}>3rd Sample (Full Lorry)</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(full.reportedBy)}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>
+                                            {full.reportedAt ? new Date(full.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                                          </td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatMoisture(full)}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatCutting(full)}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatBend(full)}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>({formatField(full.grainsCountRaw || full.grainsCount)})</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(full.mixRaw || full.mix)}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{full.smixEnabled ? formatField(full.mixSRaw || full.mixS) || 'Yes' : '-'}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{full.lmixEnabled ? formatField(full.mixLRaw || full.mixL) || 'Yes' : '-'}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(full.kanduRaw || full.kandu)}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(full.oilRaw || full.oil)}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(full.skRaw || full.sk)}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{full.smellHas ? 'Yes' : '-'}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{full.paddyWbEnabled ? formatField(full.paddyWbRaw || full.paddyWb) : '-'}</td>
+                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center' }}>
+                                            {full.imageUrl ? <a href={resolveMediaUrl(full.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#f26202', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
+                                          </td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </td>
                       </tr>
                     )}
@@ -609,24 +993,40 @@ const PhysicalInspection: React.FC = () => {
                     {/* Inspection form */}
                     {selectedEntry === entry.id && (
                       <tr>
-                        <td colSpan={11} style={{ padding: '15px', backgroundColor: '#fff3e0', border: '1px solid #999' }}>
+                        <td colSpan={11} style={{ padding: '15px', backgroundColor: '#fafafa', border: '1px solid #999' }}>
                           <div style={{
-                            maxWidth: '500px',
-                            backgroundColor: '#ffffff',
-                            padding: '16px 20px',
-                            borderRadius: '8px',
-                            border: '1px solid #e0b380',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                            display: 'flex',
+                            gap: '20px',
+                            alignItems: 'flex-start',
+                            flexWrap: 'wrap',
+                            width: '100%'
                           }}>
-                            <h3 style={{ marginBottom: '16px', fontSize: '13px', fontWeight: '700', color: '#e67e22', borderBottom: '2px solid #fff3e0', paddingBottom: '8px' }}>
-                              Add New Inspection - Remaining Bags: {progress?.remainingBags || entry.bags}
-                            </h3>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                              {/* Row 1: Date & Lorry Number */}
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                                <div style={{ flex: '1 1 200px' }}>
-                                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '600', color: '#444' }}>
-                                    Inspection date *
+                            {/* Left Panel: Lorry Loading Details */}
+                            <div style={{
+                              width: '320px',
+                              backgroundColor: '#ffffff',
+                              padding: '16px 20px',
+                              borderRadius: '8px',
+                              border: '2px solid #27ae60',
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                            }}>
+                              <div style={{
+                                backgroundColor: '#27ae60',
+                                color: 'white',
+                                padding: '8px 12px',
+                                margin: '-16px -20px 16px -20px',
+                                borderTopLeftRadius: '6px',
+                                borderTopRightRadius: '6px',
+                                fontWeight: '700',
+                                fontSize: '14px',
+                                textAlign: 'center'
+                              }}>
+                                🚛 Lorry Loading Details
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                                <div>
+                                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
+                                    Loaded Date *
                                   </label>
                                   <input
                                     type="date"
@@ -635,224 +1035,488 @@ const PhysicalInspection: React.FC = () => {
                                     style={{
                                       width: '100%',
                                       padding: '8px',
-                                      fontSize: '11px',
-                                      border: '1px solid #999',
+                                      fontSize: '12px',
+                                      border: '1px solid #ccc',
                                       borderRadius: '4px',
                                       color: '#1a1a1a',
-                                      backgroundColor: '#fff'
+                                      backgroundColor: '#f5f5f5'
                                     }}
                                   />
+                                  <span style={{ fontSize: '10px', color: '#c0392b', fontWeight: '600' }}>Freezed</span>
                                 </div>
-                                <div style={{ flex: '1 1 200px' }}>
-                                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '600', color: '#444' }}>
+                                <div>
+                                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
                                     Lorry number *
                                   </label>
                                   <input
                                     type="text"
                                     value={inspectionData[entry.id]?.lorryNumber || ''}
-                                    onChange={(e) => handleInputChange(entry.id, 'lorryNumber', e.target.value.toUpperCase())}
-                                    placeholder="Enter lorry number"
-                                    maxLength={10}
+                                    onChange={(e) => handleLorryNumberChange(entry.id, e.target.value)}
+                                    placeholder="ENTER LORRY NUMBER"
+                                    maxLength={12}
                                     style={{
                                       width: '100%',
                                       padding: '8px',
-                                      fontSize: '11px',
-                                      border: '1px solid #999',
+                                      fontSize: '12px',
+                                      border: '1px solid #ccc',
                                       borderRadius: '4px',
                                       color: '#1a1a1a',
+                                      fontWeight: '600',
                                       backgroundColor: '#fff',
                                       textTransform: 'uppercase'
                                     }}
                                   />
                                 </div>
-                              </div>
+                                <div>
+                                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
+                                    Sampling - Drop Box *
+                                  </label>
+                                  <div style={{ display: 'flex', gap: '6px' }}>
+                                    <select
+                                      value={selectedStage[entry.id] || ''}
+                                      onChange={(e) => setSelectedStage(prev => ({ ...prev, [entry.id]: e.target.value }))}
+                                      style={{
+                                        flex: 1,
+                                        padding: '8px',
+                                        fontSize: '12px',
+                                        border: '1px solid #ccc',
+                                        borderRadius: '4px',
+                                        backgroundColor: '#fff'
+                                      }}
+                                    >
+                                      <option value="lot_avg">1. Lot Avg Sampling</option>
+                                      <option value="half_lorry">2. Half Lorry Sampling</option>
+                                      <option value="full_avg">3. Full Avg Lorry Sampling</option>
+                                      <option value="nit_avg">4. Nit Avg Sampling</option>
+                                    </select>
+                                    <button
+                                      onClick={() => handleAddStage(entry.id)}
+                                      type="button"
+                                      style={{
+                                        padding: '6px 12px',
+                                        backgroundColor: '#e74c3c',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        fontWeight: '700',
+                                        cursor: 'pointer',
+                                        fontSize: '12px'
+                                      }}
+                                    >
+                                      Add
+                                    </button>
+                                  </div>
+                                </div>
 
-                              {/* Row 2: Actual Bags */}
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                                <div style={{ flex: '1 1 200px' }}>
-                                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '600', color: '#444' }}>
-                                    Actual bags (this lorry) *
-                                  </label>
-                                  <input
-                                    type="number"
-                                    value={inspectionData[entry.id]?.actualBags || ''}
-                                    onChange={(e) => handleInputChange(entry.id, 'actualBags', Number(e.target.value))}
-                                    placeholder={`Max: ${progress?.remainingBags || entry.bags}`}
-                                    max={progress?.remainingBags || entry.bags}
+                                <div style={{ borderTop: '1px solid #eee', paddingTop: '10px', display: 'flex', gap: '10px', marginTop: '10px' }}>
+                                  <button
+                                    onClick={() => setSelectedEntry(null)}
                                     style={{
-                                      width: '100%',
-                                      padding: '8px',
-                                      fontSize: '11px',
-                                      border: '1px solid #999',
+                                      flex: 1,
+                                      fontSize: '12px',
+                                      padding: '8px 12px',
+                                      fontWeight: '700',
+                                      backgroundColor: '#e74c3c',
+                                      color: 'white',
+                                      border: 'none',
                                       borderRadius: '4px',
-                                      color: '#1a1a1a',
-                                      backgroundColor: '#fff'
+                                      cursor: 'pointer'
                                     }}
-                                  />
+                                  >
+                                    Cancel
+                                  </button>
                                 </div>
-                                <div style={{ flex: '1 1 200px', display: 'flex', alignItems: 'flex-end' }}>
-                                  {/* Empty space for alignment */}
-                                </div>
-                              </div>
-
-                              {/* Row 3: Quality Parameters (Cutting & Bend) */}
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                                <div style={{ flex: '1 1 200px' }}>
-                                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '600', color: '#444' }}>
-                                    Cutting *
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={inspectionData[entry.id]?.cutting || ''}
-                                    placeholder="1×"
-                                    onFocus={() => {
-                                      if (!inspectionData[entry.id]?.cutting) {
-                                        const res = handleCuttingInput('1×', entry.entryType);
-                                        handleInputChange(entry.id, 'cutting', res.raw);
-                                      }
-                                    }}
-                                    onChange={(e) => {
-                                      const res = handleCuttingInput(e.target.value, entry.entryType);
-                                      handleInputChange(entry.id, 'cutting', res.raw);
-                                    }}
-                                    style={{
-                                      width: '100%',
-                                      padding: '8px',
-                                      fontSize: '11px',
-                                      border: '1px solid #999',
-                                      borderRadius: '4px',
-                                      color: '#1a1a1a',
-                                      backgroundColor: '#fff'
-                                    }}
-                                  />
-                                </div>
-                                <div style={{ flex: '1 1 200px' }}>
-                                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '600', color: '#444' }}>
-                                    Bend *
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={inspectionData[entry.id]?.bend || ''}
-                                    placeholder="1×"
-                                    onFocus={() => {
-                                      if (!inspectionData[entry.id]?.bend) {
-                                        const res = handleBendInput('1×', entry.entryType);
-                                        handleInputChange(entry.id, 'bend', res.raw);
-                                      }
-                                    }}
-                                    onChange={(e) => {
-                                      const res = handleBendInput(e.target.value, entry.entryType);
-                                      handleInputChange(entry.id, 'bend', res.raw);
-                                    }}
-                                    style={{
-                                      width: '100%',
-                                      padding: '8px',
-                                      fontSize: '11px',
-                                      border: '1px solid #999',
-                                      borderRadius: '4px',
-                                      color: '#1a1a1a',
-                                      backgroundColor: '#fff'
-                                    }}
-                                  />
-                                </div>
-                              </div>
-
-                              {/* Row 4: Lorry Images */}
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                                <div style={{ flex: '1 1 200px' }}>
-                                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '600', color: '#444' }}>
-                                    Half lorry image (optional)
-                                  </label>
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={(e) => handleFileChange(entry.id, 'halfLorryImage', e.target.files?.[0] || null)}
-                                    style={{
-                                      width: '100%',
-                                      padding: '6px',
-                                      fontSize: '11px',
-                                      border: '1px solid #999',
-                                      borderRadius: '4px',
-                                      backgroundColor: '#fff'
-                                    }}
-                                  />
-                                </div>
-                                <div style={{ flex: '1 1 200px' }}>
-                                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '600', color: '#444' }}>
-                                    Full lorry image (optional)
-                                  </label>
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={(e) => handleFileChange(entry.id, 'fullLorryImage', e.target.files?.[0] || null)}
-                                    style={{
-                                      width: '100%',
-                                      padding: '6px',
-                                      fontSize: '11px',
-                                      border: '1px solid #999',
-                                      borderRadius: '4px',
-                                      backgroundColor: '#fff'
-                                    }}
-                                  />
-                                </div>
-                              </div>
-
-                              {/* Row 5: Remarks */}
-                              <div style={{ width: '100%' }}>
-                                <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '600', color: '#444' }}>
-                                  Remarks
-                                </label>
-                                <textarea
-                                  value={inspectionData[entry.id]?.remarks || ''}
-                                  onChange={(e) => handleInputChange(entry.id, 'remarks', e.target.value)}
-                                  placeholder="Enter any remarks"
-                                  rows={3}
-                                  style={{
-                                    width: '100%',
-                                    padding: '8px',
-                                    fontSize: '11px',
-                                    border: '1px solid #999',
-                                    borderRadius: '4px',
-                                    color: '#1a1a1a',
-                                    backgroundColor: '#fff',
-                                    resize: 'vertical'
-                                  }}
-                                />
                               </div>
                             </div>
 
-                            {/* Buttons */}
-                            <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
-                              <button
-                                onClick={() => handleSubmitInspection(entry.id)}
-                                style={{
-                                  fontSize: '12px',
-                                  padding: '8px 16px',
-                                  fontWeight: '600',
-                                  backgroundColor: '#4CAF50',
-                                  color: 'white',
-                                  border: 'none',
-                                  borderRadius: '4px',
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                Submit Inspection
-                              </button>
-                              <button
-                                onClick={() => setSelectedEntry(null)}
-                                style={{
-                                  fontSize: '12px',
-                                  padding: '8px 16px',
-                                  fontWeight: '600',
-                                  backgroundColor: '#f44336',
-                                  color: 'white',
-                                  border: 'none',
-                                  borderRadius: '4px',
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                Cancel
-                              </button>
+                            {/* Right Section: Progressive Stage Sampling Cards */}
+                            <div style={{
+                              flex: 1,
+                              display: 'flex',
+                              gap: '20px',
+                              flexWrap: 'wrap',
+                              alignItems: 'flex-start'
+                            }}>
+                              {(activeCards[entry.id] || []).map((stage) => {
+                                const cardData = samplingStageData[entry.id]?.[stage] || {
+                                  moisture: '',
+                                  dryMoisture: 'N',
+                                  dryMoistureValue: '',
+                                  grainsCount: '',
+                                  cutting: '',
+                                  bend: '',
+                                  mix: '',
+                                  smixEnabled: 'N',
+                                  mixS: '',
+                                  lmixEnabled: 'N',
+                                  mixL: '',
+                                  sk: '',
+                                  kandu: '',
+                                  oil: '',
+                                  smellHas: 'No',
+                                  smellType: '',
+                                  paddyWbEnabled: 'N',
+                                  paddyWb: '',
+                                  actualBags: '',
+                                  reportedBy: user?.username || 'System',
+                                  isLocked: false
+                                };
+                                const isLocked = !!cardData.isLocked;
+
+                                const getCardHeader = () => {
+                                  if (stage === 'lot_avg') return { title: 'Add Lot Avg Sampling', color: '#e67e22', border: '2px solid #e67e22' };
+                                  if (stage === 'half_lorry' || stage === 'nit_avg') {
+                                    return { title: 'Half Lorry Sampling | Nit Avg Sampling', color: '#8e44ad', border: '2px solid #8e44ad' };
+                                  }
+                                  return { title: 'Full Avg Lorry Sampling', color: '#2980b9', border: '2px solid #2980b9' };
+                                };
+
+                                const cardStyle = getCardHeader();
+
+                                return (
+                                  <div key={stage} style={{
+                                    width: '380px',
+                                    backgroundColor: '#ffffff',
+                                    padding: '16px',
+                                    borderRadius: '8px',
+                                    border: cardStyle.border,
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+                                    opacity: isLocked ? 0.85 : 1
+                                  }}>
+                                    <div style={{
+                                      fontSize: '13px',
+                                      fontWeight: '700',
+                                      color: cardStyle.color,
+                                      borderBottom: `2px solid ${cardStyle.color}1a`,
+                                      paddingBottom: '6px',
+                                      marginBottom: '12px',
+                                      display: 'flex',
+                                      justifyContent: 'space-between',
+                                      alignItems: 'center'
+                                    }}>
+                                      <span>{cardStyle.title}</span>
+                                      {isLocked && (
+                                        <span style={{
+                                          fontSize: '9px',
+                                          padding: '2px 6px',
+                                          backgroundColor: '#2ecc71',
+                                          color: 'white',
+                                          borderRadius: '10px',
+                                          fontWeight: 'bold'
+                                        }}>Saved</span>
+                                      )}
+                                    </div>
+
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '11px' }}>
+                                      {stage === 'full_avg' && (
+                                        <div style={{ backgroundColor: '#fcf8e3', padding: '8px', borderRadius: '4px', border: '1px solid #faebcc', marginBottom: '4px' }}>
+                                          <label style={{ display: 'block', fontWeight: '700', color: '#8a6d3b', marginBottom: '3px' }}>
+                                            Actual bags (this lorry) * Loaded Bags
+                                          </label>
+                                          <input
+                                            type="number"
+                                            disabled={isLocked}
+                                            value={cardData.actualBags || ''}
+                                            onChange={(e) => handleStageInputChange(entry.id, stage, 'actualBags', e.target.value)}
+                                            placeholder={`Max remaining: ${progress?.remainingBags || entry.bags}`}
+                                            style={{
+                                              width: '100%',
+                                              padding: '6px',
+                                              fontSize: '11px',
+                                              border: '1px solid #ccc',
+                                              borderRadius: '4px',
+                                              backgroundColor: isLocked ? '#f5f5f5' : '#fff'
+                                            }}
+                                          />
+                                        </div>
+                                      )}
+
+                                      {/* Row 1: Moisture, Dry Moisture, Grains */}
+                                      <div style={{ display: 'flex', gap: '8px' }}>
+                                        <div style={{ flex: 1 }}>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Moisture *</label>
+                                          <input
+                                            type="text"
+                                            disabled={isLocked}
+                                            value={cardData.moisture}
+                                            onChange={(e) => handleStageInputChange(entry.id, stage, 'moisture', e.target.value)}
+                                            style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                                          />
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Dry Moisture</label>
+                                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
+                                            <label><input type="radio" disabled={isLocked} checked={cardData.dryMoisture === 'Y'} onChange={() => handleStageInputChange(entry.id, stage, 'dryMoisture', 'Y')} /> Y</label>
+                                            <label><input type="radio" disabled={isLocked} checked={cardData.dryMoisture === 'N'} onChange={() => handleStageInputChange(entry.id, stage, 'dryMoisture', 'N')} /> N</label>
+                                          </div>
+                                          {cardData.dryMoisture === 'Y' && (
+                                            <input
+                                              type="text"
+                                              disabled={isLocked}
+                                              value={cardData.dryMoistureValue || ''}
+                                              onChange={(e) => handleStageInputChange(entry.id, stage, 'dryMoistureValue', e.target.value)}
+                                              placeholder="Dry Value"
+                                              style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                                            />
+                                          )}
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Grains Count *</label>
+                                          <input
+                                            type="text"
+                                            disabled={isLocked}
+                                            value={cardData.grainsCount}
+                                            onChange={(e) => handleStageInputChange(entry.id, stage, 'grainsCount', e.target.value)}
+                                            style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                                          />
+                                        </div>
+                                      </div>
+
+                                      {/* Row 2: Cutting, Bend, Mix */}
+                                      <div style={{ display: 'flex', gap: '8px' }}>
+                                        <div style={{ flex: 1 }}>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Cutting *</label>
+                                          <input
+                                            type="text"
+                                            disabled={isLocked}
+                                            value={cardData.cutting}
+                                            placeholder="1×"
+                                            onFocus={() => {
+                                              if (!cardData.cutting) {
+                                                const res = handleCuttingInput('1×', entry.entryType);
+                                                handleStageInputChange(entry.id, stage, 'cutting', res.raw);
+                                              }
+                                            }}
+                                            onChange={(e) => {
+                                              const res = handleCuttingInput(e.target.value, entry.entryType);
+                                              handleStageInputChange(entry.id, stage, 'cutting', res.raw);
+                                            }}
+                                            style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                                          />
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Bend *</label>
+                                          <input
+                                            type="text"
+                                            disabled={isLocked}
+                                            value={cardData.bend}
+                                            placeholder="1×"
+                                            onFocus={() => {
+                                              if (!cardData.bend) {
+                                                const res = handleBendInput('1×', entry.entryType);
+                                                handleStageInputChange(entry.id, stage, 'bend', res.raw);
+                                              }
+                                            }}
+                                            onChange={(e) => {
+                                              const res = handleBendInput(e.target.value, entry.entryType);
+                                              handleStageInputChange(entry.id, stage, 'bend', res.raw);
+                                            }}
+                                            style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                                          />
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Mix *</label>
+                                          <input
+                                            type="text"
+                                            disabled={isLocked}
+                                            value={cardData.mix}
+                                            onChange={(e) => handleStageInputChange(entry.id, stage, 'mix', e.target.value)}
+                                            style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                                          />
+                                        </div>
+                                      </div>
+
+                                      {/* Row 3: SMix, LMix, SK */}
+                                      <div style={{ display: 'flex', gap: '8px' }}>
+                                        <div style={{ flex: 1 }}>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>SMix</label>
+                                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
+                                            <label><input type="radio" disabled={isLocked} checked={cardData.smixEnabled === 'Y'} onChange={() => handleStageInputChange(entry.id, stage, 'smixEnabled', 'Y')} /> Y</label>
+                                            <label><input type="radio" disabled={isLocked} checked={cardData.smixEnabled === 'N'} onChange={() => { handleStageInputChange(entry.id, stage, 'smixEnabled', 'N'); handleStageInputChange(entry.id, stage, 'mixS', ''); }} /> N</label>
+                                          </div>
+                                          {cardData.smixEnabled === 'Y' && (
+                                            <input
+                                              type="text"
+                                              disabled={isLocked}
+                                              value={cardData.mixS}
+                                              onChange={(e) => handleStageInputChange(entry.id, stage, 'mixS', e.target.value)}
+                                              style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                                            />
+                                          )}
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>LMix</label>
+                                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
+                                            <label><input type="radio" disabled={isLocked} checked={cardData.lmixEnabled === 'Y'} onChange={() => handleStageInputChange(entry.id, stage, 'lmixEnabled', 'Y')} /> Y</label>
+                                            <label><input type="radio" disabled={isLocked} checked={cardData.lmixEnabled === 'N'} onChange={() => { handleStageInputChange(entry.id, stage, 'lmixEnabled', 'N'); handleStageInputChange(entry.id, stage, 'mixL', ''); }} /> N</label>
+                                          </div>
+                                          {cardData.lmixEnabled === 'Y' && (
+                                            <input
+                                              type="text"
+                                              disabled={isLocked}
+                                              value={cardData.mixL}
+                                              onChange={(e) => handleStageInputChange(entry.id, stage, 'mixL', e.target.value)}
+                                              style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                                            />
+                                          )}
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>SK *</label>
+                                          <input
+                                            type="text"
+                                            disabled={isLocked}
+                                            value={cardData.sk}
+                                            onChange={(e) => handleStageInputChange(entry.id, stage, 'sk', e.target.value)}
+                                            style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                                          />
+                                        </div>
+                                      </div>
+
+                                      {/* Row 4: Kandu, Oil, Smell */}
+                                      <div style={{ display: 'flex', gap: '8px' }}>
+                                        <div style={{ flex: 1 }}>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Kandu *</label>
+                                          <input
+                                            type="text"
+                                            disabled={isLocked}
+                                            value={cardData.kandu}
+                                            onChange={(e) => handleStageInputChange(entry.id, stage, 'kandu', e.target.value)}
+                                            style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                                          />
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Oil *</label>
+                                          <input
+                                            type="text"
+                                            disabled={isLocked}
+                                            value={cardData.oil}
+                                            onChange={(e) => handleStageInputChange(entry.id, stage, 'oil', e.target.value)}
+                                            style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                                          />
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Smell</label>
+                                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
+                                            <label><input type="radio" disabled={isLocked} checked={cardData.smellHas === 'Yes'} onChange={() => handleStageInputChange(entry.id, stage, 'smellHas', 'Yes')} /> Yes</label>
+                                            <label><input type="radio" disabled={isLocked} checked={cardData.smellHas === 'No'} onChange={() => { handleStageInputChange(entry.id, stage, 'smellHas', 'No'); handleStageInputChange(entry.id, stage, 'smellType', ''); }} /> No</label>
+                                          </div>
+                                          {cardData.smellHas === 'Yes' && (
+                                            <div style={{ display: 'flex', gap: '6px' }}>
+                                              <label><input type="radio" disabled={isLocked} checked={cardData.smellType === 'Light'} onChange={() => handleStageInputChange(entry.id, stage, 'smellType', 'Light')} /> Light</label>
+                                              <label><input type="radio" disabled={isLocked} checked={cardData.smellType === 'Medium'} onChange={() => handleStageInputChange(entry.id, stage, 'smellType', 'Medium')} /> Medium</label>
+                                              <label><input type="radio" disabled={isLocked} checked={cardData.smellType === 'Dark'} onChange={() => handleStageInputChange(entry.id, stage, 'smellType', 'Dark')} /> Dark</label>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {/* Row 5: Paddy WB */}
+                                      <div style={{ display: 'flex', gap: '8px' }}>
+                                        <div style={{ width: '100px' }}>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Paddy WB</label>
+                                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                                            <label><input type="radio" disabled={isLocked} checked={cardData.paddyWbEnabled === 'Y'} onChange={() => handleStageInputChange(entry.id, stage, 'paddyWbEnabled', 'Y')} /> Y</label>
+                                            <label><input type="radio" disabled={isLocked} checked={cardData.paddyWbEnabled === 'N'} onChange={() => handleStageInputChange(entry.id, stage, 'paddyWbEnabled', 'N')} /> N</label>
+                                          </div>
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                          {cardData.paddyWbEnabled === 'Y' && (
+                                            <>
+                                              <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Paddy WB Value *</label>
+                                              <input
+                                                type="text"
+                                                disabled={isLocked}
+                                                value={cardData.paddyWb}
+                                                onChange={(e) => handleStageInputChange(entry.id, stage, 'paddyWb', e.target.value)}
+                                                style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                                              />
+                                            </>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {/* Footer: Image and Reported By */}
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid #eee', paddingTop: '10px', marginTop: '4px' }}>
+                                        <div>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Upload Photo (Optional)</label>
+                                          {isLocked ? (
+                                            cardData.imageUrl ? (
+                                              <a href={`${cardData.imageUrl}`} target="_blank" rel="noreferrer" style={{ fontSize: '11px', color: '#3498db', fontWeight: 'bold' }}>🖼️ View Photo</a>
+                                            ) : (
+                                              <span style={{ fontStyle: 'italic', color: '#999' }}>No photo uploaded</span>
+                                            )
+                                          ) : (
+                                            <input
+                                              type="file"
+                                              accept="image/*"
+                                              onChange={(e) => handleStageInputChange(entry.id, stage, 'stageImage', e.target.files?.[0] || null)}
+                                              style={{ width: '100%', fontSize: '11px' }}
+                                            />
+                                          )}
+                                        </div>
+                                        <div>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Sample Reported By *</label>
+                                          <input
+                                            type="text"
+                                            disabled
+                                            value={cardData.reportedBy}
+                                            style={{
+                                              width: '100%',
+                                              padding: '5px',
+                                              fontSize: '11px',
+                                              border: '1px solid #ddd',
+                                              borderRadius: '4px',
+                                              backgroundColor: '#f5f5f5',
+                                              color: '#666',
+                                              fontWeight: 'bold'
+                                            }}
+                                          />
+                                        </div>
+                                      </div>
+
+                                      {!isLocked && (
+                                        <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                                          <button
+                                            onClick={() => handleSaveStage(entry.id, stage)}
+                                            style={{
+                                              flex: 1,
+                                              padding: '6px',
+                                              backgroundColor: '#27ae60',
+                                              color: 'white',
+                                              border: 'none',
+                                              borderRadius: '4px',
+                                              fontWeight: '700',
+                                              cursor: 'pointer',
+                                              fontSize: '11px'
+                                            }}
+                                          >
+                                            Save
+                                          </button>
+                                          <button
+                                            onClick={() => {
+                                              setActiveCards(prev => ({
+                                                ...prev,
+                                                [entry.id]: (prev[entry.id] || []).filter(k => k !== stage)
+                                              }));
+                                            }}
+                                            style={{
+                                              padding: '6px 12px',
+                                              backgroundColor: '#95a5a6',
+                                              color: 'white',
+                                              border: 'none',
+                                              borderRadius: '4px',
+                                              cursor: 'pointer',
+                                              fontSize: '11px'
+                                            }}
+                                          >
+                                            Cancel
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         </td>
@@ -865,6 +1529,163 @@ const PhysicalInspection: React.FC = () => {
           </tbody>
         </table>
       </div>
+      {selectedLorryForComparison && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.55)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 20000,
+            padding: '16px'
+          }}
+          onClick={() => setSelectedLorryForComparison(null)}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              width: '100%',
+              maxWidth: '1200px',
+              borderRadius: '10px',
+              boxShadow: '0 16px 50px rgba(0,0,0,0.25)',
+              overflow: 'hidden',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ background: '#1565c0', color: '#fff', padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: '18px', fontWeight: '800' }}>
+                  Lorry Sampling Stage Comparison
+                </div>
+                <div style={{ fontSize: '12px', opacity: 0.95, marginTop: '4px' }}>
+                  Lorry Number: {selectedLorryForComparison.lorryNumber?.toUpperCase()} | Date: {selectedLorryForComparison.inspectionDate ? new Date(selectedLorryForComparison.inspectionDate).toLocaleDateString() : '-'}
+                  {selectedLorryForComparison.lotAllotment?.manager && ` | Allotted By: ${selectedLorryForComparison.lotAllotment.manager.fullName || selectedLorryForComparison.lotAllotment.manager.username}`}
+                  {selectedLorryForComparison.lotAllotment?.supervisor && ` | Supervisor: ${selectedLorryForComparison.lotAllotment.supervisor.fullName || selectedLorryForComparison.lotAllotment.supervisor.username}`}
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedLorryForComparison(null)}
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '30px',
+                  height: '30px',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '14px'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{ padding: '16px 18px 18px', overflowY: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#1a237e', color: '#fff', borderBottom: '2px solid #cbd5e1' }}>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'left' }}>SAMPLE / STAGE</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>REPORTED BY</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>REPORTED AT</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>MOISTURE</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>CUTTING</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>BEND</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>GRAINS COUNT</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>MIX</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>S MIX</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>L MIX</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>KANDU</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>OIL</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>SK</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>SMELL</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>PADDY WB</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>LOADED BAGS</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>PHOTO</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const stages = selectedLorryForComparison.samplingStages || {};
+                    const lot = stages.lot_avg || {};
+                    const half = stages.half_lorry || {};
+                    const full = stages.full_avg || {};
+
+                    const formatField = (val: any) => {
+                      if (val === null || val === undefined || val === '') return '-';
+                      return String(val);
+                    };
+
+                    const formatMoisture = (stageObj: any) => {
+                      const raw = stageObj.moistureRaw;
+                      const val = stageObj.moisture;
+                      if (raw) return `${raw}%`;
+                      if (val !== undefined && val !== null) return `${val}%`;
+                      return '-';
+                    };
+
+                    const formatCutting = (stageObj: any) => {
+                      if (stageObj.cutting1 === undefined || stageObj.cutting1 === null) return '-';
+                      return `${stageObj.cutting1}x${stageObj.cutting2 || 0}`;
+                    };
+
+                    const formatBend = (stageObj: any) => {
+                      if (stageObj.bend1 === undefined || stageObj.bend1 === null) return '-';
+                      return `${stageObj.bend1}x${stageObj.bend2 || 0}`;
+                    };
+
+                    const renderRow = (name: string, color: string, bgColor: string, stageObj: any, isFull: boolean) => {
+                      return (
+                        <tr style={{ borderBottom: '1px solid #cbd5e1', backgroundColor: bgColor }}>
+                          <td style={{ padding: '8px 10px', fontWeight: '800', color: color }}>{name}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.reportedBy)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>
+                            {stageObj.reportedAt ? new Date(stageObj.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                          </td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatMoisture(stageObj)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatCutting(stageObj)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatBend(stageObj)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>({formatField(stageObj.grainsCountRaw || stageObj.grainsCount)})</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.mixRaw || stageObj.mix)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.smixEnabled ? formatField(stageObj.mixSRaw || stageObj.mixS) || 'Yes' : '-'}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.lmixEnabled ? formatField(stageObj.mixLRaw || stageObj.mixL) || 'Yes' : '-'}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.kanduRaw || stageObj.kandu)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.oilRaw || stageObj.oil)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.smellHas ? 'Yes' : '-'}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.paddyWbEnabled ? formatField(stageObj.paddyWbRaw || stageObj.paddyWb) : '-'}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{isFull ? formatField(selectedLorryForComparison.bags) : '-'}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                            {stageObj.imageUrl ? <a href={resolveMediaUrl(stageObj.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
+                          </td>
+                        </tr>
+                      );
+                    };
+
+                    return (
+                      <>
+                        {renderRow('Lot Avg', '#1565c0', '#f0f9ff', lot, false)}
+                        {renderRow('Half Lorry', '#b45309', '#fffbeb', half, false)}
+                        {renderRow('Full Avg Lorry', '#15803d', '#f0fdf4', full, true)}
+                      </>
+                    );
+                  })()}
+                </tbody>
+              </table>
+              <button
+                onClick={() => setSelectedLorryForComparison(null)}
+                style={{ marginTop: '16px', width: '100%', padding: '9px', background: '#1565c0', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

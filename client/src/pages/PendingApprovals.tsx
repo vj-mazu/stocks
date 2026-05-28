@@ -1116,91 +1116,233 @@ const PendingApprovals: React.FC = () => {
             );
         }
 
+        const toTitleCase = (value: string) => String(value || '').replace(/\b\w/g, (char) => char.toUpperCase()).trim();
+
+        const fmtField = (val: any) => {
+            if (val === null || val === undefined || val === '') return '-';
+            return String(val);
+        };
+
+        const fmtMoisture = (stageObj: any) => {
+            const raw = stageObj.moistureRaw;
+            const val = stageObj.moisture;
+            if (raw) return `${raw}%`;
+            if (val !== undefined && val !== null) return `${val}%`;
+            return '-';
+        };
+
+        const fmtCutting = (stageObj: any) => {
+            if (stageObj.cutting1 === undefined || stageObj.cutting1 === null) return '-';
+            return `${stageObj.cutting1}x${stageObj.cutting2 || 0}`;
+        };
+
+        const fmtBend = (stageObj: any) => {
+            if (stageObj.bend1 === undefined || stageObj.bend1 === null) return '-';
+            return `${stageObj.bend1}x${stageObj.bend2 || 0}`;
+        };
+
+        const fmtGrains = (stageObj: any) => {
+            const val = stageObj.grainsCountRaw || stageObj.grainsCount;
+            if (val === undefined || val === null || val === '') return '-';
+            return `(${val})`;
+        };
+
         return (
-            <TableContainer className="table-container">
-                <Table className="lorry-quality-table">
-                    <thead>
-                        <tr>
-                            <th>Party Name</th>
-                            <th>Variety</th>
-                            <th>Location</th>
-                            <th>Total Bags Allotted</th>
-                            <th>Lorry Numbers & Progress</th>
-                            <th>Last Sampled Date</th>
-                            <th>Reported By</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {pendingLorryInspections.map((entry) => {
-                            return (
-                                <tr key={entry.id}>
-                                    <td style={{ fontWeight: 'bold' }}>{entry.partyName || '-'}</td>
-                                    <td>{entry.variety || '-'}</td>
-                                    <td>{entry.location || '-'}</td>
-                                    <td>{entry.lotAllotment?.allottedBags || entry.bags || 0} Bags</td>
-                                    <td>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                            {entry.physicalInspections?.map((insp: any) => {
-                                                const stages = insp.samplingStages || {};
-                                                const stageNames = Object.keys(stages).map(s => s.toUpperCase().replace('_', ' ')).join(', ');
-                                                return (
-                                                    <div key={insp.id}>
-                                                        <span
-                                                            onClick={() => setSelectedLorryForComparison(insp)}
-                                                            style={{ color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', fontWeight: '700' }}
-                                                            title="Click to view side-by-side stage comparison"
-                                                        >
-                                                            {insp.lorryNumber?.toUpperCase()}
-                                                        </span>
-                                                        <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '6px' }}>({stageNames || 'None'})</span>
-                                                    </div>
-                                                );
-                                            }) || 'No inspections'}
-                                        </div>
-                                    </td>
-                                    <td>{entry.physicalInspections?.[0]?.inspectionDate || '-'}</td>
-                                    <td>{entry.physicalInspections?.[0]?.reportedBy?.username || '-'}</td>
-                                    <td>
-                                        <div style={{ display: 'flex', gap: '8px' }}>
-                                            <button
-                                                onClick={() => handleApproveLorryQuality(entry.id)}
-                                                style={{
-                                                    padding: '6px 12px',
-                                                    backgroundColor: '#27ae60',
-                                                    color: 'white',
-                                                    border: 'none',
-                                                    borderRadius: '4px',
-                                                    fontWeight: 'bold',
-                                                    cursor: 'pointer',
-                                                    fontSize: '11px'
-                                                }}
-                                            >
-                                                Approve
-                                            </button>
-                                            <button
-                                                onClick={() => handleRejectLorryQuality(entry.id)}
-                                                style={{
-                                                    padding: '6px 12px',
-                                                    backgroundColor: '#e74c3c',
-                                                    color: 'white',
-                                                    border: 'none',
-                                                    borderRadius: '4px',
-                                                    fontWeight: 'bold',
-                                                    cursor: 'pointer',
-                                                    fontSize: '11px'
-                                                }}
-                                            >
-                                                Reject
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </Table>
-            </TableContainer>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '16px' }}>
+                {pendingLorryInspections.map((entry) => {
+                    const allottedBags = entry.lotAllotment?.allottedBags || entry.bags || 0;
+                    const inspections = entry.physicalInspections || entry.lotAllotment?.physicalInspections || [];
+                    const loadedBags = inspections.reduce((sum: number, insp: any) => sum + (insp.bags || 0), 0);
+                    const remainingBags = Math.max(0, allottedBags - loadedBags);
+
+                    return (
+                        <div key={entry.id} style={{ border: '1px solid #cbd5e1', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 4px 10px rgba(0,0,0,0.05)', backgroundColor: '#fff' }}>
+                            {/* Lot Info Header */}
+                            <div style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: 'white', padding: '10px 16px', fontWeight: 'bold', fontSize: '13px', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                                <div>
+                                    <span style={{ color: '#94a3b8' }}>Party:</span> {entry.partyName && entry.partyName.trim() ? toTitleCase(entry.partyName) : 'DIRECT LOADED VEHICLE'}
+                                    <span style={{ color: '#94a3b8', marginLeft: '12px' }}>Variety:</span> {entry.variety || '-'}
+                                    <span style={{ color: '#94a3b8', marginLeft: '12px' }}>Location:</span> {entry.location || '-'}
+                                    <span style={{ color: '#94a3b8', marginLeft: '12px' }}>Allotted Bags:</span> {allottedBags} Bags
+                                    <span style={{ color: '#f39c12', marginLeft: '12px' }}>Remaining Bags:</span> {remainingBags} Bags
+                                </div>
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <button
+                                        onClick={() => handleApproveLorryQuality(entry.id)}
+                                        disabled={processing}
+                                        style={{
+                                            padding: '4px 12px',
+                                            backgroundColor: '#27ae60',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            fontWeight: 'bold',
+                                            cursor: processing ? 'not-allowed' : 'pointer',
+                                            fontSize: '11px'
+                                        }}
+                                    >
+                                        Approve
+                                    </button>
+                                    <button
+                                        onClick={() => handleRejectLorryQuality(entry.id)}
+                                        disabled={processing}
+                                        style={{
+                                            padding: '4px 12px',
+                                            backgroundColor: '#e74c3c',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            fontWeight: 'bold',
+                                            cursor: processing ? 'not-allowed' : 'pointer',
+                                            fontSize: '11px'
+                                        }}
+                                    >
+                                        Reject
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Lorry sampling parameter grids */}
+                            <div style={{ padding: '12px' }}>
+                                {(() => {
+                                    const inspections = entry.physicalInspections || entry.lotAllotment?.physicalInspections || [];
+                                    if (inspections.length === 0) {
+                                        return <div style={{ color: '#64748b', fontSize: '12px', fontStyle: 'italic', padding: '10px' }}>No physical inspection samples loaded yet for this lot.</div>;
+                                    }
+                                    return inspections.map((insp: any, inspIndex: number) => {
+                                        const stages = insp.samplingStages || {};
+                                        const lot = stages.lot_avg || {};
+                                        const half = stages.half_lorry || {};
+                                        const full = stages.full_avg || {};
+
+                                        return (
+                                            <div key={insp.id} style={{ marginBottom: inspIndex === inspections.length - 1 ? 0 : '16px' }}>
+                                                {/* Lorry Header */}
+                                                <div style={{ backgroundColor: '#f1f5f9', borderLeft: '4px solid #f2711c', padding: '6px 12px', fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                                    <span>Lorry Number: {insp.lorryNumber?.toUpperCase() || '-'}</span>
+                                                    <span>Bags loaded in trip: {insp.bags || '-'}</span>
+                                                    <span>Last Sampled: {insp.inspectionDate || '-'}</span>
+                                                </div>
+
+                                                {/* Quality parameters grid transposed inline */}
+                                                <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                                                    <table style={{ width: '100%', minWidth: '1300px', borderCollapse: 'collapse', fontSize: '11px' }}>
+                                                        <thead>
+                                                            <tr style={{ background: 'linear-gradient(90deg, #f2711c 0%, #f26202 100%)', color: 'white' }}>
+                                                                <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'left', fontWeight: '800' }}>SAMPLE</th>
+                                                                <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'left', fontWeight: '800' }}>REPORTED BY</th>
+                                                                <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'left', fontWeight: '800' }}>REPORTED AT</th>
+                                                                <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>MOISTURE</th>
+                                                                <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>CUTTING</th>
+                                                                <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>BEND</th>
+                                                                <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>GRAINS COUNT</th>
+                                                                <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>MIX</th>
+                                                                <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>S MIX</th>
+                                                                <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>L MIX</th>
+                                                                <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>KANDU</th>
+                                                                <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>OIL</th>
+                                                                <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>SK</th>
+                                                                <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>WB-R</th>
+                                                                <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>WB-BK</th>
+                                                                <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>WB-T</th>
+                                                                <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>SMELL</th>
+                                                                <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>PADDY WB</th>
+                                                                <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>PHOTO</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {/* 1st Sample: Lot Avg */}
+                                                            {stages.lot_avg && (
+                                                                <tr style={{ backgroundColor: '#fff', borderBottom: '1px solid #cbd5e1' }}>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '800', color: '#e05300' }}>1st Sample (Lot Avg)</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '600' }}>{fmtField(lot.reportedBy)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px' }}>{lot.reportedAt ? new Date(lot.reportedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '-'}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: 'bold' }}>{fmtMoisture(lot)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtCutting(lot)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtBend(lot)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtGrains(lot)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(lot.mixRaw || lot.mix)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{lot.smixEnabled ? fmtField(lot.mixSRaw || lot.mixS) || 'Yes' : '-'}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{lot.lmixEnabled ? fmtField(lot.mixLRaw || lot.mixL) || 'Yes' : '-'}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(lot.kanduRaw || lot.kandu)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(lot.oilRaw || lot.oil)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(lot.skRaw || lot.sk)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(lot.wbRRaw || lot.wbR)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(lot.wbBkRaw || lot.wbBk)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(lot.wbTRaw || lot.wbT)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{lot.smellHas ? 'Yes' : '-'}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{lot.paddyWbEnabled ? fmtField(lot.paddyWbRaw || lot.paddyWb) : '-'}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>
+                                                                        {lot.imageUrl ? <a href={resolveMediaUrl(lot.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
+                                                                    </td>
+                                                                </tr>
+                                                            )}
+
+                                                            {/* 2nd Sample: Half Lorry */}
+                                                            {stages.half_lorry && (
+                                                                <tr style={{ backgroundColor: '#fff', borderBottom: '1px solid #cbd5e1' }}>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '800', color: '#e05300' }}>2nd Sample (Half Lorry)</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '600' }}>{fmtField(half.reportedBy)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px' }}>{half.reportedAt ? new Date(half.reportedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '-'}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: 'bold' }}>{fmtMoisture(half)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtCutting(half)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtBend(half)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtGrains(half)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(half.mixRaw || half.mix)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{half.smixEnabled ? fmtField(half.mixSRaw || half.mixS) || 'Yes' : '-'}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{half.lmixEnabled ? fmtField(half.mixLRaw || half.mixL) || 'Yes' : '-'}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(half.kanduRaw || half.kandu)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(half.oilRaw || half.oil)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(half.skRaw || half.sk)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(half.wbRRaw || half.wbR)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(half.wbBkRaw || half.wbBk)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(half.wbTRaw || half.wbT)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{half.smellHas ? 'Yes' : '-'}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{half.paddyWbEnabled ? fmtField(half.paddyWbRaw || half.paddyWb) : '-'}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>
+                                                                        {half.imageUrl ? <a href={resolveMediaUrl(half.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
+                                                                    </td>
+                                                                </tr>
+                                                            )}
+
+                                                            {/* 3rd Sample: Full Lorry */}
+                                                            {stages.full_avg && (
+                                                                <tr style={{ backgroundColor: '#fff', borderBottom: '1px solid #cbd5e1' }}>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '800', color: '#e05300' }}>3rd Sample (Full Lorry)</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '600' }}>{fmtField(full.reportedBy)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px' }}>{full.reportedAt ? new Date(full.reportedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '-'}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: 'bold' }}>{fmtMoisture(full)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtCutting(full)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtBend(full)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtGrains(full)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(full.mixRaw || full.mix)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{full.smixEnabled ? fmtField(full.mixSRaw || full.mixS) || 'Yes' : '-'}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{full.lmixEnabled ? fmtField(full.mixLRaw || full.mixL) || 'Yes' : '-'}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(full.kanduRaw || full.kandu)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(full.oilRaw || full.oil)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(full.skRaw || full.sk)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(full.wbRRaw || full.wbR)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(full.wbBkRaw || full.wbBk)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(full.wbTRaw || full.wbT)}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{full.smellHas ? 'Yes' : '-'}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{full.paddyWbEnabled ? fmtField(full.paddyWbRaw || full.paddyWb) : '-'}</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>
+                                                                        {full.imageUrl ? <a href={resolveMediaUrl(full.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
+                                                                    </td>
+                                                                </tr>
+                                                            )}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        );
+                                    });
+                                })()}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
         );
     };
 
@@ -1952,7 +2094,9 @@ const PendingApprovals: React.FC = () => {
                                     Lorry Sampling Stage Comparison
                                 </div>
                                 <div style={{ fontSize: '12px', opacity: 0.95, marginTop: '4px' }}>
-                                    Lorry Number: {selectedLorryForComparison.lorryNumber?.toUpperCase()} | Date: {selectedLorryForComparison.inspectionDate}
+                                    Lorry Number: {selectedLorryForComparison.lorryNumber?.toUpperCase()} | Date: {selectedLorryForComparison.inspectionDate ? new Date(selectedLorryForComparison.inspectionDate).toLocaleDateString() : '-'}
+                                    {selectedLorryForComparison.lotAllotment?.manager && ` | Allotted By: ${selectedLorryForComparison.lotAllotment.manager.fullName || selectedLorryForComparison.lotAllotment.manager.username}`}
+                                    {selectedLorryForComparison.lotAllotment?.supervisor && ` | Supervisor: ${selectedLorryForComparison.lotAllotment.supervisor.fullName || selectedLorryForComparison.lotAllotment.supervisor.username}`}
                                 </div>
                             </div>
                             <button
@@ -1973,14 +2117,26 @@ const PendingApprovals: React.FC = () => {
                             </button>
                         </div>
                         <div style={{ padding: '16px 18px 18px', overflowY: 'auto' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
                                 <thead>
-                                    <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '2px solid #cbd5e1' }}>
-                                        <th style={{ padding: '10px', textAlign: 'left', fontWeight: '800', width: '20%' }}>Parameter</th>
-                                        <th style={{ padding: '10px', textAlign: 'center', fontWeight: '800', backgroundColor: '#e0f2fe' }}>Lot Avg</th>
-                                        <th style={{ padding: '10px', textAlign: 'center', fontWeight: '800' }}>Half Lorry</th>
-                                        <th style={{ padding: '10px', textAlign: 'center', fontWeight: '800' }}>Nit Avg</th>
-                                        <th style={{ padding: '10px', textAlign: 'center', fontWeight: '800', backgroundColor: '#f0fdf4' }}>Full Avg Lorry</th>
+                                    <tr style={{ background: 'linear-gradient(90deg, #f2711c 0%, #f26202 100%)', color: 'white', borderBottom: '2px solid #cbd5e1' }}>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'left', fontWeight: '800' }}>SAMPLE</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'left', fontWeight: '800' }}>REPORTED BY</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'left', fontWeight: '800' }}>REPORTED AT</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>MOISTURE</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>CUTTING</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>BEND</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>GRAINS COUNT</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>MIX</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>S MIX</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>L MIX</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>KANDU</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>OIL</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>SK</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>SMELL</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>PADDY WB</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>BAGS</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>PHOTO</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1988,7 +2144,6 @@ const PendingApprovals: React.FC = () => {
                                         const stages = selectedLorryForComparison.samplingStages || {};
                                         const lot = stages.lot_avg || {};
                                         const half = stages.half_lorry || {};
-                                        const nit = stages.nit_avg || {};
                                         const full = stages.full_avg || {};
 
                                         const formatField = (val: any) => {
@@ -2000,53 +2155,55 @@ const PendingApprovals: React.FC = () => {
                                             const raw = stageObj.moistureRaw;
                                             const val = stageObj.moisture;
                                             if (raw) return `${raw}%`;
-                                            if (val) return `${val}%`;
+                                            if (val !== undefined && val !== null) return `${val}%`;
                                             return '-';
                                         };
 
                                         const formatCutting = (stageObj: any) => {
                                             if (stageObj.cutting1 === undefined || stageObj.cutting1 === null) return '-';
-                                            return `${stageObj.cutting1} x ${stageObj.cutting2 || 0}`;
+                                            return `${stageObj.cutting1}x${stageObj.cutting2 || 0}`;
                                         };
 
                                         const formatBend = (stageObj: any) => {
                                             if (stageObj.bend1 === undefined || stageObj.bend1 === null) return '-';
-                                            return `${stageObj.bend1} x ${stageObj.bend2 || 0}`;
+                                            return `${stageObj.bend1}x${stageObj.bend2 || 0}`;
                                         };
 
-                                        const rows = [
-                                            ['Reported By', formatField(lot.reportedBy), formatField(half.reportedBy), formatField(nit.reportedBy), formatField(full.reportedBy)],
-                                            ['Reported At', lot.reportedAt ? new Date(lot.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-', half.reportedAt ? new Date(half.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-', nit.reportedAt ? new Date(nit.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-', full.reportedAt ? new Date(full.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-'],
-                                            ['Loaded Bags', '-', '-', '-', formatField(selectedLorryForComparison.bags)],
-                                            ['Photo', 
-                                                lot.imageUrl ? <a href={resolveMediaUrl(lot.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View Photo</a> : '-', 
-                                                half.imageUrl ? <a href={resolveMediaUrl(half.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View Photo</a> : '-', 
-                                                nit.imageUrl ? <a href={resolveMediaUrl(nit.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View Photo</a> : '-', 
-                                                full.imageUrl ? <a href={resolveMediaUrl(full.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View Photo</a> : '-'
-                                            ],
-                                            ['Moisture', formatMoisture(lot), formatMoisture(half), formatMoisture(nit), formatMoisture(full)],
-                                            ['Grains Count', formatField(lot.grainsCountRaw || lot.grainsCount), formatField(half.grainsCountRaw || half.grainsCount), formatField(nit.grainsCountRaw || nit.grainsCount), formatField(full.grainsCountRaw || full.grainsCount)],
-                                            ['Cutting', formatCutting(lot), formatCutting(half), formatCutting(nit), formatCutting(full)],
-                                            ['Bend', formatBend(lot), formatBend(half), formatBend(nit), formatBend(full)],
-                                            ['Mix', formatField(lot.mixRaw || lot.mix), formatField(half.mixRaw || half.mix), formatField(nit.mixRaw || nit.mix), formatField(full.mixRaw || full.mix)],
-                                            ['S Mix', lot.smixEnabled ? formatField((lot as any).mixSRaw || lot.mixS) || 'Yes' : 'No', half.smixEnabled ? formatField((half as any).mixSRaw || half.mixS) || 'Yes' : 'No', nit.smixEnabled ? formatField((nit as any).mixSRaw || nit.mixS) || 'Yes' : 'No', full.smixEnabled ? formatField((full as any).mixSRaw || full.mixS) || 'Yes' : 'No'],
-                                            ['L Mix', lot.lmixEnabled ? formatField((lot as any).mixLRaw || lot.mixL) || 'Yes' : 'No', half.lmixEnabled ? formatField((half as any).mixLRaw || half.mixL) || 'Yes' : 'No', nit.lmixEnabled ? formatField((nit as any).mixLRaw || nit.mixL) || 'Yes' : 'No', full.lmixEnabled ? formatField((full as any).mixLRaw || full.mixL) || 'Yes' : 'No'],
-                                            ['SK', formatField(lot.skRaw || lot.sk), formatField(half.skRaw || half.sk), formatField(nit.skRaw || nit.sk), formatField(full.skRaw || full.sk)],
-                                            ['Kandu', formatField(lot.kanduRaw || lot.kandu), formatField(half.kanduRaw || half.kandu), formatField(nit.kanduRaw || nit.kandu), formatField(full.kanduRaw || full.kandu)],
-                                            ['Oil', formatField(lot.oilRaw || lot.oil), formatField(half.oilRaw || half.oil), formatField(nit.oilRaw || nit.oil), formatField(full.oilRaw || full.oil)],
-                                            ['Smell', lot.smellHas ? 'Yes' : 'No', half.smellHas ? 'Yes' : 'No', nit.smellHas ? 'Yes' : 'No', full.smellHas ? 'Yes' : 'No'],
-                                            ['Paddy WB', lot.paddyWbEnabled ? formatField(lot.paddyWbRaw || lot.paddyWb) : 'No', half.paddyWbEnabled ? formatField(half.paddyWbRaw || half.paddyWb) : 'No', nit.paddyWbEnabled ? formatField(nit.paddyWbRaw || nit.paddyWb) : 'No', full.paddyWbEnabled ? formatField(full.paddyWbRaw || full.paddyWb) : 'No']
-                                        ];
+                                        const renderRow = (name: string, color: string, bgColor: string, stageObj: any, isFull: boolean) => {
+                                            return (
+                                                <tr style={{ borderBottom: '1px solid #cbd5e1', backgroundColor: bgColor }}>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', fontWeight: '800', color: color }}>{name}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.reportedBy)}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>
+                                                        {stageObj.reportedAt ? new Date(stageObj.reportedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '-'}
+                                                    </td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatMoisture(stageObj)}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatCutting(stageObj)}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatBend(stageObj)}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.grainsCountRaw || stageObj.grainsCount)}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.mixRaw || stageObj.mix)}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.smixEnabled ? formatField(stageObj.mixSRaw || stageObj.mixS) || 'Yes' : '-'}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.lmixEnabled ? formatField(stageObj.mixLRaw || stageObj.mixL) || 'Yes' : '-'}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.kanduRaw || stageObj.kandu)}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.oilRaw || stageObj.oil)}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.smellHas ? 'Yes' : '-'}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.paddyWbEnabled ? formatField(stageObj.paddyWbRaw || stageObj.paddyWb) : '-'}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{isFull ? formatField(selectedLorryForComparison.bags) : '-'}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>
+                                                        {stageObj.imageUrl ? <a href={resolveMediaUrl(stageObj.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        };
 
-                                        return rows.map(([label, lotVal, halfVal, nitVal, fullVal], index) => (
-                                            <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                                                <td style={{ padding: '8px 10px', fontWeight: '700', color: '#475569' }}>{label}</td>
-                                                <td style={{ padding: '8px 10px', textAlign: 'center', backgroundColor: '#f0f9ff' }}>{lotVal}</td>
-                                                <td style={{ padding: '8px 10px', textAlign: 'center' }}>{halfVal}</td>
-                                                <td style={{ padding: '8px 10px', textAlign: 'center' }}>{nitVal}</td>
-                                                <td style={{ padding: '8px 10px', textAlign: 'center', backgroundColor: '#f0fdf4' }}>{fullVal}</td>
-                                            </tr>
-                                        ));
+                                        return (
+                                            <>
+                                                {renderRow('1st Sample (Lot Avg)', '#e05300', '#f0f9ff', lot, false)}
+                                                {renderRow('2nd Sample (Half Lorry)', '#b45309', '#fffbeb', half, false)}
+                                                {renderRow('3rd Sample (Full Lorry)', '#15803d', '#f0fdf4', full, true)}
+                                            </>
+                                        );
                                     })()}
                                 </tbody>
                             </table>

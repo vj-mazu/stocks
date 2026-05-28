@@ -204,6 +204,40 @@ const AllottedSupervisors: React.FC = () => {
   const [editValuesData, setEditValuesData] = useState<any>({});
   const [isSavingValues, setIsSavingValues] = useState(false);
   const [detailModalEntry, setDetailModalEntry] = useState<SampleEntry | null>(null);
+  const [selectedLorryForComparison, setSelectedLorryForComparison] = useState<any>(null);
+
+  const resolveMediaUrl = (value?: string | null) => {
+    const url = String(value || '').trim();
+    if (!url) return '';
+    if (/^https?:\/\//i.test(url)) return url;
+    const baseUrl = API_URL.replace(/\/api\/?$/, '');
+    return url.startsWith('/') ? `${baseUrl}${url}` : `${baseUrl}/${url}`;
+  };
+
+  const handlePartyClick = async (entry: any) => {
+    let progress = inspectionProgress[entry.id];
+    if (!progress) {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${API_URL}/sample-entries/${entry.id}/inspection-progress`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        progress = response.data;
+        setInspectionProgress(prev => ({ ...prev, [entry.id]: progress }));
+      } catch (err) {
+        console.error('Error loading inspection progress for comparison:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (progress && progress.previousInspections && progress.previousInspections.length > 0) {
+      setSelectedLorryForComparison(progress.previousInspections[0]);
+    } else {
+      showNotification('No progressive physical inspection trips loaded/submitted yet for this lot.', 'error');
+    }
+  };
 
   const openDetailEntry = async (entry: SampleEntry) => {
     try {
@@ -418,6 +452,7 @@ const AllottedSupervisors: React.FC = () => {
             cutting2: inspection.cutting2,
             bend: inspection.bend,
             bend2: (inspection as any).bend2,
+            samplingStages: (inspection as any).samplingStages,
             reportedBy: inspection.reportedBy || { username: 'System' }
           }))
         };
@@ -841,7 +876,7 @@ const AllottedSupervisors: React.FC = () => {
                                 <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '12px' }}>
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                     <span
-                                      onClick={() => openDetailEntry(entry)}
+                                      onClick={() => handlePartyClick(entry)}
                                       style={{
                                         color: '#1565c0',
                                         textDecoration: 'underline',
@@ -1134,118 +1169,179 @@ const AllottedSupervisors: React.FC = () => {
                               </tr>
                               {expandedEntries[entry.id] && hasPreviousInspections && (
                                 <tr>
-                                  <td colSpan={13} style={{ padding: '12px', backgroundColor: '#f0f8ff', border: '1px solid #999' }}>
-                                    <div style={{ fontSize: '12px', fontWeight: '700', marginBottom: '8px', color: '#111' }}>
-                                      📋 Inspection Trips ({progress.previousInspections.length}) — {progress.inspectedBags} of {progress.totalBags} bags inspected
+                                  <td colSpan={13} style={{ padding: '12px', backgroundColor: '#fdf6f0', border: '1px solid #f2711c' }}>
+                                    <div style={{ fontSize: '13px', fontWeight: '800', marginBottom: '8px', color: '#d05d00', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <span>📋 Lorry Progressive Inspection Trips & Comparison — {progress.inspectedBags} of {progress.totalBags} bags inspected</span>
+                                      <span style={{ fontSize: '11px', color: '#666', fontWeight: 'normal' }}>*Orange tables show Progressive (Lot Avg, Half, Full Lorry) Sampling differences</span>
                                     </div>
-                                    <table style={{ width: '100%', maxWidth: '850px', fontSize: '11px', borderCollapse: 'collapse', border: '1px solid #999', marginTop: '6px', tableLayout: 'fixed' }}>
-                                      <colgroup>
-                                        <col style={{ width: '40px' }} />
-                                        <col style={{ width: '90px' }} />
-                                        <col style={{ width: '130px' }} />
-                                        <col style={{ width: '80px' }} />
-                                        <col style={{ width: '90px' }} />
-                                        <col style={{ width: '90px' }} />
-                                        <col style={{ width: '120px' }} />
-                                        <col style={{ width: '110px' }} />
-                                      </colgroup>
-                                      <thead>
-                                        <tr style={{ backgroundColor: '#d0e1f9', color: '#111' }}>
-                                          <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>#</th>
-                                          <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Date</th>
-                                          <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Lorry No</th>
-                                          <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Bags</th>
-                                          <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Cutting</th>
-                                          <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Bend</th>
-                                          <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>By</th>
-                                          <th style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600' }}>Actions</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {progress.previousInspections.map((inspection, idx) => (
-                                          <tr key={inspection.id} style={{ backgroundColor: idx % 2 === 0 ? 'white' : '#f9f9f9' }}>
-                                            <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{idx + 1}</td>
-                                            <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
-                                              {new Date(inspection.inspectionDate).toLocaleDateString()}
-                                            </td>
-                                            {editingInspection && editingInspection.inspectionId === inspection.id ? (
-                                              <>
-                                                <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left' }}>
-                                                  <input type="text" value={editingInspection.data.lorryNumber}
-                                                    onChange={e => setEditingInspection({ ...editingInspection, data: { ...editingInspection.data, lorryNumber: e.target.value.toUpperCase() } })}
-                                                    maxLength={10}
-                                                    style={{ width: '80px', padding: '4px 6px', fontSize: '11px', border: '1px solid #3498db', borderRadius: '3px' }} />
-                                                </td>
-                                                <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left' }}>
-                                                  <input type="number" value={editingInspection.data.bags}
-                                                    onChange={e => setEditingInspection({ ...editingInspection, data: { ...editingInspection.data, bags: e.target.value } })}
-                                                    style={{ width: '60px', padding: '4px 6px', fontSize: '11px', border: '1px solid #3498db', borderRadius: '3px' }} />
-                                                </td>
-                                                <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left' }}>
-                                                  <input type="text" value={editingInspection.data.cutting}
-                                                    placeholder="1×"
-                                                    onFocus={() => {
-                                                      if (!editingInspection.data.cutting) {
-                                                        const res = handleCuttingInput('1×', entry.entryType);
-                                                        setEditingInspection({ ...editingInspection, data: { ...editingInspection.data, cutting: res.raw } });
-                                                      }
-                                                    }}
-                                                    onChange={e => {
-                                                      const res = handleCuttingInput(e.target.value, entry.entryType);
-                                                      setEditingInspection({ ...editingInspection, data: { ...editingInspection.data, cutting: res.raw } });
-                                                    }}
-                                                    style={{ width: '80px', padding: '4px 6px', fontSize: '11px', border: '1px solid #3498db', borderRadius: '3px' }} />
-                                                </td>
-                                                <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left' }}>
-                                                  <input type="text" value={editingInspection.data.bend}
-                                                    placeholder="1×"
-                                                    onFocus={() => {
-                                                      if (!editingInspection.data.bend) {
-                                                        const res = handleBendInput('1×', entry.entryType);
-                                                        setEditingInspection({ ...editingInspection, data: { ...editingInspection.data, bend: res.raw } });
-                                                      }
-                                                    }}
-                                                    onChange={e => {
-                                                      const res = handleBendInput(e.target.value, entry.entryType);
-                                                      setEditingInspection({ ...editingInspection, data: { ...editingInspection.data, bend: res.raw } });
-                                                    }}
-                                                    style={{ width: '70px', padding: '4px 6px', fontSize: '11px', border: '1px solid #3498db', borderRadius: '3px' }} />
-                                                </td>
-                                                <td style={{ border: '1px solid #999', padding: '6px 8px', fontSize: '11px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{inspection.reportedBy?.username || '-'}</td>
-                                                <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left' }}>
-                                                  <div style={{ display: 'flex', gap: '4px' }}>
-                                                    <button onClick={handleSaveInspection}
-                                                      style={{ padding: '4px 8px', fontSize: '10px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: '600' }}>💾 Save</button>
-                                                    <button onClick={() => setEditingInspection(null)}
-                                                      style={{ padding: '4px 8px', fontSize: '10px', backgroundColor: '#e74c3c', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>✖</button>
-                                                  </div>
-                                                </td>
-                                              </>
-                                            ) : (
-                                              <>
-                                                <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{inspection.lorryNumber}</td>
-                                                <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', fontWeight: '600', color: '#1a1a1a' }}>
-                                                  {inspection.bags}
-                                                </td>
-                                                <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
-                                                  {formatDecimal(inspection.cutting1)} {inspection.cutting2 && Number(inspection.cutting2) !== 0 ? `× ${formatDecimal(inspection.cutting2)}` : ''}
-                                                </td>
-                                                <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
-                                                  {formatDecimal(inspection.bend)} {inspection.bend2 && Number(inspection.bend2) !== 0 ? `× ${formatDecimal(inspection.bend2)}` : ''}
-                                                </td>
-                                                <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{inspection.reportedBy?.username || '-'}</td>
-                                                <td style={{ border: '1px solid #999', padding: '6px 8px', textAlign: 'left' }}>
-                                                  <div style={{ display: 'flex', gap: '3px', flexDirection: 'column', alignItems: 'flex-start' }}>
-                                                    <button onClick={() => handleEditInspection(entry.id, inspection)}
-                                                      style={{ padding: '4px 8px', fontSize: '10px', backgroundColor: '#3498db', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: '600', width: '80px' }}>✏️ Edit</button>
-                                                  </div>
-                                                </td>
-                                              </>
-                                            )}
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                      {progress.previousInspections.map((inspection, idx) => {
+                                        const stages = inspection.samplingStages || {};
+                                        const lot = stages.lot_avg || {};
+                                        const half = stages.half_lorry || {};
+                                        const full = stages.full_avg || {};
+
+                                        const formatField = (val: any) => {
+                                          if (val === null || val === undefined || val === '') return '-';
+                                          return String(val);
+                                        };
+
+                                        const formatMoisture = (stageObj: any) => {
+                                          const raw = stageObj.moistureRaw;
+                                          const val = stageObj.moisture;
+                                          if (raw) return `${raw}%`;
+                                          if (val !== undefined && val !== null) return `${val}%`;
+                                          return '-';
+                                        };
+
+                                        const formatCutting = (stageObj: any) => {
+                                          if (stageObj.cutting1 === undefined || stageObj.cutting1 === null) return '-';
+                                          return `${stageObj.cutting1}x${stageObj.cutting2 || 0}`;
+                                        };
+
+                                        const formatBend = (stageObj: any) => {
+                                          if (stageObj.bend1 === undefined || stageObj.bend1 === null) return '-';
+                                          return `${stageObj.bend1}x${stageObj.bend2 || 0}`;
+                                        };
+
+                                        return (
+                                          <div key={inspection.id} style={{ background: '#ffffff', border: '1px solid #f2cfb6', borderRadius: '6px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                                            {/* Trip Header */}
+                                            <div style={{
+                                              background: 'linear-gradient(90deg, #f2711c 0%, #f26202 100%)',
+                                              color: 'white',
+                                              padding: '6px 12px',
+                                              fontWeight: '700',
+                                              fontSize: '12px',
+                                              display: 'flex',
+                                              justifyContent: 'space-between',
+                                              alignItems: 'center'
+                                            }}>
+                                              <span>Trip #{idx + 1} | Lorry No: <b style={{ fontSize: '13px' }}>{inspection.lorryNumber?.toUpperCase()}</b> | Bags: {inspection.bags}</span>
+                                              <span>Reported By: {inspection.reportedBy?.username || '-'} | Date: {new Date(inspection.inspectionDate).toLocaleDateString()}</span>
+                                            </div>
+
+                                            {/* Inline Comparative Table */}
+                                            <div style={{ overflowX: 'auto', padding: '6px' }}>
+                                              <table style={{ width: '100%', minWidth: '1150px', borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #f2a672' }}>
+                                                <thead>
+                                                  <tr style={{ background: 'linear-gradient(90deg, #f2711c 0%, #f26202 100%)', color: 'white' }}>
+                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'left', width: '10%' }}>SAMPLE</th>
+                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '7%' }}>REPORTED BY</th>
+                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '7%' }}>REPORTED AT</th>
+                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '6%' }}>MOISTURE</th>
+                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '6%' }}>CUTTING</th>
+                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '6%' }}>BEND</th>
+                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '6%' }}>GRAINS COUNT</th>
+                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '4%' }}>MIX</th>
+                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '4%' }}>S MIX</th>
+                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '4%' }}>L MIX</th>
+                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '4%' }}>KANDU</th>
+                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '4%' }}>OIL</th>
+                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '4%' }}>SK</th>
+                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '5%' }}>SMELL</th>
+                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '6%' }}>PADDY WB</th>
+                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '5%' }}>PHOTO</th>
+                                                  </tr>
+                                                </thead>
+                                                <tbody>
+                                                  {/* 1st Sample / Lot Avg */}
+                                                  <tr style={{ borderBottom: '1px solid #f2cfb6', backgroundColor: '#fffaf5' }}>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', fontWeight: '800', color: '#d05d00' }}>1st Sample (Lot Avg)</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(lot.reportedBy)}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>
+                                                      {lot.reportedAt ? new Date(lot.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                                                    </td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatMoisture(lot)}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatCutting(lot)}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatBend(lot)}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>({formatField(lot.grainsCountRaw || lot.grainsCount)})</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(lot.mixRaw || lot.mix)}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{lot.smixEnabled ? formatField(lot.mixSRaw || lot.mixS) || 'Yes' : '-'}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{lot.lmixEnabled ? formatField(lot.mixLRaw || lot.mixL) || 'Yes' : '-'}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(lot.kanduRaw || lot.kandu)}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(lot.oilRaw || lot.oil)}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(lot.skRaw || lot.sk)}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{lot.smellHas ? 'Yes' : '-'}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{lot.paddyWbEnabled ? formatField(lot.paddyWbRaw || lot.paddyWb) : '-'}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center' }}>
+                                                      {lot.imageUrl ? <a href={resolveMediaUrl(lot.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#f26202', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
+                                                    </td>
+                                                  </tr>
+
+                                                  {/* 2nd Sample / Half Lorry */}
+                                                  <tr style={{ borderBottom: '1px solid #f2cfb6', backgroundColor: '#fffdfa' }}>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', fontWeight: '800', color: '#b45309' }}>2nd Sample (Half Lorry)</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(half.reportedBy)}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>
+                                                      {half.reportedAt ? new Date(half.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                                                    </td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatMoisture(half)}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatCutting(half)}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatBend(half)}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>({formatField(half.grainsCountRaw || half.grainsCount)})</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(half.mixRaw || half.mix)}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{half.smixEnabled ? formatField(half.mixSRaw || half.mixS) || 'Yes' : '-'}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{half.lmixEnabled ? formatField(half.mixLRaw || half.mixL) || 'Yes' : '-'}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(half.kanduRaw || half.kandu)}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(half.oilRaw || half.oil)}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(half.skRaw || half.sk)}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{half.smellHas ? 'Yes' : '-'}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{half.paddyWbEnabled ? formatField(half.paddyWbRaw || half.paddyWb) : '-'}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center' }}>
+                                                      {half.imageUrl ? <a href={resolveMediaUrl(half.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#f26202', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
+                                                    </td>
+                                                  </tr>
+
+                                                  {/* 3rd Sample / Full Lorry */}
+                                                  <tr style={{ borderBottom: '1px solid #f2cfb6', backgroundColor: '#fffaf0' }}>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', fontWeight: '800', color: '#15803d' }}>3rd Sample (Full Lorry)</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(full.reportedBy)}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>
+                                                      {full.reportedAt ? new Date(full.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                                                    </td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatMoisture(full)}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatCutting(full)}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatBend(full)}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>({formatField(full.grainsCountRaw || full.grainsCount)})</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(full.mixRaw || full.mix)}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{full.smixEnabled ? formatField(full.mixSRaw || full.mixS) || 'Yes' : '-'}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{full.lmixEnabled ? formatField(full.mixLRaw || full.mixL) || 'Yes' : '-'}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(full.kanduRaw || full.kandu)}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(full.oilRaw || full.oil)}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(full.skRaw || full.sk)}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{full.smellHas ? 'Yes' : '-'}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{full.paddyWbEnabled ? formatField(full.paddyWbRaw || full.paddyWb) : '-'}</td>
+                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center' }}>
+                                                      {full.imageUrl ? <a href={resolveMediaUrl(full.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#f26202', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
+                                                    </td>
+                                                  </tr>
+                                                </tbody>
+                                              </table>
+                                            </div>
+
+                                            {/* Trip Actions Footer */}
+                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: '6px 12px', background: '#fafafa', borderTop: '1px solid #eee' }}>
+                                              <button
+                                                onClick={() => handleEditInspection(entry.id, inspection)}
+                                                style={{
+                                                  padding: '3px 8px',
+                                                  fontSize: '11px',
+                                                  backgroundColor: '#3498db',
+                                                  color: 'white',
+                                                  border: 'none',
+                                                  borderRadius: '3px',
+                                                  cursor: 'pointer',
+                                                  fontWeight: '600'
+                                                }}
+                                              >
+                                                ✏️ Edit Trip Values
+                                              </button>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
                                   </td>
                                 </tr>
                               )}
@@ -1466,6 +1562,164 @@ const AllottedSupervisors: React.FC = () => {
           onClose={() => setDetailModalEntry(null)}
           showCollectorLoginPair={false}
         />
+      )}
+
+      {selectedLorryForComparison && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.55)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 20000,
+            padding: '16px'
+          }}
+          onClick={() => setSelectedLorryForComparison(null)}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              width: '100%',
+              maxWidth: '1200px',
+              borderRadius: '10px',
+              boxShadow: '0 16px 50px rgba(0,0,0,0.25)',
+              overflow: 'hidden',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ background: '#1565c0', color: '#fff', padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: '18px', fontWeight: '800' }}>
+                  Lorry Sampling Stage Comparison
+                </div>
+                <div style={{ fontSize: '12px', opacity: 0.95, marginTop: '4px' }}>
+                  Lorry Number: {selectedLorryForComparison.lorryNumber?.toUpperCase()} | Date: {selectedLorryForComparison.inspectionDate ? new Date(selectedLorryForComparison.inspectionDate).toLocaleDateString() : '-'}
+                  {selectedLorryForComparison.lotAllotment?.manager && ` | Allotted By: ${selectedLorryForComparison.lotAllotment.manager.fullName || selectedLorryForComparison.lotAllotment.manager.username}`}
+                  {selectedLorryForComparison.lotAllotment?.supervisor && ` | Supervisor: ${selectedLorryForComparison.lotAllotment.supervisor.fullName || selectedLorryForComparison.lotAllotment.supervisor.username}`}
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedLorryForComparison(null)}
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '30px',
+                  height: '30px',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '14px'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{ padding: '16px 18px 18px', overflowY: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#1a237e', color: '#fff', borderBottom: '2px solid #cbd5e1' }}>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'left' }}>SAMPLE / STAGE</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>REPORTED BY</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>REPORTED AT</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>MOISTURE</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>CUTTING</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>BEND</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>GRAINS COUNT</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>MIX</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>S MIX</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>L MIX</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>KANDU</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>OIL</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>SK</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>SMELL</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>PADDY WB</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>LOADED BAGS</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>PHOTO</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const stages = selectedLorryForComparison.samplingStages || {};
+                    const lot = stages.lot_avg || {};
+                    const half = stages.half_lorry || {};
+                    const full = stages.full_avg || {};
+
+                    const formatField = (val: any) => {
+                      if (val === null || val === undefined || val === '') return '-';
+                      return String(val);
+                    };
+
+                    const formatMoisture = (stageObj: any) => {
+                      const raw = stageObj.moistureRaw;
+                      const val = stageObj.moisture;
+                      if (raw) return `${raw}%`;
+                      if (val !== undefined && val !== null) return `${val}%`;
+                      return '-';
+                    };
+
+                    const formatCutting = (stageObj: any) => {
+                      if (stageObj.cutting1 === undefined || stageObj.cutting1 === null) return '-';
+                      return `${stageObj.cutting1}x${stageObj.cutting2 || 0}`;
+                    };
+
+                    const formatBend = (stageObj: any) => {
+                      if (stageObj.bend1 === undefined || stageObj.bend1 === null) return '-';
+                      return `${stageObj.bend1}x${stageObj.bend2 || 0}`;
+                    };
+
+                    const renderRow = (name: string, color: string, bgColor: string, stageObj: any, isFull: boolean) => {
+                      return (
+                        <tr style={{ borderBottom: '1px solid #cbd5e1', backgroundColor: bgColor }}>
+                          <td style={{ padding: '8px 10px', fontWeight: '800', color: color }}>{name}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.reportedBy)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>
+                            {stageObj.reportedAt ? new Date(stageObj.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                          </td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatMoisture(stageObj)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatCutting(stageObj)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatBend(stageObj)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>({formatField(stageObj.grainsCountRaw || stageObj.grainsCount)})</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.mixRaw || stageObj.mix)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.smixEnabled ? formatField(stageObj.mixSRaw || stageObj.mixS) || 'Yes' : '-'}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.lmixEnabled ? formatField(stageObj.mixLRaw || stageObj.mixL) || 'Yes' : '-'}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.kanduRaw || stageObj.kandu)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.oilRaw || stageObj.oil)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.smellHas ? 'Yes' : '-'}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.paddyWbEnabled ? formatField(stageObj.paddyWbRaw || stageObj.paddyWb) : '-'}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{isFull ? formatField(selectedLorryForComparison.bags) : '-'}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                            {stageObj.imageUrl ? <a href={resolveMediaUrl(stageObj.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
+                          </td>
+                        </tr>
+                      );
+                    };
+
+                    return (
+                      <>
+                        {renderRow('Lot Avg', '#1565c0', '#f0f9ff', lot, false)}
+                        {renderRow('Half Lorry', '#b45309', '#fffbeb', half, false)}
+                        {renderRow('Full Avg Lorry', '#15803d', '#f0fdf4', full, true)}
+                      </>
+                    );
+                  })()}
+                </tbody>
+              </table>
+              <button
+                onClick={() => setSelectedLorryForComparison(null)}
+                style={{ marginTop: '16px', width: '100%', padding: '9px', background: '#1565c0', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -47,7 +47,7 @@ const PhysicalInspection = sequelize.define('PhysicalInspection', {
   },
   bags: {
     type: DataTypes.INTEGER,
-    allowNull: false,
+    allowNull: true,
     validate: {
       min: 1
     }
@@ -95,6 +95,12 @@ const PhysicalInspection = sequelize.define('PhysicalInspection', {
     allowNull: false,
     defaultValue: false,
     field: 'is_complete'
+  },
+  samplingStages: {
+    type: DataTypes.JSONB,
+    allowNull: true,
+    defaultValue: {},
+    field: 'sampling_stages'
   }
 }, {
   tableName: 'physical_inspections',

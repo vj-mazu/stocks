@@ -220,6 +220,38 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
   const [entries, setEntries] = useState<ApprovalEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
+  const [selectedLorryForComparison, setSelectedLorryForComparison] = useState<any>(null);
+  const [loadingInspectionProgress, setLoadingInspectionProgress] = useState(false);
+
+  const resolveMediaUrl = (value?: string | null) => {
+    const url = String(value || '').trim();
+    if (!url) return '';
+    if (/^https?:\/\//i.test(url)) return url;
+    const baseUrl = API_URL.replace(/\/api\/?$/, '');
+    return url.startsWith('/') ? `${baseUrl}${url}` : `${baseUrl}/${url}`;
+  };
+
+  const handlePartyClick = async (entry: any) => {
+    try {
+      setLoadingInspectionProgress(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/sample-entries/${entry.id}/inspection-progress`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const progress = response.data;
+      if (progress && progress.previousInspections && progress.previousInspections.length > 0) {
+        setSelectedLorryForComparison(progress.previousInspections[0]);
+      } else {
+        showNotification('No progressive physical inspection trips loaded/submitted yet for this lot.', 'error');
+      }
+    } catch (err) {
+      console.error('Error loading inspection progress for comparison:', err);
+      showNotification('No progressive physical inspection trips loaded/submitted yet for this lot.', 'error');
+    } finally {
+      setLoadingInspectionProgress(false);
+    }
+  };
+
   const canManageApprovals = ['admin', 'owner'].includes(String(user?.role || '').toLowerCase());
 
   const filteredEntries = useMemo(() => {
@@ -366,7 +398,12 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
 
                         return (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                            <div style={{ fontWeight: 700, fontSize: '13px', color: '#1e3a8a', lineHeight: 1.2 }}>{primaryText}</div>
+                             <div
+                               onClick={() => handlePartyClick(entry)}
+                               style={{ fontWeight: 700, fontSize: '13px', color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', lineHeight: 1.2 }}
+                             >
+                               {primaryText}
+                             </div>
                             {secondaryText && <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>{secondaryText}</div>}
                           </div>
                         );
@@ -484,6 +521,164 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {selectedLorryForComparison && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.55)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 20000,
+            padding: '16px'
+          }}
+          onClick={() => setSelectedLorryForComparison(null)}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              width: '100%',
+              maxWidth: '1200px',
+              borderRadius: '10px',
+              boxShadow: '0 16px 50px rgba(0,0,0,0.25)',
+              overflow: 'hidden',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ background: '#1565c0', color: '#fff', padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: '18px', fontWeight: '800' }}>
+                  Lorry Sampling Stage Comparison
+                </div>
+                <div style={{ fontSize: '12px', opacity: 0.95, marginTop: '4px' }}>
+                  Lorry Number: {selectedLorryForComparison.lorryNumber?.toUpperCase()} | Date: {selectedLorryForComparison.inspectionDate ? new Date(selectedLorryForComparison.inspectionDate).toLocaleDateString() : '-'}
+                  {selectedLorryForComparison.lotAllotment?.manager && ` | Allotted By: ${selectedLorryForComparison.lotAllotment.manager.fullName || selectedLorryForComparison.lotAllotment.manager.username}`}
+                  {selectedLorryForComparison.lotAllotment?.supervisor && ` | Supervisor: ${selectedLorryForComparison.lotAllotment.supervisor.fullName || selectedLorryForComparison.lotAllotment.supervisor.username}`}
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedLorryForComparison(null)}
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '30px',
+                  height: '30px',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '14px'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{ padding: '16px 18px 18px', overflowY: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#1a237e', color: '#fff', borderBottom: '2px solid #cbd5e1' }}>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'left' }}>SAMPLE / STAGE</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>REPORTED BY</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>REPORTED AT</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>MOISTURE</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>CUTTING</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>BEND</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>GRAINS COUNT</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>MIX</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>S MIX</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>L MIX</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>KANDU</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>OIL</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>SK</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>SMELL</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>PADDY WB</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>LOADED BAGS</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>PHOTO</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const stages = selectedLorryForComparison.samplingStages || {};
+                    const lot = stages.lot_avg || {};
+                    const half = stages.half_lorry || {};
+                    const full = stages.full_avg || {};
+
+                    const formatField = (val: any) => {
+                      if (val === null || val === undefined || val === '') return '-';
+                      return String(val);
+                    };
+
+                    const formatMoisture = (stageObj: any) => {
+                      const raw = stageObj.moistureRaw;
+                      const val = stageObj.moisture;
+                      if (raw) return `${raw}%`;
+                      if (val !== undefined && val !== null) return `${val}%`;
+                      return '-';
+                    };
+
+                    const formatCutting = (stageObj: any) => {
+                      if (stageObj.cutting1 === undefined || stageObj.cutting1 === null) return '-';
+                      return `${stageObj.cutting1}x${stageObj.cutting2 || 0}`;
+                    };
+
+                    const formatBend = (stageObj: any) => {
+                      if (stageObj.bend1 === undefined || stageObj.bend1 === null) return '-';
+                      return `${stageObj.bend1}x${stageObj.bend2 || 0}`;
+                    };
+
+                    const renderRow = (name: string, color: string, bgColor: string, stageObj: any, isFull: boolean) => {
+                      return (
+                        <tr style={{ borderBottom: '1px solid #cbd5e1', backgroundColor: bgColor }}>
+                          <td style={{ padding: '8px 10px', fontWeight: '800', color: color }}>{name}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.reportedBy)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>
+                            {stageObj.reportedAt ? new Date(stageObj.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                          </td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatMoisture(stageObj)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatCutting(stageObj)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatBend(stageObj)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>({formatField(stageObj.grainsCountRaw || stageObj.grainsCount)})</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.mixRaw || stageObj.mix)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.smixEnabled ? formatField(stageObj.mixSRaw || stageObj.mixS) || 'Yes' : '-'}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.lmixEnabled ? formatField(stageObj.mixLRaw || stageObj.mixL) || 'Yes' : '-'}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.kanduRaw || stageObj.kandu)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.oilRaw || stageObj.oil)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.smellHas ? 'Yes' : '-'}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.paddyWbEnabled ? formatField(stageObj.paddyWbRaw || stageObj.paddyWb) : '-'}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{isFull ? formatField(selectedLorryForComparison.bags) : '-'}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                            {stageObj.imageUrl ? <a href={resolveMediaUrl(stageObj.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
+                          </td>
+                        </tr>
+                      );
+                    };
+
+                    return (
+                      <>
+                        {renderRow('Lot Avg', '#1565c0', '#f0f9ff', lot, false)}
+                        {renderRow('Half Lorry', '#b45309', '#fffbeb', half, false)}
+                        {renderRow('Full Avg Lorry', '#15803d', '#f0fdf4', full, true)}
+                      </>
+                    );
+                  })()}
+                </tbody>
+              </table>
+              <button
+                onClick={() => setSelectedLorryForComparison(null)}
+                style={{ marginTop: '16px', width: '100%', padding: '9px', background: '#1565c0', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

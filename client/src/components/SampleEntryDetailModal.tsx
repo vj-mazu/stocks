@@ -522,6 +522,25 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
     const [localGps, setLocalGps] = useState<string | null>((detailEntry as any).gpsCoordinates || null);
     const [remarksPopup, setRemarksPopup] = useState({ isOpen: false, text: '' });
     const [pricingDetail, setPricingDetail] = useState<{ entry: SampleEntry, mode: 'offer' | 'final' } | null>(null);
+    const [inspectionsProgress, setInspectionsProgress] = useState<any>(null);
+    const [selectedLorryForComparison, setSelectedLorryForComparison] = useState<any>(null);
+
+    useEffect(() => {
+        if (detailEntry && detailEntry.id) {
+            const fetchInspectionProgress = async () => {
+                try {
+                    const token = localStorage.getItem('token');
+                    const response = await axios.get(`${API_URL}/sample-entries/${detailEntry.id}/inspection-progress`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    setInspectionsProgress(response.data);
+                } catch (err) {
+                    console.error('Error fetching inspection progress in modal:', err);
+                }
+            };
+            fetchInspectionProgress();
+        }
+    }, [detailEntry]);
 
     useEffect(() => {
         const fetchUsers = async () => {
@@ -1551,7 +1570,25 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                         <div style={{ fontSize: '15px', fontWeight: '700', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{partyDisplay.label}</div>
                                                     )}
                                                     {partyDisplay.showLorrySecondLine ? (
-                                                        <div style={{ fontSize: '13px', fontWeight: '600', color: '#1565c0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{partyDisplay.lorryText}</div>
+                                                        <div style={{ fontSize: '13px', fontWeight: '600', color: '#1565c0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                            Lorry No: {' '}
+                                                            <span
+                                                                onClick={() => {
+                                                                    const matched = inspectionsProgress?.previousInspections?.find(
+                                                                        (i: any) => (i.lorryNumber || '').trim().toUpperCase() === (partyDisplay.lorryText || '').trim().toUpperCase()
+                                                                    );
+                                                                    if (matched) {
+                                                                        setSelectedLorryForComparison(matched);
+                                                                    } else {
+                                                                        alert(`No multi-stage sampling records found for lorry ${partyDisplay.lorryText}`);
+                                                                    }
+                                                                }}
+                                                                style={{ color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', fontWeight: '750' }}
+                                                                title="Click to view side-by-side stage comparison"
+                                                            >
+                                                                {partyDisplay.lorryText}
+                                                            </span>
+                                                        </div>
                                                     ) : null}
                                                 </div>
                                             );
@@ -1687,6 +1724,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         buildCookingRows(),
                                         { compact: true }
                                     )}
+
 
                                     {/* Pricing & Offers */}
                                     {!isStaff && renderHorizontalTable(
@@ -2041,6 +2079,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     </div>
                 </div>
             )}
+
         </>
     );
 };

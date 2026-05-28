@@ -206,6 +206,13 @@ const WORKFLOW_TRANSITIONS = [
     allowedRoles: ['physical_supervisor', 'manager', 'admin'],
     requiredData: []
   },
+  // Allow manager/admin to reject and send back to LOT_ALLOTMENT
+  {
+    fromStatus: 'PHYSICAL_INSPECTION',
+    toStatus: 'LOT_ALLOTMENT',
+    allowedRoles: ['admin', 'manager'],
+    requiredData: []
+  },
   // Manager can close a lot early (party didn't send all bags)
   {
     fromStatus: 'LOT_ALLOTMENT',

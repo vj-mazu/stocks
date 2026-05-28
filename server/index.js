@@ -1702,6 +1702,14 @@ const startServer = async () => {
         console.log('Migration 130 warning:', error.message);
       }
 
+      try {
+        const addSamplingStages = require('./migrations/131_add_sampling_stages_to_physical_inspections');
+        await addSamplingStages.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('Migration 131: sampling_stages field added');
+      } catch (error) {
+        console.log('Migration 131 warning:', error.message);
+      }
+
     // Default warehouses removed - users should create their own warehouses
 
     // Create default users if they don't exist

@@ -81,6 +81,7 @@ class PhysicalInspectionRepository {
    */
   async findBySampleEntryId(sampleEntryId, options = {}) {
     const User = require('../models/User');
+    const LotAllotment = require('../models/LotAllotment');
     
     const inspections = await PhysicalInspection.findAll({
       where: { sampleEntryId },
@@ -88,7 +89,24 @@ class PhysicalInspectionRepository {
         {
           model: User,
           as: 'reportedBy',
-          attributes: ['id', 'username']
+          attributes: ['id', 'username', 'fullName']
+        },
+        {
+          model: LotAllotment,
+          as: 'lotAllotment',
+          required: false,
+          include: [
+            {
+              model: User,
+              as: 'manager',
+              attributes: ['id', 'username', 'fullName']
+            },
+            {
+              model: User,
+              as: 'supervisor',
+              attributes: ['id', 'username', 'fullName']
+            }
+          ]
         }
       ],
       order: [['inspectionDate', 'ASC']]
