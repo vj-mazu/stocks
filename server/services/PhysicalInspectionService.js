@@ -203,6 +203,15 @@ class PhysicalInspectionService {
           throw new Error(`Sampling stage '${inspectionData.stage}' has already been submitted and is locked.`);
         }
 
+        if (stage !== 'lot_avg') {
+          if (!stages['lot_avg']) {
+            throw new Error('Must submit Lot Avg Sampling first for this lorry');
+          }
+          if (stage === 'full_avg' && !stages['half_lorry'] && !stages['nit_avg']) {
+            throw new Error('Must submit Half Lorry or Nit Avg Sampling first before Full Lorry');
+          }
+        }
+
         stages[stage] = stageData;
         const updates = {
           samplingStages: stages

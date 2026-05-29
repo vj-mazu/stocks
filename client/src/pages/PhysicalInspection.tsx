@@ -480,10 +480,19 @@ const PhysicalInspection: React.FC = () => {
     }
 
     if (stage !== 'lot_avg') {
-      const hasLotAvg = currentActive.includes('lot_avg') && samplingStageData[entryId]?.['lot_avg']?.isLocked;
+      const hasLotAvg = samplingStageData[entryId]?.['lot_avg']?.isLocked;
       if (!hasLotAvg) {
         showNotification('Must submit Lot Avg Sampling first for this lorry', 'error');
         return;
+      }
+
+      if (stage === 'full_avg') {
+        const hasHalfLorry = samplingStageData[entryId]?.['half_lorry']?.isLocked;
+        const hasNitAvg = samplingStageData[entryId]?.['nit_avg']?.isLocked;
+        if (!hasHalfLorry && !hasNitAvg) {
+          showNotification('Must submit Half Lorry or Nit Avg Sampling first before Full Lorry', 'error');
+          return;
+        }
       }
     }
 
