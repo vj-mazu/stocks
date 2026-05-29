@@ -488,9 +488,8 @@ const PhysicalInspection: React.FC = () => {
 
       if (stage === 'full_avg') {
         const hasHalfLorry = samplingStageData[entryId]?.['half_lorry']?.isLocked;
-        const hasNitAvg = samplingStageData[entryId]?.['nit_avg']?.isLocked;
-        if (!hasHalfLorry && !hasNitAvg) {
-          showNotification('Must submit Half Lorry or Nit Avg Sampling first before Full Lorry', 'error');
+        if (!hasHalfLorry) {
+          showNotification('Must submit Half Lorry Sampling first before Full Lorry', 'error');
           return;
         }
       }

@@ -207,8 +207,8 @@ class PhysicalInspectionService {
           if (!stages['lot_avg']) {
             throw new Error('Must submit Lot Avg Sampling first for this lorry');
           }
-          if (stage === 'full_avg' && !stages['half_lorry'] && !stages['nit_avg']) {
-            throw new Error('Must submit Half Lorry or Nit Avg Sampling first before Full Lorry');
+          if (stage === 'full_avg' && !stages['half_lorry']) {
+            throw new Error('Must submit Half Lorry Sampling first before Full Lorry');
           }
         }
 
