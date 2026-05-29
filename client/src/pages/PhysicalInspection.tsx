@@ -651,20 +651,26 @@ const PhysicalInspection: React.FC = () => {
   };
 
   const initializeInspectionData = (entryId: string) => {
-    if (!inspectionData[entryId]) {
-      setInspectionData(prev => ({
-        ...prev,
-        [entryId]: {
-          inspectionDate: new Date().toISOString().split('T')[0],
-          lorryNumber: '',
-          remarks: ''
-        }
-      }));
-      setSelectedStage(prev => ({
-        ...prev,
-        [entryId]: 'lot_avg'
-      }));
-    }
+    setInspectionData(prev => ({
+      ...prev,
+      [entryId]: {
+        inspectionDate: new Date().toISOString().split('T')[0],
+        lorryNumber: '',
+        remarks: ''
+      }
+    }));
+    setSelectedStage(prev => ({
+      ...prev,
+      [entryId]: 'lot_avg'
+    }));
+    setActiveCards(prev => ({
+      ...prev,
+      [entryId]: []
+    }));
+    setSamplingStageData(prev => ({
+      ...prev,
+      [entryId]: {}
+    }));
     setSelectedEntry(entryId);
   };
 
@@ -1141,7 +1147,19 @@ const PhysicalInspection: React.FC = () => {
 
                                 <div style={{ borderTop: '1px solid #eee', paddingTop: '10px', display: 'flex', gap: '10px', marginTop: '10px' }}>
                                   <button
-                                    onClick={() => setSelectedEntry(null)}
+                                    onClick={() => {
+                                      setSelectedEntry(null);
+                                      setActiveCards(prev => ({ ...prev, [entry.id]: [] }));
+                                      setSamplingStageData(prev => ({ ...prev, [entry.id]: {} }));
+                                      setInspectionData(prev => ({
+                                        ...prev,
+                                        [entry.id]: {
+                                          inspectionDate: new Date().toISOString().split('T')[0],
+                                          lorryNumber: '',
+                                          remarks: ''
+                                        }
+                                      }));
+                                    }}
                                     style={{
                                       flex: 1,
                                       fontSize: '12px',
