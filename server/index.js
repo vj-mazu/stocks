@@ -107,7 +107,7 @@ app.use(cors({
 // Rate limiting - General API protection
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'development' ? 5000 : 1000, // 1000 in production (SPA needs ~5-10 calls per page load)
+  max: 5000, // 5000 in both development & production to support polling across multiple tabs/users
   message: { error: 'Too many requests. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false

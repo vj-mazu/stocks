@@ -69,10 +69,12 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     (canAccessManagerApprovals ? (managerApprovalCount + lorryApprovalCount) : 0) + 
     (canAccessLoadingQuality ? loadingQualityApprovalCount : 0);
 
-  const fetchLoadingQuality = useCallback(async () => {
+  const fetchLoadingQuality = useCallback(async (isSilent = false) => {
     if (!canAccessLoadingQuality) return;
     try {
-      setLoadingQuality(true);
+      if (!isSilent) {
+        setLoadingQuality(true);
+      }
       const token = localStorage.getItem('token');
       const response = await axios.get(`${API_URL}/sample-entries/by-role?status=PHYSICAL_INSPECTION`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -83,7 +85,9 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     } catch (error) {
       console.error('Error fetching loading quality:', error);
     } finally {
-      setLoadingQuality(false);
+      if (!isSilent) {
+        setLoadingQuality(false);
+      }
     }
   }, [canAccessLoadingQuality]);
 
@@ -104,8 +108,8 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
   }, [activeTab, canAccessManagerApprovals, canAccessLoadingQuality]);
 
   useEffect(() => {
-    fetchLoadingQuality();
-    const interval = setInterval(fetchLoadingQuality, 30000);
+    fetchLoadingQuality(false);
+    const interval = setInterval(() => fetchLoadingQuality(true), 30000);
     return () => clearInterval(interval);
   }, [fetchLoadingQuality]);
 

@@ -118,9 +118,11 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchDashboardStats = async () => {
+    const fetchDashboardStats = async (isSilent = false) => {
       try {
-        setLoading(true);
+        if (!isSilent) {
+          setLoading(true);
+        }
         
         // Fetch from new dashboard stats endpoint
         const response = await axios.get('/dashboard/stats');
@@ -144,14 +146,16 @@ const Dashboard: React.FC = () => {
           activeWarehouses: 0
         });
       } finally {
-        setLoading(false);
+        if (!isSilent) {
+          setLoading(false);
+        }
       }
     };
 
-    fetchDashboardStats();
+    fetchDashboardStats(false);
     
     // Refresh stats every 30 seconds
-    const interval = setInterval(fetchDashboardStats, 30000);
+    const interval = setInterval(() => fetchDashboardStats(true), 30000);
     
     return () => clearInterval(interval);
   }, []);

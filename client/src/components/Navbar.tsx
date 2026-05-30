@@ -346,9 +346,9 @@ const Navbar: React.FC = () => {
       fetchPendingCount();
       fetchResampleCount();
       fetchEditApprovalCount();
-      const interval = setInterval(fetchPendingCount, 30000);
-      const resampleInterval = setInterval(fetchResampleCount, 30000);
-      const editApprovalInterval = setInterval(fetchEditApprovalCount, 30000);
+      const interval = setInterval(fetchPendingCount, 60000);
+      const resampleInterval = setInterval(fetchResampleCount, 60000);
+      const editApprovalInterval = setInterval(fetchEditApprovalCount, 60000);
       return () => {
         clearInterval(interval);
         clearInterval(resampleInterval);
