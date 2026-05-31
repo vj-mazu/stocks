@@ -191,8 +191,8 @@ class SampleEntryRepository {
       {
         model: LotAllotment,
         as: 'lotAllotment',
-        required: role === 'physical_supervisor',
-        where: (role === 'physical_supervisor' && userId) ? { allottedToSupervisorId: userId } : undefined,
+        required: role === 'physical_supervisor' || role === 'paddy_supervisor',
+        where: ((role === 'physical_supervisor' || role === 'paddy_supervisor') && userId) ? { allottedToSupervisorId: userId } : undefined,
         include: [
           { model: User, as: 'supervisor', attributes: ['id', 'username', 'fullName'] },
           {
@@ -245,7 +245,7 @@ class SampleEntryRepository {
     // Role-based filtering
     const roleStatusMap = {
       staff: null,
-      paddy_supervisor: null,
+      paddy_supervisor: ['LOT_ALLOTMENT', 'PHYSICAL_INSPECTION'],
       quality_supervisor: ['STAFF_ENTRY', 'QUALITY_CHECK'],
       owner: null,
       admin: null,
@@ -496,8 +496,22 @@ class SampleEntryRepository {
           ]
         };
       } else {
+        const assignedLocationStaffStatuses = new Set([
+          'LOT_ALLOTMENT',
+          'PHYSICAL_INSPECTION',
+          'INVENTORY_ENTRY',
+          'OWNER_FINANCIAL',
+          'MANAGER_FINANCIAL',
+          'FINAL_REVIEW',
+          'COMPLETED'
+        ]);
+        const hasLotAllotmentInclude = 
+          (role === 'physical_supervisor' || role === 'paddy_supervisor' || 
+           (role === 'staff' && staffType === 'location' && requestedStatus && assignedLocationStaffStatuses.has(requestedStatus)));
+
         staffVisibilityClause = {
           [Op.or]: [
+            ...(hasLotAllotmentInclude && userId ? [{ '$lotAllotment.allotted_to_supervisor_id$': userId }] : []),
             {
               [Op.and]: [
                 { lotSelectionDecision: 'FAIL' },
@@ -573,7 +587,7 @@ class SampleEntryRepository {
       && requestedStatus
       && assignedLocationStaffStatuses.has(requestedStatus);
 
-    if ((role === 'physical_supervisor' || isAssignedLocationStaffView) && userId) {
+    if ((role === 'physical_supervisor' || role === 'paddy_supervisor' || isAssignedLocationStaffView) && userId) {
       const lotAllotmentInclude = include.find(i => i.as === 'lotAllotment');
       if (lotAllotmentInclude) {
         lotAllotmentInclude.where = { allottedToSupervisorId: userId };

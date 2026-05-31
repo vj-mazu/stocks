@@ -1604,7 +1604,8 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
           status = (!isWorkflowPending || hasResolvedCurrentResamplePass) ? 'Pass' : 'Pending';
         }
       } else if (isFailDecision) {
-        status = attemptsSorted.length <= 1 ? 'Pass' : (isLast ? 'Pending' : 'Pass');
+        const isActiveAllotmentOrLoading = ['LOT_ALLOTMENT', 'PHYSICAL_INSPECTION', 'INVENTORY_ENTRY', 'OWNER_FINANCIAL', 'MANAGER_FINANCIAL', 'FINAL_REVIEW', 'COMPLETED'].includes(String(entry.workflowStatus || '').toUpperCase());
+        status = isActiveAllotmentOrLoading ? 'Pass' : (attemptsSorted.length <= 1 ? 'Pass' : (isLast ? 'Pending' : 'Pass'));
       } else if (isLast && isQualityRecheckPending && !isCookingOnlyRecheck) {
         status = mapQualityDecisionToStatus(previousDecision || entry.lotSelectionDecision);
       }

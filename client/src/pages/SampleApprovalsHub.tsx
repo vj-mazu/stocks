@@ -155,6 +155,43 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     }
   };
 
+  const getPendingStage = (insp: any) => {
+    const stages = insp.samplingStages || {};
+    if (stages.lot_avg?.approvalStatus === 'pending') return { key: 'lot_avg', label: 'Lot Avg' };
+    if (stages.half_lorry?.approvalStatus === 'pending') return { key: 'half_lorry', label: 'Half Lorry' };
+    if (stages.nit_avg?.approvalStatus === 'pending') return { key: 'nit_avg', label: 'Nit Avg' };
+    if (stages.full_avg?.approvalStatus === 'pending') return { key: 'full_avg', label: 'Full Lorry' };
+    return null;
+  };
+
+  const getLatestApprovedStageLabel = (insp: any) => {
+    const stages = insp.samplingStages || {};
+    if (stages.full_avg?.approvalStatus === 'approved') return 'Full Lorry';
+    if (stages.nit_avg?.approvalStatus === 'approved') return 'Nit Avg';
+    if (stages.half_lorry?.approvalStatus === 'approved') return 'Half Lorry';
+    if (stages.lot_avg?.approvalStatus === 'approved') return 'Lot Avg';
+    return null;
+  };
+
+  const handleApproveProgressiveStage = async (entryId: string, inspectionId: string, stageKey: string, stageLabel: string) => {
+    try {
+      setProcessingLorry(true);
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `${API_URL}/sample-entries/${entryId}/physical-inspection/${inspectionId}/approve-stage`,
+        { stage: stageKey },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success(`${stageLabel} Stage Approved successfully!`);
+      fetchLoadingQuality();
+    } catch (error: any) {
+      console.error('Error approving progressive stage:', error);
+      toast.error(error.response?.data?.error || 'Failed to approve stage');
+    } finally {
+      setProcessingLorry(false);
+    }
+  };
+
   const handleRejectSpecificLorry = async (entryId: string, inspectionId: string, lorryNumber: string) => {
     if (!window.confirm(`Are you sure you want to reject and delete the trip for Lorry ${lorryNumber || ''}?`)) {
       return;
@@ -248,11 +285,17 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
               {/* Lorry sampling parameter grids */}
               <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '20px', backgroundColor: '#f8fafc' }}>
                 {(() => {
-                  const inspections = entry.physicalInspections || entry.lotAllotment?.physicalInspections || [];
+                  const inspections = [...(entry.physicalInspections || entry.lotAllotment?.physicalInspections || [])]
+                    .sort((a, b) => {
+                      const dateA = new Date(a.inspectionDate).getTime();
+                      const dateB = new Date(b.inspectionDate).getTime();
+                      if (dateA !== dateB) return dateA - dateB;
+                      return String(a.id).localeCompare(String(b.id));
+                    });
                   if (inspections.length === 0) {
                     return <div style={{ color: '#64748b', fontSize: '12px', fontStyle: 'italic', padding: '10px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '6px', textAlign: 'center' }}>No physical inspection samples loaded yet for this lot.</div>;
                   }
-                  return inspections.map((insp: any) => {
+                  return inspections.map((insp: any, idx: number) => {
                     const stages = insp.samplingStages || {};
                     const lot = stages.lot_avg || {};
                     const half = stages.half_lorry || {};
@@ -280,28 +323,169 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                           alignItems: 'center'
                         }}>
                           <div>
+                            <span style={{ fontSize: '13px', color: '#1e3a8a', marginRight: '12px', fontWeight: '800' }}>Trip #{idx + 1}</span>
                             <span style={{ color: '#64748b' }}>Lorry Number:</span> <span style={{ fontSize: '13px', color: '#0f172a' }}>{insp.lorryNumber?.toUpperCase() || '-'}</span>
+                            {(() => {
+                              const pendingStage = getPendingStage(insp);
+                              if (pendingStage) {
+                                return (
+                                  <span style={{
+                                    marginLeft: '8px',
+                                    padding: '2px 8px',
+                                    borderRadius: '4px',
+                                    backgroundColor: '#fef3c7',
+                                    color: '#d97706',
+                                    fontSize: '10px',
+                                    fontWeight: 'bold',
+                                    textTransform: 'uppercase',
+                                    border: '1px solid #fde68a'
+                                  }}>
+                                    Pending: {pendingStage.label}
+                                  </span>
+                                );
+                              }
+                              
+                              const latestApproved = getLatestApprovedStageLabel(insp);
+                              if (latestApproved) {
+                                if (insp.isComplete || stages.full_avg?.approvalStatus === 'approved') {
+                                  return (
+                                    <span style={{
+                                      marginLeft: '8px',
+                                      padding: '2px 8px',
+                                      borderRadius: '4px',
+                                      backgroundColor: '#d1fae5',
+                                      color: '#065f46',
+                                      fontSize: '10px',
+                                      fontWeight: 'bold',
+                                      textTransform: 'uppercase',
+                                      border: '1px solid #a7f3d0'
+                                    }}>
+                                      Approved: {latestApproved}
+                                    </span>
+                                  );
+                                } else {
+                                  return (
+                                    <span style={{
+                                      marginLeft: '8px',
+                                      padding: '2px 8px',
+                                      borderRadius: '4px',
+                                      backgroundColor: '#e0f2fe',
+                                      color: '#0369a1',
+                                      fontSize: '10px',
+                                      fontWeight: 'bold',
+                                      textTransform: 'uppercase',
+                                      border: '1px solid #bae6fd'
+                                    }}>
+                                      Approved: {latestApproved} (Awaiting Next Stage)
+                                    </span>
+                                  );
+                                }
+                              }
+
+                              return (
+                                <span style={{
+                                  marginLeft: '8px',
+                                  padding: '2px 8px',
+                                  borderRadius: '4px',
+                                  backgroundColor: '#f1f5f9',
+                                  color: '#475569',
+                                  fontSize: '10px',
+                                  fontWeight: 'bold',
+                                  textTransform: 'uppercase',
+                                  border: '1px solid #cbd5e1'
+                                }}>
+                                  No Sample Submitted
+                                </span>
+                              );
+                            })()}
                             <span style={{ color: '#64748b', marginLeft: '16px' }}>Bags loaded in trip:</span> <span style={{ fontSize: '13px', color: '#0f172a' }}>{insp.bags || '-'}</span>
                             <span style={{ color: '#64748b', marginLeft: '16px' }}>Last Sampled:</span> <span style={{ fontSize: '13px', color: '#0f172a' }}>{insp.inspectionDate || '-'}</span>
                           </div>
                           <div style={{ display: 'flex', gap: '8px' }}>
-                            <button
-                              onClick={() => handleApproveLorryQuality(entry.id)}
-                              disabled={processingLorry}
-                              style={{
-                                padding: '4px 12px',
-                                backgroundColor: '#27ae60',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                fontWeight: 'bold',
-                                cursor: processingLorry ? 'not-allowed' : 'pointer',
-                                fontSize: '11px',
-                                boxShadow: '0 1px 2px rgba(39,174,96,0.2)'
-                              }}
-                            >
-                              Approve Trip
-                            </button>
+                            {(() => {
+                              const pendingStage = getPendingStage(insp);
+                              if (pendingStage) {
+                                return (
+                                  <button
+                                    onClick={() => handleApproveProgressiveStage(entry.id, insp.id, pendingStage.key, pendingStage.label)}
+                                    disabled={processingLorry}
+                                    style={{
+                                      padding: '4px 12px',
+                                      backgroundColor: '#2ecc71',
+                                      color: 'white',
+                                      border: 'none',
+                                      borderRadius: '4px',
+                                      fontWeight: 'bold',
+                                      cursor: processingLorry ? 'not-allowed' : 'pointer',
+                                      fontSize: '11px',
+                                      boxShadow: '0 1px 2px rgba(46,204,113,0.2)'
+                                    }}
+                                  >
+                                    Approve {pendingStage.label}
+                                  </button>
+                                );
+                              }
+                              
+                              if (insp.isComplete || stages.full_avg?.approvalStatus === 'approved') {
+                                const allTripsApproved = inspections.every((i: any) => i.isComplete || i.samplingStages?.full_avg?.approvalStatus === 'approved');
+                                if (!allTripsApproved) {
+                                  return (
+                                    <button
+                                      disabled
+                                      style={{
+                                        padding: '4px 12px',
+                                        backgroundColor: '#94a3b8',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        fontWeight: 'bold',
+                                        cursor: 'not-allowed',
+                                        fontSize: '11px'
+                                      }}
+                                    >
+                                      Lorry Approved (Awaiting Other Trips)
+                                    </button>
+                                  );
+                                }
+                                return (
+                                  <button
+                                    onClick={() => handleApproveLorryQuality(entry.id)}
+                                    disabled={processingLorry}
+                                    style={{
+                                      padding: '4px 12px',
+                                      backgroundColor: '#27ae60',
+                                      color: 'white',
+                                      border: 'none',
+                                      borderRadius: '4px',
+                                      fontWeight: 'bold',
+                                      cursor: processingLorry ? 'not-allowed' : 'pointer',
+                                      fontSize: '11px',
+                                      boxShadow: '0 1px 2px rgba(39,174,96,0.2)'
+                                    }}
+                                  >
+                                    Approve Trip
+                                  </button>
+                                );
+                              }
+
+                              return (
+                                <button
+                                  disabled
+                                  style={{
+                                    padding: '4px 12px',
+                                    backgroundColor: '#94a3b8',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    fontWeight: 'bold',
+                                    cursor: 'not-allowed',
+                                    fontSize: '11px'
+                                  }}
+                                >
+                                  Awaiting Next Stage
+                                </button>
+                              );
+                            })()}
                             <button
                               onClick={() => handleRejectSpecificLorry(entry.id, insp.id, insp.lorryNumber)}
                               disabled={processingLorry}
@@ -350,10 +534,10 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                                 </tr>
                               </thead>
                               <tbody>
-                                {/* 1st Sample: Lot Avg */}
+                                {/* Lot Avg */}
                                 {stages.lot_avg && (
                                   <tr style={{ backgroundColor: '#fff', borderBottom: '1px solid #cbd5e1' }}>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '800', color: '#e05300' }}>1st Sample (Lot Avg)</td>
+                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '800', color: '#e05300' }}>Lot Avg</td>
                                     <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '600' }}>{fmtField(lot.reportedBy)}</td>
                                     <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px' }}>{lot.reportedAt ? new Date(lot.reportedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '-'}</td>
                                     <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: 'bold' }}>{fmtMoisture(lot)}</td>
@@ -377,10 +561,10 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                                   </tr>
                                 )}
 
-                                {/* 2nd Sample: Half Lorry */}
+                                {/* Half Lorry */}
                                 {stages.half_lorry && (
                                   <tr style={{ backgroundColor: '#fff', borderBottom: '1px solid #cbd5e1' }}>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '800', color: '#e05300' }}>2nd Sample (Half Lorry)</td>
+                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '800', color: '#e05300' }}>Half Lorry</td>
                                     <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '600' }}>{fmtField(half.reportedBy)}</td>
                                     <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px' }}>{half.reportedAt ? new Date(half.reportedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '-'}</td>
                                     <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: 'bold' }}>{fmtMoisture(half)}</td>
@@ -404,10 +588,10 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                                   </tr>
                                 )}
 
-                                {/* 3rd Sample: Full Lorry */}
+                                {/* Full Lorry */}
                                 {stages.full_avg && (
                                   <tr style={{ backgroundColor: '#fff', borderBottom: '1px solid #cbd5e1' }}>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '800', color: '#e05300' }}>3rd Sample (Full Lorry)</td>
+                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '800', color: '#e05300' }}>Full Lorry</td>
                                     <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '600' }}>{fmtField(full.reportedBy)}</td>
                                     <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px' }}>{full.reportedAt ? new Date(full.reportedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '-'}</td>
                                     <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: 'bold' }}>{fmtMoisture(full)}</td>

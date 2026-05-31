@@ -1456,6 +1456,7 @@ router.post('/:id/manager-value-approval-decision', authenticateToken, async (re
       type: pendingData.__requestType || (isDispute ? 'dispute' : 'revision'),
       disputeBaseRate: pendingData.disputeBaseRate !== undefined ? pendingData.disputeBaseRate : null,
       disputeBaseRateType: pendingData.disputeBaseRateType || null,
+      disputeReason: pendingData.disputeReason || null,
       revisedHamali: pendingData.revisedHamali !== undefined ? pendingData.revisedHamali : null,
       revisedLf: pendingData.revisedLf !== undefined ? pendingData.revisedLf : null,
       revisedRateOption: pendingData.revisedRateOption || null,
@@ -2710,9 +2711,40 @@ router.put('/:id/physical-inspection/:inspectionId', authenticateToken, async (r
       return res.status(404).json({ error: 'Physical inspection not found' });
     }
 
+    invalidateSampleEntryTabCaches();
+
     res.json(updated);
   } catch (error) {
     console.error('Error updating physical inspection:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Approve a specific progressive stage of physical inspection
+router.post('/:id/physical-inspection/:inspectionId/approve-stage', authenticateToken, async (req, res) => {
+  try {
+    const { id, inspectionId } = req.params;
+    const { stage } = req.body;
+
+    if (!stage) {
+      return res.status(400).json({ error: 'Stage is required' });
+    }
+
+    const PhysicalInspectionService = require('../services/PhysicalInspectionService');
+
+    const updated = await PhysicalInspectionService.approvePhysicalInspectionStage(
+      id,
+      inspectionId,
+      stage,
+      req.user.userId,
+      getWorkflowRole(req.user)
+    );
+
+    invalidateSampleEntryTabCaches();
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Error approving progressive stage:', error);
     res.status(400).json({ error: error.message });
   }
 });
@@ -3415,6 +3447,8 @@ router.post('/:id/physical-inspection', authenticateToken, async (req, res) => {
             // Continue without images - they are optional
           }
         }
+
+        invalidateSampleEntryTabCaches();
 
         res.status(201).json(inspection);
       } catch (error) {

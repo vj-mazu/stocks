@@ -454,7 +454,7 @@ const Navbar: React.FC = () => {
             }
           `}</style>
           {user?.role !== 'staff' && <NavLink to="/dashboard" $active={isActive('/dashboard')}>Dashboard</NavLink>}
-          {user && user.role === 'staff' && (
+          {user && (user.role === 'staff' || user.role === 'paddy_supervisor') && (
             <>
               <NavLink to="/sample-entry" $active={isActive('/sample-entry')}>Paddy Sample Entry</NavLink>
               <NavLink to="/rice-sample-entries" $active={isActive('/rice-sample-entries')}>Rice Sample Entry</NavLink>
@@ -484,7 +484,7 @@ const Navbar: React.FC = () => {
               </NavLink>
               <NavLink to="/rice-sample-reports" $active={isActive('/rice-sample-reports')}>Rice Sample Reports</NavLink>
               <NavLink to="/arrivals" $active={isActive('/arrivals')}>Arrivals</NavLink>
-              <NavLink to="/records" $active={isActive('/records')}>Records</NavLink>
+              <NavLink to="/records" $active={isActive('/records')}>File</NavLink>
             </>
           )}
 
@@ -517,7 +517,7 @@ const Navbar: React.FC = () => {
           {user?.role === 'staff' && (
             <>
               <NavLink to="/arrivals" $active={isActive('/arrivals')}>Arrivals</NavLink>
-              <NavLink to="/records" $active={isActive('/records')}>Records</NavLink>
+              <NavLink to="/records" $active={isActive('/records')}>File</NavLink>
             </>
           )}
           <NavLink to="/hamali" $active={isActive('/hamali')}>Hamali</NavLink>
@@ -552,7 +552,7 @@ const Navbar: React.FC = () => {
                   {(user.role === 'inventory_staff' || user.role === 'admin') && (
                     <DropdownLink to="/inventory-entry" $active={isActive('/inventory-entry')}>Inventory Entry</DropdownLink>
                   )}
-                  {user.role === 'physical_supervisor' && (
+                  {(user.role === 'physical_supervisor' || user.role === 'paddy_supervisor') && (
                     <DropdownLink to="/physical-inspection" $active={isActive('/physical-inspection')}>Lots Allotted</DropdownLink>
                   )}
                   {user.role === 'admin' && (

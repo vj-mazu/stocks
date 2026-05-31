@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const { Parser } = require('@json2csv/plainjs');
 const PDFDocument = require('pdfkit');
 const { auth, authorize } = require('../middleware/auth');
@@ -223,7 +223,7 @@ router.get('/pdf/arrivals', auth, async (req, res) => {
       y = drawTableHeader(doc, columns, y);
 
       // Rows
-      dayRecords.forEach((record, idx) => {
+      sectionRecords.forEach((record, idx) => {
         y = checkNewPage(doc, y);
         if (y === 60) {
           y = drawTableHeader(doc, columns, y);

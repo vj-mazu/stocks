@@ -53,6 +53,9 @@ class PhysicalInspectionRepository {
     const inspection = await PhysicalInspection.findByPk(id);
     if (!inspection) return null;
     
+    if (updates && updates.samplingStages) {
+      inspection.changed('samplingStages', true);
+    }
     await inspection.update(updates);
     return inspection.toJSON();
   }
@@ -69,6 +72,9 @@ class PhysicalInspectionRepository {
     });
     if (!inspection) return null;
     
+    if (updates && updates.samplingStages) {
+      inspection.changed('samplingStages', true);
+    }
     await inspection.update(updates);
     return inspection.toJSON();
   }
@@ -109,7 +115,10 @@ class PhysicalInspectionRepository {
           ]
         }
       ],
-      order: [['inspectionDate', 'ASC']]
+      order: [
+        ['inspectionDate', 'ASC'],
+        ['id', 'ASC']
+      ]
     });
     
     return inspections.map(i => i.toJSON());

@@ -1198,7 +1198,7 @@ const LotSelection: React.FC<LotSelectionProps> = ({ entryType, excludeEntryType
           backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 99999
         }}>
           <div style={{
-            backgroundColor: 'white', borderRadius: '8px', padding: '24px', width: '380px',
+            backgroundColor: 'white', borderRadius: '8px', padding: '24px', width: '100%', maxWidth: '380px', margin: '16px',
             boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
           }}>
             <h3 style={{ marginTop: 0, marginBottom: '16px', color: '#333', fontSize: '16px', borderBottom: '1px solid #eee', paddingBottom: '8px' }}>

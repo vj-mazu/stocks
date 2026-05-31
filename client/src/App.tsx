@@ -14,7 +14,7 @@ import './App.css';
 const Login = React.lazy(() => import('./pages/Login'));
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const Arrivals = React.lazy(() => import('./pages/Arrivals'));
-const Records = React.lazy(() => import('./pages/Records'));
+const Records = React.lazy(() => import('./pages/File'));
 const Locations = React.lazy(() => import('./pages/Locations'));
 const KunchinintuLedger = React.lazy(() => import('./pages/KunchinintuLedger'));
 const RiceLedger = React.lazy(() => import('./pages/RiceLedger'));
@@ -266,7 +266,7 @@ const AppContent: React.FC = () => {
               <Route
                 path="/physical-inspection"
                 element={
-                  <ProtectedRoute roles={['physical_supervisor', 'staff']}>
+                  <ProtectedRoute roles={['physical_supervisor', 'paddy_supervisor', 'staff']}>
                     <Layout>
                       <PhysicalInspection />
                     </Layout>

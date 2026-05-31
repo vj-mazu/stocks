@@ -257,7 +257,7 @@ class QualityParametersService {
       }
 
       // Transition workflow to LOT_SELECTION (from STAFF_ENTRY) once quality is added
-      if (sampleEntry) {
+      if (sampleEntry && !shouldAutoFail) {
         let transitioned = false;
         if (workflowStatus === 'STAFF_ENTRY') {
           const nextStatus = 'LOT_SELECTION';
@@ -416,6 +416,7 @@ class QualityParametersService {
           const lotSelectionDecision = String(sampleEntry?.lotSelectionDecision || '').toUpperCase();
           if (
             sampleEntry
+            && !shouldAutoFailPostUpdate
             && (
               workflowStatus === 'STAFF_ENTRY'
               || (shouldMoveResampleToLotSelection(sampleEntry) && ['QUALITY_CHECK', 'FINAL_REPORT', 'LOT_ALLOTMENT'].includes(workflowStatus))

@@ -196,9 +196,44 @@ div[style*="overflowX"] {
     display: block !important;
   }
 
-  /* Target inline grid forms explicitly injected with class */
-  .responsive-grid {
+  /* Target inline grid forms explicitly injected with class and style tags */
+  .responsive-grid,
+  div[style*="display: grid"],
+  div[style*="display:grid"] {
     grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* Make sure flex layouts with too many items wrap on mobile, except explicitly no-wrap classes */
+  div[style*="display: flex"]:not(.no-wrap-flex),
+  div[style*="display:flex"]:not(.no-wrap-flex) {
+    flex-wrap: wrap !important;
+  }
+
+  /* Make tab container buttons scrollable horizontally instead of wrapping and stacking */
+  .tabs-container,
+  div[style*="border-bottom"],
+  div[style*="borderBottom"] {
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+    padding-bottom: 6px !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+  }
+  .tabs-container::-webkit-scrollbar,
+  div[style*="border-bottom"]::-webkit-scrollbar,
+  div[style*="borderBottom"]::-webkit-scrollbar {
+    display: none; /* Safari and Chrome */
+  }
+  .tabs-container button,
+  div[style*="border-bottom"] button,
+  div[style*="borderBottom"] button {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
   }
 
   /* Retain basic border styles for tables originally missing them */
@@ -212,6 +247,17 @@ div[style*="overflowX"] {
   .responsive-table th, .responsive-table td {
     border: 1px solid #000;
     padding: 3px 4px;
+  }
+
+  /* Force table parent containers to allow horizontal scroll without breaking layout */
+  div:has(> table),
+  .table-responsive,
+  .table-container {
+    overflow-x: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    display: block !important;
+    -webkit-overflow-scrolling: touch;
   }
 
   /* FORMS */

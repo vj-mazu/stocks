@@ -6,7 +6,7 @@ import { API_URL } from '../config/api';
 interface User {
   id: number;
   username: string;
-  role: 'owner' | 'staff' | 'manager' | 'admin' | 'quality_supervisor' | 'physical_supervisor' | 'inventory_staff' | 'financial_account';
+  role: 'owner' | 'staff' | 'manager' | 'admin' | 'quality_supervisor' | 'physical_supervisor' | 'inventory_staff' | 'financial_account' | 'paddy_supervisor';
   fullName: string | null;
   staffType?: 'mill' | 'location' | null;
 }

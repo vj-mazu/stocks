@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
+import { SampleEntryDetailModal } from '../components/SampleEntryDetailModal';
 
 import { API_URL } from '../config/api';
 
@@ -129,6 +130,15 @@ const PhysicalInspection: React.FC = () => {
   const [inspectionProgress, setInspectionProgress] = useState<{ [key: string]: InspectionProgress }>({});
   const [activeTab, setActiveTab] = useState<'paddy' | 'rice'>('paddy');
   const [selectedLorryForComparison, setSelectedLorryForComparison] = useState<any>(null);
+  const [detailModalEntry, setDetailModalEntry] = useState<any>(null);
+  const [expandedEntries, setExpandedEntries] = useState<{ [key: string]: boolean }>({});
+
+  const toggleExpand = (entryId: string) => {
+    setExpandedEntries(prev => ({
+      ...prev,
+      [entryId]: !prev[entryId]
+    }));
+  };
 
   const resolveMediaUrl = (value?: string | null) => {
     const url = String(value || '').trim();
@@ -158,6 +168,7 @@ const PhysicalInspection: React.FC = () => {
 
     if (progress && progress.previousInspections && progress.previousInspections.length > 0) {
       setSelectedLorryForComparison({
+        entryId: entry.id,
         partyName: entry.partyName || entry.lorryNumber || 'DIRECT LOADED VEHICLE',
         variety: entry.variety || '',
         location: entry.location || '',
@@ -214,13 +225,105 @@ const PhysicalInspection: React.FC = () => {
     }
   }>({});
 
+  const selectedEntryRef = useRef<string | null>(null);
+  const inspectionDataRef = useRef<any>({});
+
+  useEffect(() => {
+    selectedEntryRef.current = selectedEntry;
+  }, [selectedEntry]);
+
+  useEffect(() => {
+    inspectionDataRef.current = inspectionData;
+  }, [inspectionData]);
+
   useEffect(() => {
     loadEntries();
+    const interval = setInterval(() => {
+      loadEntries(true);
+    }, 12000); // Silent background reload every 12 seconds
+    return () => clearInterval(interval);
   }, []);
 
-  const loadEntries = async () => {
+  const syncActiveLorryStages = (entryId: string, lorryNo: string, currentProgress: InspectionProgress) => {
+    const cleanLorry = lorryNo.trim().toUpperCase();
+    const prevLorryInspection = currentProgress?.previousInspections?.find(
+      i => (i.lorryNumber || '').trim().toUpperCase() === cleanLorry
+    );
+
+    if (prevLorryInspection && prevLorryInspection.samplingStages) {
+      const stages = prevLorryInspection.samplingStages || {};
+      const stageKeys = Object.keys(stages);
+      
+      const newStageData: any = {};
+      stageKeys.forEach(key => {
+        const dbStage = stages[key] || {};
+        newStageData[key] = {
+          moisture: dbStage.moisture !== null && dbStage.moisture !== undefined ? dbStage.moisture.toString() : '',
+          dryMoisture: dbStage.dryMoisture ? 'Y' : 'N',
+          dryMoistureValue: dbStage.dryMoistureRaw || (dbStage.dryMoisture !== null && dbStage.dryMoisture !== undefined ? dbStage.dryMoisture.toString() : ''),
+          grainsCount: dbStage.grainsCount !== null && dbStage.grainsCount !== undefined ? dbStage.grainsCount.toString() : '',
+          cutting: dbStage.cutting1 !== null && dbStage.cutting2 !== undefined ? `${dbStage.cutting1}×${dbStage.cutting2}` : (dbStage.cutting1 !== null ? `${dbStage.cutting1}` : ''),
+          bend: dbStage.bend1 !== null && dbStage.bend2 !== undefined ? `${dbStage.bend1}×${dbStage.bend2}` : (dbStage.bend1 !== null ? `${dbStage.bend1}` : ''),
+          mix: dbStage.mix || '',
+          smixEnabled: dbStage.smixEnabled ? 'Y' : 'N',
+          mixS: dbStage.mixS || dbStage.mix_s || '',
+          lmixEnabled: dbStage.lmixEnabled ? 'Y' : 'N',
+          mixL: dbStage.mixL || dbStage.mix_l || '',
+          sk: dbStage.sk || '',
+          kandu: dbStage.kandu || '',
+          oil: dbStage.oil || '',
+          smellHas: dbStage.smellHas ? 'Yes' : 'No',
+          smellType: dbStage.smellType || '',
+          paddyWbEnabled: dbStage.paddyWbEnabled ? 'Y' : 'N',
+          paddyWb: dbStage.paddyWb !== null && dbStage.paddyWb !== undefined ? dbStage.paddyWb.toString() : '',
+          actualBags: dbStage.bags !== null && dbStage.bags !== undefined ? dbStage.bags.toString() : '',
+          imageUrl: dbStage.imageUrl || null,
+          reportedBy: dbStage.reportedBy || 'System',
+          approvalStatus: dbStage.approvalStatus || 'approved',
+          isLocked: true
+        };
+      });
+
+      // Avoid infinite loop by checking for changes first
+      let hasChanges = false;
+      setActiveCards(prev => {
+        const currentActive = prev[entryId] || [];
+        const combined = Array.from(new Set([...currentActive, ...stageKeys]));
+        if (currentActive.length !== combined.length || currentActive.some((val, idx) => combined[idx] !== val)) {
+          hasChanges = true;
+          return {
+            ...prev,
+            [entryId]: combined
+          };
+        }
+        return prev;
+      });
+
+      setSamplingStageData(prev => {
+        const currentVal = prev[entryId] || {};
+        let dataChanged = false;
+        stageKeys.forEach(k => {
+          if (!currentVal[k] || currentVal[k].approvalStatus !== newStageData[k].approvalStatus || !currentVal[k].isLocked) {
+            dataChanged = true;
+          }
+        });
+        if (dataChanged) {
+          return {
+            ...prev,
+            [entryId]: {
+              ...currentVal,
+              ...newStageData
+            }
+          };
+        }
+        return prev;
+      });
+    }
+  };
+
+  const loadEntries = async (isSilent = false) => {
     try {
-      setLoading(true);
+      if (!isSilent) setLoading(true);
       const token = localStorage.getItem('token');
 
       // Query for multiple statuses - LOT_ALLOTMENT, PHYSICAL_INSPECTION, INVENTORY_ENTRY, OWNER_FINANCIAL, MANAGER_FINANCIAL, FINAL_REVIEW, COMPLETED
@@ -294,10 +397,22 @@ const PhysicalInspection: React.FC = () => {
         };
       });
       setInspectionProgress(progressCache);
+
+      // Automatically sync stages for active lorry selection
+      const activeEntry = selectedEntryRef.current;
+      if (activeEntry) {
+        const activeLorry = inspectionDataRef.current[activeEntry]?.lorryNumber;
+        const currentProgress = progressCache[activeEntry];
+        if (activeLorry && currentProgress) {
+          syncActiveLorryStages(activeEntry, activeLorry, currentProgress);
+        }
+      }
     } catch (error: any) {
-      showNotification(error.response?.data?.error || 'Failed to load entries', 'error');
+      if (!isSilent) {
+        showNotification(error.response?.data?.error || 'Failed to load entries', 'error');
+      }
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
 
@@ -438,6 +553,7 @@ const PhysicalInspection: React.FC = () => {
           actualBags: dbStage.bags !== null && dbStage.bags !== undefined ? dbStage.bags.toString() : '',
           imageUrl: dbStage.imageUrl || null,
           reportedBy: dbStage.reportedBy || 'System',
+          approvalStatus: dbStage.approvalStatus || 'approved',
           isLocked: true
         };
       });
@@ -479,21 +595,12 @@ const PhysicalInspection: React.FC = () => {
       return;
     }
 
-    if (stage !== 'lot_avg') {
-      const hasLotAvg = samplingStageData[entryId]?.['lot_avg']?.isLocked;
-      if (!hasLotAvg) {
-        showNotification('Must submit Lot Avg Sampling first for this lorry', 'error');
-        return;
-      }
-
-      if (stage === 'full_avg') {
-        const hasHalfLorry = samplingStageData[entryId]?.['half_lorry']?.isLocked;
-        if (!hasHalfLorry) {
-          showNotification('Must submit Half Lorry Sampling first before Full Lorry', 'error');
-          return;
-        }
-      }
+    if (samplingStageData[entryId]?.[stage]) {
+      showNotification('This stage has already been added/saved for this lorry', 'error');
+      return;
     }
+
+
 
     setSamplingStageData(prev => ({
       ...prev,
@@ -682,14 +789,100 @@ const PhysicalInspection: React.FC = () => {
     setSelectedEntry(entryId);
   };
 
+  const handleResumeLorry = (entryId: string, lorryNumber: string, stages: any) => {
+    const cleanLorry = lorryNumber.trim().toUpperCase();
+    
+    // Set inspection entry form state
+    setInspectionData(prev => ({
+      ...prev,
+      [entryId]: {
+        inspectionDate: new Date().toISOString().split('T')[0],
+        lorryNumber: cleanLorry,
+        remarks: ''
+      }
+    }));
+
+    // Parse the stages
+    const stageKeys = Object.keys(stages || {});
+    const newStageData: any = {};
+    stageKeys.forEach(key => {
+      const dbStage = stages[key] || {};
+      newStageData[key] = {
+        moisture: dbStage.moisture !== null && dbStage.moisture !== undefined ? dbStage.moisture.toString() : '',
+        dryMoisture: dbStage.dryMoisture ? 'Y' : 'N',
+        dryMoistureValue: dbStage.dryMoistureRaw || (dbStage.dryMoisture !== null && dbStage.dryMoisture !== undefined ? dbStage.dryMoisture.toString() : ''),
+        grainsCount: dbStage.grainsCount !== null && dbStage.grainsCount !== undefined ? dbStage.grainsCount.toString() : '',
+        cutting: dbStage.cutting1 !== null && dbStage.cutting1 !== undefined ? `${dbStage.cutting1}${dbStage.cutting2 ? `×${dbStage.cutting2}` : ''}` : '',
+        bend: dbStage.bend1 !== null && dbStage.bend1 !== undefined ? `${dbStage.bend1}${dbStage.bend2 ? `×${dbStage.bend2}` : ''}` : '',
+        mix: dbStage.mix || '',
+        smixEnabled: dbStage.smixEnabled ? 'Y' : 'N',
+        mixS: dbStage.mixS || dbStage.mix_s || '',
+        lmixEnabled: dbStage.lmixEnabled ? 'Y' : 'N',
+        mixL: dbStage.mixL || dbStage.mix_l || '',
+        sk: dbStage.sk || '',
+        kandu: dbStage.kandu || '',
+        oil: dbStage.oil || '',
+        smellHas: dbStage.smellHas ? 'Yes' : 'No',
+        smellType: dbStage.smellType || '',
+        paddyWbEnabled: dbStage.paddyWbEnabled ? 'Y' : 'N',
+        paddyWb: dbStage.paddyWb !== null && dbStage.paddyWb !== undefined ? dbStage.paddyWb.toString() : '',
+        actualBags: dbStage.bags !== null && dbStage.bags !== undefined ? dbStage.bags.toString() : '',
+        imageUrl: dbStage.imageUrl || null,
+        reportedBy: dbStage.reportedBy || 'System',
+        approvalStatus: dbStage.approvalStatus || 'approved',
+        isLocked: true
+      };
+    });
+
+    // Set stage data
+    setSamplingStageData(prev => ({
+      ...prev,
+      [entryId]: newStageData
+    }));
+
+    // Set active cards
+    setActiveCards(prev => ({
+      ...prev,
+      [entryId]: stageKeys
+    }));
+
+    // Determine next stage
+    const lotStage = stages.lot_avg || {};
+    const halfStage = stages.half_lorry || {};
+    let nextStage = 'lot_avg';
+    if (lotStage.approvalStatus === 'approved') {
+      nextStage = 'half_lorry';
+    }
+    if (halfStage.approvalStatus === 'approved') {
+      nextStage = 'full_avg';
+    }
+
+    setSelectedStage(prev => ({
+      ...prev,
+      [entryId]: nextStage
+    }));
+
+    // Open/show the form entry
+    setSelectedEntry(entryId);
+
+    // Scroll to the panel
+    setTimeout(() => {
+      const element = document.getElementById(`lorry-loading-panel-${entryId}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 200);
+  };
+
+
   const getProgressColor = (percentage: number) => {
     if (percentage >= 100) return '#2e7d32';
     if (percentage >= 50) return '#d97706';
     return '#dc2626';
   };
 
-  const isLocationStaffUser = user?.role === 'staff' && user?.staffType === 'location';
-  const isLegacyPhysicalSupervisor = user?.role === 'physical_supervisor';
+  const isLocationStaffUser = (user?.role === 'staff' || user?.role === 'paddy_supervisor') && user?.staffType === 'location';
+  const isLegacyPhysicalSupervisor = user?.role === 'physical_supervisor' || user?.role === 'paddy_supervisor';
 
   if (user && !isLocationStaffUser && !isLegacyPhysicalSupervisor) {
     return (
@@ -803,14 +996,14 @@ const PhysicalInspection: React.FC = () => {
                       <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '10px 12px', fontSize: '13px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{entry.brokerName}</td>
                       <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '10px 12px', fontSize: '13px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
                         <div 
-                          onClick={() => handlePartyClick(entry)}
+                          onClick={() => setDetailModalEntry(entry)}
                           style={{ fontWeight: '700', color: '#1565c0', fontSize: '14px', cursor: 'pointer', textDecoration: 'underline' }}
                         >
                           {entry.partyName && entry.partyName.trim() ? toTitleCase(entry.partyName) : (entry.lorryNumber ? entry.lorryNumber.toUpperCase() : 'Lorry Details')}
                         </div>
                         {entry.lorryNumber && entry.partyName && entry.partyName.trim() && (
                           <div 
-                            onClick={() => handlePartyClick(entry)}
+                            onClick={() => setDetailModalEntry(entry)}
                             style={{ fontSize: '12px', color: '#1565c0', fontWeight: '700', cursor: 'pointer', textDecoration: 'underline' }}
                           >
                             {entry.lorryNumber.toUpperCase()}
@@ -833,24 +1026,45 @@ const PhysicalInspection: React.FC = () => {
                         )}
                       </td>
                       <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '6px', textAlign: 'left' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                          <div style={{
-                            flex: 1,
-                            height: '20px',
-                            backgroundColor: '#e0e0e0',
-                            borderRadius: '10px',
-                            overflow: 'hidden'
-                          }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                             <div style={{
-                              height: '100%',
-                              width: `${entry.lotAllotment?.closedAt ? 100 : progressPercentage}%`,
-                              backgroundColor: entry.lotAllotment?.closedAt ? '#7f8c8d' : getProgressColor(progressPercentage),
-                              transition: 'width 0.3s ease'
-                            }} />
+                              flex: 1,
+                              height: '20px',
+                              backgroundColor: '#e0e0e0',
+                              borderRadius: '10px',
+                              overflow: 'hidden'
+                            }}>
+                              <div style={{
+                                height: '100%',
+                                width: `${entry.lotAllotment?.closedAt ? 100 : progressPercentage}%`,
+                                backgroundColor: entry.lotAllotment?.closedAt ? '#7f8c8d' : getProgressColor(progressPercentage),
+                                transition: 'width 0.3s ease'
+                              }} />
+                            </div>
+                            <span style={{ fontSize: '12px', fontWeight: '700', minWidth: '35px' }}>
+                              {entry.lotAllotment?.closedAt ? 'Closed' : `${progressPercentage.toFixed(0)}%`}
+                            </span>
                           </div>
-                          <span style={{ fontSize: '12px', fontWeight: '700', minWidth: '35px' }}>
-                            {entry.lotAllotment?.closedAt ? 'Closed' : `${progressPercentage.toFixed(0)}%`}
-                          </span>
+                          {progress && progress.previousInspections && progress.previousInspections.length > 0 && (
+                            <button
+                              onClick={() => toggleExpand(entry.id)}
+                              style={{
+                                alignSelf: 'flex-start',
+                                fontSize: '11px',
+                                padding: '2px 6px',
+                                fontWeight: '700',
+                                backgroundColor: '#1565c0',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '3px',
+                                cursor: 'pointer',
+                                marginTop: '2px'
+                              }}
+                            >
+                              {expandedEntries[entry.id] ? '▲ Hide Trips' : `▼ View ${progress.previousInspections.length} Trip(s)`}
+                            </button>
+                          )}
                         </div>
                       </td>
                       <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '6px', textAlign: 'left' }}>
@@ -874,170 +1088,89 @@ const PhysicalInspection: React.FC = () => {
                     </tr>
 
                     {/* Show previous inspections history with beautiful inline comparative orange grid */}
-                    {progress && progress.previousInspections && progress.previousInspections.length > 0 && (
+                    {expandedEntries[entry.id] && progress && progress.previousInspections && progress.previousInspections.length > 0 && (
                       <tr style={{ borderBottom: '3px solid #444' }}>
-                        <td colSpan={11} style={{ padding: '12px', backgroundColor: '#fdf6f0', border: '1px solid #f2711c', borderBottom: '3px solid #444' }}>
-                          <div style={{ fontSize: '14px', fontWeight: '800', marginBottom: '8px', color: '#d05d00', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>📋 Lorry Loading Details & Comparative Differences ({progress.previousInspections.length})</span>
-                            <span style={{ fontSize: '11px', color: '#666', fontWeight: 'normal' }}>*Orange tables show Progressive Sampling differences (Lot Avg, Half, Full Lorry)</span>
+                        <td colSpan={11} style={{ padding: '12px', backgroundColor: '#fdf6f0', border: '1px solid #000', borderBottom: '3px solid #444' }}>
+                          <div style={{ fontSize: '14px', fontWeight: '800', marginBottom: '8px', color: '#1a237e', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>📋 Lorry Loading Details ({progress.previousInspections.length})</span>
                           </div>
                           
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                            {progress.previousInspections.map((inspection, idx) => {
-                              const stages = inspection.samplingStages || {};
-                              const lot = stages.lot_avg || {};
-                              const half = stages.half_lorry || {};
-                              const full = stages.full_avg || {};
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', border: '1px solid #000', backgroundColor: '#ffffff' }}>
+                            <thead>
+                              <tr style={{ backgroundColor: '#f5f5f5', color: '#000', borderBottom: '1px solid #000' }}>
+                                <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '5%' }}>#</th>
+                                <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '11%' }}>Date</th>
+                                <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'left', width: '15%' }}>Lorry No</th>
+                                <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Bags</th>
+                                <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '9%' }}>Moisture</th>
+                                <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '9%' }}>Cutting</th>
+                                <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '9%' }}>Bend</th>
+                                <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'left', width: '11%' }}>By</th>
+                                <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '11%' }}>Status</th>
+                                <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Action</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {progress.previousInspections.map((inspection, idx) => {
+                                const stages = inspection.samplingStages || {};
+                                // Find latest available stage
+                                const latestStage = stages.full_avg?.reportedBy ? stages.full_avg : (stages.half_lorry?.reportedBy ? stages.half_lorry : (stages.lot_avg?.reportedBy ? stages.lot_avg : null));
+                                
+                                const moistureVal = latestStage ? (latestStage.moistureRaw ? `${latestStage.moistureRaw}%` : (latestStage.moisture !== undefined && latestStage.moisture !== null ? `${latestStage.moisture}%` : '-')) : '-';
+                                const cuttingVal = latestStage ? (latestStage.cutting1 !== undefined && latestStage.cutting1 !== null ? `${latestStage.cutting1}×${latestStage.cutting2 || 0}` : '-') : '-';
+                                const bendVal = latestStage ? (latestStage.bend1 !== undefined && latestStage.bend1 !== null ? `${latestStage.bend1}×${latestStage.bend2 || 0}` : '-') : '-';
 
-                              const formatField = (val: any) => {
-                                if (val === null || val === undefined || val === '') return '-';
-                                return String(val);
-                              };
-
-                              const formatMoisture = (stageObj: any) => {
-                                const raw = stageObj.moistureRaw;
-                                const val = stageObj.moisture;
-                                if (raw) return `${raw}%`;
-                                if (val !== undefined && val !== null) return `${val}%`;
-                                return '-';
-                              };
-
-                              const formatCutting = (stageObj: any) => {
-                                if (stageObj.cutting1 === undefined || stageObj.cutting1 === null) return '-';
-                                return `${stageObj.cutting1}x${stageObj.cutting2 || 0}`;
-                              };
-
-                              const formatBend = (stageObj: any) => {
-                                if (stageObj.bend1 === undefined || stageObj.bend1 === null) return '-';
-                                return `${stageObj.bend1}x${stageObj.bend2 || 0}`;
-                              };
-
-                              return (
-                                <div key={inspection.id} style={{ background: '#ffffff', border: '1px solid #f2cfb6', borderRadius: '6px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                                  {/* Trip/Lorry Header */}
-                                  <div style={{
-                                    background: 'linear-gradient(90deg, #f2711c 0%, #f26202 100%)',
-                                    color: 'white',
-                                    padding: '6px 12px',
-                                    fontWeight: '700',
-                                    fontSize: '12px',
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center'
-                                  }}>
-                                    <span>Lorry Number: <b style={{ fontSize: '13px', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setSelectedLorryForComparison({ lorryNumber: inspection.lorryNumber, previousInspections: [inspection], lotAllotment: inspection.lotAllotment, singleLorryMode: true })}>{inspection.lorryNumber?.toUpperCase()}</b> | Bags Loaded: {inspection.bags} <span style={{ marginLeft: '10px', fontSize: '11px', color: '#ffd700', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setSelectedLorryForComparison({ lorryNumber: inspection.lorryNumber, previousInspections: [inspection], lotAllotment: inspection.lotAllotment, singleLorryMode: true })}>🔍 View Stage Comparison</span></span>
-                                    <span>Loaded By: {inspection.reportedBy?.username || '-'} | Date: {new Date(inspection.inspectionDate).toLocaleDateString()}</span>
-                                  </div>
-
-                                  {/* Comparative parameters Grid */}
-                                  <div style={{ overflowX: 'auto', padding: '6px' }}>
-                                    <table style={{ width: '100%', minWidth: '1150px', borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #f2a672' }}>
-                                      <thead>
-                                        <tr style={{ background: 'linear-gradient(90deg, #f2711c 0%, #f26202 100%)', color: 'white' }}>
-                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'left', width: '10%' }}>SAMPLE</th>
-                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '7%' }}>REPORTED BY</th>
-                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '7%' }}>REPORTED AT</th>
-                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '6%' }}>MOISTURE</th>
-                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '6%' }}>CUTTING</th>
-                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '6%' }}>BEND</th>
-                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '6%' }}>GRAINS COUNT</th>
-                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '4%' }}>MIX</th>
-                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '4%' }}>S MIX</th>
-                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '4%' }}>L MIX</th>
-                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '4%' }}>KANDU</th>
-                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '4%' }}>OIL</th>
-                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '4%' }}>SK</th>
-                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '5%' }}>SMELL</th>
-                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '6%' }}>PADDY WB</th>
-                                          <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '5%' }}>PHOTO</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {/* 1st Sample / Lot Avg */}
-                                        <tr style={{ borderBottom: '1px solid #f2cfb6', backgroundColor: '#fffaf5' }}>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', fontWeight: '800', color: '#d05d00' }}>1st Sample (Lot Avg)</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(lot.reportedBy)}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>
-                                            {lot.reportedAt ? new Date(lot.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-'}
-                                          </td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatMoisture(lot)}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatCutting(lot)}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatBend(lot)}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>({formatField(lot.grainsCountRaw || lot.grainsCount)})</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(lot.mixRaw || lot.mix)}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{lot.smixEnabled ? formatField(lot.mixSRaw || lot.mixS) || 'Yes' : '-'}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{lot.lmixEnabled ? formatField(lot.mixLRaw || lot.mixL) || 'Yes' : '-'}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(lot.kanduRaw || lot.kandu)}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(lot.oilRaw || lot.oil)}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(lot.skRaw || lot.sk)}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{lot.smellHas ? 'Yes' : '-'}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{lot.paddyWbEnabled ? formatField(lot.paddyWbRaw || lot.paddyWb) : '-'}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center' }}>
-                                            {lot.imageUrl ? <a href={resolveMediaUrl(lot.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#f26202', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
-                                          </td>
-                                        </tr>
-
-                                        {/* 2nd Sample / Half Lorry */}
-                                        <tr style={{ borderBottom: '1px solid #f2cfb6', backgroundColor: '#fffdfa' }}>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', fontWeight: '800', color: '#b45309' }}>2nd Sample (Half Lorry)</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(half.reportedBy)}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>
-                                            {half.reportedAt ? new Date(half.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-'}
-                                          </td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatMoisture(half)}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatCutting(half)}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatBend(half)}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>({formatField(half.grainsCountRaw || half.grainsCount)})</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(half.mixRaw || half.mix)}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{half.smixEnabled ? formatField(half.mixSRaw || half.mixS) || 'Yes' : '-'}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{half.lmixEnabled ? formatField(half.mixLRaw || half.mixL) || 'Yes' : '-'}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(half.kanduRaw || half.kandu)}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(half.oilRaw || half.oil)}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(half.skRaw || half.sk)}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{half.smellHas ? 'Yes' : '-'}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{half.paddyWbEnabled ? formatField(half.paddyWbRaw || half.paddyWb) : '-'}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center' }}>
-                                            {half.imageUrl ? <a href={resolveMediaUrl(half.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#f26202', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
-                                          </td>
-                                        </tr>
-
-                                        {/* 3rd Sample / Full Lorry */}
-                                        <tr style={{ borderBottom: '1px solid #f2cfb6', backgroundColor: '#fffaf0' }}>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', fontWeight: '800', color: '#15803d' }}>3rd Sample (Full Lorry)</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(full.reportedBy)}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>
-                                            {full.reportedAt ? new Date(full.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-'}
-                                          </td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatMoisture(full)}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatCutting(full)}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatBend(full)}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>({formatField(full.grainsCountRaw || full.grainsCount)})</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(full.mixRaw || full.mix)}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{full.smixEnabled ? formatField(full.mixSRaw || full.mixS) || 'Yes' : '-'}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{full.lmixEnabled ? formatField(full.mixLRaw || full.mixL) || 'Yes' : '-'}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(full.kanduRaw || full.kandu)}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(full.oilRaw || full.oil)}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(full.skRaw || full.sk)}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{full.smellHas ? 'Yes' : '-'}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{full.paddyWbEnabled ? formatField(full.paddyWbRaw || full.paddyWb) : '-'}</td>
-                                          <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center' }}>
-                                            {full.imageUrl ? <a href={resolveMediaUrl(full.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#f26202', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
-                                          </td>
-                                        </tr>
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
+                                return (
+                                  <tr key={inspection.id} style={{ borderBottom: '1px solid #000' }}>
+                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{idx + 1}</td>
+                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
+                                      {new Date(inspection.inspectionDate).toLocaleDateString('en-GB')}
+                                    </td>
+                                    <td style={{ border: '1px solid #000', padding: '6px', fontWeight: '700' }}>
+                                      <span
+                                        onClick={() => setSelectedLorryForComparison({ entryId: entry.id, lorryNumber: inspection.lorryNumber, previousInspections: [inspection], lotAllotment: entry.lotAllotment, singleLorryMode: true })}
+                                        style={{ color: '#1565c0', textDecoration: 'underline', cursor: 'pointer' }}
+                                      >
+                                        {inspection.lorryNumber?.toUpperCase()}
+                                      </span>
+                                    </td>
+                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{inspection.bags || '-'}</td>
+                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600', color: '#d05d00' }}>{moistureVal}</td>
+                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{cuttingVal}</td>
+                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{bendVal}</td>
+                                    <td style={{ border: '1px solid #000', padding: '6px' }}>{inspection.reportedBy?.username || '-'}</td>
+                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700', color: entry.lotSelectionDecision === 'FAIL' ? '#d32f2f' : (entry.lotSelectionDecision?.startsWith('PASS') ? '#2e7d32' : '#f39c12') }}>
+                                      {entry.lotSelectionDecision ? (entry.lotSelectionDecision.toUpperCase().startsWith('PASS') ? 'Pass' : 'Fail') : 'Pending'}
+                                    </td>
+                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
+                                      <button
+                                        onClick={() => handleResumeLorry(entry.id, inspection.lorryNumber, stages)}
+                                        style={{
+                                          fontSize: '11px',
+                                          padding: '3px 8px',
+                                          fontWeight: '700',
+                                          backgroundColor: '#27ae60',
+                                          color: 'white',
+                                          border: 'none',
+                                          borderRadius: '3px',
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        ✍️ Resume
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
                         </td>
                       </tr>
                     )}
 
                     {/* Inspection form */}
                     {selectedEntry === entry.id && (
-                      <tr>
+                      <tr id={`lorry-loading-panel-${entry.id}`}>
                         <td colSpan={11} style={{ padding: '15px', backgroundColor: '#fafafa', border: '1px solid #999' }}>
                           <div style={{
                             display: 'flex',
@@ -1111,6 +1244,54 @@ const PhysicalInspection: React.FC = () => {
                                       textTransform: 'uppercase'
                                     }}
                                   />
+                                  {progress && progress.previousInspections && progress.previousInspections.length > 0 && (
+                                    <div style={{ marginTop: '6px' }}>
+                                      <span style={{ fontSize: '10px', fontWeight: 'bold', color: '#666', display: 'block', marginBottom: '4px' }}>
+                                        Resume Active Lorry:
+                                      </span>
+                                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                        {Array.from(new Set(progress.previousInspections.map(i => i.lorryNumber?.toUpperCase()).filter(Boolean))).map(lorryNo => (
+                                          <span
+                                            key={lorryNo}
+                                            onClick={() => {
+                                              handleInputChange(entry.id, 'lorryNumber', lorryNo);
+                                              handleLorryNumberChange(entry.id, lorryNo);
+
+                                              const inspection = progress.previousInspections.find(i => i.lorryNumber?.toUpperCase() === lorryNo);
+                                              if (inspection) {
+                                                const stages = inspection.samplingStages || {};
+                                                const lotStage = stages.lot_avg || {};
+                                                const halfStage = stages.half_lorry || {};
+                                                let nextStage = 'lot_avg';
+                                                if (lotStage.approvalStatus === 'approved') {
+                                                  nextStage = 'half_lorry';
+                                                }
+                                                if (halfStage.approvalStatus === 'approved') {
+                                                  nextStage = 'full_avg';
+                                                }
+                                                setSelectedStage(prev => ({
+                                                  ...prev,
+                                                  [entry.id]: nextStage
+                                                }));
+                                              }
+                                            }}
+                                            style={{
+                                              fontSize: '11px',
+                                              padding: '3px 8px',
+                                              backgroundColor: '#e8f4fd',
+                                              color: '#1e88e5',
+                                              border: '1px solid #bbdefb',
+                                              borderRadius: '12px',
+                                              fontWeight: 'bold',
+                                              cursor: 'pointer'
+                                            }}
+                                          >
+                                            🚛 {lorryNo}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                                 <div>
                                   <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
@@ -1129,10 +1310,10 @@ const PhysicalInspection: React.FC = () => {
                                         backgroundColor: '#fff'
                                       }}
                                     >
-                                      <option value="lot_avg">1. Lot Avg Sampling</option>
-                                      <option value="half_lorry">2. Half Lorry Sampling</option>
-                                      <option value="full_avg">3. Full Avg Lorry Sampling</option>
-                                      <option value="nit_avg">4. Nit Avg Sampling</option>
+                                      <option value="lot_avg" disabled={!!samplingStageData[entry.id]?.['lot_avg']}>1. Lot Avg Sampling</option>
+                                      <option value="half_lorry" disabled={!!samplingStageData[entry.id]?.['half_lorry']}>2. Half Lorry Sampling</option>
+                                      <option value="full_avg" disabled={!!samplingStageData[entry.id]?.['full_avg']}>3. Full Avg Lorry Sampling</option>
+                                      <option value="nit_avg" disabled={!!samplingStageData[entry.id]?.['nit_avg']}>4. Nit Avg Sampling</option>
                                     </select>
                                     <button
                                       onClick={() => handleAddStage(entry.id)}
@@ -1219,12 +1400,10 @@ const PhysicalInspection: React.FC = () => {
                                   isLocked: false
                                 };
                                 const isLocked = !!cardData.isLocked;
-
                                 const getCardHeader = () => {
                                   if (stage === 'lot_avg') return { title: 'Add Lot Avg Sampling', color: '#e67e22', border: '2px solid #e67e22' };
-                                  if (stage === 'half_lorry' || stage === 'nit_avg') {
-                                    return { title: 'Half Lorry Sampling | Nit Avg Sampling', color: '#8e44ad', border: '2px solid #8e44ad' };
-                                  }
+                                  if (stage === 'half_lorry') return { title: 'Half Lorry Sampling', color: '#8e44ad', border: '2px solid #8e44ad' };
+                                  if (stage === 'nit_avg') return { title: 'Nit Avg Sampling', color: '#8e44ad', border: '2px solid #8e44ad' };
                                   return { title: 'Full Avg Lorry Sampling', color: '#2980b9', border: '2px solid #2980b9' };
                                 };
 
@@ -1252,16 +1431,31 @@ const PhysicalInspection: React.FC = () => {
                                       alignItems: 'center'
                                     }}>
                                       <span>{cardStyle.title}</span>
-                                      {isLocked && (
-                                        <span style={{
-                                          fontSize: '9px',
-                                          padding: '2px 6px',
-                                          backgroundColor: '#2ecc71',
-                                          color: 'white',
-                                          borderRadius: '10px',
-                                          fontWeight: 'bold'
-                                        }}>Saved</span>
-                                      )}
+                                      {isLocked && (() => {
+                                        const appStatus = cardData.approvalStatus || 'approved';
+                                        if (appStatus === 'pending') {
+                                          return (
+                                            <span style={{
+                                              fontSize: '9px',
+                                              padding: '2px 6px',
+                                              backgroundColor: '#f39c12',
+                                              color: 'white',
+                                              borderRadius: '10px',
+                                              fontWeight: 'bold'
+                                            }}>Pending</span>
+                                          );
+                                        }
+                                        return (
+                                          <span style={{
+                                            fontSize: '9px',
+                                            padding: '2px 6px',
+                                            backgroundColor: '#2ecc71',
+                                            color: 'white',
+                                            borderRadius: '10px',
+                                            fontWeight: 'bold'
+                                          }}>Approved</span>
+                                        );
+                                      })()}
                                     </div>
 
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '11px' }}>
@@ -1704,9 +1898,34 @@ const PhysicalInspection: React.FC = () => {
 
                 return (
                   <div key={inspection.id} style={{ border: '1px solid #f2cfb6', borderRadius: '8px', overflow: 'hidden' }}>
-                    <div style={{ background: 'linear-gradient(90deg, #f2711c 0%, #f26202 100%)', padding: '8px 12px', fontWeight: 'bold', fontSize: '12px', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
+                    <div style={{ background: 'linear-gradient(90deg, #f2711c 0%, #f26202 100%)', padding: '8px 12px', fontWeight: 'bold', fontSize: '12px', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span>Trip #{idx + 1} | Lorry No: {inspection.lorryNumber?.toUpperCase()} | Bags Loaded: {inspection.bags || '-'}</span>
-                      <span>Reported By: {inspection.reportedBy?.username || 'System'} | Date: {new Date(inspection.inspectionDate).toLocaleDateString()}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span>Reported By: {inspection.reportedBy?.username || 'System'} | Date: {new Date(inspection.inspectionDate).toLocaleDateString()}</span>
+                        <button
+                          onClick={() => {
+                            const entryId = selectedLorryForComparison.entryId || inspection.sampleEntryId;
+                            
+                            // Close comparison modal
+                            setSelectedLorryForComparison(null);
+
+                            // Resume lorry
+                            handleResumeLorry(entryId, inspection.lorryNumber, stages);
+                          }}
+                          style={{
+                            fontSize: '11px',
+                            padding: '3px 8px',
+                            fontWeight: '700',
+                            backgroundColor: '#2ecc71',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '3px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          ✍️ Resume
+                        </button>
+                      </div>
                     </div>
                     <div style={{ overflowX: 'auto' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #f2cfb6' }}>
@@ -1750,6 +1969,12 @@ const PhysicalInspection: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+      {detailModalEntry && (
+        <SampleEntryDetailModal
+          detailEntry={detailModalEntry}
+          onClose={() => setDetailModalEntry(null)}
+        />
       )}
     </div>
   );

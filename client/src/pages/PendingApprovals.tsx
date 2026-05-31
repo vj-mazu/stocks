@@ -1254,7 +1254,7 @@ const PendingApprovals: React.FC = () => {
                                                             {/* 1st Sample: Lot Avg */}
                                                             {stages.lot_avg && (
                                                                 <tr style={{ backgroundColor: '#fff', borderBottom: '1px solid #cbd5e1' }}>
-                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '800', color: '#e05300' }}>1st Sample (Lot Avg)</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '800', color: '#e05300' }}>Lot Avg</td>
                                                                     <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '600' }}>{fmtField(lot.reportedBy)}</td>
                                                                     <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px' }}>{lot.reportedAt ? new Date(lot.reportedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '-'}</td>
                                                                     <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: 'bold' }}>{fmtMoisture(lot)}</td>
@@ -1281,7 +1281,7 @@ const PendingApprovals: React.FC = () => {
                                                             {/* 2nd Sample: Half Lorry */}
                                                             {stages.half_lorry && (
                                                                 <tr style={{ backgroundColor: '#fff', borderBottom: '1px solid #cbd5e1' }}>
-                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '800', color: '#e05300' }}>2nd Sample (Half Lorry)</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '800', color: '#e05300' }}>Half Lorry</td>
                                                                     <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '600' }}>{fmtField(half.reportedBy)}</td>
                                                                     <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px' }}>{half.reportedAt ? new Date(half.reportedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '-'}</td>
                                                                     <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: 'bold' }}>{fmtMoisture(half)}</td>
@@ -1308,7 +1308,7 @@ const PendingApprovals: React.FC = () => {
                                                             {/* 3rd Sample: Full Lorry */}
                                                             {stages.full_avg && (
                                                                 <tr style={{ backgroundColor: '#fff', borderBottom: '1px solid #cbd5e1' }}>
-                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '800', color: '#e05300' }}>3rd Sample (Full Lorry)</td>
+                                                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '800', color: '#e05300' }}>Full Lorry</td>
                                                                     <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '600' }}>{fmtField(full.reportedBy)}</td>
                                                                     <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px' }}>{full.reportedAt ? new Date(full.reportedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '-'}</td>
                                                                     <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: 'bold' }}>{fmtMoisture(full)}</td>
@@ -2199,9 +2199,9 @@ const PendingApprovals: React.FC = () => {
 
                                         return (
                                             <>
-                                                {renderRow('1st Sample (Lot Avg)', '#e05300', '#f0f9ff', lot, false)}
-                                                {renderRow('2nd Sample (Half Lorry)', '#b45309', '#fffbeb', half, false)}
-                                                {renderRow('3rd Sample (Full Lorry)', '#15803d', '#f0fdf4', full, true)}
+                                                {renderRow('Lot Avg', '#e05300', '#f0f9ff', lot, false)}
+                                                {renderRow('Half Lorry', '#b45309', '#fffbeb', half, false)}
+                                                {renderRow('Full Lorry', '#15803d', '#f0fdf4', full, true)}
                                             </>
                                         );
                                     })()}

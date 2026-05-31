@@ -138,7 +138,7 @@ class RiceStockMigrationRollback {
    * Create backup of current state
    */
   async createBackup(dryRun) {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '_').replace(/-/g, '_');
     const backupTable = `rice_stock_movements_backup_${timestamp.substring(0, 19)}`;
 
     if (!dryRun) {

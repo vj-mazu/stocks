@@ -1537,7 +1537,7 @@ const RiceSampleEntry: React.FC<{ defaultTab?: 'RICE_SAMPLE' | 'RICE_BOOK' }> = 
             backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 99999
           }}>
             <div style={{
-              backgroundColor: 'white', borderRadius: '8px', padding: '24px', width: '380px',
+              backgroundColor: 'white', borderRadius: '8px', padding: '24px', width: '100%', maxWidth: '380px', margin: '16px',
               boxShadow: '0 4px 20px rgba(0,0,0,0.3)', textAlign: 'center'
             }}>
               <h3 style={{ marginBottom: '16px', color: '#333', fontSize: '16px' }}>Confirm Save</h3>
@@ -1572,7 +1572,7 @@ const RiceSampleEntry: React.FC<{ defaultTab?: 'RICE_SAMPLE' | 'RICE_BOOK' }> = 
             backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 99999
           }}>
             <div style={{
-              backgroundColor: 'white', borderRadius: '8px', padding: '24px', width: '380px',
+              backgroundColor: 'white', borderRadius: '8px', padding: '24px', width: '100%', maxWidth: '380px', margin: '16px',
               boxShadow: '0 4px 20px rgba(0,0,0,0.3)', textAlign: 'center'
             }}>
               <h3 style={{ marginBottom: '16px', color: '#333', fontSize: '16px' }}>Confirm Save Quality Data</h3>

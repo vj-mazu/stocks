@@ -10,6 +10,10 @@ function resolveEffectiveRole(user = {}) {
   const role = user.role;
   const staffType = typeof user.staffType === 'string' ? user.staffType.toLowerCase() : null;
 
+  if (role === 'paddy_supervisor' && staffType === 'location') {
+    return 'physical_supervisor';
+  }
+
   if (role !== 'staff') {
     return role;
   }

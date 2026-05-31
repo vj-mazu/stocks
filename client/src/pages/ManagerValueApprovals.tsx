@@ -29,7 +29,9 @@ interface ApprovalEntry {
 const toTitleCase = (value: string) => String(value || '').replace(/\b\w/g, (char) => char.toUpperCase()).trim();
 const toDisplayNumber = (value: any) => {
   const num = Number(value);
-  return Number.isFinite(num) ? String(value).replace(/\.0+$/, '').replace(/(\.\d*?[1-9])0+$/, '$1') : String(value ?? '-');
+  if (!Number.isFinite(num)) return String(value ?? '-');
+  if (num % 1 === 0) return String(num);
+  return num.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
 };
 const formatChargeUnit = (unit?: string) => unit === 'per_quintal'
   ? 'Per Quintal'
@@ -86,7 +88,7 @@ const standardPendingFieldTone: PendingSummaryRow['tone'] = {
   textColor: '#1e3a8a'
 };
 
-const managerHighlightedFieldKeys = new Set(['hamali', 'brokerage', 'lf', 'disputeBaseRate', 'revisedHamali', 'revisedLf']);
+const managerHighlightedFieldKeys = new Set(['hamali', 'brokerage', 'lf', 'disputeBaseRate', 'revisedHamali', 'revisedLf', 'disputeReason']);
 
 const normalizeComparableValue = (value: any) => {
   if (value === null || value === undefined) return '';
@@ -135,6 +137,9 @@ const buildPendingSummary = (data?: Record<string, any> | null, offering?: Recor
   };
   if (pendingData.disputeBaseRate !== undefined && pendingData.disputeBaseRate !== null && pendingData.disputeBaseRate !== '') {
     pushRow('disputeBaseRate', 'Dispute Rate', `₹${toDisplayNumber(pendingData.disputeBaseRate)} (${pendingData.disputeBaseRateType || 'PD/WB'})`);
+  }
+  if (pendingData.disputeReason !== undefined && pendingData.disputeReason !== null && pendingData.disputeReason !== '') {
+    pushRow('disputeReason', 'Dispute Reason', String(pendingData.disputeReason));
   }
   if (pendingData.finalSute !== undefined && pendingData.finalSute !== null && pendingData.finalSute !== '') {
     pushRow('finalSute', 'Sute', `${toDisplayNumber(pendingData.finalSute)} ${formatChargeUnit(pendingData.finalSuteUnit)}`.trim());

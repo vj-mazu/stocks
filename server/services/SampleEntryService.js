@@ -996,7 +996,8 @@ class SampleEntryService {
         ['disputeBaseRate', 'disputeBaseRateType'],
         ['revisedHamali', 'hamaliUnit'],
         ['revisedLf', 'lfUnit'],
-        ['revisedRateOption']
+        ['revisedRateOption'],
+        ['disputeReason']
       ];
 
       for (const fieldGroup of pendingFieldGroups) {
@@ -1179,6 +1180,7 @@ class SampleEntryService {
               ...disputeVersions[existingDisputeIdx],
               disputeBaseRate: finalData.disputeBaseRate,
               disputeBaseRateType: finalData.disputeBaseRateType || null,
+              disputeReason: finalData.disputeReason || null,
               updatedBy: userId,
               updatedByName: updatedByFullName,
               updatedAt: new Date(),
@@ -1193,6 +1195,7 @@ class SampleEntryService {
               type: 'dispute',
               disputeBaseRate: finalData.disputeBaseRate,
               disputeBaseRateType: finalData.disputeBaseRateType || null,
+              disputeReason: finalData.disputeReason || null,
               revisedHamali: null,
               revisedLf: null,
               revisedRateOption: null,

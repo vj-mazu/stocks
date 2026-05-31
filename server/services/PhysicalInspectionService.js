@@ -146,15 +146,11 @@ class PhysicalInspectionService {
         paddyWbRaw: inspectionData.paddyWbRaw || null,
         reportedBy: inspectionData.reportedBy || 'System',
         reportedAt: new Date().toISOString(),
-        imageUrl: null
+        imageUrl: null,
+        approvalStatus: 'pending'
       };
 
       if (!existingLorryInspection) {
-        // Must start with lot_avg
-        if (stage !== 'lot_avg') {
-          throw new Error('Must submit Lot Avg Sampling first for this lorry');
-        }
-
         const newInspectionData = {
           sampleEntryId: inspectionData.sampleEntryId,
           lotAllotmentId: lotAllotment.id,
@@ -203,18 +199,9 @@ class PhysicalInspectionService {
           throw new Error(`Sampling stage '${inspectionData.stage}' has already been submitted and is locked.`);
         }
 
-        if (stage !== 'lot_avg') {
-          if (!stages['lot_avg']) {
-            throw new Error('Must submit Lot Avg Sampling first for this lorry');
-          }
-          if (stage === 'full_avg' && !stages['half_lorry']) {
-            throw new Error('Must submit Half Lorry Sampling first before Full Lorry');
-          }
-        }
-
         stages[stage] = stageData;
         const updates = {
-          samplingStages: stages
+          samplingStages: JSON.parse(JSON.stringify(stages))
         };
 
         if (stage === 'full_avg') {
@@ -248,6 +235,17 @@ class PhysicalInspectionService {
 
         inspection = await PhysicalInspectionRepository.update(currentInspection.id, updates);
         await AuditService.logUpdate(userId, 'physical_inspections', currentInspection.id, currentInspection, inspection);
+
+        const currentStatus = entry.workflowStatus;
+        if (currentStatus !== 'PHYSICAL_INSPECTION' && ['LOT_ALLOTMENT', 'INVENTORY_ENTRY', 'OWNER_FINANCIAL', 'MANAGER_FINANCIAL', 'FINAL_REVIEW'].includes(currentStatus)) {
+          await WorkflowEngine.transitionTo(
+            inspectionData.sampleEntryId,
+            'PHYSICAL_INSPECTION',
+            userId,
+            userRole,
+            { physicalInspectionId: inspection.id, reason: `Progressive stage ${stage} added` }
+          );
+        }
       }
 
       return inspection;
@@ -402,6 +400,83 @@ class PhysicalInspectionService {
       console.error('Error getting inspection progress:', error);
       throw error;
     }
+  }
+
+  async approvePhysicalInspectionStage(sampleEntryId, inspectionId, stageName, userId, userRole) {
+    const PhysicalInspection = require('../models/PhysicalInspection');
+    const SampleEntry = require('../models/SampleEntry');
+    const WorkflowEngine = require('./WorkflowEngine');
+    const AuditService = require('./AuditService');
+    const LotAllotment = require('../models/LotAllotment');
+
+    const inspection = await PhysicalInspection.findByPk(inspectionId);
+    if (!inspection) {
+      throw new Error('Physical inspection record not found');
+    }
+
+    if (inspection.sampleEntryId !== sampleEntryId) {
+      throw new Error('Inspection does not belong to this sample entry');
+    }
+
+    const stages = inspection.samplingStages || {};
+    const cleanStage = stageName.toLowerCase();
+
+    if (!stages[cleanStage]) {
+      throw new Error(`Sampling stage '${stageName}' not found in this inspection`);
+    }
+
+    // Set approval status to approved
+    stages[cleanStage].approvalStatus = 'approved';
+    
+    const updates = {
+      samplingStages: JSON.parse(JSON.stringify(stages))
+    };
+
+    const entry = await SampleEntry.findByPk(sampleEntryId);
+    if (!entry) {
+      throw new Error('Sample entry not found');
+    }
+
+    // If approving full_avg, copy values to main columns of physical inspection
+    if (cleanStage === 'full_avg') {
+      const stageData = stages[cleanStage];
+      updates.bags = stageData.actualBags !== undefined ? Number(stageData.actualBags) : inspection.bags;
+      updates.cutting1 = stageData.cutting1 || 0;
+      updates.cutting2 = stageData.cutting2 || 0;
+      updates.bend = stageData.bend1 || 0;
+      updates.bend2 = stageData.bend2 || 0;
+      
+      // Calculate total inspected bags
+      const existingInspections = await PhysicalInspection.findAll({
+        where: { sampleEntryId }
+      });
+      const totalInspected = existingInspections
+        .filter(i => i.id !== inspection.id)
+        .reduce((sum, i) => sum + (i.bags || 0), 0) + (updates.bags || inspection.bags || 0);
+
+      const lotAllotment = await LotAllotment.findOne({
+        where: { sampleEntryId }
+      });
+      const totalAllottedBags = lotAllotment?.allottedBags || entry.bags || 0;
+
+      if (totalInspected >= totalAllottedBags) {
+        updates.isComplete = true;
+        // Transition workflow to INVENTORY_ENTRY
+        await WorkflowEngine.transitionTo(
+          sampleEntryId,
+          'INVENTORY_ENTRY',
+          userId,
+          userRole,
+          { reason: 'Physical inspection completed and approved' }
+        );
+      }
+    }
+
+    inspection.changed('samplingStages', true);
+    const updated = await inspection.update(updates);
+    await AuditService.logUpdate(userId, 'physical_inspections', inspection.id, inspection, updated);
+
+    return updated;
   }
 }
 

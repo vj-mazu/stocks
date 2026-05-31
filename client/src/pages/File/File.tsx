@@ -49,7 +49,7 @@ const InlineRateForm = InlineRateFormStyled;
 
 
 
-const Records: React.FC = () => {
+const FilePage: React.FC = () => {
   const { user } = useAuth();
 
   // Month navigation functions for paddy stock
@@ -9660,5 +9660,5 @@ const Records: React.FC = () => {
   );
 };
 
-export default Records;
+export default FilePage;
 // Trigger check: 2026-01-06 10:26:54

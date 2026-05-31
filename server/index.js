@@ -1718,6 +1718,14 @@ const startServer = async () => {
         console.log('Migration 132 warning:', error.message);
       }
 
+      try {
+        const addJsonbIndexes = require('./migrations/133_add_jsonb_performance_indexes');
+        await addJsonbIndexes.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('Migration 133: JSONB GIN performance indexes added');
+      } catch (error) {
+        console.log('Migration 133 warning:', error.message);
+      }
+
     // Default warehouses removed - users should create their own warehouses
 
     // Create default users if they don't exist

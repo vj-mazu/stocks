@@ -597,12 +597,13 @@ const AllottedSupervisors: React.FC = () => {
     return '#dc2626';
   };
 
+  const formatEditDecimal = (val: any) => {
+    if (val === undefined || val === null || val === '') return '';
+    const num = Number(val);
+    return isNaN(num) ? val.toString() : num.toString();
+  };
+
   const handleEditInspection = (entryId: string, inspection: PreviousInspection) => {
-    const formatEditDecimal = (val: any) => {
-      if (val === undefined || val === null || val === '') return '';
-      const num = Number(val);
-      return isNaN(num) ? val.toString() : num.toString();
-    };
 
     const c1 = formatEditDecimal(inspection.cutting1);
     const c2 = formatEditDecimal(inspection.cutting2);
@@ -630,26 +631,42 @@ const AllottedSupervisors: React.FC = () => {
     setEditValuesEntry(entry);
     setEditMode(mode);
     setEditValuesData({
-      finalBaseRate: o.finalBaseRate?.toString() ?? o.offerBaseRateValue?.toString() ?? '',
+      finalBaseRate: formatEditDecimal(o.finalBaseRate ?? o.offerBaseRateValue),
       baseRateType: o.baseRateType || 'PD_LOOSE',
-      sute: o.finalSute?.toString() ?? o.sute?.toString() ?? '',
+      sute: formatEditDecimal(o.finalSute ?? o.sute),
       suteUnit: o.finalSuteUnit || o.suteUnit || 'per_bag',
-      moistureValue: o.moistureValue?.toString() ?? '',
-      hamali: o.hamali?.toString() ?? '',
+      moistureValue: formatEditDecimal(o.moistureValue),
+      hamali: formatEditDecimal(o.hamali),
       hamaliUnit: o.hamaliUnit || 'per_bag',
-      brokerage: o.brokerage?.toString() ?? '',
+      brokerage: formatEditDecimal(o.brokerage),
       brokerageUnit: o.brokerageUnit || 'per_bag',
-      lf: o.lf?.toString() ?? '',
+      lf: formatEditDecimal(o.lf),
       lfUnit: o.lfUnit || 'per_bag',
-      egbValue: o.egbValue?.toString() ?? '',
+      egbValue: formatEditDecimal(o.egbValue),
       egbType: o.egbType || ((o.egbValue && parseFloat(o.egbValue) > 0) ? 'purchase' : 'mill'),
-      disputeBaseRate: o.disputeBaseRate?.toString() ?? o.finalBaseRate?.toString() ?? o.offerBaseRateValue?.toString() ?? '',
+      disputeBaseRate: formatEditDecimal(o.disputeBaseRate ?? o.finalBaseRate ?? o.offerBaseRateValue),
       disputeBaseRateType: o.disputeBaseRateType || o.baseRateType || 'PD_LOOSE',
-      revisedHamali: o.revisedHamali?.toString() ?? o.hamali?.toString() ?? '',
-      revisedLf: o.revisedLf?.toString() ?? o.lf?.toString() ?? '',
+      revisedHamali: formatEditDecimal(o.revisedHamali ?? o.hamali),
+      revisedLf: formatEditDecimal(o.revisedLf ?? o.lf),
       revisedRateOption: o.revisedRateOption || 'final',
-      linkedDisputeRequestId: ''
+      linkedDisputeRequestId: '',
+      disputeReason: (Array.isArray(o.disputeVersions) && [...o.disputeVersions].reverse().find((v: any) => v.type === 'dispute')?.disputeReason) || o.disputeReason || ''
     });
+  };
+
+  const handleHamaliToggle = async (entry: SampleEntry, enabled: boolean) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `${API_URL}/sample-entries/${entry.id}/final-price`,
+        { hamaliEnabled: enabled },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      showNotification(`Hamali set to ${enabled ? 'Yes' : 'No'}`, 'success');
+      loadEntries();
+    } catch (err: any) {
+      showNotification(err.response?.data?.error || 'Failed to update Hamali', 'error');
+    }
   };
 
   const handleSaveEditValues = async () => {
@@ -670,6 +687,17 @@ const AllottedSupervisors: React.FC = () => {
         payload.finalSute = editValuesData.sute;
         payload.finalSuteUnit = editValuesData.suteUnit;
         payload.moistureValue = editValuesData.moistureValue;
+        payload.revisedRateOption = editValuesData.revisedRateOption;
+        if (editValuesData.revisedRateOption === 'dispute') {
+          payload.revisedHamali = editValuesData.revisedHamali;
+          payload.hamaliUnit = editValuesData.hamaliUnit;
+          payload.revisedLf = editValuesData.revisedLf;
+          payload.lfUnit = editValuesData.lfUnit;
+        } else {
+          payload.revisedHamali = null;
+          payload.revisedLf = null;
+        }
+        payload.disputeReason = editValuesData.disputeReason;
       } else if (editMode === 'hmlf') {
         const o = offeringCache[editValuesEntry.id] || {};
         const pendingDisputeRequests = getPendingDisputeRequests(o);
@@ -886,7 +914,7 @@ const AllottedSupervisors: React.FC = () => {
                                 <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '12px' }}>
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                     <span
-                                      onClick={() => handlePartyClick(entry)}
+                                      onClick={() => openDetailEntry(entry)}
                                       style={{
                                         color: '#1565c0',
                                         textDecoration: 'underline',
@@ -1179,179 +1207,138 @@ const AllottedSupervisors: React.FC = () => {
                               </tr>
                               {expandedEntries[entry.id] && hasPreviousInspections && (
                                 <tr>
-                                  <td colSpan={13} style={{ padding: '12px', backgroundColor: '#fdf6f0', border: '1px solid #f2711c' }}>
-                                    <div style={{ fontSize: '13px', fontWeight: '800', marginBottom: '8px', color: '#d05d00', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                      <span>📋 Lorry Progressive Inspection Trips & Comparison — {progress.inspectedBags} of {progress.totalBags} bags inspected</span>
-                                      <span style={{ fontSize: '11px', color: '#666', fontWeight: 'normal' }}>*Orange tables show Progressive (Lot Avg, Half, Full Lorry) Sampling differences</span>
+                                  <td colSpan={13} style={{ padding: '12px', backgroundColor: '#fdf6f0', border: '1px solid #000' }}>
+                                    <div style={{ fontSize: '13px', fontWeight: '800', marginBottom: '8px', color: '#1a237e', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <span>📋 Inspection Trips ({progress.previousInspections.length}) — {progress.inspectedBags} of {progress.totalBags} bags inspected</span>
                                     </div>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                                      {progress.previousInspections.map((inspection, idx) => {
-                                        const stages = inspection.samplingStages || {};
-                                        const lot = stages.lot_avg || {};
-                                        const half = stages.half_lorry || {};
-                                        const full = stages.full_avg || {};
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', border: '1px solid #000', backgroundColor: '#ffffff' }}>
+                                      <thead>
+                                        <tr style={{ backgroundColor: '#f5f5f5', color: '#000', borderBottom: '1px solid #000' }}>
+                                          <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '4%' }}>#</th>
+                                          <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '9%' }}>Date</th>
+                                          <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'left', width: '12%' }}>Lorry No</th>
+                                          <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Bags</th>
+                                          <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Moisture</th>
+                                          <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Cutting</th>
+                                          <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Bend</th>
+                                          <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'left', width: '10%' }}>By</th>
+                                          <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Status</th>
+                                          <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '9%' }}>Actions Link</th>
+                                          <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '8%' }}>LF</th>
+                                          <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '9%' }}>Hamali</th>
+                                          <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Dispute</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {progress.previousInspections.map((inspection, idx) => {
+                                          const stages = inspection.samplingStages || {};
+                                          // Find latest available stage
+                                          const latestStage = stages.full_avg?.reportedBy ? stages.full_avg : (stages.half_lorry?.reportedBy ? stages.half_lorry : (stages.lot_avg?.reportedBy ? stages.lot_avg : null));
+                                          
+                                          const moistureVal = latestStage ? (latestStage.moistureRaw ? `${latestStage.moistureRaw}%` : (latestStage.moisture !== undefined && latestStage.moisture !== null ? `${latestStage.moisture}%` : '-')) : '-';
+                                          const cuttingVal = latestStage ? (latestStage.cutting1 !== undefined && latestStage.cutting1 !== null ? `${latestStage.cutting1}×${latestStage.cutting2 || 0}` : '-') : '-';
+                                          const bendVal = latestStage ? (latestStage.bend1 !== undefined && latestStage.bend1 !== null ? `${latestStage.bend1}×${latestStage.bend2 || 0}` : '-') : '-';
+                                          const o = offeringCache[entry.id] || {};
 
-                                        const formatField = (val: any) => {
-                                          if (val === null || val === undefined || val === '') return '-';
-                                          return String(val);
-                                        };
-
-                                        const formatMoisture = (stageObj: any) => {
-                                          const raw = stageObj.moistureRaw;
-                                          const val = stageObj.moisture;
-                                          if (raw) return `${raw}%`;
-                                          if (val !== undefined && val !== null) return `${val}%`;
-                                          return '-';
-                                        };
-
-                                        const formatCutting = (stageObj: any) => {
-                                          if (stageObj.cutting1 === undefined || stageObj.cutting1 === null) return '-';
-                                          return `${stageObj.cutting1}x${stageObj.cutting2 || 0}`;
-                                        };
-
-                                        const formatBend = (stageObj: any) => {
-                                          if (stageObj.bend1 === undefined || stageObj.bend1 === null) return '-';
-                                          return `${stageObj.bend1}x${stageObj.bend2 || 0}`;
-                                        };
-
-                                        return (
-                                          <div key={inspection.id} style={{ background: '#ffffff', border: '1px solid #f2cfb6', borderRadius: '6px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                                            {/* Trip Header */}
-                                            <div style={{
-                                              background: 'linear-gradient(90deg, #f2711c 0%, #f26202 100%)',
-                                              color: 'white',
-                                              padding: '6px 12px',
-                                              fontWeight: '700',
-                                              fontSize: '12px',
-                                              display: 'flex',
-                                              justifyContent: 'space-between',
-                                              alignItems: 'center'
-                                            }}>
-                                              <span>Trip #{idx + 1} | Lorry No: <b style={{ fontSize: '13px', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setSelectedLorryForComparison({ lorryNumber: inspection.lorryNumber, previousInspections: [inspection], lotAllotment: inspection.lotAllotment, singleLorryMode: true })}>{inspection.lorryNumber?.toUpperCase()}</b> | Bags: {inspection.bags} <span style={{ marginLeft: '10px', fontSize: '11px', color: '#ffd700', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setSelectedLorryForComparison({ lorryNumber: inspection.lorryNumber, previousInspections: [inspection], lotAllotment: inspection.lotAllotment, singleLorryMode: true })}>🔍 View Stage Comparison</span></span>
-                                              <span>Reported By: {inspection.reportedBy?.username || '-'} | Date: {new Date(inspection.inspectionDate).toLocaleDateString()}</span>
-                                            </div>
-
-                                            {/* Inline Comparative Table */}
-                                            <div style={{ overflowX: 'auto', padding: '6px' }}>
-                                              <table style={{ width: '100%', minWidth: '1150px', borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #f2a672' }}>
-                                                <thead>
-                                                  <tr style={{ background: 'linear-gradient(90deg, #f2711c 0%, #f26202 100%)', color: 'white' }}>
-                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'left', width: '10%' }}>SAMPLE</th>
-                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '7%' }}>REPORTED BY</th>
-                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '7%' }}>REPORTED AT</th>
-                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '6%' }}>MOISTURE</th>
-                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '6%' }}>CUTTING</th>
-                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '6%' }}>BEND</th>
-                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '6%' }}>GRAINS COUNT</th>
-                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '4%' }}>MIX</th>
-                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '4%' }}>S MIX</th>
-                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '4%' }}>L MIX</th>
-                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '4%' }}>KANDU</th>
-                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '4%' }}>OIL</th>
-                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '4%' }}>SK</th>
-                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '5%' }}>SMELL</th>
-                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '6%' }}>PADDY WB</th>
-                                                    <th style={{ border: '1px solid #f2a672', padding: '4px', fontWeight: '800', textAlign: 'center', width: '5%' }}>PHOTO</th>
-                                                  </tr>
-                                                </thead>
-                                                <tbody>
-                                                  {/* 1st Sample / Lot Avg */}
-                                                  <tr style={{ borderBottom: '1px solid #f2cfb6', backgroundColor: '#fffaf5' }}>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', fontWeight: '800', color: '#d05d00' }}>1st Sample (Lot Avg)</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(lot.reportedBy)}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>
-                                                      {lot.reportedAt ? new Date(lot.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-'}
-                                                    </td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatMoisture(lot)}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatCutting(lot)}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatBend(lot)}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>({formatField(lot.grainsCountRaw || lot.grainsCount)})</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(lot.mixRaw || lot.mix)}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{lot.smixEnabled ? formatField(lot.mixSRaw || lot.mixS) || 'Yes' : '-'}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{lot.lmixEnabled ? formatField(lot.mixLRaw || lot.mixL) || 'Yes' : '-'}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(lot.kanduRaw || lot.kandu)}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(lot.oilRaw || lot.oil)}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(lot.skRaw || lot.sk)}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{lot.smellHas ? 'Yes' : '-'}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{lot.paddyWbEnabled ? formatField(lot.paddyWbRaw || lot.paddyWb) : '-'}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center' }}>
-                                                      {lot.imageUrl ? <a href={resolveMediaUrl(lot.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#f26202', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
-                                                    </td>
-                                                  </tr>
-
-                                                  {/* 2nd Sample / Half Lorry */}
-                                                  <tr style={{ borderBottom: '1px solid #f2cfb6', backgroundColor: '#fffdfa' }}>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', fontWeight: '800', color: '#b45309' }}>2nd Sample (Half Lorry)</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(half.reportedBy)}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>
-                                                      {half.reportedAt ? new Date(half.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-'}
-                                                    </td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatMoisture(half)}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatCutting(half)}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatBend(half)}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>({formatField(half.grainsCountRaw || half.grainsCount)})</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(half.mixRaw || half.mix)}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{half.smixEnabled ? formatField(half.mixSRaw || half.mixS) || 'Yes' : '-'}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{half.lmixEnabled ? formatField(half.mixLRaw || half.mixL) || 'Yes' : '-'}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(half.kanduRaw || half.kandu)}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(half.oilRaw || half.oil)}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(half.skRaw || half.sk)}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{half.smellHas ? 'Yes' : '-'}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{half.paddyWbEnabled ? formatField(half.paddyWbRaw || half.paddyWb) : '-'}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center' }}>
-                                                      {half.imageUrl ? <a href={resolveMediaUrl(half.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#f26202', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
-                                                    </td>
-                                                  </tr>
-
-                                                  {/* 3rd Sample / Full Lorry */}
-                                                  <tr style={{ borderBottom: '1px solid #f2cfb6', backgroundColor: '#fffaf0' }}>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', fontWeight: '800', color: '#15803d' }}>3rd Sample (Full Lorry)</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(full.reportedBy)}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>
-                                                      {full.reportedAt ? new Date(full.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-'}
-                                                    </td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatMoisture(full)}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatCutting(full)}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{formatBend(full)}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>({formatField(full.grainsCountRaw || full.grainsCount)})</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(full.mixRaw || full.mix)}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{full.smixEnabled ? formatField(full.mixSRaw || full.mixS) || 'Yes' : '-'}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{full.lmixEnabled ? formatField(full.mixLRaw || full.mixL) || 'Yes' : '-'}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(full.kanduRaw || full.kandu)}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(full.oilRaw || full.oil)}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{formatField(full.skRaw || full.sk)}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{full.smellHas ? 'Yes' : '-'}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center', color: '#1a1a1a' }}>{full.paddyWbEnabled ? formatField(full.paddyWbRaw || full.paddyWb) : '-'}</td>
-                                                    <td style={{ border: '1px solid #f2cfb6', padding: '6px 8px', textAlign: 'center' }}>
-                                                      {full.imageUrl ? <a href={resolveMediaUrl(full.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#f26202', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
-                                                    </td>
-                                                  </tr>
-                                                </tbody>
-                                              </table>
-                                            </div>
-
-                                            {/* Trip Actions Footer */}
-                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: '6px 12px', background: '#fafafa', borderTop: '1px solid #eee' }}>
-                                              <button
-                                                onClick={() => handleEditInspection(entry.id, inspection)}
-                                                style={{
-                                                  padding: '3px 8px',
-                                                  fontSize: '11px',
-                                                  backgroundColor: '#3498db',
-                                                  color: 'white',
-                                                  border: 'none',
-                                                  borderRadius: '3px',
-                                                  cursor: 'pointer',
-                                                  fontWeight: '600'
-                                                }}
-                                              >
-                                                ✏️ Edit Trip Values
-                                              </button>
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
+                                          return (
+                                            <tr key={inspection.id} style={{ borderBottom: '1px solid #000' }}>
+                                              <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{idx + 1}</td>
+                                              <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
+                                                {new Date(inspection.inspectionDate).toLocaleDateString('en-GB')}
+                                              </td>
+                                              <td style={{ border: '1px solid #000', padding: '6px', fontWeight: '700' }}>
+                                                <span
+                                                  onClick={() => setSelectedLorryForComparison({ lorryNumber: inspection.lorryNumber, previousInspections: [inspection], lotAllotment: entry.lotAllotment, singleLorryMode: true })}
+                                                  style={{ color: '#1565c0', textDecoration: 'underline', cursor: 'pointer' }}
+                                                >
+                                                  {inspection.lorryNumber?.toUpperCase()}
+                                                </span>
+                                              </td>
+                                              <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{inspection.bags || '-'}</td>
+                                              <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600', color: '#d05d00' }}>{moistureVal}</td>
+                                              <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{cuttingVal}</td>
+                                              <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{bendVal}</td>
+                                              <td style={{ border: '1px solid #000', padding: '6px' }}>{inspection.reportedBy?.username || '-'}</td>
+                                              <td style={{ 
+                                                border: '1px solid #000', 
+                                                padding: '6px', 
+                                                textAlign: 'center', 
+                                                fontWeight: '700', 
+                                                color: (() => {
+                                                  const stages = inspection.samplingStages || {};
+                                                  if (stages.full_avg?.approvalStatus === 'approved') return '#2e7d32'; // Pass
+                                                  if (stages.full_avg?.approvalStatus === 'pending') return '#f39c12'; // Pending
+                                                  if (stages.nit_avg?.approvalStatus === 'approved') return '#1565c0'; // Approved stage
+                                                  if (stages.nit_avg?.approvalStatus === 'pending') return '#f39c12'; // Pending
+                                                  if (stages.half_lorry?.approvalStatus === 'approved') return '#1565c0'; // Approved stage
+                                                  if (stages.half_lorry?.approvalStatus === 'pending') return '#f39c12'; // Pending
+                                                  if (stages.lot_avg?.approvalStatus === 'approved') return '#1565c0'; // Approved stage
+                                                  if (stages.lot_avg?.approvalStatus === 'pending') return '#f39c12'; // Pending
+                                                  return '#64748b';
+                                                })()
+                                              }}>
+                                                {(() => {
+                                                  const stages = inspection.samplingStages || {};
+                                                  if (stages.full_avg?.approvalStatus === 'approved') return 'Pass';
+                                                  if (stages.full_avg?.approvalStatus === 'pending') return 'Pending: Full Lorry';
+                                                  if (stages.nit_avg?.approvalStatus === 'approved') return 'Approved: Nit Avg';
+                                                  if (stages.nit_avg?.approvalStatus === 'pending') return 'Pending: Nit Avg';
+                                                  if (stages.half_lorry?.approvalStatus === 'approved') return 'Approved: Half Lorry';
+                                                  if (stages.half_lorry?.approvalStatus === 'pending') return 'Pending: Half Lorry';
+                                                  if (stages.lot_avg?.approvalStatus === 'approved') return 'Approved: Lot Avg';
+                                                  if (stages.lot_avg?.approvalStatus === 'pending') return 'Pending: Lot Avg';
+                                                  return 'Pending';
+                                                })()}
+                                              </td>
+                                              <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
+                                                <span
+                                                  onClick={() => handleOpenEditValues(entry, 'hmlf')}
+                                                  style={{ color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}
+                                                >
+                                                  Final Rate
+                                                </span>
+                                              </td>
+                                              <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
+                                                <span
+                                                  onClick={() => handleOpenEditValues(entry, 'hmlf')}
+                                                  style={{ color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}
+                                                >
+                                                  Payment
+                                                </span>
+                                              </td>
+                                              <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
+                                                <div style={{ display: 'flex', gap: '6px', alignItems: 'center', justifyContent: 'center' }}>
+                                                  <label style={{ display: 'flex', alignItems: 'center', gap: '2px', cursor: 'pointer' }}>
+                                                    <input
+                                                      type="radio"
+                                                      name={`hamali-${entry.id}`}
+                                                      checked={o.hamaliEnabled === true}
+                                                      onChange={() => handleHamaliToggle(entry, true)}
+                                                    /> Yes
+                                                  </label>
+                                                  <label style={{ display: 'flex', alignItems: 'center', gap: '2px', cursor: 'pointer' }}>
+                                                    <input
+                                                      type="radio"
+                                                      name={`hamali-${entry.id}`}
+                                                      checked={o.hamaliEnabled === false || o.hamaliEnabled === undefined || o.hamaliEnabled === null}
+                                                      onChange={() => handleHamaliToggle(entry, false)}
+                                                    /> No
+                                                  </label>
+                                                </div>
+                                              </td>
+                                              <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
+                                                <span
+                                                  onClick={() => handleOpenEditValues(entry, 'dispute')}
+                                                  style={{ color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}
+                                                >
+                                                  Settle
+                                                </span>
+                                              </td>
+                                            </tr>
+                                          );
+                                        })}
+                                      </tbody>
+                                    </table>
                                   </td>
                                 </tr>
                               )}
@@ -1380,13 +1367,29 @@ const AllottedSupervisors: React.FC = () => {
       )}
 
       {/* Edit Dispute / HM-LF Modal */}
-      {editValuesEntry && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
-          <div style={{ backgroundColor: 'white', padding: '24px', borderRadius: '12px', width: '90%', maxWidth: '450px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-            {editMode === 'dispute' ? (
+      {editValuesEntry && (() => {
+        const o = offeringCache[editValuesEntry.id] || {};
+        const origHamaliVal = o.hamali !== undefined && o.hamali !== null && o.hamali !== '' ? formatDecimal(o.hamali) : '';
+        const origHamaliUnit = o.hamaliUnit === 'per_quintal' ? '/Qtl' : '/Bag';
+        const hasRevisedHamali = o.revisedHamali !== undefined && o.revisedHamali !== null && o.revisedHamali !== '';
+        const revisedHamaliVal = hasRevisedHamali ? formatDecimal(o.revisedHamali) : '';
+        const revisedHamaliText = revisedHamaliVal ? ` | Revised: ₹${revisedHamaliVal}${origHamaliUnit}` : '';
+        const origHamaliText = origHamaliVal ? ` (Original: ₹${origHamaliVal}${origHamaliUnit}${revisedHamaliText})` : '';
+
+        const origLfVal = o.lf !== undefined && o.lf !== null && o.lf !== '' ? formatDecimal(o.lf) : '';
+        const origLfUnit = o.lfUnit === 'per_quintal' ? '/Qtl' : '/Bag';
+        const hasRevisedLf = o.revisedLf !== undefined && o.revisedLf !== null && o.revisedLf !== '';
+        const revisedLfVal = hasRevisedLf ? formatDecimal(o.revisedLf) : '';
+        const revisedLfText = revisedLfVal ? ` | Revised: ₹${revisedLfVal}${origLfUnit}` : '';
+        const origLfText = origLfVal ? ` (Original: ₹${origLfVal}${origLfUnit}${revisedLfText})` : '';
+
+        return (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+            <div style={{ backgroundColor: 'white', padding: '24px', borderRadius: '12px', width: '90%', maxWidth: '450px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+              {editMode === 'dispute' ? (
               <>
                 <h3 style={{ marginTop: 0, color: '#e74c3c', borderBottom: '2px solid #e74c3c', paddingBottom: '8px', fontSize: '14px', fontWeight: '800' }}>
-                  Edit Dispute Rate — {editValuesEntry.brokerName} / {editValuesEntry.partyName}
+                  Dispute Rate — {editValuesEntry.brokerName} / {editValuesEntry.partyName}
                 </h3>
                 <div style={{ background: '#f8f9fa', padding: '6px 10px', borderRadius: '4px', marginBottom: '10px', fontSize: '11px', textAlign: 'center' }}>
                   Bags: <b>{editValuesEntry.bags}</b> | Variety: <b>{editValuesEntry.variety}</b> | Location: <b>{editValuesEntry.location}</b>
@@ -1427,19 +1430,63 @@ const AllottedSupervisors: React.FC = () => {
                       onChange={e => setEditValuesData({ ...editValuesData, moistureValue: e.target.value })}
                       style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box' }} />
                   </div>
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Hamali & LF Option</label>
+                    <select value={editValuesData.revisedRateOption} onChange={e => setEditValuesData({ ...editValuesData, revisedRateOption: e.target.value })}
+                      style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box' }}>
+                      <option value="final">Use Final Rate Hamali & LF</option>
+                      <option value="dispute">Revise Hamali & LF for Dispute</option>
+                    </select>
+                  </div>
+                  {editValuesData.revisedRateOption === 'dispute' && (
+                    <>
+                      <div>
+                        <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Revised Hamali{origHamaliText}</label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <input type="number" step="0.01" value={editValuesData.revisedHamali}
+                            onChange={e => setEditValuesData({ ...editValuesData, revisedHamali: e.target.value })}
+                            style={{ flex: 1, padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', minWidth: 0 }} />
+                          <select value={editValuesData.hamaliUnit} onChange={e => setEditValuesData({ ...editValuesData, hamaliUnit: e.target.value })}
+                            style={{ padding: '8px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', minWidth: '80px' }}>
+                            <option value="per_bag">/Bag</option>
+                            <option value="per_quintal">/Qtl</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Revised LF{origLfText}</label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <input type="number" step="0.01" value={editValuesData.revisedLf}
+                            onChange={e => setEditValuesData({ ...editValuesData, revisedLf: e.target.value })}
+                            style={{ flex: 1, padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', minWidth: 0 }} />
+                          <select value={editValuesData.lfUnit} onChange={e => setEditValuesData({ ...editValuesData, lfUnit: e.target.value })}
+                            style={{ padding: '8px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', minWidth: '80px' }}>
+                            <option value="per_bag">/Bag</option>
+                            <option value="per_quintal">/Qtl</option>
+                          </select>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Dispute Reason</label>
+                    <input type="text" placeholder="Enter reason for dispute" value={editValuesData.disputeReason || ''}
+                      onChange={e => setEditValuesData({ ...editValuesData, disputeReason: e.target.value })}
+                      style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box' }} />
+                  </div>
                 </div>
               </>
             ) : (
               <>
                 <h3 style={{ marginTop: 0, color: '#8e44ad', borderBottom: '2px solid #8e44ad', paddingBottom: '8px', fontSize: '14px', fontWeight: '800' }}>
-                  Edit HM | LF — {editValuesEntry.brokerName} / {editValuesEntry.partyName}
+                  HM | LF — {editValuesEntry.brokerName} / {editValuesEntry.partyName}
                 </h3>
                 <div style={{ background: '#f8f9fa', padding: '6px 10px', borderRadius: '4px', marginBottom: '10px', fontSize: '11px', textAlign: 'center' }}>
                   Bags: <b>{editValuesEntry.bags}</b> | Variety: <b>{editValuesEntry.variety}</b> | Location: <b>{editValuesEntry.location}</b>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
                   <div>
-                    <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Revised Hamali</label>
+                    <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Revised Hamali{origHamaliText}</label>
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <input type="number" step="0.01" value={editValuesData.revisedHamali}
                         onChange={e => setEditValuesData({ ...editValuesData, revisedHamali: e.target.value })}
@@ -1452,7 +1499,7 @@ const AllottedSupervisors: React.FC = () => {
                     </div>
                   </div>
                   <div>
-                    <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Revised LF</label>
+                    <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Revised LF{origLfText}</label>
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <input type="number" step="0.01" value={editValuesData.revisedLf}
                         onChange={e => setEditValuesData({ ...editValuesData, revisedLf: e.target.value })}
@@ -1545,7 +1592,7 @@ const AllottedSupervisors: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      ); })()}
       {closingEntryId && (
         <ConfirmationModal
           isOpen={isCloseModalOpen}
