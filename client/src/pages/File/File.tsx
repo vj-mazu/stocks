@@ -36,12 +36,12 @@ import {
   RateFormCell, RateFormContainer, RateFormTitle, RateFormGrid, RateFormGroup,
   RateLabel, RateInput, RateRadioGroup, RateRadioLabel, RateCalculationBox,
   RateCalcRow, RateCalcLabel, RateCalcValue, RateButtonGroup
-} from './RecordsStyles';
+} from './FileStyles';
 
 import {
   MonthOption, PaginationData, RecordsResponse, Arrival,
   getWeekRange, formatCutting, getWeekKey
-} from './RecordsTypes';
+} from './FileTypes';
 
 // Alias renamed styled-components back to their original names used in JSX
 const Pagination = PaginationStyled;
