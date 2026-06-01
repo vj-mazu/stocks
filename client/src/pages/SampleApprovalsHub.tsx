@@ -4,6 +4,7 @@ import { API_URL } from '../config/api';
 import { toast } from '../utils/toast';
 import SampleEditApprovals from './SampleEditApprovals';
 import ManagerValueApprovals from './ManagerValueApprovals';
+import { SampleEntryDetailModal } from '../components/SampleEntryDetailModal';
 
 interface SampleApprovalsHubProps {
   entryType?: string;
@@ -28,6 +29,49 @@ const resolveMediaUrl = (value?: string | null) => {
   return url.startsWith('/') ? `${baseUrl}${url}` : `${baseUrl}/${url}`;
 };
 
+const getStatusBadgeStyle = (status: string) => {
+  const s = status.toLowerCase();
+  const baseStyle: React.CSSProperties = {
+    display: 'inline-block',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    fontSize: '12px',
+    fontWeight: 'bold',
+    textAlign: 'center'
+  };
+  
+  if (s.includes('avg') && !s.includes('nit')) {
+    return { ...baseStyle, backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }; // Light Blue
+  }
+  if (s.includes('half')) {
+    return { ...baseStyle, backgroundColor: '#fffbeb', color: '#b45309', border: '1px solid #fde68a' }; // Amber/Orange
+  }
+  if (s.includes('full')) {
+    return { ...baseStyle, backgroundColor: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0' }; // Green
+  }
+  if (s.includes('nit')) {
+    return { ...baseStyle, backgroundColor: '#faf5ff', color: '#6b21a8', border: '1px solid #e9d5ff' }; // Purple
+  }
+  if (s.includes('pending') || s.includes('no sample')) {
+    return { ...baseStyle, backgroundColor: '#fef2f2', color: '#991b1b', border: '1px solid #fca5a5' }; // Red
+  }
+  return { ...baseStyle, backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' }; // Slate
+};
+
+const getLorryBadgeStyle = () => {
+  return {
+    backgroundColor: '#f1f5f9',
+    color: '#0f172a',
+    border: '1px solid #cbd5e1',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    fontWeight: 'bold',
+    fontFamily: 'monospace',
+    display: 'inline-block',
+    fontSize: '12px'
+  } as React.CSSProperties;
+};
+
 const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excludeEntryType, onPendingCountChange }) => {
   const [editApprovalCount, setEditApprovalCount] = useState(0);
   const [managerApprovalCount, setManagerApprovalCount] = useState(0);
@@ -38,6 +82,8 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
   const [loadingQuality, setLoadingQuality] = useState(false);
   const [selectedLorryForComparison, setSelectedLorryForComparison] = useState<any>(null);
   const [processingLorry, setProcessingLorry] = useState(false);
+  const [detailModalEntry, setDetailModalEntry] = useState<any | null>(null);
+  const [loadingSubTab, setLoadingSubTab] = useState<'paddy' | 'rice'>('paddy');
 
   const currentUser = useMemo(() => {
     try {
@@ -213,419 +259,292 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     }
   };
 
+  const openDetailEntry = async (entry: any) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/sample-entries/${entry.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setDetailModalEntry(response.data || entry);
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to load entry details');
+      setDetailModalEntry(entry);
+    }
+  };
+
+  const getSamplingStatusLabel = (entry: any) => {
+    const inspections = entry.physicalInspections || entry.lotAllotment?.physicalInspections || [];
+    if (inspections.length === 0) return 'No Sample';
+    
+    const activeInsp = inspections.find((insp: any) => getPendingStage(insp) !== null) || inspections[inspections.length - 1];
+    if (!activeInsp) return '-';
+    
+    const pendingStage = getPendingStage(activeInsp);
+    if (pendingStage) {
+      if (pendingStage.key === 'lot_avg') return 'Avg Sampling';
+      if (pendingStage.key === 'half_lorry') return 'Half Lorry Sampling';
+      if (pendingStage.key === 'full_avg') return 'Full Lorry Sampling';
+      if (pendingStage.key === 'nit_avg') return 'Nit Avg Sampling';
+      return `${pendingStage.label} Sampling`;
+    }
+    
+    const stages = activeInsp.samplingStages || {};
+    if (stages.full_avg?.approvalStatus === 'approved') return 'Full Lorry Sampling';
+    if (stages.nit_avg?.approvalStatus === 'approved') return 'Nit Avg Sampling';
+    if (stages.half_lorry?.approvalStatus === 'approved') return 'Half Lorry Sampling';
+    if (stages.lot_avg?.approvalStatus === 'approved') return 'Avg Sampling';
+    
+    if (stages.full_avg?.reportedBy) return 'Full Lorry Sampling';
+    if (stages.nit_avg?.reportedBy) return 'Nit Avg Sampling';
+    if (stages.half_lorry?.reportedBy) return 'Half Lorry Sampling';
+    if (stages.lot_avg?.reportedBy) return 'Avg Sampling';
+    
+    return 'Pending';
+  };
+
+  const getLorryNumber = (entry: any) => {
+    const inspections = entry.physicalInspections || entry.lotAllotment?.physicalInspections || [];
+    const activeInsp = inspections.find((insp: any) => getPendingStage(insp) !== null) || inspections[inspections.length - 1];
+    return activeInsp?.lorryNumber?.toUpperCase() || entry.lorryNumber?.toUpperCase() || '-';
+  };
+
   const renderLorryQualityTable = () => {
-    if (loadingQuality) {
-      return <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>Loading quality approvals...</div>;
-    }
+    const filteredInspections = pendingLorryInspections.filter((entry) => {
+      if (loadingSubTab === 'rice') {
+        return entry.entryType === 'RICE_SAMPLE';
+      } else {
+        return entry.entryType !== 'RICE_SAMPLE';
+      }
+    });
 
-    if (pendingLorryInspections.length === 0) {
-      return (
-        <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8' }}>
-          No pending loading quality approvals.
-        </div>
-      );
-    }
-
-    const fmtField = (val: any) => {
-      if (val === null || val === undefined || val === '') return '-';
-      return String(val);
-    };
-
-    const fmtMoisture = (stageObj: any) => {
-      const raw = stageObj.moistureRaw;
-      const val = stageObj.moisture;
-      if (raw) return `${raw}%`;
-      if (val !== undefined && val !== null) return `${val}%`;
-      return '-';
-    };
-
-    const fmtCutting = (stageObj: any) => {
-      if (stageObj.cutting1 === undefined || stageObj.cutting1 === null) return '-';
-      return `${stageObj.cutting1}x${stageObj.cutting2 || 0}`;
-    };
-
-    const fmtBend = (stageObj: any) => {
-      if (stageObj.bend1 === undefined || stageObj.bend1 === null) return '-';
-      return `${stageObj.bend1}x${stageObj.bend2 || 0}`;
-    };
-
-    const fmtGrains = (stageObj: any) => {
-      const val = stageObj.grainsCountRaw || stageObj.grainsCount;
-      if (val === undefined || val === null || val === '') return '-';
-      return `(${val})`;
+    const formatDate = (dateStr: string) => {
+      if (!dateStr) return '-';
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}/${month}/${year}`;
     };
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {pendingLorryInspections.map((entry) => {
-          const allottedBags = entry.lotAllotment?.allottedBags || entry.bags || 0;
-          const inspections = entry.physicalInspections || entry.lotAllotment?.physicalInspections || [];
-          const loadedBags = inspections.reduce((sum: number, insp: any) => sum + (insp.bags || 0), 0);
-          const remainingBags = Math.max(0, allottedBags - loadedBags);
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+        {/* Sub-tabs */}
+        <div style={{
+          display: 'flex',
+          gap: '10px',
+          marginBottom: '10px',
+          borderBottom: '2px solid #e0e0e0'
+        }}>
+          <button
+            type="button"
+            onClick={() => setLoadingSubTab('paddy')}
+            style={{
+              padding: '10px 20px',
+              fontSize: '14px',
+              fontWeight: '600',
+              border: 'none',
+              borderBottom: loadingSubTab === 'paddy' ? '3px solid #4a90e2' : '3px solid transparent',
+              backgroundColor: 'transparent',
+              color: loadingSubTab === 'paddy' ? '#4a90e2' : '#666',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            Paddy Loading
+          </button>
+          <button
+            type="button"
+            onClick={() => setLoadingSubTab('rice')}
+            style={{
+              padding: '10px 20px',
+              fontSize: '14px',
+              fontWeight: '600',
+              border: 'none',
+              borderBottom: loadingSubTab === 'rice' ? '3px solid #4a90e2' : '3px solid transparent',
+              backgroundColor: 'transparent',
+              color: loadingSubTab === 'rice' ? '#4a90e2' : '#666',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            Rice Loading
+          </button>
+        </div>
 
-          return (
-            <div key={entry.id} style={{ 
-              border: '2px solid #1e3a8a', 
-              borderRadius: '8px', 
-              overflow: 'hidden', 
-              boxShadow: '0 4px 15px rgba(0,0,0,0.08)', 
-              backgroundColor: '#fff' 
-            }}>
-              {/* Lot Info Header */}
-              <div style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)', color: 'white', padding: '10px 16px', fontWeight: 'bold', fontSize: '13px', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-                <div>
-                  <span style={{ color: '#94a3b8' }}>Party:</span> {entry.partyName && entry.partyName.trim() ? toTitleCase(entry.partyName) : 'DIRECT LOADED VEHICLE'}
-                  <span style={{ color: '#94a3b8', marginLeft: '12px' }}>Variety:</span> {entry.variety || '-'}
-                  <span style={{ color: '#94a3b8', marginLeft: '12px' }}>Location:</span> {entry.location || '-'}
-                  <span style={{ color: '#94a3b8', marginLeft: '12px' }}>Allotted Bags:</span> {allottedBags} Bags
-                  <span style={{ color: '#f39c12', marginLeft: '12px' }}>Remaining Bags:</span> {remainingBags} Bags
-                </div>
-              </div>
+        {loadingQuality ? (
+          <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>Loading quality approvals...</div>
+        ) : filteredInspections.length === 0 ? (
+          <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8' }}>
+            No pending loading quality approvals.
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto', backgroundColor: 'white', border: '1px solid #999' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', tableLayout: 'fixed' }}>
+              <thead>
+                <tr style={{ backgroundColor: '#4a90e2', color: 'white' }}>
+                  <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '60px' }}>SL No</th>
+                  <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '95px' }}>Date</th>
+                  <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '100px' }}>Broker</th>
+                  <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '140px' }}>Party</th>
+                  <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '110px' }}>Location</th>
+                  <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '110px' }}>Variety</th>
+                  <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '90px' }}>Pur Bags</th>
+                  <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '150px' }}>Sampling Status</th>
+                  <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '120px' }}>Lorry No</th>
+                  <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '140px' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredInspections.map((entry, index) => {
+                  const inspections = entry.physicalInspections || entry.lotAllotment?.physicalInspections || [];
+                  const activeInsp = inspections.find((insp: any) => getPendingStage(insp) !== null) || inspections[inspections.length - 1];
 
-              {/* Lorry sampling parameter grids */}
-              <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '20px', backgroundColor: '#f8fafc' }}>
-                {(() => {
-                  const inspections = [...(entry.physicalInspections || entry.lotAllotment?.physicalInspections || [])]
-                    .sort((a, b) => {
-                      const dateA = new Date(a.inspectionDate).getTime();
-                      const dateB = new Date(b.inspectionDate).getTime();
-                      if (dateA !== dateB) return dateA - dateB;
-                      return String(a.id).localeCompare(String(b.id));
-                    });
-                  if (inspections.length === 0) {
-                    return <div style={{ color: '#64748b', fontSize: '12px', fontStyle: 'italic', padding: '10px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '6px', textAlign: 'center' }}>No physical inspection samples loaded yet for this lot.</div>;
-                  }
-                  return inspections.map((insp: any, idx: number) => {
-                    const stages = insp.samplingStages || {};
-                    const lot = stages.lot_avg || {};
-                    const half = stages.half_lorry || {};
-                    const full = stages.full_avg || {};
-
-                    return (
-                      <div key={insp.id} style={{ 
-                        border: '1px solid #cbd5e1', 
-                        borderRadius: '8px', 
-                        overflow: 'hidden', 
-                        backgroundColor: '#ffffff',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
-                      }}>
-                        {/* Lorry Header */}
-                        <div style={{ 
-                          backgroundColor: '#f1f5f9', 
-                          borderBottom: '1px solid #cbd5e1',
-                          borderLeft: '4px solid #f2711c', 
-                          padding: '8px 16px', 
-                          fontSize: '12px', 
-                          fontWeight: 'bold', 
-                          color: '#334155', 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
-                          alignItems: 'center'
-                        }}>
-                          <div>
-                            <span style={{ fontSize: '13px', color: '#1e3a8a', marginRight: '12px', fontWeight: '800' }}>Trip #{idx + 1}</span>
-                            <span style={{ color: '#64748b' }}>Lorry Number:</span> <span style={{ fontSize: '13px', color: '#0f172a' }}>{insp.lorryNumber?.toUpperCase() || '-'}</span>
-                            {(() => {
-                              const pendingStage = getPendingStage(insp);
+                  return (
+                    <React.Fragment key={entry.id}>
+                      <tr style={{ backgroundColor: index % 2 === 0 ? '#f9f9f9' : 'white', borderBottom: '1px solid #ddd' }}>
+                        <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>{index + 1}</td>
+                        <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>{formatDate(entry.entryDate)}</td>
+                        <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>{toTitleCase(entry.brokerName)}</td>
+                        <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>
+                          <span
+                            onClick={() => openDetailEntry(entry)}
+                            style={{
+                              color: '#4a90e2',
+                              textDecoration: 'underline',
+                              cursor: 'pointer',
+                              fontWeight: 'bold'
+                            }}
+                          >
+                            {entry.partyName && entry.partyName.trim() ? toTitleCase(entry.partyName) : 'DIRECT LOADED VEHICLE'}
+                          </span>
+                        </td>
+                        <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>{entry.location ? toTitleCase(entry.location) : '-'}</td>
+                        <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>{entry.variety ? toTitleCase(entry.variety) : '-'}</td>
+                        <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>{entry.lotAllotment?.allottedBags || entry.bags || 0}</td>
+                        <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>
+                          <span style={getStatusBadgeStyle(getSamplingStatusLabel(entry))}>
+                            {getSamplingStatusLabel(entry)}
+                          </span>
+                        </td>
+                        <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>
+                          <span style={getLorryBadgeStyle()}>
+                            {getLorryNumber(entry)}
+                          </span>
+                        </td>
+                        <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>
+                          {activeInsp ? (
+                            (() => {
+                              const pendingStage = getPendingStage(activeInsp);
                               if (pendingStage) {
                                 return (
-                                  <span style={{
-                                    marginLeft: '8px',
-                                    padding: '2px 8px',
-                                    borderRadius: '4px',
-                                    backgroundColor: '#fef3c7',
-                                    color: '#d97706',
-                                    fontSize: '10px',
-                                    fontWeight: 'bold',
-                                    textTransform: 'uppercase',
-                                    border: '1px solid #fde68a'
-                                  }}>
-                                    Pending: {pendingStage.label}
-                                  </span>
-                                );
-                              }
-                              
-                              const latestApproved = getLatestApprovedStageLabel(insp);
-                              if (latestApproved) {
-                                if (insp.isComplete || stages.full_avg?.approvalStatus === 'approved') {
-                                  return (
-                                    <span style={{
-                                      marginLeft: '8px',
-                                      padding: '2px 8px',
-                                      borderRadius: '4px',
-                                      backgroundColor: '#d1fae5',
-                                      color: '#065f46',
-                                      fontSize: '10px',
-                                      fontWeight: 'bold',
-                                      textTransform: 'uppercase',
-                                      border: '1px solid #a7f3d0'
-                                    }}>
-                                      Approved: {latestApproved}
-                                    </span>
-                                  );
-                                } else {
-                                  return (
-                                    <span style={{
-                                      marginLeft: '8px',
-                                      padding: '2px 8px',
-                                      borderRadius: '4px',
-                                      backgroundColor: '#e0f2fe',
-                                      color: '#0369a1',
-                                      fontSize: '10px',
-                                      fontWeight: 'bold',
-                                      textTransform: 'uppercase',
-                                      border: '1px solid #bae6fd'
-                                    }}>
-                                      Approved: {latestApproved} (Awaiting Next Stage)
-                                    </span>
-                                  );
-                                }
-                              }
-
-                              return (
-                                <span style={{
-                                  marginLeft: '8px',
-                                  padding: '2px 8px',
-                                  borderRadius: '4px',
-                                  backgroundColor: '#f1f5f9',
-                                  color: '#475569',
-                                  fontSize: '10px',
-                                  fontWeight: 'bold',
-                                  textTransform: 'uppercase',
-                                  border: '1px solid #cbd5e1'
-                                }}>
-                                  No Sample Submitted
-                                </span>
-                              );
-                            })()}
-                            <span style={{ color: '#64748b', marginLeft: '16px' }}>Bags loaded in trip:</span> <span style={{ fontSize: '13px', color: '#0f172a' }}>{insp.bags || '-'}</span>
-                            <span style={{ color: '#64748b', marginLeft: '16px' }}>Last Sampled:</span> <span style={{ fontSize: '13px', color: '#0f172a' }}>{insp.inspectionDate || '-'}</span>
-                          </div>
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            {(() => {
-                              const pendingStage = getPendingStage(insp);
-                              if (pendingStage) {
-                                return (
-                                  <button
-                                    onClick={() => handleApproveProgressiveStage(entry.id, insp.id, pendingStage.key, pendingStage.label)}
-                                    disabled={processingLorry}
-                                    style={{
-                                      padding: '4px 12px',
-                                      backgroundColor: '#2ecc71',
-                                      color: 'white',
-                                      border: 'none',
-                                      borderRadius: '4px',
-                                      fontWeight: 'bold',
-                                      cursor: processingLorry ? 'not-allowed' : 'pointer',
-                                      fontSize: '11px',
-                                      boxShadow: '0 1px 2px rgba(46,204,113,0.2)'
-                                    }}
-                                  >
-                                    Approve {pendingStage.label}
-                                  </button>
-                                );
-                              }
-                              
-                              if (insp.isComplete || stages.full_avg?.approvalStatus === 'approved') {
-                                const allTripsApproved = inspections.every((i: any) => i.isComplete || i.samplingStages?.full_avg?.approvalStatus === 'approved');
-                                if (!allTripsApproved) {
-                                  return (
+                                  <div style={{ display: 'flex', gap: '12px' }}>
                                     <button
-                                      disabled
+                                      onClick={() => handleApproveProgressiveStage(entry.id, activeInsp.id, pendingStage.key, pendingStage.label)}
+                                      disabled={processingLorry}
                                       style={{
-                                        padding: '4px 12px',
-                                        backgroundColor: '#94a3b8',
-                                        color: 'white',
+                                        background: 'transparent',
                                         border: 'none',
-                                        borderRadius: '4px',
+                                        color: '#27ae60',
                                         fontWeight: 'bold',
-                                        cursor: 'not-allowed',
-                                        fontSize: '11px'
+                                        cursor: 'pointer',
+                                        padding: '2px 4px',
+                                        fontSize: '13px'
                                       }}
                                     >
-                                      Lorry Approved (Awaiting Other Trips)
+                                      Approve
                                     </button>
-                                  );
-                                }
-                                return (
-                                  <button
-                                    onClick={() => handleApproveLorryQuality(entry.id)}
-                                    disabled={processingLorry}
-                                    style={{
-                                      padding: '4px 12px',
-                                      backgroundColor: '#27ae60',
-                                      color: 'white',
-                                      border: 'none',
-                                      borderRadius: '4px',
-                                      fontWeight: 'bold',
-                                      cursor: processingLorry ? 'not-allowed' : 'pointer',
-                                      fontSize: '11px',
-                                      boxShadow: '0 1px 2px rgba(39,174,96,0.2)'
-                                    }}
-                                  >
-                                    Approve Trip
-                                  </button>
+                                    <button
+                                      onClick={() => handleRejectSpecificLorry(entry.id, activeInsp.id, activeInsp.lorryNumber)}
+                                      disabled={processingLorry}
+                                      style={{
+                                        background: 'transparent',
+                                        border: 'none',
+                                        color: '#dc2626',
+                                        fontWeight: 'bold',
+                                        cursor: 'pointer',
+                                        padding: '2px 4px',
+                                        fontSize: '13px'
+                                      }}
+                                    >
+                                      Reject
+                                    </button>
+                                  </div>
                                 );
                               }
-
+                              
+                              const stages = activeInsp.samplingStages || {};
+                              if (activeInsp.isComplete || stages.full_avg?.approvalStatus === 'approved') {
+                                return (
+                                  <div style={{ display: 'flex', gap: '12px' }}>
+                                    <button
+                                      onClick={() => handleApproveLorryQuality(entry.id)}
+                                      disabled={processingLorry}
+                                      style={{
+                                        background: 'transparent',
+                                        border: 'none',
+                                        color: '#27ae60',
+                                        fontWeight: 'bold',
+                                        cursor: 'pointer',
+                                        padding: '2px 4px',
+                                        fontSize: '13px'
+                                      }}
+                                    >
+                                      Approve
+                                    </button>
+                                    <button
+                                      onClick={() => handleRejectSpecificLorry(entry.id, activeInsp.id, activeInsp.lorryNumber)}
+                                      disabled={processingLorry}
+                                      style={{
+                                        background: 'transparent',
+                                        border: 'none',
+                                        color: '#dc2626',
+                                        fontWeight: 'bold',
+                                        cursor: 'pointer',
+                                        padding: '2px 4px',
+                                        fontSize: '13px'
+                                      }}
+                                    >
+                                      Reject
+                                    </button>
+                                  </div>
+                                );
+                              }
+                              
                               return (
-                                <button
-                                  disabled
-                                  style={{
-                                    padding: '4px 12px',
-                                    backgroundColor: '#94a3b8',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    fontWeight: 'bold',
-                                    cursor: 'not-allowed',
-                                    fontSize: '11px'
-                                  }}
-                                >
-                                  Awaiting Next Stage
-                                </button>
+                                <div style={{ display: 'flex', gap: '12px' }}>
+                                  <span style={{ color: '#94a3b8', fontSize: '12px', fontWeight: 'bold' }}>Awaiting Next Stage</span>
+                                  <button
+                                    onClick={() => handleRejectSpecificLorry(entry.id, activeInsp.id, activeInsp.lorryNumber)}
+                                    disabled={processingLorry}
+                                    style={{
+                                      background: 'transparent',
+                                      border: 'none',
+                                      color: '#dc2626',
+                                      fontWeight: 'bold',
+                                      cursor: 'pointer',
+                                      padding: '2px 4px',
+                                      fontSize: '13px'
+                                    }}
+                                  >
+                                    Reject
+                                  </button>
+                                </div>
                               );
-                            })()}
-                            <button
-                              onClick={() => handleRejectSpecificLorry(entry.id, insp.id, insp.lorryNumber)}
-                              disabled={processingLorry}
-                              style={{
-                                padding: '4px 12px',
-                                backgroundColor: '#dc2626',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                fontWeight: 'bold',
-                                cursor: processingLorry ? 'not-allowed' : 'pointer',
-                                fontSize: '11px',
-                                boxShadow: '0 1px 2px rgba(220,38,38,0.2)'
-                              }}
-                            >
-                              Reject Trip
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Quality parameters grid transposed inline */}
-                        <div style={{ padding: '12px', overflowX: 'auto' }}>
-                          <div style={{ border: '1px solid #e2e8f0', borderRadius: '6px', overflow: 'hidden' }}>
-                            <table style={{ width: '100%', minWidth: '1300px', borderCollapse: 'collapse', fontSize: '11px' }}>
-                              <thead>
-                                <tr style={{ background: 'linear-gradient(90deg, #f2711c 0%, #f26202 100%)', color: 'white' }}>
-                                  <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'left', fontWeight: '800' }}>SAMPLE</th>
-                                  <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'left', fontWeight: '800' }}>REPORTED BY</th>
-                                  <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'left', fontWeight: '800' }}>REPORTED AT</th>
-                                  <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>MOISTURE</th>
-                                  <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>CUTTING</th>
-                                  <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>BEND</th>
-                                  <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>GRAINS COUNT</th>
-                                  <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>MIX</th>
-                                  <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>S MIX</th>
-                                  <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>L MIX</th>
-                                  <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>KANDU</th>
-                                  <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>OIL</th>
-                                  <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>SK</th>
-                                  <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>WB-R</th>
-                                  <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>WB-BK</th>
-                                  <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>WB-T</th>
-                                  <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>SMELL</th>
-                                  <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>PADDY WB</th>
-                                  <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>PHOTO</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {/* Lot Avg */}
-                                {stages.lot_avg && (
-                                  <tr style={{ backgroundColor: '#fff', borderBottom: '1px solid #cbd5e1' }}>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '800', color: '#e05300' }}>Lot Avg</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '600' }}>{fmtField(lot.reportedBy)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px' }}>{lot.reportedAt ? new Date(lot.reportedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '-'}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: 'bold' }}>{fmtMoisture(lot)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtCutting(lot)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtBend(lot)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtGrains(lot)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(lot.mixRaw || lot.mix)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{lot.smixEnabled ? fmtField(lot.mixSRaw || lot.mixS) || 'Yes' : '-'}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{lot.lmixEnabled ? fmtField(lot.mixLRaw || lot.mixL) || 'Yes' : '-'}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(lot.kanduRaw || lot.kandu)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(lot.oilRaw || lot.oil)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(lot.skRaw || lot.sk)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(lot.wbRRaw || lot.wbR)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(lot.wbBkRaw || lot.wbBk)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(lot.wbTRaw || lot.wbT)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{lot.smellHas ? 'Yes' : '-'}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{lot.paddyWbEnabled ? fmtField(lot.paddyWbRaw || lot.paddyWb) : '-'}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>
-                                      {lot.imageUrl ? <a href={resolveMediaUrl(lot.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
-                                    </td>
-                                  </tr>
-                                )}
-
-                                {/* Half Lorry */}
-                                {stages.half_lorry && (
-                                  <tr style={{ backgroundColor: '#fff', borderBottom: '1px solid #cbd5e1' }}>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '800', color: '#e05300' }}>Half Lorry</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '600' }}>{fmtField(half.reportedBy)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px' }}>{half.reportedAt ? new Date(half.reportedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '-'}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: 'bold' }}>{fmtMoisture(half)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtCutting(half)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtBend(half)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtGrains(half)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(half.mixRaw || half.mix)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{half.smixEnabled ? fmtField(half.mixSRaw || half.mixS) || 'Yes' : '-'}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{half.lmixEnabled ? fmtField(half.mixLRaw || half.mixL) || 'Yes' : '-'}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(half.kanduRaw || half.kandu)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(half.oilRaw || half.oil)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(half.skRaw || half.sk)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(half.wbRRaw || half.wbR)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(half.wbBkRaw || half.wbBk)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(half.wbTRaw || half.wbT)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{half.smellHas ? 'Yes' : '-'}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{half.paddyWbEnabled ? fmtField(half.paddyWbRaw || half.paddyWb) : '-'}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>
-                                      {half.imageUrl ? <a href={resolveMediaUrl(half.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
-                                    </td>
-                                  </tr>
-                                )}
-
-                                {/* Full Lorry */}
-                                {stages.full_avg && (
-                                  <tr style={{ backgroundColor: '#fff', borderBottom: '1px solid #cbd5e1' }}>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '800', color: '#e05300' }}>Full Lorry</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', fontWeight: '600' }}>{fmtField(full.reportedBy)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px' }}>{full.reportedAt ? new Date(full.reportedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '-'}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: 'bold' }}>{fmtMoisture(full)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtCutting(full)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtBend(full)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtGrains(full)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(full.mixRaw || full.mix)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{full.smixEnabled ? fmtField(full.mixSRaw || full.mixS) || 'Yes' : '-'}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{full.lmixEnabled ? fmtField(full.mixLRaw || full.mixL) || 'Yes' : '-'}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(full.kanduRaw || full.kandu)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(full.oilRaw || full.oil)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(full.skRaw || full.sk)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(full.wbRRaw || full.wbR)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(full.wbBkRaw || full.wbBk)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{fmtField(full.wbTRaw || full.wbT)}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{full.smellHas ? 'Yes' : '-'}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>{full.paddyWbEnabled ? fmtField(full.paddyWbRaw || full.paddyWb) : '-'}</td>
-                                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center' }}>
-                                      {full.imageUrl ? <a href={resolveMediaUrl(full.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
-                                    </td>
-                                  </tr>
-                                )}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-            </div>
-          );
-        })}
+                            })()
+                          ) : '-'}
+                        </td>
+                      </tr>
+                      <tr style={{ height: '10px', backgroundColor: 'transparent' }}>
+                        <td colSpan={10} style={{ padding: 0, height: '10px', backgroundColor: 'transparent', border: 'none' }}></td>
+                      </tr>
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     );
   };
@@ -864,6 +783,14 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
             </div>
           </div>
         </div>
+      )}
+      {detailModalEntry && (
+        <SampleEntryDetailModal
+          detailEntry={detailModalEntry}
+          detailMode="full"
+          progressiveMode={true}
+          onClose={() => setDetailModalEntry(null)}
+        />
       )}
     </div>
   );

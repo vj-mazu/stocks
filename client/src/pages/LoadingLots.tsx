@@ -1882,6 +1882,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
         <SampleEntryDetailModal
           detailEntry={detailModalEntry as any}
           detailMode="history"
+          progressiveMode={true}
           onClose={() => setDetailModalEntry(null)}
           showCollectorLoginPair={true}
         />

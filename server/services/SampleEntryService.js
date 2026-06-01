@@ -1165,8 +1165,11 @@ class SampleEntryService {
 
       // When the admin directly submits/updates a dispute or revision, automatically create or update the version in disputeVersions
       const isDispute = finalData.disputeBaseRate !== undefined && finalData.disputeBaseRate !== null && finalData.disputeBaseRate !== '';
-      const isRevision = (finalData.revisedHamali !== undefined && finalData.revisedHamali !== null && finalData.revisedHamali !== '')
-        || (finalData.revisedLf !== undefined && finalData.revisedLf !== null && finalData.revisedLf !== '');
+      const isRevision = 
+        ((finalData.revisedHamali !== undefined && finalData.revisedHamali !== null && finalData.revisedHamali !== '') && 
+         (Number(finalData.revisedHamali) !== Number(finalData.hamali ?? offering.hamali)))
+        || ((finalData.revisedLf !== undefined && finalData.revisedLf !== null && finalData.revisedLf !== '') && 
+            (Number(finalData.revisedLf) !== Number(finalData.lf ?? offering.lf)));
 
       if (isDispute || isRevision) {
         const disputeVersions = Array.isArray(offering.disputeVersions) ? [...offering.disputeVersions] : [];

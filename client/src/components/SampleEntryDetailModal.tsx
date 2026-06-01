@@ -3,6 +3,8 @@ import axios from 'axios';
 import { API_URL } from '../config/api';
 import { useAuth } from '../contexts/AuthContext';
 import { getCollectedByDisplay as getSharedCollectedByDisplay, splitCollectedByLine } from '../utils/sampleTypeDisplay';
+import { toast } from '../utils/toast';
+import ConfirmationModal from './ConfirmationModal';
 
 interface SampleEntry {
     id: string;
@@ -517,7 +519,7 @@ const getPopupSmellSummary = (entry: any) => {
 
 
 
-export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpdate, showCollectorLoginPair = false }: { detailEntry: SampleEntry, detailMode: 'quick' | 'history' | 'summary' | 'full', onClose: () => void, onUpdate?: (gpsCoordinates?: string) => void | Promise<void>, showCollectorLoginPair?: boolean }) => {
+export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpdate, showCollectorLoginPair = false, progressiveMode = false }: { detailEntry: SampleEntry, detailMode: 'quick' | 'history' | 'summary' | 'full', onClose: () => void, onUpdate?: (gpsCoordinates?: string) => void | Promise<void>, showCollectorLoginPair?: boolean, progressiveMode?: boolean }) => {
     const { user } = useAuth();
     const buildMapHref = (value: any) => {
         const raw = typeof value === 'object' && value !== null
@@ -538,6 +540,105 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
     const [pricingDetail, setPricingDetail] = useState<{ entry: SampleEntry, mode: 'offer' | 'final' } | null>(null);
     const [inspectionsProgress, setInspectionsProgress] = useState<any>(null);
     const [selectedLorryForComparison, setSelectedLorryForComparison] = useState<any>(null);
+
+    const [processingAction, setProcessingAction] = useState(false);
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        type: 'approve' | 'reject' | 'confirm';
+        onConfirm: () => void;
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        type: 'confirm',
+        onConfirm: () => {}
+    });
+
+    const refreshProgressData = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`${API_URL}/sample-entries/${detailEntry.id}/inspection-progress`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setInspectionsProgress(response.data);
+            if (onUpdate) {
+                await onUpdate();
+            }
+        } catch (err) {
+            console.error('Error refreshing progress data:', err);
+        }
+    };
+
+    const handleApproveProgressiveStage = async (entryId: string, inspectionId: string, stageKey: string, stageLabel: string) => {
+        try {
+            setProcessingAction(true);
+            const token = localStorage.getItem('token');
+            await axios.post(
+                `${API_URL}/sample-entries/${entryId}/physical-inspection/${inspectionId}/approve-stage`,
+                { stage: stageKey },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            toast.success(`${stageLabel} Stage Approved successfully!`);
+            await refreshProgressData();
+        } catch (error: any) {
+            console.error('Error approving progressive stage:', error);
+            toast.error(error.response?.data?.error || 'Failed to approve stage');
+        } finally {
+            setProcessingAction(false);
+        }
+    };
+
+    const executeRejectSpecificLorry = async (entryId: string, inspectionId: string, lorryNumber: string) => {
+        try {
+            setProcessingAction(true);
+            const token = localStorage.getItem('token');
+            await axios.delete(
+                `${API_URL}/sample-entries/${entryId}/physical-inspection/${inspectionId}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            toast.success(`Trip for Lorry ${lorryNumber || ''} rejected and removed successfully.`);
+            await refreshProgressData();
+        } catch (error: any) {
+            console.error('Error rejecting specific lorry trip:', error);
+            toast.error(error.response?.data?.error || 'Failed to reject lorry trip');
+        } finally {
+            setProcessingAction(false);
+        }
+    };
+
+    const handleRejectSpecificLorry = (entryId: string, inspectionId: string, lorryNumber: string) => {
+        setConfirmModal({
+            isOpen: true,
+            title: 'Reject Lorry Trip',
+            message: `Are you sure you want to reject and delete the trip for Lorry ${lorryNumber || ''}?`,
+            type: 'reject',
+            onConfirm: async () => {
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                await executeRejectSpecificLorry(entryId, inspectionId, lorryNumber);
+            }
+        });
+    };
+
+    const handleApproveLorryQuality = async (entryId: string) => {
+        try {
+            setProcessingAction(true);
+            const token = localStorage.getItem('token');
+            await axios.post(
+                `${API_URL}/sample-entries/${entryId}/transition`,
+                { toStatus: 'INVENTORY_ENTRY' },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            toast.success('Lorry Loaded Quality Approved! Status moved to Inventory Entry.');
+            await refreshProgressData();
+        } catch (error: any) {
+            console.error('Error approving lorry quality:', error);
+            toast.error(error.response?.data?.error || 'Failed to approve lorry quality');
+        } finally {
+            setProcessingAction(false);
+        }
+    };
 
     useEffect(() => {
         if (detailEntry && detailEntry.id) {
@@ -827,27 +928,45 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                             </tr>
                         </thead>
                         <tbody>
-                            {rows.map((row, i) => (
-                                <tr key={i} style={{
-                                    backgroundColor: i % 2 === 0 ? '#ffffff' : '#f8fafb',
-                                    borderBottom: '1px solid #e9ecef'
-                                }}>
-                                    {row.map((cell: any, j: number) => (
-                                        <td key={j} style={{
-                                            padding: '6px 6px',
-                                            color: '#1e293b',
-                                            fontWeight: j === 0 ? 700 : 500,
-                                            whiteSpace: j === 0 ? 'normal' : 'nowrap',
-                                            fontSize: '11px',
-                                            borderRight: j < row.length - 1 ? '1px solid #f1f5f9' : 'none',
-                                            maxWidth: j === 0 ? '160px' : undefined,
-                                            wordBreak: j === 0 ? 'break-word' : undefined
-                                        }}>
-                                            {cell}
-                                        </td>
-                                    ))}
-                                </tr>
-                             ))}
+                            {rows.map((row, i) => {
+                                if (row && row.type === 'header') {
+                                    return (
+                                        <tr key={i} style={{ backgroundColor: '#e2e8f0', borderBottom: '2px solid #cbd5e1' }}>
+                                            <td colSpan={columns.length} style={{ padding: '8px 12px', fontWeight: '800', color: '#1e293b', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                                {row.content}
+                                            </td>
+                                        </tr>
+                                    );
+                                }
+                                if (row && row.type === 'spacer') {
+                                    return (
+                                        <tr key={i} style={{ height: '12px', backgroundColor: 'transparent' }}>
+                                            <td colSpan={columns.length} style={{ padding: 0, height: '12px', border: 'none' }}></td>
+                                        </tr>
+                                    );
+                                }
+                                return (
+                                    <tr key={i} style={{
+                                        backgroundColor: i % 2 === 0 ? '#ffffff' : '#f8fafb',
+                                        borderBottom: '1px solid #e9ecef'
+                                    }}>
+                                        {row.map((cell: any, j: number) => (
+                                            <td key={j} style={{
+                                                padding: '6px 6px',
+                                                color: '#1e293b',
+                                                fontWeight: j === 0 ? 700 : 500,
+                                                whiteSpace: j === 0 ? 'normal' : 'nowrap',
+                                                fontSize: '11px',
+                                                borderRight: j < row.length - 1 ? '1px solid #f1f5f9' : 'none',
+                                                maxWidth: j === 0 ? '160px' : undefined,
+                                                wordBreak: j === 0 ? 'break-word' : undefined
+                                            }}>
+                                                {cell}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
@@ -859,7 +978,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         const attempts = getQualityAttemptsForEntry(detailEntry);
         const rows = attempts.map((attempt: any, idx: number) => {
             const label = getSamplingLabel(attempt.attemptNo || idx + 1);
-            const reportedAt = attempt.updatedAt || attempt.createdAt;
+            const reportedAt = attempt.reportedAt || attempt.updatedAt || attempt.createdAt;
             
             const formatQ = (raw: any, val: any) => {
                 if (raw !== undefined && raw !== null && raw !== '') return raw;
@@ -892,7 +1011,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             const gVal = String(attempt.grainsCount === undefined || attempt.grainsCount === null ? '' : attempt.grainsCount);
             const grains = gRaw ? `(${gRaw})` : (gVal && gVal !== '0' && gVal !== '0.00' ? `(${gVal})` : '-');
 
-            return [
+            const rowData = [
                 <span style={{ color: '#c2410c' }}>{label} Sample</span>,
                 getCollectorLabel(attempt.reportedBy),
                 formatShortDateTime(reportedAt) || '-',
@@ -912,13 +1031,20 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 <span style={{ fontWeight: 600, color: '#475569' }}>{getQualityAttemptSmellLabel(detailEntry, attempt).toUpperCase()}</span>,
                 formatQ(attempt.paddyWbRaw, attempt.paddyWb)
             ];
+
+            if (progressiveMode) {
+                rowData.push('-');
+            }
+
+            return rowData;
         });
 
-        if (inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections)) {
+        if (progressiveMode && inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections)) {
+            const canApprove = ['admin', 'owner', 'manager'].includes(String(user?.role || '').toLowerCase());
+
             inspectionsProgress.previousInspections.forEach((insp: any, tripIdx: number) => {
                 const stages = insp.samplingStages || {};
-                const full = stages.full_avg;
-
+                
                 const formatQ = (raw: any, val: any) => {
                     if (raw !== undefined && raw !== null && raw !== '') return raw;
                     const s = String(val === undefined || val === null ? '' : val).trim();
@@ -952,9 +1078,137 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     return '-';
                 };
 
-                const makeRow = (labelElement: any, stageObj: any) => {
+                // Add spacer before subsequent trips
+                if (tripIdx > 0) {
+                    rows.push({ type: 'spacer' });
+                }
+
+                // Add header row for the Lorry/Trip
+                rows.push({
+                    type: 'header',
+                    content: `Trip #${tripIdx + 1} - Lorry Number: ${insp.lorryNumber?.toUpperCase() || 'Lorry'}`
+                });
+
+                const getPendingStageOfTrip = (currentInsp: any) => {
+                    const stg = currentInsp.samplingStages || {};
+                    if (stg.lot_avg?.approvalStatus === 'pending') return { key: 'lot_avg', label: 'Lot Avg' };
+                    if (stg.half_lorry?.approvalStatus === 'pending') return { key: 'half_lorry', label: 'Half Lorry' };
+                    if (stg.nit_avg?.approvalStatus === 'pending') return { key: 'nit_avg', label: 'Nit Avg' };
+                    if (stg.full_avg?.approvalStatus === 'pending') return { key: 'full_avg', label: 'Full Lorry' };
+                    return null;
+                };
+
+                const pendingStage = getPendingStageOfTrip(insp);
+
+                const makeRow = (labelElement: any, stageObj: any, stageKey: string) => {
                     if (!stageObj || !stageObj.reportedBy) return null;
                     const reportedAt = stageObj.reportedAt;
+                    
+                    let actionsCell: any = '-';
+                    if (canApprove) {
+                        if (pendingStage && pendingStage.key === stageKey) {
+                            actionsCell = (
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <button
+                                        onClick={() => handleApproveProgressiveStage(detailEntry.id, insp.id, stageKey, pendingStage.label)}
+                                        disabled={processingAction}
+                                        style={{
+                                            background: '#27ae60',
+                                            border: 'none',
+                                            color: '#fff',
+                                            fontWeight: 'bold',
+                                            cursor: 'pointer',
+                                            fontSize: '10px',
+                                            padding: '3px 8px',
+                                            borderRadius: '3px'
+                                        }}
+                                    >
+                                        Approve
+                                    </button>
+                                    <button
+                                        onClick={() => handleRejectSpecificLorry(detailEntry.id, insp.id, insp.lorryNumber)}
+                                        disabled={processingAction}
+                                        style={{
+                                            background: '#dc2626',
+                                            border: 'none',
+                                            color: '#fff',
+                                            fontWeight: 'bold',
+                                            cursor: 'pointer',
+                                            fontSize: '10px',
+                                            padding: '3px 8px',
+                                            borderRadius: '3px'
+                                        }}
+                                    >
+                                        Reject
+                                    </button>
+                                </div>
+                            );
+                        } else if (!pendingStage && (insp.isComplete || stages.full_avg?.approvalStatus === 'approved') && stageKey === 'full_avg') {
+                            actionsCell = (
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <button
+                                        onClick={() => handleApproveLorryQuality(detailEntry.id)}
+                                        disabled={processingAction}
+                                        style={{
+                                            background: '#27ae60',
+                                            border: 'none',
+                                            color: '#fff',
+                                            fontWeight: 'bold',
+                                            cursor: 'pointer',
+                                            fontSize: '10px',
+                                            padding: '3px 8px',
+                                            borderRadius: '3px'
+                                        }}
+                                    >
+                                        Approve Lorry
+                                    </button>
+                                    <button
+                                        onClick={() => handleRejectSpecificLorry(detailEntry.id, insp.id, insp.lorryNumber)}
+                                        disabled={processingAction}
+                                        style={{
+                                            background: '#dc2626',
+                                            border: 'none',
+                                            color: '#fff',
+                                            fontWeight: 'bold',
+                                            cursor: 'pointer',
+                                            fontSize: '10px',
+                                            padding: '3px 8px',
+                                            borderRadius: '3px'
+                                        }}
+                                    >
+                                        Reject
+                                    </button>
+                                </div>
+                            );
+                        } else if (stageObj.approvalStatus === 'approved') {
+                            actionsCell = <span style={{ color: '#27ae60', fontWeight: 'bold', fontSize: '10px' }}>Approved</span>;
+                        } else if (stageObj.approvalStatus === 'rejected') {
+                            actionsCell = <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '10px' }}>Rejected</span>;
+                        } else if (!pendingStage && stageKey === 'full_avg') {
+                            actionsCell = (
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                    <span style={{ color: '#64748b', fontSize: '10px', fontWeight: '600' }}>Awaiting Next</span>
+                                    <button
+                                        onClick={() => handleRejectSpecificLorry(detailEntry.id, insp.id, insp.lorryNumber)}
+                                        disabled={processingAction}
+                                        style={{
+                                            background: '#dc2626',
+                                            border: 'none',
+                                            color: '#fff',
+                                            fontWeight: 'bold',
+                                            cursor: 'pointer',
+                                            fontSize: '10px',
+                                            padding: '3px 8px',
+                                            borderRadius: '3px'
+                                        }}
+                                    >
+                                        Reject
+                                    </button>
+                                </div>
+                            );
+                        }
+                    }
+
                     return [
                         labelElement,
                         getCollectorLabel(stageObj.reportedBy),
@@ -973,29 +1227,41 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         formatQ(stageObj.wbBkRaw, stageObj.wbBk),
                         formatQ(stageObj.wbTRaw, stageObj.wbT),
                         <span style={{ fontWeight: 600, color: '#475569' }}>{stageObj.smellHas ? 'YES' : '-'}</span>,
-                        stageObj.paddyWbEnabled ? formatQ(stageObj.paddyWbRaw, stageObj.paddyWb) : '-'
+                        stageObj.paddyWbEnabled ? formatQ(stageObj.paddyWbRaw, stageObj.paddyWb) : '-',
+                        actionsCell
                     ];
                 };
 
-                const labelElement = (
-                    <span
-                        onClick={() => {
-                            setSelectedLorryForComparison({
-                                lorryNumber: insp.lorryNumber,
-                                previousInspections: [insp],
-                                lotAllotment: detailEntry.lotAllotment,
-                                singleLorryMode: true
-                            });
-                        }}
-                        style={{ color: '#000000', textDecoration: 'underline', cursor: 'pointer', fontWeight: 900 }}
-                        title="Click to view side-by-side stage comparison"
-                    >
-                        {insp.lorryNumber?.toUpperCase() || 'Lorry'}
-                    </span>
-                );
+                const stageKeys = [
+                    { key: 'lot_avg', label: 'Lot Avg' },
+                    { key: 'half_lorry', label: 'Half Lorry' },
+                    { key: 'full_avg', label: 'Full Avg Lorry' },
+                    { key: 'nit_avg', label: 'Nit Avg' }
+                ];
 
-                const fullRow = makeRow(labelElement, full);
-                if (fullRow) rows.push(fullRow);
+                stageKeys.forEach(({ key, label }) => {
+                    const stageObj = stages[key];
+                    if (stageObj && stageObj.reportedBy) {
+                        const labelElement = (
+                            <span
+                                onClick={() => {
+                                    setSelectedLorryForComparison({
+                                        lorryNumber: insp.lorryNumber,
+                                        previousInspections: [insp],
+                                        lotAllotment: detailEntry.lotAllotment,
+                                        singleLorryMode: true
+                                    });
+                                }}
+                                style={{ color: '#000000', textDecoration: 'underline', cursor: 'pointer', fontWeight: 900 }}
+                                title="Click to view side-by-side stage comparison"
+                            >
+                                {label}
+                            </span>
+                        );
+                        const stageRow = makeRow(labelElement, stageObj, key);
+                        if (stageRow) rows.push(stageRow);
+                    }
+                });
             });
         }
 
@@ -1377,8 +1643,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             }
 
             // Add already approved revised HM/LF if they exist and are not shown in approved dispute
-            const hasApprovedRevision = (o.revisedHamali !== undefined && o.revisedHamali !== null && o.revisedHamali !== '')
-                || (o.revisedLf !== undefined && o.revisedLf !== null && o.revisedLf !== '');
+            const hasApprovedRevision = 
+                (o.revisedHamali !== undefined && o.revisedHamali !== null && o.revisedHamali !== '' && Number(o.revisedHamali) !== Number(o.hamali))
+                || (o.revisedLf !== undefined && o.revisedLf !== null && o.revisedLf !== '' && Number(o.revisedLf) !== Number(o.lf));
             const latestApprovedVersion = Array.isArray(o.disputeVersions) && o.disputeVersions.length > 0
                 ? o.disputeVersions[o.disputeVersions.length - 1]
                 : null;
@@ -1688,7 +1955,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                         headers: { Authorization: `Bearer ${token}` }
                                                                     });
                                                                     const entries = response.data.entries || [];
-                                                                    alert(`Found ${entries.length} entries for party "${partyName}"`);
+                                                                    toast.success(`Found ${entries.length} entries for party "${partyName}"`);
                                                                 } catch (err) {
                                                                     console.error('Error fetching party entries:', err);
                                                                 }
@@ -1712,7 +1979,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                             if (matched) {
                                                                                 setSelectedLorryForComparison(matched);
                                                                             } else {
-                                                                                alert(`No multi-stage sampling records found for lorry ${partyDisplay.lorryText}`);
+                                                                                toast.error(`No multi-stage sampling records found for lorry ${partyDisplay.lorryText}`);
                                                                             }
                                                                         }}
                                                                         style={{ color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', fontWeight: '750' }}
@@ -1735,7 +2002,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                     if (matched) {
                                                                         setSelectedLorryForComparison(matched);
                                                                     } else {
-                                                                        alert(`No multi-stage sampling records found for lorry ${partyDisplay.lorryText}`);
+                                                                        toast.error(`No multi-stage sampling records found for lorry ${partyDisplay.lorryText}`);
                                                                     }
                                                                 }}
                                                                 style={{ color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', fontWeight: '750' }}
@@ -1771,7 +2038,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                         headers: { Authorization: `Bearer ${token}` }
                                                                     });
                                                                     const entries = response.data.entries || [];
-                                                                    alert(`Found ${entries.length} entries at location "${locationName}"`);
+                                                                    toast.success(`Found ${entries.length} entries at location "${locationName}"`);
                                                                 } catch (err) {
                                                                     console.error('Error fetching location entries:', err);
                                                                 }
@@ -1873,7 +2140,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         'Quality Parameters', 
                                         '🔬', 
                                         '#f97316', 
-                                        ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS COUNT', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB'],
+                                        progressiveMode 
+                                            ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS COUNT', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'ACTIONS']
+                                            : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS COUNT', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB'],
                                         buildQualityRows(),
                                         { isQuality: true }
                                     )}
@@ -2407,6 +2676,16 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         </div>
                     </div>
                 </div>
+            )}
+            {confirmModal.isOpen && (
+                <ConfirmationModal
+                    isOpen={confirmModal.isOpen}
+                    title={confirmModal.title}
+                    message={confirmModal.message}
+                    type={confirmModal.type}
+                    onConfirm={confirmModal.onConfirm}
+                    onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                />
             )}
         </>
     );

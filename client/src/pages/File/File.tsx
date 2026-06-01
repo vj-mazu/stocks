@@ -439,6 +439,19 @@ const FilePage: React.FC = () => {
   }, [activeTab]);
 
   useEffect(() => {
+    if (activeTab === 'outturn-report' && selectedOutturnId) {
+      // Wait for complete format (DD-MM-YYYY) before fetching if date filter is partial
+      const isDateFromPartial = dateFrom && (dateFrom.length !== 10 || dateFrom.split('-').length !== 3);
+      const isDateToPartial = dateTo && (dateTo.length !== 10 || dateTo.split('-').length !== 3);
+
+      if (!isDateFromPartial && !isDateToPartial) {
+        fetchProductionRecords();
+        fetchByProducts();
+      }
+    }
+  }, [activeTab, dateFrom, dateTo, selectedMonth, selectedOutturnId]);
+
+  useEffect(() => {
     if (activeTab === 'stock') {
       fetchOpeningBalance();
     }
@@ -1153,18 +1166,28 @@ const FilePage: React.FC = () => {
 
   const fetchProductionRecords = async () => {
     try {
+      const params: any = {
+        outturnId: selectedOutturnId
+      };
+
+      if (dateFrom) params.dateFrom = convertDateFormat(dateFrom);
+      if (dateTo) params.dateTo = convertDateFormat(dateTo);
+      if (selectedMonth) params.month = selectedMonth;
+      if (search) params.search = search;
+      if (showAllRecords) params.showAll = true;
+
       // Fetch both production-shifting AND for-production purchases
       const [productionShiftingResponse, forProductionResponse] = await Promise.all([
         axios.get<any>('/records/arrivals', {
           params: {
-            movementType: 'production-shifting',
-            outturnId: selectedOutturnId
+            ...params,
+            movementType: 'production-shifting'
           }
         }),
         axios.get<any>('/records/arrivals', {
           params: {
-            movementType: 'purchase',
-            outturnId: selectedOutturnId
+            ...params,
+            movementType: 'purchase'
           }
         })
       ]);
@@ -1190,7 +1213,29 @@ const FilePage: React.FC = () => {
 
     try {
       const response = await axios.get<any[]>(`/byproducts/outturn/${selectedOutturnId}`);
-      setByProducts(response.data);
+      let data = response.data || [];
+
+      // Apply client-side filters on by-products
+      if (dateFrom || dateTo || selectedMonth) {
+        data = data.filter((bp: any) => {
+          const bpDate = bp.date; // Format YYYY-MM-DD
+          
+          if (dateFrom) {
+            const filterDateFrom = convertDateFormat(dateFrom);
+            if (bpDate < filterDateFrom) return false;
+          }
+          if (dateTo) {
+            const filterDateTo = convertDateFormat(dateTo);
+            if (bpDate > filterDateTo) return false;
+          }
+          if (selectedMonth) {
+            if (!bpDate.startsWith(selectedMonth)) return false;
+          }
+          return true;
+        });
+      }
+
+      setByProducts(data);
     } catch (error) {
       console.error('Error fetching by-products:', error);
     }
@@ -2135,7 +2180,7 @@ const FilePage: React.FC = () => {
 
         <FilterRow>
           {/* Month Selector - Enabled for all tabs including Paddy Stock */}
-          {(activeTab === 'arrivals' || activeTab === 'purchase' || activeTab === 'shifting' || activeTab === 'stock' || activeTab === 'rice-stock' || activeTab === 'rice-outturn-report') && (
+          {(activeTab === 'arrivals' || activeTab === 'purchase' || activeTab === 'shifting' || activeTab === 'stock' || activeTab === 'rice-stock' || activeTab === 'rice-outturn-report' || activeTab === 'outturn-report') && (
             <FormGroup>
               <Label>Month Filter</Label>
               <Select
@@ -2157,7 +2202,7 @@ const FilePage: React.FC = () => {
           )}
 
           {/* Date Range - enabled for all tabs as requested */}
-          {(activeTab === 'arrivals' || activeTab === 'purchase' || activeTab === 'shifting' || activeTab === 'stock' || activeTab === 'rice-stock' || activeTab === 'rice-outturn-report') && (
+          {(activeTab === 'arrivals' || activeTab === 'purchase' || activeTab === 'shifting' || activeTab === 'stock' || activeTab === 'rice-stock' || activeTab === 'rice-outturn-report' || activeTab === 'outturn-report') && (
             <>
               <FormGroup>
                 <Label>Date From</Label>
@@ -2210,7 +2255,7 @@ const FilePage: React.FC = () => {
 
 
           {/* Grouping Selector */}
-          {(activeTab === 'arrivals' || activeTab === 'purchase' || activeTab === 'shifting' || activeTab === 'stock' || activeTab === 'rice-outturn-report') && (
+          {(activeTab === 'arrivals' || activeTab === 'purchase' || activeTab === 'shifting' || activeTab === 'stock' || activeTab === 'rice-outturn-report' || activeTab === 'outturn-report' || activeTab === 'rice-stock') && (
             <FormGroup>
               <Label>Report Grouping</Label>
               <Select
@@ -2246,6 +2291,13 @@ const FilePage: React.FC = () => {
                 setDateTo('');
                 setRiceStockProductType('');
                 setRiceStockLocationCode('');
+                setSearch('');
+              } else if (activeTab === 'outturn-report') {
+                setDateFrom('');
+                setDateTo('');
+                setSearch('');
+                setSelectedMonth('');
+                setShowAllRecords(false);
               } else {
                 setDateFrom('');
                 setDateTo('');

@@ -498,7 +498,7 @@ const PhysicalInspection: React.FC = () => {
       if (field === 'grainsCount') {
         if (cleaned.length > 3) return;
       } else {
-        if (cleaned.length > 5) return;
+        if (cleaned.length > 7) return;
       }
       finalValue = cleaned;
     }
@@ -643,8 +643,9 @@ const PhysicalInspection: React.FC = () => {
     const data = inspectionData[entryId];
     const stageVal = samplingStageData[entryId]?.[stage];
     const progress = inspectionProgress[entryId];
+    const isLorryOptional = stage === 'lot_avg';
 
-    if (!data || !data.lorryNumber) {
+    if (!data || (!data.lorryNumber && !isLorryOptional)) {
       showNotification('Lorry number is required', 'error');
       return;
     }
@@ -681,7 +682,7 @@ const PhysicalInspection: React.FC = () => {
       const token = localStorage.getItem('token');
       const formData = new FormData();
       formData.append('inspectionDate', data.inspectionDate);
-      formData.append('lorryNumber', data.lorryNumber);
+      formData.append('lorryNumber', data.lorryNumber || '');
       formData.append('stage', stage);
       formData.append('moisture', stageVal.moisture || '0');
       formData.append('dryMoisture', stageVal.dryMoisture === 'Y' ? (stageVal.dryMoistureValue || '1') : '0');
@@ -981,11 +982,6 @@ const PhysicalInspection: React.FC = () => {
 
                 return (
                   <React.Fragment key={entry.id}>
-                    {index > 0 && (
-                      <tr style={{ backgroundColor: '#ffd700', height: '14px' }}>
-                        <td colSpan={11} style={{ padding: 0, height: '14px', border: 'none', borderTop: '2px solid #b8860b', borderBottom: '2px solid #b8860b' }} />
-                      </tr>
-                    )}
                     <tr style={{ backgroundColor: index % 2 === 0 ? '#f9f9f9' : 'white', borderBottom: '3px solid #666' }}>
                       <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '10px 12px', fontSize: '13px', textAlign: 'left', color: '#1a1a1a', fontWeight: '600' }}>
                         {index + 1}
@@ -1295,7 +1291,7 @@ const PhysicalInspection: React.FC = () => {
                                 </div>
                                 <div>
                                   <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
-                                    Sampling - Drop Box *
+                                    Sampling *
                                   </label>
                                   <div style={{ display: 'flex', gap: '6px' }}>
                                     <select
@@ -1329,7 +1325,7 @@ const PhysicalInspection: React.FC = () => {
                                         fontSize: '12px'
                                       }}
                                     >
-                                      Add
+                                      Submit
                                     </button>
                                   </div>
                                 </div>
@@ -1373,7 +1369,8 @@ const PhysicalInspection: React.FC = () => {
                               display: 'flex',
                               gap: '20px',
                               flexWrap: 'wrap',
-                              alignItems: 'flex-start'
+                              alignItems: 'flex-start',
+                              justifyContent: 'center'
                             }}>
                               {(activeCards[entry.id] || []).map((stage) => {
                                 const cardData = samplingStageData[entry.id]?.[stage] || {
