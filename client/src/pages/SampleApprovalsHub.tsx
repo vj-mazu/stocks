@@ -438,18 +438,20 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                               const pendingStage = getPendingStage(activeInsp);
                               if (pendingStage) {
                                 return (
-                                  <div style={{ display: 'flex', gap: '12px' }}>
+                                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                     <button
                                       onClick={() => handleApproveProgressiveStage(entry.id, activeInsp.id, pendingStage.key, pendingStage.label)}
                                       disabled={processingLorry}
                                       style={{
-                                        background: 'transparent',
+                                        background: '#27ae60',
                                         border: 'none',
-                                        color: '#27ae60',
+                                        color: '#fff',
                                         fontWeight: 'bold',
                                         cursor: 'pointer',
-                                        padding: '2px 4px',
-                                        fontSize: '13px'
+                                        padding: '5px 12px',
+                                        fontSize: '11px',
+                                        borderRadius: '4px',
+                                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
                                       }}
                                     >
                                       Approve
@@ -458,13 +460,15 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                                       onClick={() => handleRejectSpecificLorry(entry.id, activeInsp.id, activeInsp.lorryNumber)}
                                       disabled={processingLorry}
                                       style={{
-                                        background: 'transparent',
+                                        background: '#dc2626',
                                         border: 'none',
-                                        color: '#dc2626',
+                                        color: '#fff',
                                         fontWeight: 'bold',
                                         cursor: 'pointer',
-                                        padding: '2px 4px',
-                                        fontSize: '13px'
+                                        padding: '5px 12px',
+                                        fontSize: '11px',
+                                        borderRadius: '4px',
+                                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
                                       }}
                                     >
                                       Reject
@@ -476,18 +480,20 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                               const stages = activeInsp.samplingStages || {};
                               if (activeInsp.isComplete || stages.full_avg?.approvalStatus === 'approved') {
                                 return (
-                                  <div style={{ display: 'flex', gap: '12px' }}>
+                                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                     <button
                                       onClick={() => handleApproveLorryQuality(entry.id)}
                                       disabled={processingLorry}
                                       style={{
-                                        background: 'transparent',
+                                        background: '#27ae60',
                                         border: 'none',
-                                        color: '#27ae60',
+                                        color: '#fff',
                                         fontWeight: 'bold',
                                         cursor: 'pointer',
-                                        padding: '2px 4px',
-                                        fontSize: '13px'
+                                        padding: '5px 12px',
+                                        fontSize: '11px',
+                                        borderRadius: '4px',
+                                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
                                       }}
                                     >
                                       Approve
@@ -496,13 +502,15 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                                       onClick={() => handleRejectSpecificLorry(entry.id, activeInsp.id, activeInsp.lorryNumber)}
                                       disabled={processingLorry}
                                       style={{
-                                        background: 'transparent',
+                                        background: '#dc2626',
                                         border: 'none',
-                                        color: '#dc2626',
+                                        color: '#fff',
                                         fontWeight: 'bold',
                                         cursor: 'pointer',
-                                        padding: '2px 4px',
-                                        fontSize: '13px'
+                                        padding: '5px 12px',
+                                        fontSize: '11px',
+                                        borderRadius: '4px',
+                                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
                                       }}
                                     >
                                       Reject
@@ -512,19 +520,31 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                               }
                               
                               return (
-                                <div style={{ display: 'flex', gap: '12px' }}>
-                                  <span style={{ color: '#94a3b8', fontSize: '12px', fontWeight: 'bold' }}>Awaiting Next Stage</span>
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                  <span style={{
+                                    color: '#64748b',
+                                    backgroundColor: '#f1f5f9',
+                                    padding: '4px 8px',
+                                    borderRadius: '4px',
+                                    fontSize: '11px',
+                                    fontWeight: 'bold',
+                                    border: '1px solid #cbd5e1'
+                                  }}>
+                                    Awaiting Next Stage
+                                  </span>
                                   <button
                                     onClick={() => handleRejectSpecificLorry(entry.id, activeInsp.id, activeInsp.lorryNumber)}
                                     disabled={processingLorry}
                                     style={{
-                                      background: 'transparent',
+                                      background: '#dc2626',
                                       border: 'none',
-                                      color: '#dc2626',
+                                      color: '#fff',
                                       fontWeight: 'bold',
                                       cursor: 'pointer',
-                                      padding: '2px 4px',
-                                      fontSize: '13px'
+                                      padding: '5px 12px',
+                                      fontSize: '11px',
+                                      borderRadius: '4px',
+                                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
                                     }}
                                   >
                                     Reject
