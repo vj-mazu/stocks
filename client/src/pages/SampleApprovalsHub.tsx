@@ -281,23 +281,32 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     
     const pendingStage = getPendingStage(activeInsp);
     if (pendingStage) {
-      if (pendingStage.key === 'lot_avg') return 'Avg Sampling';
-      if (pendingStage.key === 'half_lorry') return 'Half Lorry Sampling';
-      if (pendingStage.key === 'full_avg') return 'Full Lorry Sampling';
-      if (pendingStage.key === 'nit_avg') return 'Nit Avg Sampling';
-      return `${pendingStage.label} Sampling`;
+      if (pendingStage.key === 'lot_avg') return 'Lot Avg Sampling (Pending Approval)';
+      if (pendingStage.key === 'half_lorry') return 'Half Lorry Sampling (Pending Approval)';
+      if (pendingStage.key === 'full_avg') return 'Full Lorry Sampling (Pending Approval)';
+      if (pendingStage.key === 'nit_avg') return 'Nit Avg Sampling (Pending Approval)';
+      return `${pendingStage.label} Sampling (Pending Approval)`;
     }
     
     const stages = activeInsp.samplingStages || {};
-    if (stages.full_avg?.approvalStatus === 'approved') return 'Full Lorry Sampling';
-    if (stages.nit_avg?.approvalStatus === 'approved') return 'Nit Avg Sampling';
-    if (stages.half_lorry?.approvalStatus === 'approved') return 'Half Lorry Sampling';
-    if (stages.lot_avg?.approvalStatus === 'approved') return 'Avg Sampling';
     
-    if (stages.full_avg?.reportedBy) return 'Full Lorry Sampling';
-    if (stages.nit_avg?.reportedBy) return 'Nit Avg Sampling';
-    if (stages.half_lorry?.reportedBy) return 'Half Lorry Sampling';
-    if (stages.lot_avg?.reportedBy) return 'Avg Sampling';
+    if (!stages.lot_avg || !stages.lot_avg.reportedBy) {
+      return 'Lot Avg Sampling (Pending)';
+    }
+    if (stages.lot_avg.approvalStatus === 'approved' && (!stages.half_lorry || !stages.half_lorry.reportedBy)) {
+      return 'Half Lorry Sampling (Pending)';
+    }
+    if (stages.half_lorry?.approvalStatus === 'approved' && (!stages.full_avg || !stages.full_avg.reportedBy)) {
+      return 'Full Lorry Sampling (Pending)';
+    }
+    if (stages.full_avg?.approvalStatus === 'approved' && (!stages.nit_avg || !stages.nit_avg.reportedBy)) {
+      return 'Nit Avg Sampling (Pending)';
+    }
+    
+    if (stages.full_avg?.approvalStatus === 'approved') return 'Full Lorry Sampling (Approved)';
+    if (stages.nit_avg?.approvalStatus === 'approved') return 'Nit Avg Sampling (Approved)';
+    if (stages.half_lorry?.approvalStatus === 'approved') return 'Half Lorry Sampling (Approved)';
+    if (stages.lot_avg?.approvalStatus === 'approved') return 'Lot Avg Sampling (Approved)';
     
     return 'Pending';
   };
