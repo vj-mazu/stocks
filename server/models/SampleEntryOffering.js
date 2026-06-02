@@ -383,7 +383,22 @@ const SampleEntryOffering = sequelize.define('SampleEntryOffering', {
     underscored: true,
     indexes: [
         { fields: ['sample_entry_id'] },
-        { fields: ['is_finalized'] }
+        { fields: ['is_finalized'] },
+        {
+            name: 'sample_entry_offerings_dispute_versions_gin',
+            using: 'gin',
+            fields: ['dispute_versions']
+        },
+        {
+            name: 'sample_entry_offerings_pending_mgr_queue_gin',
+            using: 'gin',
+            fields: ['pending_manager_value_approval_queue']
+        },
+        {
+            name: 'sample_entry_offerings_pending_mgr_data_gin',
+            using: 'gin',
+            fields: ['pending_manager_value_approval_data']
+        }
     ]
 });
 

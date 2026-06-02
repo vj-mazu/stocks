@@ -111,7 +111,12 @@ const PhysicalInspection = sequelize.define('PhysicalInspection', {
     { fields: ['reported_by_user_id'] },
     { fields: ['inspection_date'] },
     { fields: ['lorry_number'] },
-    { fields: ['sample_entry_id', 'is_complete'] }
+    { fields: ['sample_entry_id', 'is_complete'] },
+    {
+      name: 'physical_inspections_sampling_stages_gin',
+      using: 'gin',
+      fields: ['sampling_stages']
+    }
   ]
 });
 

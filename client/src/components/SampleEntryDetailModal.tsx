@@ -223,7 +223,7 @@ const getPartyDisplayParts = (entry: SampleEntry) => {
     return {
         label: cleanPartyName || lorryText || '-',
         lorryText,
-        showLorrySecondLine: !!lorryText && cleanPartyName.toUpperCase() !== lorryText
+        showLorrySecondLine: !!cleanPartyName && !!lorryText && cleanPartyName.toUpperCase() !== lorryText
     };
 };
 const toNumberText = (value: any, digits = 2) => {
@@ -900,7 +900,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         <span style={{ fontSize: '15px' }}>{icon}</span>
                         <span style={{ color: 'white', fontSize: '14px', fontWeight: 700, letterSpacing: '0.4px', fontStyle: 'italic' }}>{title}</span>
                     </div>
-                    {options.isQuality && detailEntry.lorryNumber && (
+                    {options.isQuality && detailEntry.lorryNumber && getPartyDisplayParts(detailEntry).label !== detailEntry.lorryNumber.toUpperCase() && (
                         <span style={{ color: 'white', fontSize: '14px', fontWeight: 900, letterSpacing: '1px' }}>
                             {detailEntry.lorryNumber.toUpperCase()}
                         </span>
