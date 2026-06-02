@@ -131,8 +131,9 @@ const PhysicalInspection: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'paddy' | 'rice'>('paddy');
   const [selectedLorryForComparison, setSelectedLorryForComparison] = useState<any>(null);
   const [detailModalEntry, setDetailModalEntry] = useState<any>(null);
-  const [expandedEntries, setExpandedEntries] = useState<{ [key: string]: boolean }>({});
 
+
+  const [expandedEntries, setExpandedEntries] = useState<{ [key: string]: boolean }>({});
   const toggleExpand = (entryId: string) => {
     setExpandedEntries(prev => ({
       ...prev,
@@ -1044,10 +1045,16 @@ const PhysicalInspection: React.FC = () => {
 
   const filteredEntries = entries.filter(entry => {
     if (activeTab === 'paddy') {
-      return entry.entryType !== 'RICE_SAMPLE';
+      if (entry.entryType === 'RICE_SAMPLE') return false;
     } else {
-      return entry.entryType === 'RICE_SAMPLE';
+      if (entry.entryType !== 'RICE_SAMPLE') return false;
     }
+    // Hide completed/closed lots
+    const isClosed = !!entry.lotAllotment?.closedAt;
+    const progress = inspectionProgress[entry.id];
+    const isComplete = progress ? progress.progressPercentage >= 100 : false;
+    if (isClosed || isComplete) return false;
+    return true;
   });
 
   return (
@@ -1057,40 +1064,44 @@ const PhysicalInspection: React.FC = () => {
         display: 'flex',
         gap: '10px',
         marginBottom: '10px',
-        borderBottom: '2px solid #e0e0e0'
+        borderBottom: '2px solid #e0e0e0',
+        alignItems: 'center',
+        justifyContent: 'space-between'
       }}>
-        <button
-          onClick={() => setActiveTab('paddy')}
-          style={{
-            padding: '10px 20px',
-            fontSize: '14px',
-            fontWeight: '600',
-            border: 'none',
-            borderBottom: activeTab === 'paddy' ? '3px solid #4a90e2' : '3px solid transparent',
-            backgroundColor: 'transparent',
-            color: activeTab === 'paddy' ? '#4a90e2' : '#666',
-            cursor: 'pointer',
-            transition: 'all 0.3s ease'
-          }}
-        >
-          Paddy Loading
-        </button>
-        <button
-          onClick={() => setActiveTab('rice')}
-          style={{
-            padding: '10px 20px',
-            fontSize: '14px',
-            fontWeight: '600',
-            border: 'none',
-            borderBottom: activeTab === 'rice' ? '3px solid #4a90e2' : '3px solid transparent',
-            backgroundColor: 'transparent',
-            color: activeTab === 'rice' ? '#4a90e2' : '#666',
-            cursor: 'pointer',
-            transition: 'all 0.3s ease'
-          }}
-        >
-          Rice Loading
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            onClick={() => setActiveTab('paddy')}
+            style={{
+              padding: '10px 20px',
+              fontSize: '14px',
+              fontWeight: '600',
+              border: 'none',
+              borderBottom: activeTab === 'paddy' ? '3px solid #4a90e2' : '3px solid transparent',
+              backgroundColor: 'transparent',
+              color: activeTab === 'paddy' ? '#4a90e2' : '#666',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            Paddy Loading
+          </button>
+          <button
+            onClick={() => setActiveTab('rice')}
+            style={{
+              padding: '10px 20px',
+              fontSize: '14px',
+              fontWeight: '600',
+              border: 'none',
+              borderBottom: activeTab === 'rice' ? '3px solid #4a90e2' : '3px solid transparent',
+              backgroundColor: 'transparent',
+              color: activeTab === 'rice' ? '#4a90e2' : '#666',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            Rice Loading
+          </button>
+        </div>
       </div>
 
       <div style={{
@@ -1190,6 +1201,26 @@ const PhysicalInspection: React.FC = () => {
                               {entry.lotAllotment?.closedAt ? 'Closed' : `${progressPercentage.toFixed(0)}%`}
                             </span>
                           </div>
+                          {progress?.previousInspections && progress.previousInspections.length > 0 && (
+                            <button
+                              onClick={() => toggleExpand(entry.id)}
+                              style={{
+                                fontSize: '10px',
+                                padding: '3px 6px',
+                                marginTop: '4px',
+                                backgroundColor: 'transparent',
+                                color: '#4a90e2',
+                                border: '1px solid #4a90e2',
+                                borderRadius: '3px',
+                                cursor: 'pointer',
+                                display: 'block',
+                                width: '100%',
+                                fontWeight: '600'
+                              }}
+                            >
+                              {expandedEntries[entry.id] ? '▲ Hide Details' : `▼ ${progress.previousInspections.length} Trip(s)`}
+                            </button>
+                          )}
                         </div>
                       </td>
                       <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '6px', textAlign: 'left' }}>
@@ -1211,8 +1242,102 @@ const PhysicalInspection: React.FC = () => {
                         </button>
                       </td>
                     </tr>
+                    {expandedEntries[entry.id] && progress?.previousInspections && progress.previousInspections.length > 0 && (
+                      <tr>
+                        <td colSpan={11} style={{ padding: '12px', backgroundColor: '#fdf6f0', border: '1px solid #666', borderBottom: '3px solid #666' }}>
+                          <div style={{ fontSize: '13px', fontWeight: '800', marginBottom: '8px', color: '#1a237e', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>📋 Inspection Trips ({progress.previousInspections.length}) — {progress.inspectedBags} of {progress.totalBags} bags inspected</span>
+                          </div>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', border: '1px solid #000', backgroundColor: '#ffffff' }}>
+                            <thead>
+                              <tr style={{ backgroundColor: '#f5f5f5', color: '#000', borderBottom: '1px solid #000' }}>
+                                <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '4%' }}>#</th>
+                                <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '9%' }}>Date</th>
+                                <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'left', width: '12%' }}>Lorry No</th>
+                                <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Bags</th>
+                                <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Moisture</th>
+                                <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Cutting</th>
+                                <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Bend</th>
+                                <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'left', width: '10%' }}>By</th>
+                                <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Status</th>
+                                <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '9%' }}>Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {progress.previousInspections.map((inspection, idx) => {
+                                const stages = inspection.samplingStages || {};
+                                const latestStage = stages.full_avg?.reportedBy ? stages.full_avg : (stages.half_lorry?.reportedBy ? stages.half_lorry : (stages.lot_avg?.reportedBy ? stages.lot_avg : null));
+                                
+                                const moistureVal = latestStage ? (latestStage.moistureRaw ? `${latestStage.moistureRaw}%` : (latestStage.moisture !== undefined && latestStage.moisture !== null ? `${latestStage.moisture}%` : '-')) : '-';
+                                const cuttingVal = latestStage ? (latestStage.cutting1 !== undefined && latestStage.cutting1 !== null ? `${latestStage.cutting1}×${latestStage.cutting2 || 0}` : '-') : '-';
+                                const bendVal = latestStage ? (latestStage.bend1 !== undefined && latestStage.bend1 !== null ? `${latestStage.bend1}×${latestStage.bend2 || 0}` : '-') : '-';
+                                const o = (entry as any).offering || {};
+
+                                return (
+                                  <tr key={inspection.id} style={{ borderBottom: '1px solid #000' }}>
+                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{idx + 1}</td>
+                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
+                                      {new Date(inspection.inspectionDate).toLocaleDateString('en-GB')}
+                                    </td>
+                                    <td style={{ border: '1px solid #000', padding: '6px', fontWeight: '700' }}>
+                                      <span
+                                        onClick={() => setSelectedLorryForComparison({ lorryNumber: inspection.lorryNumber, previousInspections: [inspection], lotAllotment: entry.lotAllotment, singleLorryMode: true })}
+                                        style={{ color: '#1565c0', textDecoration: 'underline', cursor: 'pointer' }}
+                                      >
+                                        {inspection.lorryNumber?.toUpperCase()}
+                                      </span>
+                                    </td>
+                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{inspection.bags || '-'}</td>
+                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600', color: '#d05d00' }}>{moistureVal}</td>
+                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{cuttingVal}</td>
+                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{bendVal}</td>
+                                    <td style={{ border: '1px solid #000', padding: '6px' }}>{inspection.reportedBy?.username || '-'}</td>
+                                    <td style={{ 
+                                      border: '1px solid #000', 
+                                      padding: '6px', 
+                                      textAlign: 'center', 
+                                      fontWeight: '700', 
+                                      color: (() => {
+                                        if (stages.full_avg?.approvalStatus === 'approved') return '#2e7d32'; // Pass
+                                        if (stages.full_avg?.approvalStatus === 'pending') return '#f39c12'; // Pending
+                                        if (stages.nit_avg?.approvalStatus === 'approved') return '#1565c0'; // Approved stage
+                                        if (stages.nit_avg?.approvalStatus === 'pending') return '#f39c12'; // Pending
+                                        if (stages.half_lorry?.approvalStatus === 'approved') return '#1565c0'; // Approved stage
+                                        if (stages.half_lorry?.approvalStatus === 'pending') return '#f39c12'; // Pending
+                                        if (stages.lot_avg?.approvalStatus === 'approved') return '#1565c0'; // Approved stage
+                                        if (stages.lot_avg?.approvalStatus === 'pending') return '#f39c12'; // Pending
+                                        if (stages.balanced_lot?.approvalStatus === 'approved') return '#1565c0'; // Approved stage
+                                        if (stages.balanced_lot?.approvalStatus === 'pending') return '#f39c12'; // Pending
+                                        return '#64748b';
+                                      })()
+                                    }}>
+                                      {(() => {
+                                        if (stages.full_avg?.approvalStatus === 'approved') return 'Pass';
+                                        if (stages.full_avg?.approvalStatus === 'pending') return 'Pending: Full Lorry';
+                                        if (stages.nit_avg?.approvalStatus === 'approved') return 'Approved: Nit Avg';
+                                        if (stages.nit_avg?.approvalStatus === 'pending') return 'Pending: Nit Avg';
+                                        if (stages.half_lorry?.approvalStatus === 'approved') return 'Approved: Half Lorry';
+                                        if (stages.half_lorry?.approvalStatus === 'pending') return 'Pending: Half Lorry';
+                                        if (stages.lot_avg?.approvalStatus === 'approved') return 'Approved: Lot Avg';
+                                        if (stages.lot_avg?.approvalStatus === 'pending') return 'Pending: Lot Avg';
+                                        if (stages.balanced_lot?.approvalStatus === 'approved') return 'Approved: Balanced Lot';
+                                        if (stages.balanced_lot?.approvalStatus === 'pending') return 'Pending: Balanced Lot';
+                                        return 'Pending';
+                                      })()}
+                                    </td>
+                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '500', color: '#1a1a1a' }}>
+                                      {o.finalBaseRate ? `Rs ${o.finalBaseRate}` : 'Pending'}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+                    )}
                     {/* Inspection form */}
-                    {false && selectedEntry === entry.id && (
+                    {selectedEntry === entry.id && (
                       <tr id={`lorry-loading-panel-${entry.id}`}>
                         <td colSpan={11} style={{ padding: '15px', backgroundColor: '#fafafa', border: '1px solid #999' }}>
                           <div style={{
