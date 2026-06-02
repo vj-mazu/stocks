@@ -109,9 +109,27 @@ class PhysicalInspectionService {
 
       // Check if there is an existing record for this lorry
       let inspection = null;
-      const existingLorryInspection = existingInspections.find(
+      let existingLorryInspection = existingInspections.find(
         i => (i.lorryNumber || '').trim().toUpperCase() === lorryNumberClean
       );
+
+      // If we don't find it under the new lorry number, check if there's a LOT_AVG record that we can rename/resume.
+      // This happens when the lorry number wasn't added during the lot_avg stage, but is now being added during the half_lorry stage.
+      if (!existingLorryInspection && lorryNumberClean !== 'LOT_AVG') {
+        const lotAvgInspection = existingInspections.find(
+          i => (i.lorryNumber || '').trim().toUpperCase() === 'LOT_AVG'
+        );
+        if (lotAvgInspection) {
+          const PhysicalInspection = require('../models/PhysicalInspection');
+          const dbInspection = await PhysicalInspection.findByPk(lotAvgInspection.id);
+          if (dbInspection) {
+            await dbInspection.update({ lorryNumber: lorryNumberClean });
+            // Update the local object in existingInspections array as well
+            lotAvgInspection.lorryNumber = lorryNumberClean;
+            existingLorryInspection = lotAvgInspection;
+          }
+        }
+      }
 
       const stageData = {
         inspectionDate: inspectionData.inspectionDate || new Date().toISOString().split('T')[0],
@@ -374,7 +392,7 @@ class PhysicalInspectionService {
       const remainingBags = totalBags - inspectedBags;
       const progressPercentage = totalBags > 0 ? (inspectedBags / totalBags) * 100 : 0;
 
-      const previousInspections = inspections.map(inspection => ({
+      let previousInspections = inspections.map(inspection => ({
         id: inspection.id,
         inspectionDate: inspection.inspectionDate,
         lorryNumber: inspection.lorryNumber,
@@ -384,9 +402,28 @@ class PhysicalInspectionService {
         bend: inspection.bend,
         bend2: inspection.bend2,
         reportedBy: inspection.reportedBy,
-        samplingStages: inspection.samplingStages,
+        samplingStages: inspection.samplingStages || {},
         lotAllotment: inspection.lotAllotment
       }));
+
+      // Merge LOT_AVG trip with actual lorry trip on the fly for legacy data
+      if (previousInspections.length > 1) {
+        const lotAvgIdx = previousInspections.findIndex(i => (i.lorryNumber || '').trim().toUpperCase() === 'LOT_AVG');
+        if (lotAvgIdx !== -1) {
+          const realLorryInsp = previousInspections.find(i => (i.lorryNumber || '').trim().toUpperCase() !== 'LOT_AVG');
+          if (realLorryInsp) {
+            const lotAvgInsp = previousInspections[lotAvgIdx];
+            if (lotAvgInsp.samplingStages && lotAvgInsp.samplingStages.lot_avg) {
+              if (!realLorryInsp.samplingStages) realLorryInsp.samplingStages = {};
+              if (!realLorryInsp.samplingStages.lot_avg) {
+                realLorryInsp.samplingStages.lot_avg = lotAvgInsp.samplingStages.lot_avg;
+              }
+            }
+            // Exclude the separate LOT_AVG record
+            previousInspections = previousInspections.filter((_, idx) => idx !== lotAvgIdx);
+          }
+        }
+      }
 
       return {
         totalBags,

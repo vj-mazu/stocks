@@ -382,18 +382,38 @@ const PhysicalInspection: React.FC = () => {
           inspectedBags,
           remainingBags,
           progressPercentage,
-          previousInspections: inspections.map(inspection => ({
-            id: inspection.id,
-            inspectionDate: inspection.inspectionDate,
-            lorryNumber: inspection.lorryNumber,
-            bags: inspection.bags,
-            cutting1: inspection.cutting1,
-            cutting2: inspection.cutting2,
-            bend: inspection.bend,
-            bend2: (inspection as any).bend2,
-            samplingStages: (inspection as any).samplingStages,
-            reportedBy: inspection.reportedBy || { username: 'System' }
-          }))
+          previousInspections: (() => {
+            let mapped = inspections.map(inspection => ({
+              id: inspection.id,
+              inspectionDate: inspection.inspectionDate,
+              lorryNumber: inspection.lorryNumber,
+              bags: inspection.bags,
+              cutting1: inspection.cutting1,
+              cutting2: inspection.cutting2,
+              bend: inspection.bend,
+              bend2: (inspection as any).bend2,
+              samplingStages: (inspection as any).samplingStages || {},
+              reportedBy: inspection.reportedBy || { username: 'System' }
+            }));
+
+            if (mapped.length > 1) {
+              const lotAvgIdx = mapped.findIndex(i => (i.lorryNumber || '').trim().toUpperCase() === 'LOT_AVG');
+              if (lotAvgIdx !== -1) {
+                const realLorryInsp = mapped.find(i => (i.lorryNumber || '').trim().toUpperCase() !== 'LOT_AVG');
+                if (realLorryInsp) {
+                  const lotAvgInsp = mapped[lotAvgIdx];
+                  if (lotAvgInsp.samplingStages && lotAvgInsp.samplingStages.lot_avg) {
+                    if (!realLorryInsp.samplingStages) realLorryInsp.samplingStages = {};
+                    if (!realLorryInsp.samplingStages.lot_avg) {
+                      realLorryInsp.samplingStages.lot_avg = lotAvgInsp.samplingStages.lot_avg;
+                    }
+                  }
+                  mapped = mapped.filter((_, idx) => idx !== lotAvgIdx);
+                }
+              }
+            }
+            return mapped;
+          })()
         };
       });
       setInspectionProgress(progressCache);
@@ -582,6 +602,22 @@ const PhysicalInspection: React.FC = () => {
     }
   };
 
+  const isStageApprovedForLot = (entryId: string, stageKey: string) => {
+    if (samplingStageData[entryId]?.[stageKey]?.isLocked && samplingStageData[entryId]?.[stageKey]?.approvalStatus === 'approved') {
+      return true;
+    }
+    const prevInsps = inspectionProgress[entryId]?.previousInspections || [];
+    return prevInsps.some(insp => insp.samplingStages?.[stageKey]?.approvalStatus === 'approved');
+  };
+
+  const isStageLockedForLot = (entryId: string, stageKey: string) => {
+    if (samplingStageData[entryId]?.[stageKey]?.isLocked) {
+      return true;
+    }
+    const prevInsps = inspectionProgress[entryId]?.previousInspections || [];
+    return prevInsps.some(insp => insp.samplingStages?.[stageKey]);
+  };
+
   const handleAddStage = (entryId: string) => {
     const stage = selectedStage[entryId];
     if (!stage) {
@@ -595,12 +631,29 @@ const PhysicalInspection: React.FC = () => {
       return;
     }
 
-    if (samplingStageData[entryId]?.[stage]) {
-      showNotification('This stage has already been added/saved for this lorry', 'error');
+    if (isStageLockedForLot(entryId, stage)) {
+      showNotification('This stage has already been added/saved for this lot', 'error');
       return;
     }
 
-
+    if (stage === 'half_lorry') {
+      if (!isStageApprovedForLot(entryId, 'lot_avg')) {
+        showNotification('Cannot add Half Lorry stage until Lot Avg is saved and approved by Manager', 'error');
+        return;
+      }
+    }
+    if (stage === 'full_avg') {
+      if (!isStageApprovedForLot(entryId, 'half_lorry')) {
+        showNotification('Cannot add Full Avg stage until Half Lorry is saved and approved by Manager', 'error');
+        return;
+      }
+    }
+    if (stage === 'nit_avg') {
+      if (!isStageApprovedForLot(entryId, 'full_avg')) {
+        showNotification('Cannot add Nit Avg stage until Full Avg is saved and approved by Manager', 'error');
+        return;
+      }
+    }
 
     setSamplingStageData(prev => ({
       ...prev,
@@ -645,7 +698,12 @@ const PhysicalInspection: React.FC = () => {
     const progress = inspectionProgress[entryId];
     const isLorryOptional = stage === 'lot_avg';
 
-    if (!data || (!data.lorryNumber && !isLorryOptional)) {
+    let lorryNum = (data?.lorryNumber || '').trim().toUpperCase();
+    if (!lorryNum && isLorryOptional) {
+      lorryNum = 'LOT_AVG';
+    }
+
+    if (!lorryNum) {
       showNotification('Lorry number is required', 'error');
       return;
     }
@@ -668,7 +726,7 @@ const PhysicalInspection: React.FC = () => {
     if (stage === 'full_avg' && progress) {
       const actualBags = Number(stageVal.actualBags);
       const totalInspected = progress.previousInspections
-        .filter(i => (i.lorryNumber || '').trim().toUpperCase() !== data.lorryNumber.trim().toUpperCase())
+        .filter(i => (i.lorryNumber || '').trim().toUpperCase() !== lorryNum)
         .reduce((sum, i) => sum + (i.bags || 0), 0);
       const remainingBags = progress.totalBags - totalInspected;
 
@@ -682,7 +740,7 @@ const PhysicalInspection: React.FC = () => {
       const token = localStorage.getItem('token');
       const formData = new FormData();
       formData.append('inspectionDate', data.inspectionDate);
-      formData.append('lorryNumber', data.lorryNumber || '');
+      formData.append('lorryNumber', lorryNum);
       formData.append('stage', stage);
       formData.append('moisture', stageVal.moisture || '0');
       formData.append('dryMoisture', stageVal.dryMoisture === 'Y' ? (stageVal.dryMoistureValue || '1') : '0');
@@ -737,6 +795,12 @@ const PhysicalInspection: React.FC = () => {
             isLocked: true
           }
         }
+      }));
+
+      // Automatically close active card and return to details modal
+      setActiveCards(prev => ({
+        ...prev,
+        [entryId]: (prev[entryId] || []).filter(k => k !== stage)
       }));
 
       await loadEntries();
@@ -1109,12 +1173,56 @@ const PhysicalInspection: React.FC = () => {
                             <tbody>
                               {progress.previousInspections.map((inspection, idx) => {
                                 const stages = inspection.samplingStages || {};
-                                // Find latest available stage
-                                const latestStage = stages.full_avg?.reportedBy ? stages.full_avg : (stages.half_lorry?.reportedBy ? stages.half_lorry : (stages.lot_avg?.reportedBy ? stages.lot_avg : null));
+                                // Find latest available stage (including nit_avg)
+                                const latestStage = stages.nit_avg?.reportedBy 
+                                  ? stages.nit_avg 
+                                  : (stages.full_avg?.reportedBy 
+                                      ? stages.full_avg 
+                                      : (stages.half_lorry?.reportedBy 
+                                          ? stages.half_lorry 
+                                          : (stages.lot_avg?.reportedBy ? stages.lot_avg : null)));
                                 
                                 const moistureVal = latestStage ? (latestStage.moistureRaw ? `${latestStage.moistureRaw}%` : (latestStage.moisture !== undefined && latestStage.moisture !== null ? `${latestStage.moisture}%` : '-')) : '-';
                                 const cuttingVal = latestStage ? (latestStage.cutting1 !== undefined && latestStage.cutting1 !== null ? `${latestStage.cutting1}×${latestStage.cutting2 || 0}` : '-') : '-';
                                 const bendVal = latestStage ? (latestStage.bend1 !== undefined && latestStage.bend1 !== null ? `${latestStage.bend1}×${latestStage.bend2 || 0}` : '-') : '-';
+
+                                // Determine individual trip status
+                                const tripStatus = latestStage?.approvalStatus || 'pending';
+                                let statusText = 'Pending';
+                                if (tripStatus === 'approved') {
+                                  if (stages.nit_avg?.reportedBy && stages.nit_avg.approvalStatus === 'approved') {
+                                    statusText = 'Pass';
+                                  } else if (stages.full_avg?.reportedBy && stages.full_avg.approvalStatus === 'approved') {
+                                    statusText = 'Pass';
+                                  } else if (stages.half_lorry?.reportedBy && stages.half_lorry.approvalStatus === 'approved') {
+                                    statusText = 'Pass (Half Lorry)';
+                                  } else {
+                                    statusText = 'Pass (Lot Avg)';
+                                  }
+                                } else if (tripStatus === 'rejected') {
+                                  if (stages.nit_avg?.reportedBy && stages.nit_avg.approvalStatus === 'rejected') {
+                                    statusText = 'Fail (Nit Avg)';
+                                  } else if (stages.full_avg?.reportedBy && stages.full_avg.approvalStatus === 'rejected') {
+                                    statusText = 'Fail (Full Lorry)';
+                                  } else if (stages.half_lorry?.reportedBy && stages.half_lorry.approvalStatus === 'rejected') {
+                                    statusText = 'Fail (Half Lorry)';
+                                  } else {
+                                    statusText = 'Fail (Lot Avg)';
+                                  }
+                                } else {
+                                  if (stages.nit_avg?.reportedBy && stages.nit_avg.approvalStatus === 'pending') {
+                                    statusText = 'Pending (Nit Avg)';
+                                  } else if (stages.full_avg?.reportedBy && stages.full_avg.approvalStatus === 'pending') {
+                                    statusText = 'Pending (Full Lorry)';
+                                  } else if (stages.half_lorry?.reportedBy && stages.half_lorry.approvalStatus === 'pending') {
+                                    statusText = 'Pending (Half Lorry)';
+                                  } else if (stages.lot_avg?.reportedBy && stages.lot_avg.approvalStatus === 'pending') {
+                                    statusText = 'Pending (Lot Avg)';
+                                  } else {
+                                    statusText = 'Pending';
+                                  }
+                                }
+                                const statusColor = tripStatus === 'approved' ? '#2e7d32' : (tripStatus === 'rejected' ? '#d32f2f' : '#f39c12');
 
                                 return (
                                   <tr key={inspection.id} style={{ borderBottom: '1px solid #000' }}>
@@ -1135,8 +1243,8 @@ const PhysicalInspection: React.FC = () => {
                                     <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{cuttingVal}</td>
                                     <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{bendVal}</td>
                                     <td style={{ border: '1px solid #000', padding: '6px' }}>{inspection.reportedBy?.username || '-'}</td>
-                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700', color: entry.lotSelectionDecision === 'FAIL' ? '#d32f2f' : (entry.lotSelectionDecision?.startsWith('PASS') ? '#2e7d32' : '#f39c12') }}>
-                                      {entry.lotSelectionDecision ? (entry.lotSelectionDecision.toUpperCase().startsWith('PASS') ? 'Pass' : 'Fail') : 'Pending'}
+                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700', color: statusColor }}>
+                                      {statusText}
                                     </td>
                                     <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
                                       <button
@@ -1165,7 +1273,7 @@ const PhysicalInspection: React.FC = () => {
                     )}
 
                     {/* Inspection form */}
-                    {selectedEntry === entry.id && (
+                    {false && selectedEntry === entry.id && (
                       <tr id={`lorry-loading-panel-${entry.id}`}>
                         <td colSpan={11} style={{ padding: '15px', backgroundColor: '#fafafa', border: '1px solid #999' }}>
                           <div style={{
@@ -1307,9 +1415,9 @@ const PhysicalInspection: React.FC = () => {
                                       }}
                                     >
                                       <option value="lot_avg" disabled={!!samplingStageData[entry.id]?.['lot_avg']}>1. Lot Avg Sampling</option>
-                                      <option value="half_lorry" disabled={!!samplingStageData[entry.id]?.['half_lorry']}>2. Half Lorry Sampling</option>
-                                      <option value="full_avg" disabled={!!samplingStageData[entry.id]?.['full_avg']}>3. Full Avg Lorry Sampling</option>
-                                      <option value="nit_avg" disabled={!!samplingStageData[entry.id]?.['nit_avg']}>4. Nit Avg Sampling</option>
+                                      <option value="half_lorry" disabled={!samplingStageData[entry.id]?.['lot_avg']?.isLocked || !!samplingStageData[entry.id]?.['half_lorry']}>2. Half Lorry Sampling</option>
+                                      <option value="full_avg" disabled={!samplingStageData[entry.id]?.['half_lorry']?.isLocked || !!samplingStageData[entry.id]?.['full_avg']}>3. Full Avg Lorry Sampling</option>
+                                      <option value="nit_avg" disabled={!samplingStageData[entry.id]?.['full_avg']?.isLocked || !!samplingStageData[entry.id]?.['nit_avg']}>4. Nit Avg Sampling</option>
                                     </select>
                                     <button
                                       onClick={() => handleAddStage(entry.id)}
@@ -1363,409 +1471,455 @@ const PhysicalInspection: React.FC = () => {
                               </div>
                             </div>
 
-                            {/* Right Section: Progressive Stage Sampling Cards */}
-                            <div style={{
-                              flex: 1,
-                              display: 'flex',
-                              gap: '20px',
-                              flexWrap: 'wrap',
-                              alignItems: 'flex-start',
-                              justifyContent: 'center'
-                            }}>
-                              {(activeCards[entry.id] || []).map((stage) => {
-                                const cardData = samplingStageData[entry.id]?.[stage] || {
-                                  moisture: '',
-                                  dryMoisture: 'N',
-                                  dryMoistureValue: '',
-                                  grainsCount: '',
-                                  cutting: '',
-                                  bend: '',
-                                  mix: '',
-                                  smixEnabled: 'N',
-                                  mixS: '',
-                                  lmixEnabled: 'N',
-                                  mixL: '',
-                                  sk: '',
-                                  kandu: '',
-                                  oil: '',
-                                  smellHas: 'No',
-                                  smellType: '',
-                                  paddyWbEnabled: 'N',
-                                  paddyWb: '',
-                                  actualBags: '',
-                                  reportedBy: user?.username || 'System',
-                                  isLocked: false
-                                };
-                                const isLocked = !!cardData.isLocked;
-                                const getCardHeader = () => {
-                                  if (stage === 'lot_avg') return { title: 'Add Lot Avg Sampling', color: '#e67e22', border: '2px solid #e67e22' };
-                                  if (stage === 'half_lorry') return { title: 'Half Lorry Sampling', color: '#8e44ad', border: '2px solid #8e44ad' };
-                                  if (stage === 'nit_avg') return { title: 'Nit Avg Sampling', color: '#8e44ad', border: '2px solid #8e44ad' };
-                                  return { title: 'Full Avg Lorry Sampling', color: '#2980b9', border: '2px solid #2980b9' };
-                                };
+                            {/* Centered Modal Overlay for Active Sampling Cards */}
+                            {activeCards[entry.id] && activeCards[entry.id].length > 0 && (
+                              <div style={{
+                                position: 'fixed',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                backdropFilter: 'blur(4px)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                zIndex: 10000,
+                                padding: '20px'
+                              }}>
+                                <div style={{
+                                  position: 'relative',
+                                  display: 'flex',
+                                  gap: '20px',
+                                  flexWrap: 'wrap',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  maxHeight: '90vh',
+                                  overflowY: 'auto',
+                                  padding: '10px'
+                                }}>
+                                  {(activeCards[entry.id] || []).map((stage) => {
+                                    const cardData = samplingStageData[entry.id]?.[stage] || {
+                                      moisture: '',
+                                      dryMoisture: 'N',
+                                      dryMoistureValue: '',
+                                      grainsCount: '',
+                                      cutting: '',
+                                      bend: '',
+                                      mix: '',
+                                      smixEnabled: 'N',
+                                      mixS: '',
+                                      lmixEnabled: 'N',
+                                      mixL: '',
+                                      sk: '',
+                                      kandu: '',
+                                      oil: '',
+                                      smellHas: 'No',
+                                      smellType: '',
+                                      paddyWbEnabled: 'N',
+                                      paddyWb: '',
+                                      actualBags: '',
+                                      reportedBy: user?.username || 'System',
+                                      isLocked: false
+                                    };
+                                    const isLocked = !!cardData.isLocked;
+                                    const getCardHeader = () => {
+                                      if (stage === 'lot_avg') return { title: 'Add Lot Avg Sampling', color: '#e67e22', border: '2px solid #e67e22' };
+                                      if (stage === 'half_lorry') return { title: 'Half Lorry Sampling', color: '#8e44ad', border: '2px solid #8e44ad' };
+                                      if (stage === 'nit_avg') return { title: 'Nit Avg Sampling', color: '#8e44ad', border: '2px solid #8e44ad' };
+                                      return { title: 'Full Avg Lorry Sampling', color: '#2980b9', border: '2px solid #2980b9' };
+                                    };
 
-                                const cardStyle = getCardHeader();
+                                    const cardStyle = getCardHeader();
 
-                                return (
-                                  <div key={stage} style={{
-                                    width: '380px',
-                                    backgroundColor: '#ffffff',
-                                    padding: '16px',
-                                    borderRadius: '8px',
-                                    border: cardStyle.border,
-                                    boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-                                    opacity: isLocked ? 0.85 : 1
-                                  }}>
-                                    <div style={{
-                                      fontSize: '13px',
-                                      fontWeight: '700',
-                                      color: cardStyle.color,
-                                      borderBottom: `2px solid ${cardStyle.color}1a`,
-                                      paddingBottom: '6px',
-                                      marginBottom: '12px',
-                                      display: 'flex',
-                                      justifyContent: 'space-between',
-                                      alignItems: 'center'
-                                    }}>
-                                      <span>{cardStyle.title}</span>
-                                      {isLocked && (() => {
-                                        const appStatus = cardData.approvalStatus || 'approved';
-                                        if (appStatus === 'pending') {
-                                          return (
-                                            <span style={{
-                                              fontSize: '9px',
-                                              padding: '2px 6px',
-                                              backgroundColor: '#f39c12',
-                                              color: 'white',
-                                              borderRadius: '10px',
-                                              fontWeight: 'bold'
-                                            }}>Pending</span>
-                                          );
-                                        }
-                                        return (
-                                          <span style={{
-                                            fontSize: '9px',
-                                            padding: '2px 6px',
-                                            backgroundColor: '#2ecc71',
-                                            color: 'white',
-                                            borderRadius: '10px',
-                                            fontWeight: 'bold'
-                                          }}>Approved</span>
-                                        );
-                                      })()}
-                                    </div>
-
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '11px' }}>
-                                      {stage === 'full_avg' && (
-                                        <div style={{ backgroundColor: '#fcf8e3', padding: '8px', borderRadius: '4px', border: '1px solid #faebcc', marginBottom: '4px' }}>
-                                          <label style={{ display: 'block', fontWeight: '700', color: '#8a6d3b', marginBottom: '3px' }}>
-                                            Actual bags (this lorry) * Loaded Bags
-                                          </label>
-                                          <input
-                                            type="number"
-                                            disabled={isLocked}
-                                            value={cardData.actualBags || ''}
-                                            onChange={(e) => handleStageInputChange(entry.id, stage, 'actualBags', e.target.value)}
-                                            placeholder={`Max remaining: ${progress?.remainingBags || entry.bags}`}
-                                            style={{
-                                              width: '100%',
-                                              padding: '6px',
-                                              fontSize: '11px',
-                                              border: '1px solid #ccc',
-                                              borderRadius: '4px',
-                                              backgroundColor: isLocked ? '#f5f5f5' : '#fff'
-                                            }}
-                                          />
+                                    return (
+                                      <div key={stage} style={{
+                                        width: '380px',
+                                        backgroundColor: '#ffffff',
+                                        padding: '16px',
+                                        borderRadius: '8px',
+                                        border: cardStyle.border,
+                                        boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+                                        opacity: isLocked ? 0.85 : 1
+                                      }}>
+                                        <div style={{
+                                          fontSize: '13px',
+                                          fontWeight: '700',
+                                          color: cardStyle.color,
+                                          borderBottom: `2px solid ${cardStyle.color}1a`,
+                                          paddingBottom: '6px',
+                                          marginBottom: '12px',
+                                          display: 'flex',
+                                          justifyContent: 'space-between',
+                                          alignItems: 'center'
+                                        }}>
+                                          <span>{cardStyle.title}</span>
+                                          {isLocked && (() => {
+                                            const appStatus = cardData.approvalStatus || 'approved';
+                                            if (appStatus === 'pending') {
+                                              return (
+                                                <span style={{
+                                                  fontSize: '9px',
+                                                  padding: '2px 6px',
+                                                  backgroundColor: '#f39c12',
+                                                  color: 'white',
+                                                  borderRadius: '10px',
+                                                  fontWeight: 'bold'
+                                                }}>Pending</span>
+                                              );
+                                            }
+                                            return (
+                                              <span style={{
+                                                fontSize: '9px',
+                                                padding: '2px 6px',
+                                                backgroundColor: '#2ecc71',
+                                                color: 'white',
+                                                borderRadius: '10px',
+                                                fontWeight: 'bold'
+                                              }}>Approved</span>
+                                            );
+                                          })()}
                                         </div>
-                                      )}
 
-                                      {/* Row 1: Moisture, Dry Moisture, Grains */}
-                                      <div style={{ display: 'flex', gap: '8px' }}>
-                                        <div style={{ flex: 1 }}>
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Moisture *</label>
-                                          <input
-                                            type="text"
-                                            disabled={isLocked}
-                                            value={cardData.moisture}
-                                            onChange={(e) => handleStageInputChange(entry.id, stage, 'moisture', e.target.value)}
-                                            style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
-                                          />
-                                        </div>
-                                        <div style={{ flex: 1 }}>
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Dry Moisture</label>
-                                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
-                                            <label><input type="radio" disabled={isLocked} checked={cardData.dryMoisture === 'Y'} onChange={() => handleStageInputChange(entry.id, stage, 'dryMoisture', 'Y')} /> Y</label>
-                                            <label><input type="radio" disabled={isLocked} checked={cardData.dryMoisture === 'N'} onChange={() => handleStageInputChange(entry.id, stage, 'dryMoisture', 'N')} /> N</label>
-                                          </div>
-                                          {cardData.dryMoisture === 'Y' && (
-                                            <input
-                                              type="text"
-                                              disabled={isLocked}
-                                              value={cardData.dryMoistureValue || ''}
-                                              onChange={(e) => handleStageInputChange(entry.id, stage, 'dryMoistureValue', e.target.value)}
-                                              placeholder="Dry Value"
-                                              style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
-                                            />
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '11px' }}>
+                                          {stage === 'full_avg' && (
+                                            <div style={{ backgroundColor: '#fcf8e3', padding: '8px', borderRadius: '4px', border: '1px solid #faebcc', marginBottom: '4px' }}>
+                                              <label style={{ display: 'block', fontWeight: '700', color: '#8a6d3b', marginBottom: '3px' }}>
+                                                Actual bags (this lorry) * Loaded Bags
+                                              </label>
+                                              <input
+                                                type="number"
+                                                disabled={isLocked}
+                                                value={cardData.actualBags || ''}
+                                                onChange={(e) => handleStageInputChange(entry.id, stage, 'actualBags', e.target.value)}
+                                                placeholder={`Max remaining: ${progress?.remainingBags || entry.bags}`}
+                                                style={{
+                                                  width: '100%',
+                                                  padding: '6px',
+                                                  fontSize: '11px',
+                                                  border: '1px solid #ccc',
+                                                  borderRadius: '4px',
+                                                  backgroundColor: isLocked ? '#f5f5f5' : '#fff'
+                                                }}
+                                              />
+                                            </div>
                                           )}
-                                        </div>
-                                        <div style={{ flex: 1 }}>
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Grains Count *</label>
-                                          <input
-                                            type="text"
-                                            disabled={isLocked}
-                                            value={cardData.grainsCount}
-                                            onChange={(e) => handleStageInputChange(entry.id, stage, 'grainsCount', e.target.value)}
-                                            style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
-                                          />
-                                        </div>
-                                      </div>
 
-                                      {/* Row 2: Cutting, Bend, Mix */}
-                                      <div style={{ display: 'flex', gap: '8px' }}>
-                                        <div style={{ flex: 1 }}>
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Cutting *</label>
-                                          <input
-                                            type="text"
-                                            disabled={isLocked}
-                                            value={cardData.cutting}
-                                            placeholder="1×"
-                                            onFocus={() => {
-                                              if (!cardData.cutting) {
-                                                const res = handleCuttingInput('1×', entry.entryType);
-                                                handleStageInputChange(entry.id, stage, 'cutting', res.raw);
-                                              }
-                                            }}
-                                            onChange={(e) => {
-                                              const res = handleCuttingInput(e.target.value, entry.entryType);
-                                              handleStageInputChange(entry.id, stage, 'cutting', res.raw);
-                                            }}
-                                            style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
-                                          />
-                                        </div>
-                                        <div style={{ flex: 1 }}>
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Bend *</label>
-                                          <input
-                                            type="text"
-                                            disabled={isLocked}
-                                            value={cardData.bend}
-                                            placeholder="1×"
-                                            onFocus={() => {
-                                              if (!cardData.bend) {
-                                                const res = handleBendInput('1×', entry.entryType);
-                                                handleStageInputChange(entry.id, stage, 'bend', res.raw);
-                                              }
-                                            }}
-                                            onChange={(e) => {
-                                              const res = handleBendInput(e.target.value, entry.entryType);
-                                              handleStageInputChange(entry.id, stage, 'bend', res.raw);
-                                            }}
-                                            style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
-                                          />
-                                        </div>
-                                        <div style={{ flex: 1 }}>
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Mix *</label>
-                                          <input
-                                            type="text"
-                                            disabled={isLocked}
-                                            value={cardData.mix}
-                                            onChange={(e) => handleStageInputChange(entry.id, stage, 'mix', e.target.value)}
-                                            style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
-                                          />
-                                        </div>
-                                      </div>
-
-                                      {/* Row 3: SMix, LMix, SK */}
-                                      <div style={{ display: 'flex', gap: '8px' }}>
-                                        <div style={{ flex: 1 }}>
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>SMix</label>
-                                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
-                                            <label><input type="radio" disabled={isLocked} checked={cardData.smixEnabled === 'Y'} onChange={() => handleStageInputChange(entry.id, stage, 'smixEnabled', 'Y')} /> Y</label>
-                                            <label><input type="radio" disabled={isLocked} checked={cardData.smixEnabled === 'N'} onChange={() => { handleStageInputChange(entry.id, stage, 'smixEnabled', 'N'); handleStageInputChange(entry.id, stage, 'mixS', ''); }} /> N</label>
+                                          {/* Row 1: Moisture, Dry Moisture, Grains */}
+                                          <div style={{ display: 'flex', gap: '8px' }}>
+                                            <div style={{ flex: 1 }}>
+                                              <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Moisture *</label>
+                                              <input
+                                                type="text"
+                                                disabled={isLocked}
+                                                value={cardData.moisture}
+                                                onChange={(e) => handleStageInputChange(entry.id, stage, 'moisture', e.target.value)}
+                                                style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                                              />
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                              <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Dry Moisture</label>
+                                              <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
+                                                <label><input type="radio" disabled={isLocked} checked={cardData.dryMoisture === 'Y'} onChange={() => handleStageInputChange(entry.id, stage, 'dryMoisture', 'Y')} /> Y</label>
+                                                <label><input type="radio" disabled={isLocked} checked={cardData.dryMoisture === 'N'} onChange={() => handleStageInputChange(entry.id, stage, 'dryMoisture', 'N')} /> N</label>
+                                              </div>
+                                              {cardData.dryMoisture === 'Y' && (
+                                                <input
+                                                  type="text"
+                                                  disabled={isLocked}
+                                                  value={cardData.dryMoistureValue || ''}
+                                                  onChange={(e) => handleStageInputChange(entry.id, stage, 'dryMoistureValue', e.target.value)}
+                                                  placeholder="Dry Value"
+                                                  style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                                                />
+                                              )}
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                              <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Grains Count *</label>
+                                              <input
+                                                type="text"
+                                                disabled={isLocked}
+                                                value={cardData.grainsCount}
+                                                onChange={(e) => handleStageInputChange(entry.id, stage, 'grainsCount', e.target.value)}
+                                                style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                                              />
+                                            </div>
                                           </div>
-                                          {cardData.smixEnabled === 'Y' && (
-                                            <input
-                                              type="text"
-                                              disabled={isLocked}
-                                              value={cardData.mixS}
-                                              onChange={(e) => handleStageInputChange(entry.id, stage, 'mixS', e.target.value)}
-                                              style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
-                                            />
+
+                                          {/* Row 2: Cutting, Bend, Mix */}
+                                          <div style={{ display: 'flex', gap: '8px' }}>
+                                            <div style={{ flex: 1 }}>
+                                              <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Cutting *</label>
+                                              <input
+                                                type="text"
+                                                disabled={isLocked}
+                                                value={cardData.cutting}
+                                                placeholder="1×"
+                                                onFocus={() => {
+                                                  if (!cardData.cutting) {
+                                                    const res = handleCuttingInput('1×', entry.entryType);
+                                                    handleStageInputChange(entry.id, stage, 'cutting', res.raw);
+                                                  }
+                                                }}
+                                                onChange={(e) => {
+                                                  const res = handleCuttingInput(e.target.value, entry.entryType);
+                                                  handleStageInputChange(entry.id, stage, 'cutting', res.raw);
+                                                }}
+                                                style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                                              />
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                              <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Bend *</label>
+                                              <input
+                                                type="text"
+                                                disabled={isLocked}
+                                                value={cardData.bend}
+                                                placeholder="1×"
+                                                onFocus={() => {
+                                                  if (!cardData.bend) {
+                                                    const res = handleBendInput('1×', entry.entryType);
+                                                    handleStageInputChange(entry.id, stage, 'bend', res.raw);
+                                                  }
+                                                }}
+                                                onChange={(e) => {
+                                                  const res = handleBendInput(e.target.value, entry.entryType);
+                                                  handleStageInputChange(entry.id, stage, 'bend', res.raw);
+                                                }}
+                                                style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                                              />
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                              <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Mix *</label>
+                                              <input
+                                                type="text"
+                                                disabled={isLocked}
+                                                value={cardData.mix}
+                                                onChange={(e) => handleStageInputChange(entry.id, stage, 'mix', e.target.value)}
+                                                style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                                              />
+                                            </div>
+                                          </div>
+
+                                          {/* Row 3: SMix, LMix, SK */}
+                                          <div style={{ display: 'flex', gap: '8px' }}>
+                                            <div style={{ flex: 1 }}>
+                                              <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>SMix</label>
+                                              <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
+                                                <label><input type="radio" disabled={isLocked} checked={cardData.smixEnabled === 'Y'} onChange={() => handleStageInputChange(entry.id, stage, 'smixEnabled', 'Y')} /> Y</label>
+                                                <label><input type="radio" disabled={isLocked} checked={cardData.smixEnabled === 'N'} onChange={() => { handleStageInputChange(entry.id, stage, 'smixEnabled', 'N'); handleStageInputChange(entry.id, stage, 'mixS', ''); }} /> N</label>
+                                              </div>
+                                              {cardData.smixEnabled === 'Y' && (
+                                                <input
+                                                  type="text"
+                                                  disabled={isLocked}
+                                                  value={cardData.mixS}
+                                                  onChange={(e) => handleStageInputChange(entry.id, stage, 'mixS', e.target.value)}
+                                                  style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                                                />
+                                              )}
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                              <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>LMix</label>
+                                              <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
+                                                <label><input type="radio" disabled={isLocked} checked={cardData.lmixEnabled === 'Y'} onChange={() => handleStageInputChange(entry.id, stage, 'lmixEnabled', 'Y')} /> Y</label>
+                                                <label><input type="radio" disabled={isLocked} checked={cardData.lmixEnabled === 'N'} onChange={() => { handleStageInputChange(entry.id, stage, 'lmixEnabled', 'N'); handleStageInputChange(entry.id, stage, 'mixL', ''); }} /> N</label>
+                                              </div>
+                                              {cardData.lmixEnabled === 'Y' && (
+                                                <input
+                                                  type="text"
+                                                  disabled={isLocked}
+                                                  value={cardData.mixL}
+                                                  onChange={(e) => handleStageInputChange(entry.id, stage, 'mixL', e.target.value)}
+                                                  style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                                                />
+                                              )}
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                              <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>SK *</label>
+                                              <input
+                                                type="text"
+                                                disabled={isLocked}
+                                                value={cardData.sk}
+                                                onChange={(e) => handleStageInputChange(entry.id, stage, 'sk', e.target.value)}
+                                                style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                                              />
+                                            </div>
+                                          </div>
+
+                                          {/* Row 4: Kandu, Oil, Smell */}
+                                          <div style={{ display: 'flex', gap: '8px' }}>
+                                            <div style={{ flex: 1 }}>
+                                              <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Kandu *</label>
+                                              <input
+                                                type="text"
+                                                disabled={isLocked}
+                                                value={cardData.kandu}
+                                                onChange={(e) => handleStageInputChange(entry.id, stage, 'kandu', e.target.value)}
+                                                style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                                              />
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                              <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Oil *</label>
+                                              <input
+                                                type="text"
+                                                disabled={isLocked}
+                                                value={cardData.oil}
+                                                onChange={(e) => handleStageInputChange(entry.id, stage, 'oil', e.target.value)}
+                                                style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                                              />
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                              <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Smell</label>
+                                              <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
+                                                <label><input type="radio" disabled={isLocked} checked={cardData.smellHas === 'Yes'} onChange={() => handleStageInputChange(entry.id, stage, 'smellHas', 'Yes')} /> Yes</label>
+                                                <label><input type="radio" disabled={isLocked} checked={cardData.smellHas === 'No'} onChange={() => { handleStageInputChange(entry.id, stage, 'smellHas', 'No'); handleStageInputChange(entry.id, stage, 'smellType', ''); }} /> No</label>
+                                              </div>
+                                              {cardData.smellHas === 'Yes' && (
+                                                <div style={{ display: 'flex', gap: '6px' }}>
+                                                  <label><input type="radio" disabled={isLocked} checked={cardData.smellType === 'Light'} onChange={() => handleStageInputChange(entry.id, stage, 'smellType', 'Light')} /> Light</label>
+                                                  <label><input type="radio" disabled={isLocked} checked={cardData.smellType === 'Medium'} onChange={() => handleStageInputChange(entry.id, stage, 'smellType', 'Medium')} /> Medium</label>
+                                                  <label><input type="radio" disabled={isLocked} checked={cardData.smellType === 'Dark'} onChange={() => handleStageInputChange(entry.id, stage, 'smellType', 'Dark')} /> Dark</label>
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+
+                                          {/* Row 5: Paddy WB */}
+                                          <div style={{ display: 'flex', gap: '8px' }}>
+                                            <div style={{ width: '100px' }}>
+                                              <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Paddy WB</label>
+                                              <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                                                <label><input type="radio" disabled={isLocked} checked={cardData.paddyWbEnabled === 'Y'} onChange={() => handleStageInputChange(entry.id, stage, 'paddyWbEnabled', 'Y')} /> Y</label>
+                                                <label><input type="radio" disabled={isLocked} checked={cardData.paddyWbEnabled === 'N'} onChange={() => handleStageInputChange(entry.id, stage, 'paddyWbEnabled', 'N')} /> N</label>
+                                              </div>
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                              {cardData.paddyWbEnabled === 'Y' && (
+                                                <>
+                                                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Paddy WB Value *</label>
+                                                  <input
+                                                    type="text"
+                                                    disabled={isLocked}
+                                                    value={cardData.paddyWb}
+                                                    onChange={(e) => handleStageInputChange(entry.id, stage, 'paddyWb', e.target.value)}
+                                                    style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                                                  />
+                                                </>
+                                              )}
+                                            </div>
+                                          </div>
+
+                                          {/* Footer: Image and Reported By */}
+                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid #eee', paddingTop: '10px', marginTop: '4px' }}>
+                                            <div>
+                                              <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Upload Photo (Optional)</label>
+                                              {isLocked ? (
+                                                cardData.imageUrl ? (
+                                                  <a href={`${cardData.imageUrl}`} target="_blank" rel="noreferrer" style={{ fontSize: '11px', color: '#3498db', fontWeight: 'bold' }}>🖼️ View Photo</a>
+                                                ) : (
+                                                  <span style={{ fontStyle: 'italic', color: '#999' }}>No photo uploaded</span>
+                                                )
+                                              ) : (
+                                                <input
+                                                  type="file"
+                                                  accept="image/*"
+                                                  onChange={(e) => handleStageInputChange(entry.id, stage, 'stageImage', e.target.files?.[0] || null)}
+                                                  style={{ width: '100%', fontSize: '11px' }}
+                                                />
+                                              )}
+                                            </div>
+                                            <div>
+                                              <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Sample Reported By *</label>
+                                              <input
+                                                type="text"
+                                                disabled
+                                                value={cardData.reportedBy}
+                                                style={{
+                                                  width: '100%',
+                                                  padding: '5px',
+                                                  fontSize: '11px',
+                                                  border: '1px solid #ddd',
+                                                  borderRadius: '4px',
+                                                  backgroundColor: '#f5f5f5',
+                                                  color: '#666',
+                                                  fontWeight: 'bold'
+                                                }}
+                                              />
+                                            </div>
+                                          </div>
+
+                                          {!isLocked && (
+                                            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                                              <button
+                                                onClick={() => handleSaveStage(entry.id, stage)}
+                                                style={{
+                                                  flex: 1,
+                                                  padding: '6px',
+                                                  backgroundColor: '#27ae60',
+                                                  color: 'white',
+                                                  border: 'none',
+                                                  borderRadius: '4px',
+                                                  fontWeight: '700',
+                                                  cursor: 'pointer',
+                                                  fontSize: '11px'
+                                                }}
+                                              >
+                                                Save
+                                              </button>
+                                              <button
+                                                onClick={() => {
+                                                  setActiveCards(prev => ({
+                                                    ...prev,
+                                                    [entry.id]: (prev[entry.id] || []).filter(k => k !== stage)
+                                                  }));
+                                                }}
+                                                style={{
+                                                  padding: '6px 12px',
+                                                  backgroundColor: '#95a5a6',
+                                                  color: 'white',
+                                                  border: 'none',
+                                                  borderRadius: '4px',
+                                                  cursor: 'pointer',
+                                                  fontSize: '11px'
+                                                }}
+                                              >
+                                                Cancel
+                                              </button>
+                                            </div>
                                           )}
-                                        </div>
-                                        <div style={{ flex: 1 }}>
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>LMix</label>
-                                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
-                                            <label><input type="radio" disabled={isLocked} checked={cardData.lmixEnabled === 'Y'} onChange={() => handleStageInputChange(entry.id, stage, 'lmixEnabled', 'Y')} /> Y</label>
-                                            <label><input type="radio" disabled={isLocked} checked={cardData.lmixEnabled === 'N'} onChange={() => { handleStageInputChange(entry.id, stage, 'lmixEnabled', 'N'); handleStageInputChange(entry.id, stage, 'mixL', ''); }} /> N</label>
-                                          </div>
-                                          {cardData.lmixEnabled === 'Y' && (
-                                            <input
-                                              type="text"
-                                              disabled={isLocked}
-                                              value={cardData.mixL}
-                                              onChange={(e) => handleStageInputChange(entry.id, stage, 'mixL', e.target.value)}
-                                              style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
-                                            />
-                                          )}
-                                        </div>
-                                        <div style={{ flex: 1 }}>
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>SK *</label>
-                                          <input
-                                            type="text"
-                                            disabled={isLocked}
-                                            value={cardData.sk}
-                                            onChange={(e) => handleStageInputChange(entry.id, stage, 'sk', e.target.value)}
-                                            style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
-                                          />
-                                        </div>
-                                      </div>
 
-                                      {/* Row 4: Kandu, Oil, Smell */}
-                                      <div style={{ display: 'flex', gap: '8px' }}>
-                                        <div style={{ flex: 1 }}>
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Kandu *</label>
-                                          <input
-                                            type="text"
-                                            disabled={isLocked}
-                                            value={cardData.kandu}
-                                            onChange={(e) => handleStageInputChange(entry.id, stage, 'kandu', e.target.value)}
-                                            style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
-                                          />
-                                        </div>
-                                        <div style={{ flex: 1 }}>
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Oil *</label>
-                                          <input
-                                            type="text"
-                                            disabled={isLocked}
-                                            value={cardData.oil}
-                                            onChange={(e) => handleStageInputChange(entry.id, stage, 'oil', e.target.value)}
-                                            style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
-                                          />
-                                        </div>
-                                        <div style={{ flex: 1 }}>
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Smell</label>
-                                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
-                                            <label><input type="radio" disabled={isLocked} checked={cardData.smellHas === 'Yes'} onChange={() => handleStageInputChange(entry.id, stage, 'smellHas', 'Yes')} /> Yes</label>
-                                            <label><input type="radio" disabled={isLocked} checked={cardData.smellHas === 'No'} onChange={() => { handleStageInputChange(entry.id, stage, 'smellHas', 'No'); handleStageInputChange(entry.id, stage, 'smellType', ''); }} /> No</label>
-                                          </div>
-                                          {cardData.smellHas === 'Yes' && (
-                                            <div style={{ display: 'flex', gap: '6px' }}>
-                                              <label><input type="radio" disabled={isLocked} checked={cardData.smellType === 'Light'} onChange={() => handleStageInputChange(entry.id, stage, 'smellType', 'Light')} /> Light</label>
-                                              <label><input type="radio" disabled={isLocked} checked={cardData.smellType === 'Medium'} onChange={() => handleStageInputChange(entry.id, stage, 'smellType', 'Medium')} /> Medium</label>
-                                              <label><input type="radio" disabled={isLocked} checked={cardData.smellType === 'Dark'} onChange={() => handleStageInputChange(entry.id, stage, 'smellType', 'Dark')} /> Dark</label>
+                                          {isLocked && (
+                                            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                                              <button
+                                                onClick={() => {
+                                                  setActiveCards(prev => ({
+                                                    ...prev,
+                                                    [entry.id]: (prev[entry.id] || []).filter(k => k !== stage)
+                                                  }));
+                                                }}
+                                                style={{
+                                                  flex: 1,
+                                                  padding: '8px',
+                                                  backgroundColor: '#94a3b8',
+                                                  color: 'white',
+                                                  border: 'none',
+                                                  borderRadius: '4px',
+                                                  fontWeight: '700',
+                                                  cursor: 'pointer',
+                                                  fontSize: '11px'
+                                                }}
+                                              >
+                                                Close Form
+                                              </button>
                                             </div>
                                           )}
                                         </div>
                                       </div>
-
-                                      {/* Row 5: Paddy WB */}
-                                      <div style={{ display: 'flex', gap: '8px' }}>
-                                        <div style={{ width: '100px' }}>
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Paddy WB</label>
-                                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
-                                            <label><input type="radio" disabled={isLocked} checked={cardData.paddyWbEnabled === 'Y'} onChange={() => handleStageInputChange(entry.id, stage, 'paddyWbEnabled', 'Y')} /> Y</label>
-                                            <label><input type="radio" disabled={isLocked} checked={cardData.paddyWbEnabled === 'N'} onChange={() => handleStageInputChange(entry.id, stage, 'paddyWbEnabled', 'N')} /> N</label>
-                                          </div>
-                                        </div>
-                                        <div style={{ flex: 1 }}>
-                                          {cardData.paddyWbEnabled === 'Y' && (
-                                            <>
-                                              <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Paddy WB Value *</label>
-                                              <input
-                                                type="text"
-                                                disabled={isLocked}
-                                                value={cardData.paddyWb}
-                                                onChange={(e) => handleStageInputChange(entry.id, stage, 'paddyWb', e.target.value)}
-                                                style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
-                                              />
-                                            </>
-                                          )}
-                                        </div>
-                                      </div>
-
-                                      {/* Footer: Image and Reported By */}
-                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid #eee', paddingTop: '10px', marginTop: '4px' }}>
-                                        <div>
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Upload Photo (Optional)</label>
-                                          {isLocked ? (
-                                            cardData.imageUrl ? (
-                                              <a href={`${cardData.imageUrl}`} target="_blank" rel="noreferrer" style={{ fontSize: '11px', color: '#3498db', fontWeight: 'bold' }}>🖼️ View Photo</a>
-                                            ) : (
-                                              <span style={{ fontStyle: 'italic', color: '#999' }}>No photo uploaded</span>
-                                            )
-                                          ) : (
-                                            <input
-                                              type="file"
-                                              accept="image/*"
-                                              onChange={(e) => handleStageInputChange(entry.id, stage, 'stageImage', e.target.files?.[0] || null)}
-                                              style={{ width: '100%', fontSize: '11px' }}
-                                            />
-                                          )}
-                                        </div>
-                                        <div>
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Sample Reported By *</label>
-                                          <input
-                                            type="text"
-                                            disabled
-                                            value={cardData.reportedBy}
-                                            style={{
-                                              width: '100%',
-                                              padding: '5px',
-                                              fontSize: '11px',
-                                              border: '1px solid #ddd',
-                                              borderRadius: '4px',
-                                              backgroundColor: '#f5f5f5',
-                                              color: '#666',
-                                              fontWeight: 'bold'
-                                            }}
-                                          />
-                                        </div>
-                                      </div>
-
-                                      {!isLocked && (
-                                        <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                                          <button
-                                            onClick={() => handleSaveStage(entry.id, stage)}
-                                            style={{
-                                              flex: 1,
-                                              padding: '6px',
-                                              backgroundColor: '#27ae60',
-                                              color: 'white',
-                                              border: 'none',
-                                              borderRadius: '4px',
-                                              fontWeight: '700',
-                                              cursor: 'pointer',
-                                              fontSize: '11px'
-                                            }}
-                                          >
-                                            Save
-                                          </button>
-                                          <button
-                                            onClick={() => {
-                                              setActiveCards(prev => ({
-                                                ...prev,
-                                                [entry.id]: (prev[entry.id] || []).filter(k => k !== stage)
-                                              }));
-                                            }}
-                                            style={{
-                                              padding: '6px 12px',
-                                              backgroundColor: '#95a5a6',
-                                              color: 'white',
-                                              border: 'none',
-                                              borderRadius: '4px',
-                                              cursor: 'pointer',
-                                              fontSize: '11px'
-                                            }}
-                                          >
-                                            Cancel
-                                          </button>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1967,10 +2121,683 @@ const PhysicalInspection: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Lorry Loading Details Modal */}
+      {selectedEntry && (!activeCards[selectedEntry] || activeCards[selectedEntry].length === 0) && (() => {
+        const entry = entries.find(e => e.id === selectedEntry);
+        if (!entry) return null;
+        const progress = inspectionProgress[entry.id];
+        
+        return (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '20px'
+          }}>
+            <div style={{
+              background: '#ffffff',
+              width: '100%',
+              maxWidth: '400px',
+              borderRadius: '12px',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                background: '#27ae60',
+                color: 'white',
+                padding: '14px 18px',
+                fontWeight: '700',
+                fontSize: '16px',
+                textAlign: 'center',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <span>🚛 Lorry Loading Details</span>
+                <button
+                  onClick={() => setSelectedEntry(null)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '18px',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ fontSize: '12px', color: '#666', borderBottom: '1px solid #eee', paddingBottom: '8px', marginBottom: '4px' }}>
+                  <strong>Party:</strong> {entry.partyName && entry.partyName.trim() && entry.partyName.toUpperCase() !== 'DIRECT LOADED VEHICLE' ? toTitleCase(entry.partyName) : (entry.lorryNumber ? entry.lorryNumber.toUpperCase() : 'DIRECT LOADED VEHICLE')}<br />
+                  <strong>Variety:</strong> {entry.variety} | <strong>Allotted:</strong> {progress?.totalBags || entry.bags} Bags
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
+                    Loaded Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={inspectionData[entry.id]?.inspectionDate || ''}
+                    onChange={(e) => handleInputChange(entry.id, 'inspectionDate', e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      fontSize: '12px',
+                      border: '1px solid #ccc',
+                      borderRadius: '4px',
+                      color: '#1a1a1a',
+                      backgroundColor: '#f5f5f5'
+                    }}
+                  />
+                  <span style={{ fontSize: '10px', color: '#c0392b', fontWeight: '600' }}>Freezed</span>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
+                    Lorry number
+                  </label>
+                  <input
+                    type="text"
+                    value={inspectionData[entry.id]?.lorryNumber || ''}
+                    onChange={(e) => handleLorryNumberChange(entry.id, e.target.value)}
+                    placeholder="ENTER LORRY NUMBER"
+                    maxLength={12}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      fontSize: '12px',
+                      border: '1px solid #ccc',
+                      borderRadius: '4px',
+                      color: '#1a1a1a',
+                      fontWeight: '600',
+                      backgroundColor: '#fff',
+                      textTransform: 'uppercase'
+                    }}
+                  />
+                  {progress && progress.previousInspections && progress.previousInspections.length > 0 && (
+                    <div style={{ marginTop: '6px' }}>
+                      <span style={{ fontSize: '10px', fontWeight: 'bold', color: '#666', display: 'block', marginBottom: '4px' }}>
+                        Resume Active Lorry:
+                      </span>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        {Array.from(new Set(progress.previousInspections.map(i => i.lorryNumber?.toUpperCase()).filter(Boolean))).map(lorryNo => (
+                          <span
+                            key={lorryNo}
+                            onClick={() => {
+                              handleInputChange(entry.id, 'lorryNumber', lorryNo);
+                              handleLorryNumberChange(entry.id, lorryNo);
+
+                              const inspection = progress.previousInspections.find(i => i.lorryNumber?.toUpperCase() === lorryNo);
+                              if (inspection) {
+                                const stages = inspection.samplingStages || {};
+                                const lotStage = stages.lot_avg || {};
+                                const halfStage = stages.half_lorry || {};
+                                let nextStage = 'lot_avg';
+                                if (lotStage.approvalStatus === 'approved') {
+                                  nextStage = 'half_lorry';
+                                }
+                                if (halfStage.approvalStatus === 'approved') {
+                                  nextStage = 'full_avg';
+                                }
+                                setSelectedStage(prev => ({
+                                  ...prev,
+                                  [entry.id]: nextStage
+                                }));
+                              }
+                            }}
+                            style={{
+                              fontSize: '11px',
+                              padding: '3px 8px',
+                              backgroundColor: '#e8f4fd',
+                              color: '#1e88e5',
+                              border: '1px solid #bbdefb',
+                              borderRadius: '12px',
+                              fontWeight: 'bold',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            🚛 {lorryNo}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
+                    Sampling *
+                  </label>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <select
+                      value={selectedStage[entry.id] || ''}
+                      onChange={(e) => setSelectedStage(prev => ({ ...prev, [entry.id]: e.target.value }))}
+                      style={{
+                        flex: 1,
+                        padding: '8px',
+                        fontSize: '12px',
+                        border: '1px solid #ccc',
+                        borderRadius: '4px',
+                        backgroundColor: '#fff'
+                      }}
+                    >
+                      <option value="lot_avg" disabled={isStageLockedForLot(entry.id, 'lot_avg')}>1. Lot Avg Sampling</option>
+                      <option value="half_lorry" disabled={!isStageApprovedForLot(entry.id, 'lot_avg') || isStageLockedForLot(entry.id, 'half_lorry')}>2. Half Lorry Sampling</option>
+                      <option value="full_avg" disabled={!isStageApprovedForLot(entry.id, 'half_lorry') || isStageLockedForLot(entry.id, 'full_avg')}>3. Full Avg Lorry Sampling</option>
+                      <option value="nit_avg" disabled={!isStageApprovedForLot(entry.id, 'full_avg') || isStageLockedForLot(entry.id, 'nit_avg')}>4. Nit Avg Sampling</option>
+                    </select>
+                    <button
+                      onClick={() => handleAddStage(entry.id)}
+                      type="button"
+                      style={{
+                        padding: '6px 12px',
+                        backgroundColor: '#e74c3c',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        fontSize: '12px'
+                      }}
+                    >
+                      Submit
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ borderTop: '1px solid #eee', paddingTop: '10px', display: 'flex', gap: '10px', marginTop: '10px' }}>
+                  <button
+                    onClick={() => setSelectedEntry(null)}
+                    style={{
+                      flex: 1,
+                      fontSize: '12px',
+                      padding: '8px 12px',
+                      fontWeight: '700',
+                      backgroundColor: '#e74c3c',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Centered Modal Overlay for Active Sampling Cards */}
+      {selectedEntry && activeCards[selectedEntry] && activeCards[selectedEntry].length > 0 && (() => {
+        const entry = entries.find(e => e.id === selectedEntry);
+        if (!entry) return null;
+        const progress = inspectionProgress[entry.id];
+        const activeCardsList = activeCards[entry.id] || [];
+        
+        return (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '20px'
+          }}>
+            <div style={{
+              position: 'relative',
+              display: 'flex',
+              gap: '20px',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'center',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              padding: '10px'
+            }}>
+              {activeCardsList.map((stage) => {
+                const cardData = samplingStageData[entry.id]?.[stage] || {
+                  moisture: '',
+                  dryMoisture: 'N',
+                  dryMoistureValue: '',
+                  grainsCount: '',
+                  cutting: '',
+                  bend: '',
+                  mix: '',
+                  smixEnabled: 'N',
+                  mixS: '',
+                  lmixEnabled: 'N',
+                  mixL: '',
+                  sk: '',
+                  kandu: '',
+                  oil: '',
+                  smellHas: 'No',
+                  smellType: '',
+                  paddyWbEnabled: 'N',
+                  paddyWb: '',
+                  actualBags: '',
+                  reportedBy: user?.username || 'System',
+                  isLocked: false
+                };
+                const isLocked = !!cardData.isLocked;
+                const getCardHeader = () => {
+                  if (stage === 'lot_avg') return { title: 'Lot Avg Sampling', color: '#e67e22', border: '2px solid #e67e22' };
+                  if (stage === 'half_lorry') return { title: 'Half Lorry Sampling', color: '#8e44ad', border: '2px solid #8e44ad' };
+                  if (stage === 'nit_avg') return { title: 'Nit Avg Sampling', color: '#8e44ad', border: '2px solid #8e44ad' };
+                  return { title: 'Full Avg Lorry Sampling', color: '#2980b9', border: '2px solid #2980b9' };
+                };
+
+                const cardStyle = getCardHeader();
+
+                return (
+                  <div key={stage} style={{
+                    width: '380px',
+                    backgroundColor: '#ffffff',
+                    padding: '16px',
+                    borderRadius: '8px',
+                    border: cardStyle.border,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+                    opacity: isLocked ? 0.85 : 1
+                  }}>
+                    <div style={{
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      color: cardStyle.color,
+                      borderBottom: `2px solid ${cardStyle.color}1a`,
+                      paddingBottom: '6px',
+                      marginBottom: '12px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <span>{cardStyle.title}</span>
+                      {isLocked && (() => {
+                        const appStatus = cardData.approvalStatus || 'approved';
+                        if (appStatus === 'pending') {
+                          return (
+                            <span style={{
+                              fontSize: '9px',
+                              padding: '2px 6px',
+                              backgroundColor: '#f39c12',
+                              color: 'white',
+                              borderRadius: '10px',
+                              fontWeight: 'bold'
+                            }}>Pending Approval</span>
+                          );
+                        }
+                        return (
+                          <span style={{
+                            fontSize: '9px',
+                            padding: '2px 6px',
+                            backgroundColor: '#2ecc71',
+                            color: 'white',
+                            borderRadius: '10px',
+                            fontWeight: 'bold'
+                          }}>Approved</span>
+                        );
+                      })()}
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '11px' }}>
+                      {stage === 'full_avg' && (
+                        <div style={{ backgroundColor: '#fcf8e3', padding: '8px', borderRadius: '4px', border: '1px solid #faebcc', marginBottom: '4px' }}>
+                          <label style={{ display: 'block', fontWeight: '700', color: '#8a6d3b', marginBottom: '3px' }}>
+                            Actual bags (this lorry) * Loaded Bags
+                          </label>
+                          <input
+                            type="number"
+                            disabled={isLocked}
+                            value={cardData.actualBags || ''}
+                            onChange={(e) => handleStageInputChange(entry.id, stage, 'actualBags', e.target.value)}
+                            placeholder={`Max remaining: ${progress
+                              ? progress.totalBags - progress.previousInspections.filter(i => i.lorryNumber?.trim().toUpperCase() !== (inspectionData[entry.id]?.lorryNumber || '').trim().toUpperCase()).reduce((sum, i) => sum + (i.bags || 0), 0)
+                              : 0}`}
+                            style={{
+                              width: '100%',
+                              padding: '6px',
+                              fontSize: '11px',
+                              border: '1px solid #ccc',
+                              borderRadius: '4px',
+                              backgroundColor: isLocked ? '#f5f5f5' : '#fff'
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Row 1: Moisture, Dry Moisture, Grains */}
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Moisture *</label>
+                          <input
+                            type="text"
+                            disabled={isLocked}
+                            value={cardData.moisture}
+                            onChange={(e) => handleStageInputChange(entry.id, stage, 'moisture', e.target.value)}
+                            style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                          />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Dry Moisture</label>
+                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
+                            <label><input type="radio" disabled={isLocked} checked={cardData.dryMoisture === 'Y'} onChange={() => handleStageInputChange(entry.id, stage, 'dryMoisture', 'Y')} /> Y</label>
+                            <label><input type="radio" disabled={isLocked} checked={cardData.dryMoisture === 'N'} onChange={() => handleStageInputChange(entry.id, stage, 'dryMoisture', 'N')} /> N</label>
+                          </div>
+                          {cardData.dryMoisture === 'Y' && (
+                            <input
+                              type="text"
+                              disabled={isLocked}
+                              value={cardData.dryMoistureValue || ''}
+                              onChange={(e) => handleStageInputChange(entry.id, stage, 'dryMoistureValue', e.target.value)}
+                              placeholder="Dry Value"
+                              style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                            />
+                          )}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Grains Count *</label>
+                          <input
+                            type="text"
+                            disabled={isLocked}
+                            value={cardData.grainsCount}
+                            onChange={(e) => handleStageInputChange(entry.id, stage, 'grainsCount', e.target.value)}
+                            style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Row 2: Cutting, Bend, Mix */}
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Cutting *</label>
+                          <input
+                            type="text"
+                            disabled={isLocked}
+                            value={cardData.cutting}
+                            placeholder="1×"
+                            onFocus={() => {
+                              if (!cardData.cutting) {
+                                const res = handleCuttingInput('1×', entry.entryType);
+                                handleStageInputChange(entry.id, stage, 'cutting', res.raw);
+                              }
+                            }}
+                            onChange={(e) => {
+                              const res = handleCuttingInput(e.target.value, entry.entryType);
+                              handleStageInputChange(entry.id, stage, 'cutting', res.raw);
+                            }}
+                            style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                          />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Bend *</label>
+                          <input
+                            type="text"
+                            disabled={isLocked}
+                            value={cardData.bend}
+                            placeholder="1×"
+                            onFocus={() => {
+                              if (!cardData.bend) {
+                                const res = handleBendInput('1×', entry.entryType);
+                                handleStageInputChange(entry.id, stage, 'bend', res.raw);
+                              }
+                            }}
+                            onChange={(e) => {
+                              const res = handleBendInput(e.target.value, entry.entryType);
+                              handleStageInputChange(entry.id, stage, 'bend', res.raw);
+                            }}
+                            style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                          />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Mix *</label>
+                          <input
+                            type="text"
+                            disabled={isLocked}
+                            value={cardData.mix}
+                            onChange={(e) => handleStageInputChange(entry.id, stage, 'mix', e.target.value)}
+                            style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Row 3: SMix, LMix, SK */}
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>SMix</label>
+                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
+                            <label><input type="radio" disabled={isLocked} checked={cardData.smixEnabled === 'Y'} onChange={() => handleStageInputChange(entry.id, stage, 'smixEnabled', 'Y')} /> Y</label>
+                            <label><input type="radio" disabled={isLocked} checked={cardData.smixEnabled === 'N'} onChange={() => { handleStageInputChange(entry.id, stage, 'smixEnabled', 'N'); handleStageInputChange(entry.id, stage, 'mixS', ''); }} /> N</label>
+                          </div>
+                          {cardData.smixEnabled === 'Y' && (
+                            <input
+                              type="text"
+                              disabled={isLocked}
+                              value={cardData.mixS}
+                              onChange={(e) => handleStageInputChange(entry.id, stage, 'mixS', e.target.value)}
+                              style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                            />
+                          )}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>LMix</label>
+                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
+                            <label><input type="radio" disabled={isLocked} checked={cardData.lmixEnabled === 'Y'} onChange={() => handleStageInputChange(entry.id, stage, 'lmixEnabled', 'Y')} /> Y</label>
+                            <label><input type="radio" disabled={isLocked} checked={cardData.lmixEnabled === 'N'} onChange={() => { handleStageInputChange(entry.id, stage, 'lmixEnabled', 'N'); handleStageInputChange(entry.id, stage, 'mixL', ''); }} /> N</label>
+                          </div>
+                          {cardData.lmixEnabled === 'Y' && (
+                            <input
+                              type="text"
+                              disabled={isLocked}
+                              value={cardData.mixL}
+                              onChange={(e) => handleStageInputChange(entry.id, stage, 'mixL', e.target.value)}
+                              style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                            />
+                          )}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>SK *</label>
+                          <input
+                            type="text"
+                            disabled={isLocked}
+                            value={cardData.sk}
+                            onChange={(e) => handleStageInputChange(entry.id, stage, 'sk', e.target.value)}
+                            style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Row 4: Kandu, Oil, Smell */}
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Kandu *</label>
+                          <input
+                            type="text"
+                            disabled={isLocked}
+                            value={cardData.kandu}
+                            onChange={(e) => handleStageInputChange(entry.id, stage, 'kandu', e.target.value)}
+                            style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                          />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Oil *</label>
+                          <input
+                            type="text"
+                            disabled={isLocked}
+                            value={cardData.oil}
+                            onChange={(e) => handleStageInputChange(entry.id, stage, 'oil', e.target.value)}
+                            style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                          />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Smell</label>
+                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
+                            <label><input type="radio" disabled={isLocked} checked={cardData.smellHas === 'Yes'} onChange={() => handleStageInputChange(entry.id, stage, 'smellHas', 'Yes')} /> Yes</label>
+                            <label><input type="radio" disabled={isLocked} checked={cardData.smellHas === 'No'} onChange={() => { handleStageInputChange(entry.id, stage, 'smellHas', 'No'); handleStageInputChange(entry.id, stage, 'smellType', ''); }} /> No</label>
+                          </div>
+                          {cardData.smellHas === 'Yes' && (
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              <label><input type="radio" disabled={isLocked} checked={cardData.smellType === 'Light'} onChange={() => handleStageInputChange(entry.id, stage, 'smellType', 'Light')} /> Light</label>
+                              <label><input type="radio" disabled={isLocked} checked={cardData.smellType === 'Medium'} onChange={() => handleStageInputChange(entry.id, stage, 'smellType', 'Medium')} /> Medium</label>
+                              <label><input type="radio" disabled={isLocked} checked={cardData.smellType === 'Dark'} onChange={() => handleStageInputChange(entry.id, stage, 'smellType', 'Dark')} /> Dark</label>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Row 5: Paddy WB */}
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <div style={{ width: '100px' }}>
+                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Paddy WB</label>
+                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                            <label><input type="radio" disabled={isLocked} checked={cardData.paddyWbEnabled === 'Y'} onChange={() => handleStageInputChange(entry.id, stage, 'paddyWbEnabled', 'Y')} /> Y</label>
+                            <label><input type="radio" disabled={isLocked} checked={cardData.paddyWbEnabled === 'N'} onChange={() => handleStageInputChange(entry.id, stage, 'paddyWbEnabled', 'N')} /> N</label>
+                          </div>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          {cardData.paddyWbEnabled === 'Y' && (
+                            <>
+                              <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Paddy WB Value *</label>
+                              <input
+                                type="text"
+                                disabled={isLocked}
+                                value={cardData.paddyWb}
+                                onChange={(e) => handleStageInputChange(entry.id, stage, 'paddyWb', e.target.value)}
+                                style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
+                              />
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Footer: Image and Reported By */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid #eee', paddingTop: '10px', marginTop: '4px' }}>
+                        <div>
+                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Upload Photo (Optional)</label>
+                          {isLocked ? (
+                            cardData.imageUrl ? (
+                              <a href={`${cardData.imageUrl}`} target="_blank" rel="noreferrer" style={{ fontSize: '11px', color: '#3498db', fontWeight: 'bold' }}>🖼️ View Photo</a>
+                            ) : (
+                              <span style={{ fontStyle: 'italic', color: '#999' }}>No photo uploaded</span>
+                            )
+                          ) : (
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => handleStageInputChange(entry.id, stage, 'stageImage', e.target.files?.[0] || null)}
+                              style={{ width: '100%', fontSize: '11px' }}
+                            />
+                          )}
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Sample Reported By *</label>
+                          <input
+                            type="text"
+                            disabled
+                            value={cardData.reportedBy}
+                            style={{
+                              width: '100%',
+                              padding: '5px',
+                              fontSize: '11px',
+                              border: '1px solid #ddd',
+                              borderRadius: '4px',
+                              backgroundColor: '#f5f5f5',
+                              color: '#666',
+                              fontWeight: 'bold'
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {!isLocked && (
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                          <button
+                            onClick={() => handleSaveStage(entry.id, stage)}
+                            style={{
+                              flex: 1,
+                              padding: '6px',
+                              backgroundColor: '#27ae60',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              fontWeight: '700',
+                              cursor: 'pointer',
+                              fontSize: '11px'
+                            }}
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => {
+                              setActiveCards(prev => ({
+                                ...prev,
+                                [entry.id]: (prev[entry.id] || []).filter(k => k !== stage)
+                              }));
+                            }}
+                            style={{
+                              padding: '6px 12px',
+                              backgroundColor: '#95a5a6',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '11px'
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
+
+                      {isLocked && (
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                          <button
+                            onClick={() => {
+                              setActiveCards(prev => ({
+                                ...prev,
+                                [entry.id]: (prev[entry.id] || []).filter(k => k !== stage)
+                              }));
+                            }}
+                            style={{
+                              flex: 1,
+                              padding: '8px',
+                              backgroundColor: '#94a3b8',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              fontWeight: '700',
+                              cursor: 'pointer',
+                              fontSize: '11px'
+                            }}
+                          >
+                            Close Form
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
       {detailModalEntry && (
         <SampleEntryDetailModal
           detailEntry={detailModalEntry}
+          detailMode="history"
+          progressiveMode={true}
           onClose={() => setDetailModalEntry(null)}
+          showCollectorLoginPair={false}
         />
       )}
     </div>

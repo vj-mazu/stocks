@@ -453,18 +453,38 @@ const AllottedSupervisors: React.FC = () => {
           inspectedBags,
           remainingBags,
           progressPercentage,
-          previousInspections: inspections.map(inspection => ({
-            id: inspection.id,
-            inspectionDate: inspection.inspectionDate,
-            lorryNumber: inspection.lorryNumber,
-            bags: inspection.bags,
-            cutting1: inspection.cutting1,
-            cutting2: inspection.cutting2,
-            bend: inspection.bend,
-            bend2: (inspection as any).bend2,
-            samplingStages: (inspection as any).samplingStages,
-            reportedBy: inspection.reportedBy || { username: 'System' }
-          }))
+          previousInspections: (() => {
+            let mapped = inspections.map(inspection => ({
+              id: inspection.id,
+              inspectionDate: inspection.inspectionDate,
+              lorryNumber: inspection.lorryNumber,
+              bags: inspection.bags,
+              cutting1: inspection.cutting1,
+              cutting2: inspection.cutting2,
+              bend: inspection.bend,
+              bend2: (inspection as any).bend2,
+              samplingStages: (inspection as any).samplingStages || {},
+              reportedBy: inspection.reportedBy || { username: 'System' }
+            }));
+
+            if (mapped.length > 1) {
+              const lotAvgIdx = mapped.findIndex(i => (i.lorryNumber || '').trim().toUpperCase() === 'LOT_AVG');
+              if (lotAvgIdx !== -1) {
+                const realLorryInsp = mapped.find(i => (i.lorryNumber || '').trim().toUpperCase() !== 'LOT_AVG');
+                if (realLorryInsp) {
+                  const lotAvgInsp = mapped[lotAvgIdx];
+                  if (lotAvgInsp.samplingStages && lotAvgInsp.samplingStages.lot_avg) {
+                    if (!realLorryInsp.samplingStages) realLorryInsp.samplingStages = {};
+                    if (!realLorryInsp.samplingStages.lot_avg) {
+                      realLorryInsp.samplingStages.lot_avg = lotAvgInsp.samplingStages.lot_avg;
+                    }
+                  }
+                  mapped = mapped.filter((_, idx) => idx !== lotAvgIdx);
+                }
+              }
+            }
+            return mapped;
+          })()
         };
       });
       setInspectionProgress(progressCache);

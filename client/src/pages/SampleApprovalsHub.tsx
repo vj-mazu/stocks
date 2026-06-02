@@ -274,7 +274,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
 
   const getSamplingStatusLabel = (entry: any) => {
     const inspections = entry.physicalInspections || entry.lotAllotment?.physicalInspections || [];
-    if (inspections.length === 0) return 'No Sample';
+    if (inspections.length === 0) return 'Still Loading/Not Started';
     
     const activeInsp = inspections.find((insp: any) => getPendingStage(insp) !== null) || inspections[inspections.length - 1];
     if (!activeInsp) return '-';
@@ -425,7 +425,9 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                               fontWeight: 'bold'
                             }}
                           >
-                            {entry.partyName && entry.partyName.trim() ? toTitleCase(entry.partyName) : 'DIRECT LOADED VEHICLE'}
+                            {entry.partyName && entry.partyName.trim() && entry.partyName.toUpperCase() !== 'DIRECT LOADED VEHICLE'
+                              ? toTitleCase(entry.partyName)
+                              : (entry.lorryNumber?.toUpperCase() || getLorryNumber(entry) || 'DIRECT LOADED VEHICLE')}
                           </span>
                         </td>
                         <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>{entry.location ? toTitleCase(entry.location) : '-'}</td>

@@ -208,10 +208,11 @@ const getPartyLabel = (entry: SampleEntry) => {
 };
 const getPartyDisplayParts = (entry: SampleEntry) => {
     const partyNameText = toTitleCase(entry.partyName || '').trim();
+    const isDirectVehicle = entry.entryType === 'DIRECT_LOADED_VEHICLE' || partyNameText.toUpperCase() === 'DIRECT LOADED VEHICLE';
+    const cleanPartyName = isDirectVehicle ? '' : partyNameText;
     const lorryText = entry.lorryNumber ? entry.lorryNumber.toUpperCase() : '';
     
-    // FIXED: For DIRECT_LOADED_VEHICLE with empty partyName, use lorryNumber as primary label
-    if (entry.entryType === 'DIRECT_LOADED_VEHICLE' && !partyNameText && lorryText) {
+    if (isDirectVehicle && lorryText) {
         return {
             label: lorryText,
             lorryText,
@@ -220,9 +221,9 @@ const getPartyDisplayParts = (entry: SampleEntry) => {
     }
     
     return {
-        label: partyNameText || lorryText || '-',
+        label: cleanPartyName || lorryText || '-',
         lorryText,
-        showLorrySecondLine: !!lorryText && partyNameText.toUpperCase() !== lorryText
+        showLorrySecondLine: !!lorryText && cleanPartyName.toUpperCase() !== lorryText
     };
 };
 const toNumberText = (value: any, digits = 2) => {
@@ -1207,6 +1208,14 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 </div>
                             );
                         }
+                    } else {
+                        if (stageObj.approvalStatus === 'approved') {
+                            actionsCell = <span style={{ color: '#27ae60', fontWeight: 'bold', fontSize: '10px' }}>Approved</span>;
+                        } else if (stageObj.approvalStatus === 'rejected') {
+                            actionsCell = <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '10px' }}>Rejected</span>;
+                        } else if (stageObj.approvalStatus === 'pending') {
+                            actionsCell = <span style={{ color: '#d97706', fontWeight: 'bold', fontSize: '10px' }}>Pending Approval</span>;
+                        }
                     }
 
                     return [
@@ -1933,11 +1942,13 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                     maxWidth: '100%'
                                 }}>
                                     <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                        <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Party Name</div>
+                                        <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                            {detailEntry.entryType === 'DIRECT_LOADED_VEHICLE' || (detailEntry.partyName || '').toUpperCase() === 'DIRECT LOADED VEHICLE' ? 'Lorry Number' : 'Party Name'}
+                                        </div>
                                         {(() => {
                                             const partyDisplay = getPartyDisplayParts(detailEntry);
                                             const partyName = toTitleCase(detailEntry.partyName || '').trim();
-                                            const hasParty = partyName && partyName !== '-';
+                                            const hasParty = partyName && partyName !== '-' && partyName.toUpperCase() !== 'DIRECT LOADED VEHICLE';
                                             return (
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
                                                     {hasParty ? (
