@@ -204,6 +204,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
   const getPendingStage = (insp: any) => {
     const stages = insp.samplingStages || {};
     if (stages.lot_avg?.approvalStatus === 'pending') return { key: 'lot_avg', label: 'Lot Avg' };
+    if (stages.balanced_lot?.approvalStatus === 'pending') return { key: 'balanced_lot', label: 'Balanced Lot' };
     if (stages.half_lorry?.approvalStatus === 'pending') return { key: 'half_lorry', label: 'Half Lorry' };
     if (stages.nit_avg?.approvalStatus === 'pending') return { key: 'nit_avg', label: 'Nit Avg' };
     if (stages.full_avg?.approvalStatus === 'pending') return { key: 'full_avg', label: 'Full Lorry' };
@@ -215,6 +216,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     if (stages.full_avg?.approvalStatus === 'approved') return 'Full Lorry';
     if (stages.nit_avg?.approvalStatus === 'approved') return 'Nit Avg';
     if (stages.half_lorry?.approvalStatus === 'approved') return 'Half Lorry';
+    if (stages.balanced_lot?.approvalStatus === 'approved') return 'Balanced Lot';
     if (stages.lot_avg?.approvalStatus === 'approved') return 'Lot Avg';
     return null;
   };
@@ -273,15 +275,37 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
   };
 
   const getSamplingStatusLabel = (entry: any) => {
-    const inspections = entry.physicalInspections || entry.lotAllotment?.physicalInspections || [];
+    let inspections = entry.physicalInspections || entry.lotAllotment?.physicalInspections || [];
     if (inspections.length === 0) return 'Still Loading/Not Started';
     
+    // Copy to avoid mutating original objects
+    inspections = JSON.parse(JSON.stringify(inspections));
+    
+    // Merge LOT_AVG trip on the fly
+    if (inspections.length > 1) {
+      const lotAvgIdx = inspections.findIndex((i: any) => (i.lorryNumber || '').trim().toUpperCase() === 'LOT_AVG');
+      if (lotAvgIdx !== -1) {
+        const realLorryInsp = inspections.find((i: any) => (i.lorryNumber || '').trim().toUpperCase() !== 'LOT_AVG');
+        if (realLorryInsp) {
+          const lotAvgInsp = inspections[lotAvgIdx];
+          if (lotAvgInsp.samplingStages && lotAvgInsp.samplingStages.lot_avg) {
+            if (!realLorryInsp.samplingStages) realLorryInsp.samplingStages = {};
+            if (!realLorryInsp.samplingStages.lot_avg) {
+              realLorryInsp.samplingStages.lot_avg = lotAvgInsp.samplingStages.lot_avg;
+            }
+          }
+          inspections = inspections.filter((_, idx) => idx !== lotAvgIdx);
+        }
+      }
+    }
+
     const activeInsp = inspections.find((insp: any) => getPendingStage(insp) !== null) || inspections[inspections.length - 1];
     if (!activeInsp) return '-';
     
     const pendingStage = getPendingStage(activeInsp);
     if (pendingStage) {
       if (pendingStage.key === 'lot_avg') return 'Lot Avg Sampling (Pending Approval)';
+      if (pendingStage.key === 'balanced_lot') return 'Balanced Lot Sampling (Pending Approval)';
       if (pendingStage.key === 'half_lorry') return 'Half Lorry Sampling (Pending Approval)';
       if (pendingStage.key === 'full_avg') return 'Full Lorry Sampling (Pending Approval)';
       if (pendingStage.key === 'nit_avg') return 'Nit Avg Sampling (Pending Approval)';
@@ -289,21 +313,19 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     }
     
     const stages = activeInsp.samplingStages || {};
+    const hasInitialStage = (stages.lot_avg && stages.lot_avg.reportedBy) || (stages.balanced_lot && stages.balanced_lot.reportedBy);
     
-    if (!stages.lot_avg || !stages.lot_avg.reportedBy) {
-      return 'Lot Avg Sampling (Pending)';
+    if (!hasInitialStage) {
+      return 'Lot Avg / Balanced Sampling (Pending)';
     }
-    if (stages.lot_avg.approvalStatus === 'approved' && (!stages.half_lorry || !stages.half_lorry.reportedBy)) {
-      return 'Half Lorry Sampling (Pending)';
-    }
-    if (stages.half_lorry?.approvalStatus === 'approved' && (!stages.full_avg || !stages.full_avg.reportedBy)) {
-      return 'Full Lorry Sampling (Pending)';
-    }
-    if (stages.full_avg?.approvalStatus === 'approved' && (!stages.nit_avg || !stages.nit_avg.reportedBy)) {
-      return 'Nit Avg Sampling (Pending)';
+    
+    const initialStageApproved = stages.lot_avg?.approvalStatus === 'approved' || stages.balanced_lot?.approvalStatus === 'approved';
+    if (initialStageApproved && (!stages.half_lorry || !stages.half_lorry.reportedBy) && (!stages.nit_avg || !stages.nit_avg.reportedBy)) {
+      return 'Half Lorry / Nit Avg Sampling (Pending)';
     }
     
     if (stages.full_avg?.approvalStatus === 'approved') return 'Full Lorry Sampling (Approved)';
+    if (stages.balanced_lot?.approvalStatus === 'approved' && !stages.half_lorry?.reportedBy && !stages.full_avg?.reportedBy) return 'Balanced Lot Sampling (Approved)';
     if (stages.nit_avg?.approvalStatus === 'approved') return 'Nit Avg Sampling (Approved)';
     if (stages.half_lorry?.approvalStatus === 'approved') return 'Half Lorry Sampling (Approved)';
     if (stages.lot_avg?.approvalStatus === 'approved') return 'Lot Avg Sampling (Approved)';
@@ -319,11 +341,19 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
 
   const renderLorryQualityTable = () => {
     const filteredInspections = pendingLorryInspections.filter((entry) => {
-      if (loadingSubTab === 'rice') {
-        return entry.entryType === 'RICE_SAMPLE';
-      } else {
-        return entry.entryType !== 'RICE_SAMPLE';
+      const matchesSubTab = loadingSubTab === 'rice'
+        ? entry.entryType === 'RICE_SAMPLE'
+        : entry.entryType !== 'RICE_SAMPLE';
+      
+      if (!matchesSubTab) return false;
+
+      // Filter out 'Still Loading/Not Started' rows unless they are DIRECT_LOADED_VEHICLE (Ready Lorry)
+      const statusLabel = getSamplingStatusLabel(entry);
+      if (statusLabel === 'Still Loading/Not Started' && entry.entryType !== 'DIRECT_LOADED_VEHICLE') {
+        return false;
       }
+
+      return true;
     });
 
     const formatDate = (dateStr: string) => {
@@ -439,9 +469,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                           </span>
                         </td>
                         <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>
-                          <span style={getLorryBadgeStyle()}>
-                            {getLorryNumber(entry)}
-                          </span>
+                          {getLorryNumber(entry)}
                         </td>
                         <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>
                           {activeInsp ? (
@@ -733,6 +761,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                     <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>SK</th>
                     <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>SMELL</th>
                     <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>PADDY WB</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>NIT</th>
                     <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>LOADED BAGS</th>
                     <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>PHOTO</th>
                   </tr>
@@ -741,8 +770,10 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                   {(() => {
                     const stages = selectedLorryForComparison.samplingStages || {};
                     const lot = stages.lot_avg || {};
+                    const balanced = stages.balanced_lot || {};
                     const half = stages.half_lorry || {};
                     const full = stages.full_avg || {};
+                    const nit = stages.nit_avg || {};
 
                     const formatField = (val: any) => {
                       if (val === null || val === undefined || val === '') return '-';
@@ -787,6 +818,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                           <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
                           <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.smellHas ? 'Yes' : '-'}</td>
                           <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.paddyWbEnabled ? formatField(stageObj.paddyWbRaw || stageObj.paddyWb) : '-'}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.nit)}</td>
                           <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{isFull ? formatField(selectedLorryForComparison.bags) : '-'}</td>
                           <td style={{ padding: '8px 10px', textAlign: 'center' }}>
                             {stageObj.imageUrl ? <a href={resolveMediaUrl(stageObj.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
@@ -797,9 +829,11 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
 
                     return (
                       <>
-                        {renderRow('Lot Avg', '#1565c0', '#f0f9ff', lot, false)}
-                        {renderRow('Half Lorry', '#b45309', '#fffbeb', half, false)}
-                        {renderRow('Full Avg Lorry', '#15803d', '#f0fdf4', full, true)}
+                        {lot.reportedBy && renderRow('Lot Avg', '#1565c0', '#f0f9ff', lot, false)}
+                        {balanced.reportedBy && renderRow('Balanced Lot', '#1565c0', '#f0f9ff', balanced, true)}
+                        {half.reportedBy && renderRow('Half Lorry', '#b45309', '#fffbeb', half, false)}
+                        {full.reportedBy && renderRow('Full Avg Lorry', '#15803d', '#f0fdf4', full, true)}
+                        {nit.reportedBy && renderRow('Nit Avg', '#6b21a8', '#faf5ff', nit, false)}
                       </>
                     );
                   })()}

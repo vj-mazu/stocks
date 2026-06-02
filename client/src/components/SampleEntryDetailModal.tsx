@@ -497,7 +497,7 @@ const getPopupSmellSummary = (entry: any) => {
     const smellLabel = getSmellLabelRobust(entry);
     if (smellLabel !== '-') {
         const upperLabel = String(smellLabel || '').trim().toUpperCase();
-        const tone = upperLabel === 'LIGHT' ? '#e67e22' : (upperLabel === 'MEDIUM' ? '#f39c12' : '#c62828');
+        const tone = upperLabel === 'LIGHT' ? '#ff6b6b' : (upperLabel === 'MEDIUM' ? '#dc2626' : '#7f1d1d');
         return {
             label: 'Smell',
             value: smellLabel,
@@ -511,12 +511,71 @@ const getPopupSmellSummary = (entry: any) => {
         return {
             label: 'Failed Smell',
             value: failedLabel,
-            tone: '#c62828'
+            tone: '#7f1d1d'
         };
     }
 
     return null;
 };
+
+const renderBeautifulSmell = (stageObjOrLabel: any) => {
+    let hasSmell = false;
+    let type = '';
+    let rawLabel = '';
+
+    if (typeof stageObjOrLabel === 'string') {
+        rawLabel = stageObjOrLabel;
+        const upper = rawLabel.trim().toUpperCase();
+        if (upper && upper !== '-') {
+            hasSmell = true;
+            type = upper;
+        }
+    } else if (stageObjOrLabel && typeof stageObjOrLabel === 'object') {
+        hasSmell = stageObjOrLabel.smellHas === true || String(stageObjOrLabel.smellHas).trim().toUpperCase() === 'YES';
+        type = String(stageObjOrLabel.smellType || '').trim().toUpperCase();
+        rawLabel = stageObjOrLabel.smellType || 'Yes';
+    }
+
+    if (!hasSmell) return '-';
+
+    let label = rawLabel;
+    let color = '#7f1d1d'; // dark red text for dark/heavy/other
+    let bgColor = '#fee2e2'; // light red background for light
+
+    if (type === 'LIGHT' || type.includes('LIGHT')) {
+        label = 'LIGHT';
+        bgColor = '#ffe4e6'; // Very light red
+        color = '#e11d48'; // Bright light red
+    } else if (type === 'MEDIUM' || type.includes('MEDIUM')) {
+        label = 'MEDIUM';
+        bgColor = '#f43f5e'; // Medium dark red
+        color = '#ffffff'; // White text
+    } else if (type === 'DARK' || type === 'HEAVY' || type.includes('DARK') || type.includes('HEAVY')) {
+        label = 'DARK';
+        bgColor = '#881337'; // Darkest red
+        color = '#ffffff'; // White text
+    } else {
+        label = rawLabel.toUpperCase() === 'YES' ? 'SMELL' : rawLabel.toUpperCase();
+        bgColor = '#f43f5e';
+        color = '#ffffff';
+    }
+
+    return (
+        <span style={{
+            fontWeight: '800',
+            color: color,
+            backgroundColor: bgColor,
+            padding: '3px 8px',
+            borderRadius: '6px',
+            fontSize: '10px',
+            display: 'inline-block',
+            border: `1px solid ${color}33`
+        }}>
+            {label}
+        </span>
+    );
+};
+
 
 
 
@@ -890,18 +949,18 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 {/* Section Header - gradient bar */}
                 <div style={{
                     background: `linear-gradient(135deg, ${headerColor}, ${headerColor}cc)`,
-                    padding: '10px 16px',
+                    padding: '12px 18px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     gap: '8px'
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '15px' }}>{icon}</span>
-                        <span style={{ color: 'white', fontSize: '14px', fontWeight: 700, letterSpacing: '0.4px', fontStyle: 'italic' }}>{title}</span>
+                        <span style={{ fontSize: '17px' }}>{icon}</span>
+                        <span style={{ color: 'white', fontSize: '16px', fontWeight: 700, letterSpacing: '0.4px', fontStyle: 'italic' }}>{title}</span>
                     </div>
                     {options.isQuality && detailEntry.lorryNumber && getPartyDisplayParts(detailEntry).label !== detailEntry.lorryNumber.toUpperCase() && (
-                        <span style={{ color: 'white', fontSize: '14px', fontWeight: 900, letterSpacing: '1px' }}>
+                        <span style={{ color: 'white', fontSize: '16px', fontWeight: 900, letterSpacing: '1px' }}>
                             {detailEntry.lorryNumber.toUpperCase()}
                         </span>
                     )}
@@ -913,14 +972,14 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                             <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '2px solid #dee2e6' }}>
                                 {columns.map((col, i) => (
                                     <th key={i} style={{
-                                        padding: '6px 6px',
+                                        padding: '6px 4px',
                                         textAlign: 'left',
                                         color: '#495057',
                                         fontWeight: 800,
                                         textTransform: 'uppercase',
-                                        fontSize: '10px',
+                                        fontSize: '10.5px',
                                         whiteSpace: 'nowrap',
-                                        letterSpacing: '0.3px',
+                                        letterSpacing: '0.2px',
                                         borderRight: i < columns.length - 1 ? '1px solid #e9ecef' : 'none'
                                     }}>
                                         {col}
@@ -933,7 +992,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 if (row && row.type === 'header') {
                                     return (
                                         <tr key={i} style={{ backgroundColor: '#e2e8f0', borderBottom: '2px solid #cbd5e1' }}>
-                                            <td colSpan={columns.length} style={{ padding: '8px 12px', fontWeight: '800', color: '#1e293b', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                            <td colSpan={columns.length} style={{ padding: '8px 10px', fontWeight: '800', color: '#1e293b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                                                 {row.content}
                                             </td>
                                         </tr>
@@ -941,33 +1000,36 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 }
                                 if (row && row.type === 'spacer') {
                                     return (
-                                        <tr key={i} style={{ height: '12px', backgroundColor: 'transparent' }}>
-                                            <td colSpan={columns.length} style={{ padding: 0, height: '12px', border: 'none' }}></td>
+                                        <tr key={i} style={{ height: '8px', backgroundColor: 'transparent' }}>
+                                            <td colSpan={columns.length} style={{ padding: 0, height: '8px', border: 'none' }}></td>
                                         </tr>
                                     );
                                 }
                                 return (
                                     <tr key={i} style={{
-                                        backgroundColor: i % 2 === 0 ? '#ffffff' : '#f8fafb',
-                                        borderBottom: '1px solid #e9ecef'
+                                        backgroundColor: row.hasSmell 
+                                            ? '#ffebee' 
+                                            : (i % 2 === 0 ? '#ffffff' : '#f8fafb'),
+                                        borderBottom: row.hasSmell ? '2px solid #ef5350' : '1px solid #e9ecef',
+                                        transition: 'background-color 0.2s'
                                     }}>
                                         {row.map((cell: any, j: number) => (
                                             <td key={j} style={{
-                                                padding: '6px 6px',
+                                                padding: '6px 4px',
                                                 color: '#1e293b',
                                                 fontWeight: j === 0 ? 700 : 500,
-                                                whiteSpace: j === 0 ? 'normal' : 'nowrap',
+                                                whiteSpace: j === 0 || j === 1 || j === 2 || j === 18 ? 'normal' : 'nowrap',
                                                 fontSize: '11px',
                                                 borderRight: j < row.length - 1 ? '1px solid #f1f5f9' : 'none',
-                                                maxWidth: j === 0 ? '160px' : undefined,
-                                                wordBreak: j === 0 ? 'break-word' : undefined
+                                                maxWidth: j === 0 ? '130px' : j === 1 ? '110px' : j === 18 ? '140px' : undefined,
+                                                wordBreak: j === 0 || j === 1 || j === 18 ? 'break-word' : undefined
                                             }}>
                                                 {cell}
                                             </td>
                                         ))}
                                     </tr>
                                 );
-                            })}
+                             })}
                         </tbody>
                     </table>
                 </div>
@@ -1012,10 +1074,27 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             const gVal = String(attempt.grainsCount === undefined || attempt.grainsCount === null ? '' : attempt.grainsCount);
             const grains = gRaw ? `(${gRaw})` : (gVal && gVal !== '0' && gVal !== '0.00' ? `(${gVal})` : '-');
 
+            const renderStackedDateTime = (dtStr: any) => {
+                if (!dtStr) return '-';
+                try {
+                    const d = new Date(dtStr);
+                    const dStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    const tStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase();
+                    return (
+                        <div style={{ display: 'flex', flexDirection: 'column', fontSize: '10.5px', lineHeight: '1.2' }}>
+                            <span style={{ fontWeight: '600' }}>{dStr}</span>
+                            <span style={{ color: '#64748b', fontSize: '9.5px' }}>{tStr}</span>
+                        </div>
+                    );
+                } catch {
+                    return '-';
+                }
+            };
+
             const rowData = [
                 <span style={{ color: '#c2410c' }}>{label} Sample</span>,
                 getCollectorLabel(attempt.reportedBy),
-                formatShortDateTime(reportedAt) || '-',
+                renderStackedDateTime(reportedAt),
                 moisture,
                 cutting,
                 bend,
@@ -1029,13 +1108,19 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 formatQ(attempt.wbRRaw, attempt.wbR),
                 formatQ(attempt.wbBkRaw, attempt.wbBk),
                 formatQ(attempt.wbTRaw, attempt.wbT),
-                <span style={{ fontWeight: 600, color: '#475569' }}>{getQualityAttemptSmellLabel(detailEntry, attempt).toUpperCase()}</span>,
-                formatQ(attempt.paddyWbRaw, attempt.paddyWb)
+                renderBeautifulSmell(getQualityAttemptSmellLabel(detailEntry, attempt)),
+                formatQ(attempt.paddyWbRaw, attempt.paddyWb),
+                formatQ(attempt.nitRaw, attempt.nit)
             ];
 
             if (progressiveMode) {
                 rowData.push('-');
             }
+
+            const smellLabel = getQualityAttemptSmellLabel(detailEntry, attempt);
+            rowData.hasSmell = attempt?.smellHas === true 
+                || String(attempt?.smellHas).trim().toUpperCase() === 'YES'
+                || (smellLabel && smellLabel !== '-' && smellLabel !== 'No');
 
             return rowData;
         });
@@ -1087,12 +1172,13 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 // Add header row for the Lorry/Trip
                 rows.push({
                     type: 'header',
-                    content: `Trip #${tripIdx + 1} - Lorry Number: ${insp.lorryNumber?.toUpperCase() || 'Lorry'}`
+                    content: `Load ${tripIdx + 1} - Lorry Number: ${insp.lorryNumber?.toUpperCase() || 'Lorry'}`
                 });
 
                 const getPendingStageOfTrip = (currentInsp: any) => {
                     const stg = currentInsp.samplingStages || {};
                     if (stg.lot_avg?.approvalStatus === 'pending') return { key: 'lot_avg', label: 'Lot Avg' };
+                    if (stg.balanced_lot?.approvalStatus === 'pending') return { key: 'balanced_lot', label: 'Balanced Lot' };
                     if (stg.half_lorry?.approvalStatus === 'pending') return { key: 'half_lorry', label: 'Half Lorry' };
                     if (stg.nit_avg?.approvalStatus === 'pending') return { key: 'nit_avg', label: 'Nit Avg' };
                     if (stg.full_avg?.approvalStatus === 'pending') return { key: 'full_avg', label: 'Full Lorry' };
@@ -1182,7 +1268,14 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 </div>
                             );
                         } else if (stageObj.approvalStatus === 'approved') {
-                            actionsCell = <span style={{ color: '#27ae60', fontWeight: 'bold', fontSize: '10px' }}>Approved</span>;
+                            const fallbackManagerName = detailEntry.lotAllotment?.manager?.fullName || detailEntry.lotAllotment?.manager?.username || 'MANAGER';
+                            const name = stageObj.approvedBy ? stageObj.approvedBy : fallbackManagerName;
+                            actionsCell = (
+                                <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.2', border: '1px solid rgba(39, 174, 96, 0.3)', backgroundColor: '#e8f5e9', padding: '3px 8px', borderRadius: '4px', textAlign: 'center' }}>
+                                    <span style={{ color: '#2e7d32', fontWeight: '800', fontSize: '10px', textTransform: 'uppercase' }}>Approved</span>
+                                    <span style={{ color: '#1b5e20', fontSize: '9px', fontWeight: '700', whiteSpace: 'normal', maxWidth: '100px', wordBreak: 'break-word' }}>by {name.toUpperCase()}</span>
+                                </div>
+                            );
                         } else if (stageObj.approvalStatus === 'rejected') {
                             actionsCell = <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '10px' }}>Rejected</span>;
                         } else if (!pendingStage && stageKey === 'full_avg') {
@@ -1210,7 +1303,14 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         }
                     } else {
                         if (stageObj.approvalStatus === 'approved') {
-                            actionsCell = <span style={{ color: '#27ae60', fontWeight: 'bold', fontSize: '10px' }}>Approved</span>;
+                            const fallbackManagerName = detailEntry.lotAllotment?.manager?.fullName || detailEntry.lotAllotment?.manager?.username || 'MANAGER';
+                            const name = stageObj.approvedBy ? stageObj.approvedBy : fallbackManagerName;
+                            actionsCell = (
+                                <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.2', border: '1px solid rgba(39, 174, 96, 0.3)', backgroundColor: '#e8f5e9', padding: '3px 8px', borderRadius: '4px', textAlign: 'center' }}>
+                                    <span style={{ color: '#2e7d32', fontWeight: '800', fontSize: '10px', textTransform: 'uppercase' }}>Approved</span>
+                                    <span style={{ color: '#1b5e20', fontSize: '9px', fontWeight: '700', whiteSpace: 'normal', maxWidth: '100px', wordBreak: 'break-word' }}>by {name.toUpperCase()}</span>
+                                </div>
+                            );
                         } else if (stageObj.approvalStatus === 'rejected') {
                             actionsCell = <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '10px' }}>Rejected</span>;
                         } else if (stageObj.approvalStatus === 'pending') {
@@ -1218,10 +1318,27 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         }
                     }
 
+                    const renderStageReportedAtStacked = (dtStr: any) => {
+                        if (!dtStr) return '-';
+                        try {
+                            const d = new Date(dtStr);
+                            const dStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                            const tStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase();
+                            return (
+                                <div style={{ display: 'flex', flexDirection: 'column', fontSize: '10.5px', lineHeight: '1.2' }}>
+                                    <span style={{ fontWeight: '600' }}>{dStr}</span>
+                                    <span style={{ color: '#64748b', fontSize: '9.5px' }}>{tStr}</span>
+                                </div>
+                            );
+                        } catch {
+                            return '-';
+                        }
+                    };
+
                     return [
                         labelElement,
                         getCollectorLabel(stageObj.reportedBy),
-                        reportedAt ? (new Date(reportedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) || '-') : '-',
+                        renderStageReportedAtStacked(reportedAt),
                         formatStageMoisture(stageObj),
                         formatStageCutting(stageObj),
                         formatStageBend(stageObj),
@@ -1235,14 +1352,16 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         formatQ(stageObj.wbRRaw, stageObj.wbR),
                         formatQ(stageObj.wbBkRaw, stageObj.wbBk),
                         formatQ(stageObj.wbTRaw, stageObj.wbT),
-                        <span style={{ fontWeight: 600, color: '#475569' }}>{stageObj.smellHas ? 'YES' : '-'}</span>,
+                        renderBeautifulSmell(stageObj),
                         stageObj.paddyWbEnabled ? formatQ(stageObj.paddyWbRaw, stageObj.paddyWb) : '-',
+                        formatQ(stageObj.nitRaw, stageObj.nit),
                         actionsCell
                     ];
                 };
 
                 const stageKeys = [
                     { key: 'lot_avg', label: 'Lot Avg' },
+                    { key: 'balanced_lot', label: 'Balanced Lot' },
                     { key: 'half_lorry', label: 'Half Lorry' },
                     { key: 'full_avg', label: 'Full Avg Lorry' },
                     { key: 'nit_avg', label: 'Nit Avg' }
@@ -1268,7 +1387,12 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                             </span>
                         );
                         const stageRow = makeRow(labelElement, stageObj, key);
-                        if (stageRow) rows.push(stageRow);
+                        if (stageRow) {
+                            (stageRow as any).hasSmell = stageObj.smellHas === true 
+                                || String(stageObj.smellHas).trim().toUpperCase() === 'YES'
+                                || (stageObj.smellType && String(stageObj.smellType).trim() !== '' && String(stageObj.smellType).trim() !== '-' && String(stageObj.smellType).trim().toLowerCase() !== 'no');
+                            rows.push(stageRow);
+                        }
                     }
                 });
             });
@@ -1925,8 +2049,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         ['Variety', toTitleCase(detailEntry.variety || '-')],
                                     ].map(([label, value], i) => (
                                         <div key={i} style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                            <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
-                                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>{value || '-'}</div>
+                                            <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
+                                            <div style={{ fontSize: '17px', fontWeight: '700', color: '#1e293b' }}>{value || '-'}</div>
                                         </div>
                                     ))}
                                 </div>
@@ -1942,7 +2066,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                     maxWidth: '100%'
                                 }}>
                                     <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                        <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                        <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                                             {detailEntry.entryType === 'DIRECT_LOADED_VEHICLE' || (detailEntry.partyName || '').toUpperCase() === 'DIRECT LOADED VEHICLE' ? 'Lorry Number' : 'Party Name'}
                                         </div>
                                         {(() => {
@@ -1971,16 +2095,16 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                     console.error('Error fetching party entries:', err);
                                                                 }
                                                             }}
-                                                            style={{ fontSize: '15px', fontWeight: '700', color: '#1565c0', cursor: 'pointer', textDecoration: 'underline', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                                                            style={{ fontSize: '17px', fontWeight: '700', color: '#1565c0', cursor: 'pointer', textDecoration: 'underline', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                                                             title={`Click to view all entries for ${partyName}`}
                                                         >
                                                             {partyDisplay.label}
                                                         </span>
                                                     ) : (
-                                                        <div style={{ fontSize: '15px', fontWeight: '700', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                        <div style={{ fontSize: '17px', fontWeight: '700', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                             {partyDisplay.label}
                                                             {partyDisplay.showLorrySecondLine ? (
-                                                                <div style={{ fontSize: '13px', fontWeight: '600', color: '#1565c0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                <div style={{ fontSize: '15px', fontWeight: '600', color: '#1565c0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                     Lorry No: {' '}
                                                                     <span
                                                                         onClick={() => {
@@ -2028,7 +2152,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         })()}
                                     </div>
                                     <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                        <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Location</div>
+                                        <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Location</div>
                                         {(() => {
                                             const locationName = toTitleCase(detailEntry.location || '').trim();
                                             const hasLocation = locationName && locationName !== '-';
@@ -2054,13 +2178,13 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                     console.error('Error fetching location entries:', err);
                                                                 }
                                                             }}
-                                                            style={{ fontSize: '14px', fontWeight: '700', color: '#1565c0', cursor: 'pointer', textDecoration: 'underline' }}
+                                                            style={{ fontSize: '17px', fontWeight: '700', color: '#1565c0', cursor: 'pointer', textDecoration: 'underline' }}
                                                             title={`Click to view all entries at ${locationName}`}
                                                         >
                                                             {locationName}
                                                         </span>
                                                     ) : (
-                                                        <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>{toTitleCase(detailEntry.location || '-')}</div>
+                                                        <div style={{ fontSize: '17px', fontWeight: '700', color: '#1e293b' }}>{toTitleCase(detailEntry.location || '-')}</div>
                                                     )}
                                                     {detailEntry.entryType === 'LOCATION_SAMPLE' && (detailEntry as any).gpsCoordinates && (() => {
                                                         const gps = (detailEntry as any).gpsCoordinates;
@@ -2082,7 +2206,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         })()}
                                     </div>
                                     <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                        <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Collected By</div>
+                                        <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Collected By</div>
                                         {(() => {
                                             const collectedByDisplay = getCollectedByDisplay(detailEntry);
                                             if (collectedByDisplay.secondary) {
@@ -2091,7 +2215,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                         {(() => {
                                                             const primaryLine = splitCollectedByLine(collectedByDisplay.primary);
                                                             return (
-                                                                <span style={{ fontSize: '14px', fontWeight: '700' }}>
+                                                                <span style={{ fontSize: '17px', fontWeight: '700' }}>
                                                                     <span style={{ color: collectedByDisplay.highlightPrimary ? '#9c27b0' : '#1e293b' }}>{primaryLine.text}</span>
                                                                     {primaryLine.accent ? <><span style={{ color: '#94a3b8' }}> | </span><span style={{ color: '#9c27b0' }}>{primaryLine.accent}</span></> : null}
                                                                 </span>
@@ -2101,7 +2225,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                         {(() => {
                                                             const secondaryLine = splitCollectedByLine(collectedByDisplay.secondary);
                                                             return (
-                                                                <span style={{ fontSize: '12px', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                <span style={{ fontSize: '14px', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                     <span style={{ color: collectedByDisplay.highlightSecondary ? '#9c27b0' : '#333' }}>{secondaryLine.text}</span>
                                                                     {secondaryLine.accent ? <><span style={{ color: '#94a3b8' }}> | </span><span style={{ color: '#9c27b0' }}>{secondaryLine.accent}</span></> : null}
                                                                 </span>
@@ -2114,7 +2238,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                 (() => {
                                                     const primaryLine = splitCollectedByLine(collectedByDisplay.primary);
                                                     return (
-                                                        <div style={{ fontSize: '14px', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                        <div style={{ fontSize: '17px', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                             <span style={{ color: collectedByDisplay.highlightPrimary ? '#9c27b0' : '#1e293b' }}>{primaryLine.text}</span>
                                                             {primaryLine.accent ? <><span style={{ color: '#94a3b8' }}> | </span><span style={{ color: '#9c27b0' }}>{primaryLine.accent}</span></> : null}
                                                         </div>
@@ -2125,19 +2249,19 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                     </div>
                                     {detailEntry.lotAllotment?.supervisor && (
                                         <div style={{ background: '#fff7ed', padding: '12px', borderRadius: '8px', border: '1px solid #ffd8a8' }}>
-                                            <div style={{ fontSize: '10px', color: '#e67e22', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Allotted Loading Supervisor</div>
-                                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#ef6c00' }}>
+                                            <div style={{ fontSize: '12px', color: '#e67e22', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Allotted Loading Supervisor</div>
+                                            <div style={{ fontSize: '17px', fontWeight: '700', color: '#ef6c00' }}>
                                                 {toTitleCase(detailEntry.lotAllotment.supervisor.fullName || detailEntry.lotAllotment.supervisor.username)}
                                             </div>
                                         </div>
                                     )}
                                     <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', display: getPopupSmellSummary(detailEntry as any) ? undefined : 'none' }}>
-                                        <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Smell</div>
+                                        <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Smell</div>
                                         {(() => {
                                             const s = getPopupSmellSummary(detailEntry as any);
                                             if (!s) return null;
                                             return (
-                                                <div style={{ fontSize: '14px', fontWeight: '800', color: s.tone }}>
+                                                <div style={{ fontSize: '17px', fontWeight: '800', color: s.tone }}>
                                                     {s.value} Smell
                                                 </div>
                                             );
@@ -2152,14 +2276,14 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         '🔬', 
                                         '#f97316', 
                                         progressiveMode 
-                                            ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS COUNT', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'ACTIONS']
-                                            : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS COUNT', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB'],
+                                            ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS COUNT', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'NIT', 'ACTIONS']
+                                            : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS COUNT', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'NIT'],
                                         buildQualityRows(),
                                         { isQuality: true }
                                     )}
 
                                     {/* Cooking History */}
-                                    {renderHorizontalTable(
+                                    {!progressiveMode && renderHorizontalTable(
                                         'Cooking History',
                                         '🍳',
                                         '#2563eb',
@@ -2585,8 +2709,10 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                             {selectedLorryForComparison.previousInspections && selectedLorryForComparison.previousInspections.map((inspection: any, idx: number) => {
                                 const stages = inspection.samplingStages || {};
                                 const lot = stages.lot_avg || {};
+                                const balanced = stages.balanced_lot || {};
                                 const half = stages.half_lorry || {};
                                 const full = stages.full_avg || {};
+                                const nit = stages.nit_avg || {};
 
                                 const formatField = (val: any) => {
                                     if (val === null || val === undefined || val === '') return '-';
@@ -2612,12 +2738,13 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 };
 
                                 const renderRow = (name: string, color: string, bgColor: string, stageObj: any, isFull: boolean) => {
+                                    const rowHasSmell = stageObj.smellHas === true || String(stageObj.smellHas).trim().toUpperCase() === 'YES';
                                     return (
-                                        <tr key={name} style={{ borderBottom: '1px solid #cbd5e1', backgroundColor: bgColor }}>
+                                        <tr key={name} style={{ borderBottom: '1px solid #cbd5e1', backgroundColor: rowHasSmell ? '#ffebee' : bgColor }}>
                                             <td style={{ padding: '8px 10px', fontWeight: '800', color: color }}>{name}</td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.reportedBy)}</td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>
-                                                {stageObj.reportedAt ? new Date(stageObj.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                                                {stageObj.reportedAt ? (new Date(stageObj.reportedAt).toLocaleDateString('en-GB') + ', ' + new Date(stageObj.reportedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()) : '-'}
                                             </td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatMoisture(stageObj)}</td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatCutting(stageObj)}</td>
@@ -2629,8 +2756,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.kanduRaw || stageObj.kandu)}</td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.oilRaw || stageObj.oil)}</td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
-                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.smellHas ? 'Yes' : '-'}</td>
+                                            <td style={{ padding: '8px 10px', textAlign: 'center' }}>{renderBeautifulSmell(stageObj)}</td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.paddyWbEnabled ? formatField(stageObj.paddyWbRaw || stageObj.paddyWb) : '-'}</td>
+                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.nit)}</td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{isFull ? formatField(inspection.bags) : '-'}</td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center' }}>
                                                 {stageObj.imageUrl ? <a href={resolveMediaUrl(stageObj.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
@@ -2642,7 +2770,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 return (
                                     <div key={inspection.id} style={{ border: '1px solid #f2cfb6', borderRadius: '8px', overflow: 'hidden' }}>
                                         <div style={{ background: 'linear-gradient(90deg, #f2711c 0%, #f26202 100%)', padding: '8px 12px', fontWeight: 'bold', fontSize: '12px', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
-                                            <span>Trip #{idx + 1} | Lorry No: {inspection.lorryNumber?.toUpperCase()} | Bags Loaded: {inspection.bags || '-'}</span>
+                                            <span>Load {idx + 1} | Lorry No: {inspection.lorryNumber?.toUpperCase()} | Bags Loaded: {inspection.bags || '-'}</span>
                                             <span>Reported By: {inspection.reportedBy?.username || 'System'} | Date: {new Date(inspection.inspectionDate).toLocaleDateString()}</span>
                                         </div>
                                         <div style={{ overflowX: 'auto' }}>
@@ -2664,14 +2792,17 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                         <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>SK</th>
                                                         <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>SMELL</th>
                                                         <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PADDY WB</th>
+                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>NIT</th>
                                                         <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>LOADED BAGS</th>
                                                         <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PHOTO</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     {lot && lot.reportedBy && renderRow('Lot Avg', '#d05d00', '#fffaf5', lot, false)}
+                                                    {balanced && balanced.reportedBy && renderRow('Balanced Lot', '#4a148c', '#faf5ff', balanced, true)}
                                                     {half && half.reportedBy && renderRow('Half Lorry', '#b45309', '#fffdfa', half, false)}
                                                     {full && full.reportedBy && renderRow('Full Avg Lorry', '#15803d', '#fffaf0', full, true)}
+                                                    {nit && nit.reportedBy && renderRow('Nit Avg', '#c2185b', '#fdf2f8', nit, false)}
                                                 </tbody>
                                             </table>
                                         </div>

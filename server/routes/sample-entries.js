@@ -1446,9 +1446,12 @@ router.post('/:id/manager-value-approval-decision', authenticateToken, async (re
     const approverUser = await User.findByPk(req.user.userId, { attributes: ['fullName', 'username'] });
     const approverName = approverUser?.fullName || approverUser?.username || 'Admin';
 
+    const hasOfferVersions = Array.isArray(offering.offerVersions) && offering.offerVersions.length > 0;
     const isDispute = pendingData.disputeBaseRate !== undefined && pendingData.disputeBaseRate !== null && pendingData.disputeBaseRate !== '';
-    const isRevision = (pendingData.revisedHamali !== undefined && pendingData.revisedHamali !== null && pendingData.revisedHamali !== '')
-      || (pendingData.revisedLf !== undefined && pendingData.revisedLf !== null && pendingData.revisedLf !== '');
+    const isRevision = hasOfferVersions && (
+      (pendingData.revisedHamali !== undefined && pendingData.revisedHamali !== null && pendingData.revisedHamali !== '')
+      || (pendingData.revisedLf !== undefined && pendingData.revisedLf !== null && pendingData.revisedLf !== '')
+    );
 
     const disputeVersions = Array.isArray(offering.disputeVersions) ? [...offering.disputeVersions] : [];
     const newVersion = {
@@ -1457,9 +1460,9 @@ router.post('/:id/manager-value-approval-decision', authenticateToken, async (re
       disputeBaseRate: pendingData.disputeBaseRate !== undefined ? pendingData.disputeBaseRate : null,
       disputeBaseRateType: pendingData.disputeBaseRateType || null,
       disputeReason: pendingData.disputeReason || null,
-      revisedHamali: pendingData.revisedHamali !== undefined ? pendingData.revisedHamali : null,
-      revisedLf: pendingData.revisedLf !== undefined ? pendingData.revisedLf : null,
-      revisedRateOption: pendingData.revisedRateOption || null,
+      revisedHamali: hasOfferVersions && pendingData.revisedHamali !== undefined ? pendingData.revisedHamali : null,
+      revisedLf: hasOfferVersions && pendingData.revisedLf !== undefined ? pendingData.revisedLf : null,
+      revisedRateOption: hasOfferVersions ? (pendingData.revisedRateOption || null) : null,
       hamaliUnit: pendingData.hamaliUnit || offering.hamaliUnit || 'per_bag',
       lfUnit: pendingData.lfUnit || offering.lfUnit || 'per_bag',
       requestedBy: targetRequest.requestedBy,
@@ -3423,6 +3426,7 @@ router.post('/:id/physical-inspection', authenticateToken, async (req, res) => {
           paddyWbEnabled: req.body.paddyWbEnabled,
           paddyWb: (req.body.paddyWb !== undefined && req.body.paddyWb !== null && req.body.paddyWb !== '') ? Number.parseFloat(req.body.paddyWb) : undefined,
           paddyWbRaw: req.body.paddyWbRaw || null,
+          nit: req.body.nit || null,
           remarks: req.body.remarks || null,
           reportedBy: req.user.username // Username of the supervisor
         };

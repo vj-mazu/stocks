@@ -966,6 +966,7 @@ class SampleEntryService {
 
     const currentUser = await User.findByPk(userId, { attributes: ['id', 'username', 'fullName'] });
     const updatedByFullName = currentUser?.fullName || currentUser?.username || 'System';
+    const hasOfferVersions = Array.isArray(offering.offerVersions) && offering.offerVersions.length > 0;
     const updates = { updatedBy: userId, updatedByFullName };
     const isManagerMissingValueRequest = userRole === 'manager' && finalData?.fillMissingValues === true;
     const normalizeComparableValue = (value) => {
@@ -1032,9 +1033,10 @@ class SampleEntryService {
         return requestData.disputeBaseRate !== undefined && requestData.disputeBaseRate !== null && requestData.disputeBaseRate !== '';
       });
       const isDisputeRequest = pendingData.disputeBaseRate !== undefined && pendingData.disputeBaseRate !== null && pendingData.disputeBaseRate !== '';
-      const isRevisionRequest =
+      const isRevisionRequest = hasOfferVersions && (
         (pendingData.revisedHamali !== undefined && pendingData.revisedHamali !== null && pendingData.revisedHamali !== '')
-        || (pendingData.revisedLf !== undefined && pendingData.revisedLf !== null && pendingData.revisedLf !== '');
+        || (pendingData.revisedLf !== undefined && pendingData.revisedLf !== null && pendingData.revisedLf !== '')
+      );
 
       if (isDisputeRequest) {
         pendingData.__requestType = 'dispute';
@@ -1159,17 +1161,24 @@ class SampleEntryService {
       if (finalData.isFinalized !== undefined) updates.isFinalized = finalData.isFinalized;
       if (finalData.disputeBaseRate !== undefined) updates.disputeBaseRate = finalData.disputeBaseRate;
       if (finalData.disputeBaseRateType !== undefined) updates.disputeBaseRateType = finalData.disputeBaseRateType;
-      if (finalData.revisedHamali !== undefined) updates.revisedHamali = finalData.revisedHamali;
-      if (finalData.revisedLf !== undefined) updates.revisedLf = finalData.revisedLf;
-      if (finalData.revisedRateOption !== undefined) updates.revisedRateOption = finalData.revisedRateOption;
+      if (hasOfferVersions) {
+        if (finalData.revisedHamali !== undefined) updates.revisedHamali = finalData.revisedHamali;
+        if (finalData.revisedLf !== undefined) updates.revisedLf = finalData.revisedLf;
+        if (finalData.revisedRateOption !== undefined) updates.revisedRateOption = finalData.revisedRateOption;
+      } else {
+        updates.revisedHamali = null;
+        updates.revisedLf = null;
+        updates.revisedRateOption = null;
+      }
 
       // When the admin directly submits/updates a dispute or revision, automatically create or update the version in disputeVersions
       const isDispute = finalData.disputeBaseRate !== undefined && finalData.disputeBaseRate !== null && finalData.disputeBaseRate !== '';
-      const isRevision = 
+      const isRevision = hasOfferVersions && (
         ((finalData.revisedHamali !== undefined && finalData.revisedHamali !== null && finalData.revisedHamali !== '') && 
          (Number(finalData.revisedHamali) !== Number(finalData.hamali ?? offering.hamali)))
         || ((finalData.revisedLf !== undefined && finalData.revisedLf !== null && finalData.revisedLf !== '') && 
-            (Number(finalData.revisedLf) !== Number(finalData.lf ?? offering.lf)));
+            (Number(finalData.revisedLf) !== Number(finalData.lf ?? offering.lf)))
+      );
 
       if (isDispute || isRevision) {
         const disputeVersions = Array.isArray(offering.disputeVersions) ? [...offering.disputeVersions] : [];
@@ -1297,9 +1306,15 @@ class SampleEntryService {
       if (finalData.isFinalized !== undefined) updates.isFinalized = finalData.isFinalized;
       if (finalData.disputeBaseRate !== undefined) updates.disputeBaseRate = finalData.disputeBaseRate;
       if (finalData.disputeBaseRateType !== undefined) updates.disputeBaseRateType = finalData.disputeBaseRateType;
-      if (finalData.revisedHamali !== undefined) updates.revisedHamali = finalData.revisedHamali;
-      if (finalData.revisedLf !== undefined) updates.revisedLf = finalData.revisedLf;
-      if (finalData.revisedRateOption !== undefined) updates.revisedRateOption = finalData.revisedRateOption;
+      if (hasOfferVersions) {
+        if (finalData.revisedHamali !== undefined) updates.revisedHamali = finalData.revisedHamali;
+        if (finalData.revisedLf !== undefined) updates.revisedLf = finalData.revisedLf;
+        if (finalData.revisedRateOption !== undefined) updates.revisedRateOption = finalData.revisedRateOption;
+      } else {
+        updates.revisedHamali = null;
+        updates.revisedLf = null;
+        updates.revisedRateOption = null;
+      }
     }
 
     await offering.update(updates);

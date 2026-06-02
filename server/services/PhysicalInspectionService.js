@@ -98,7 +98,7 @@ class PhysicalInspectionService {
 
       // MULTI-STAGE FLOW
       const stage = inspectionData.stage.toLowerCase();
-      if (!['lot_avg', 'half_lorry', 'nit_avg', 'full_avg'].includes(stage)) {
+      if (!['lot_avg', 'half_lorry', 'nit_avg', 'full_avg', 'balanced_lot'].includes(stage)) {
         throw new Error('Invalid sampling stage specified');
       }
 
@@ -162,6 +162,7 @@ class PhysicalInspectionService {
         paddyWbEnabled: inspectionData.paddyWbEnabled === 'true' || inspectionData.paddyWbEnabled === true,
         paddyWb: inspectionData.paddyWb !== undefined ? Number(inspectionData.paddyWb) : null,
         paddyWbRaw: inspectionData.paddyWbRaw || null,
+        nit: inspectionData.nit || null,
         reportedBy: inspectionData.reportedBy || 'System',
         reportedAt: new Date().toISOString(),
         imageUrl: null,
@@ -169,19 +170,27 @@ class PhysicalInspectionService {
       };
 
       if (!existingLorryInspection) {
+        let bagsVal = null;
+        let completeVal = false;
+        if (stage === 'balanced_lot') {
+          const totalInspected = existingInspections.reduce((sum, i) => sum + (i.bags || 0), 0);
+          bagsVal = totalAllottedBags - totalInspected;
+          stageData.actualBags = bagsVal;
+          completeVal = true;
+        }
         const newInspectionData = {
           sampleEntryId: inspectionData.sampleEntryId,
           lotAllotmentId: lotAllotment.id,
           reportedByUserId: userId,
           inspectionDate: inspectionData.inspectionDate || new Date().toISOString().split('T')[0],
           lorryNumber: lorryNumberClean,
-          bags: null,
+          bags: bagsVal,
           cutting1: stageData.cutting1 || 0,
           cutting2: stageData.cutting2 || 0,
           bend: stageData.bend1 || 0,
           bend2: stageData.bend2 || 0,
           remarks: inspectionData.remarks || null,
-          isComplete: false,
+          isComplete: completeVal,
           samplingStages: {
             [stage]: stageData
           }
@@ -222,20 +231,23 @@ class PhysicalInspectionService {
           samplingStages: JSON.parse(JSON.stringify(stages))
         };
 
-        if (stage === 'full_avg') {
-          const actualBags = Number.parseInt(inspectionData.actualBags || '0');
-          if (!actualBags || actualBags <= 0) {
-            throw new Error('Please enter valid actual bags for Full Avg Lorry');
-          }
-
-          // Validate remaining bags
+        if (stage === 'full_avg' || stage === 'balanced_lot') {
+          let actualBags = Number.parseInt(inspectionData.actualBags || '0');
           const totalInspected = existingInspections
             .filter(i => i.id !== currentInspection.id)
             .reduce((sum, i) => sum + (i.bags || 0), 0);
           const remainingBags = totalAllottedBags - totalInspected;
 
-          if (actualBags > remainingBags) {
-            throw new Error(`Cannot inspect ${actualBags} bags. Only ${remainingBags} bags remaining.`);
+          if (stage === 'balanced_lot') {
+            actualBags = remainingBags;
+            stageData.actualBags = actualBags;
+          } else {
+            if (!actualBags || actualBags <= 0) {
+              throw new Error('Please enter valid actual bags for Full Avg Lorry');
+            }
+            if (actualBags > remainingBags) {
+              throw new Error(`Cannot inspect ${actualBags} bags. Only ${remainingBags} bags remaining.`);
+            }
           }
 
           updates.bags = actualBags;
@@ -246,7 +258,7 @@ class PhysicalInspectionService {
           updates.remarks = inspectionData.remarks || null;
 
           const newTotalInspected = totalInspected + actualBags;
-          if (newTotalInspected >= totalAllottedBags) {
+          if (newTotalInspected >= totalAllottedBags || stage === 'balanced_lot') {
             updates.isComplete = true;
           }
         }
@@ -462,8 +474,12 @@ class PhysicalInspectionService {
       throw new Error(`Sampling stage '${stageName}' not found in this inspection`);
     }
 
-    // Set approval status to approved
+    // Set approval status to approved and record approver name
+    const User = require('../models/User');
+    const approverUser = await User.findByPk(userId);
+    const approverName = approverUser ? (approverUser.fullName || approverUser.username) : 'System';
     stages[cleanStage].approvalStatus = 'approved';
+    stages[cleanStage].approvedBy = approverName;
     
     const updates = {
       samplingStages: JSON.parse(JSON.stringify(stages))
@@ -474,8 +490,8 @@ class PhysicalInspectionService {
       throw new Error('Sample entry not found');
     }
 
-    // If approving full_avg, copy values to main columns of physical inspection
-    if (cleanStage === 'full_avg') {
+    // If approving full_avg or balanced_lot, copy values to main columns of physical inspection
+    if (cleanStage === 'full_avg' || cleanStage === 'balanced_lot') {
       const stageData = stages[cleanStage];
       updates.bags = stageData.actualBags !== undefined ? Number(stageData.actualBags) : inspection.bags;
       updates.cutting1 = stageData.cutting1 || 0;

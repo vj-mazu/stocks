@@ -1294,6 +1294,8 @@ const AllottedSupervisors: React.FC = () => {
                                                   if (stages.half_lorry?.approvalStatus === 'pending') return '#f39c12'; // Pending
                                                   if (stages.lot_avg?.approvalStatus === 'approved') return '#1565c0'; // Approved stage
                                                   if (stages.lot_avg?.approvalStatus === 'pending') return '#f39c12'; // Pending
+                                                  if (stages.balanced_lot?.approvalStatus === 'approved') return '#1565c0'; // Approved stage
+                                                  if (stages.balanced_lot?.approvalStatus === 'pending') return '#f39c12'; // Pending
                                                   return '#64748b';
                                                 })()
                                               }}>
@@ -1307,6 +1309,8 @@ const AllottedSupervisors: React.FC = () => {
                                                   if (stages.half_lorry?.approvalStatus === 'pending') return 'Pending: Half Lorry';
                                                   if (stages.lot_avg?.approvalStatus === 'approved') return 'Approved: Lot Avg';
                                                   if (stages.lot_avg?.approvalStatus === 'pending') return 'Pending: Lot Avg';
+                                                  if (stages.balanced_lot?.approvalStatus === 'approved') return 'Approved: Balanced Lot';
+                                                  if (stages.balanced_lot?.approvalStatus === 'pending') return 'Pending: Balanced Lot';
                                                   return 'Pending';
                                                 })()}
                                               </td>
