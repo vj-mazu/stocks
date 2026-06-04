@@ -239,11 +239,8 @@ class PhysicalInspectionService {
           const currentTripFullAvgBags = Number.parseInt(stages.full_avg?.actualBags || currentInspection.bags || '0');
 
           if (stage === 'balanced_lot') {
-            const totalInspected = otherTripsBags + currentTripFullAvgBags;
-            const remainingBags = totalAllottedBags - totalInspected;
-            
-            stageData.actualBags = remainingBags;
-            updates.bags = currentTripFullAvgBags + remainingBags;
+            stageData.actualBags = 0;
+            updates.bags = currentTripFullAvgBags;
           } else {
             let actualBags = Number.parseInt(inspectionData.actualBags || '0');
             const remainingBags = totalAllottedBags - otherTripsBags;
@@ -504,8 +501,7 @@ class PhysicalInspectionService {
       const stageData = stages[cleanStage] || {};
       if (cleanStage === 'balanced_lot') {
         const fullAvgBags = Number(stages.full_avg?.actualBags || 0);
-        const balancedBags = Number(stages.balanced_lot?.actualBags || 0);
-        updates.bags = fullAvgBags + balancedBags;
+        updates.bags = fullAvgBags;
       } else {
         updates.bags = stageData.actualBags !== undefined ? Number(stageData.actualBags) : inspection.bags;
       }
