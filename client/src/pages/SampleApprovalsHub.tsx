@@ -516,9 +516,14 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                                 );
                               }
                               
+                              const inspections = entry.physicalInspections || entry.lotAllotment?.physicalInspections || [];
+                              const totalInspected = inspections.reduce((sum: number, i: any) => sum + (i.bags || 0), 0);
+                              const allottedBags = entry.lotAllotment?.allottedBags || entry.bags || 0;
+                              const isLotFullyInspected = totalInspected >= allottedBags;
+
                               const stages = activeInsp.samplingStages || {};
                               const isFinalApproved = stages.balanced_lot?.approvalStatus === 'approved';
-                              if (activeInsp.isComplete || isFinalApproved) {
+                              if ((activeInsp.isComplete || isFinalApproved) && isLotFullyInspected) {
                                 return (
                                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                     <button

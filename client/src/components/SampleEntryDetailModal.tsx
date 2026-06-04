@@ -1230,7 +1230,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                     </button>
                                 </div>
                             );
-                        } else if (!pendingStage && detailEntry.status === 'PHYSICAL_INSPECTION' && (insp.isComplete || stages.balanced_lot?.approvalStatus === 'approved') && stageKey === 'balanced_lot') {
+                        } else if (!pendingStage && detailEntry.status === 'PHYSICAL_INSPECTION' && (insp.isComplete || stages.balanced_lot?.approvalStatus === 'approved') && stageKey === 'balanced_lot' && (inspectionsProgress?.inspectedBags >= inspectionsProgress?.totalBags)) {
                             actionsCell = (
                                 <div style={{ display: 'flex', gap: '10px' }}>
                                     <button
