@@ -1644,7 +1644,7 @@ const PhysicalInspection: React.FC = () => {
                     type="text"
                     value={inspectionData[entry.id]?.lorryNumber || ''}
                     onChange={(e) => handleLorryNumberChange(entry.id, e.target.value)}
-                    disabled={!!(inspectionData[entry.id]?.lorryNumber && progress?.previousInspections?.some(trip => trip.lorryNumber === inspectionData[entry.id]?.lorryNumber && trip.lorryNumber !== 'LOT_AVG')) && user?.role !== 'admin' && user?.role !== 'manager' && !isLocationStaffUser && !isLegacyPhysicalSupervisor}
+                    disabled={!!(inspectionData[entry.id]?.lorryNumber && progress?.previousInspections?.some(trip => trip.lorryNumber === inspectionData[entry.id]?.lorryNumber && trip.lorryNumber !== 'LOT_AVG'))}
                     placeholder="ENTER LORRY NUMBER"
                     maxLength={12}
                     style={{
@@ -1655,7 +1655,7 @@ const PhysicalInspection: React.FC = () => {
                       borderRadius: '4px',
                       color: '#1a1a1a',
                       fontWeight: '600',
-                      backgroundColor: (inspectionData[entry.id]?.lorryNumber && progress?.previousInspections?.some(trip => trip.lorryNumber === inspectionData[entry.id]?.lorryNumber && trip.lorryNumber !== 'LOT_AVG') && user?.role !== 'admin' && user?.role !== 'manager' && !isLocationStaffUser && !isLegacyPhysicalSupervisor) ? '#e0e0e0' : '#fff',
+                      backgroundColor: (inspectionData[entry.id]?.lorryNumber && progress?.previousInspections?.some(trip => trip.lorryNumber === inspectionData[entry.id]?.lorryNumber && trip.lorryNumber !== 'LOT_AVG')) ? '#e0e0e0' : '#fff',
                       textTransform: 'uppercase'
                     }}
                   />
@@ -2525,7 +2525,7 @@ const PhysicalInspection: React.FC = () => {
                     type="text"
                     value={inspectionData[entry.id]?.lorryNumber || ''}
                     onChange={(e) => handleLorryNumberChange(entry.id, e.target.value)}
-                    disabled={!!(inspectionData[entry.id]?.lorryNumber && progress?.previousInspections?.some(trip => trip.lorryNumber === inspectionData[entry.id]?.lorryNumber && trip.lorryNumber !== 'LOT_AVG')) && user?.role !== 'admin' && user?.role !== 'manager' && !isLocationStaffUser && !isLegacyPhysicalSupervisor}
+                    disabled={!!(inspectionData[entry.id]?.lorryNumber && progress?.previousInspections?.some(trip => trip.lorryNumber === inspectionData[entry.id]?.lorryNumber && trip.lorryNumber !== 'LOT_AVG'))}
                     placeholder="ENTER LORRY NUMBER"
                     maxLength={12}
                     style={{
@@ -2536,7 +2536,7 @@ const PhysicalInspection: React.FC = () => {
                       borderRadius: '4px',
                       color: '#1a1a1a',
                       fontWeight: '600',
-                      backgroundColor: (inspectionData[entry.id]?.lorryNumber && progress?.previousInspections?.some(trip => trip.lorryNumber === inspectionData[entry.id]?.lorryNumber && trip.lorryNumber !== 'LOT_AVG') && user?.role !== 'admin' && user?.role !== 'manager' && !isLocationStaffUser && !isLegacyPhysicalSupervisor) ? '#e0e0e0' : '#fff',
+                      backgroundColor: (inspectionData[entry.id]?.lorryNumber && progress?.previousInspections?.some(trip => trip.lorryNumber === inspectionData[entry.id]?.lorryNumber && trip.lorryNumber !== 'LOT_AVG')) ? '#e0e0e0' : '#fff',
                       textTransform: 'uppercase'
                     }}
                   />
