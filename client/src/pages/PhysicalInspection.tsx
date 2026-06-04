@@ -2420,7 +2420,7 @@ const PhysicalInspection: React.FC = () => {
                           {stages.nit_avg && stages.nit_avg.reportedBy && renderRow('Nit Avg', '#6b21a8', '#faf5ff', stages.nit_avg, false)}
                           {half && half.reportedBy && renderRow('Half Lorry', '#b45309', '#fffdfa', half, false)}
                           {full && full.reportedBy && renderRow('Full Avg Lorry', '#15803d', '#fffaf0', full, true)}
-                          {stages.balanced_lot && stages.balanced_lot.reportedBy && renderRow('Balanced Lot', '#d05d00', '#fffaf5', stages.balanced_lot, true)}
+                          {stages.balanced_lot && stages.balanced_lot.reportedBy && renderRow('Balanced Lot', '#d05d00', '#fffaf5', stages.balanced_lot, false)}
                         </tbody>
                       </table>
                     </div>

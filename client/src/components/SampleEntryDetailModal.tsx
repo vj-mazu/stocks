@@ -2802,7 +2802,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                     {nit && nit.reportedBy && renderRow('Nit Avg', '#c2185b', '#fdf2f8', nit, false)}
                                                     {half && half.reportedBy && renderRow('Half Lorry', '#b45309', '#fffdfa', half, false)}
                                                     {full && full.reportedBy && renderRow('Full Avg Lorry', '#15803d', '#fffaf0', full, true)}
-                                                    {balanced && balanced.reportedBy && renderRow('Balanced Lot', '#4a148c', '#faf5ff', balanced, true)}
+                                                    {balanced && balanced.reportedBy && renderRow('Balanced Lot', '#4a148c', '#faf5ff', balanced, false)}
                                                 </tbody>
                                             </table>
                                         </div>
