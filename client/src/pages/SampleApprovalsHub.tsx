@@ -854,7 +854,11 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
           detailEntry={detailModalEntry}
           detailMode="full"
           progressiveMode={true}
-          onClose={() => setDetailModalEntry(null)}
+          onClose={() => {
+            setDetailModalEntry(null);
+            fetchLoadingQuality();
+          }}
+          onUpdate={fetchLoadingQuality}
         />
       )}
     </div>

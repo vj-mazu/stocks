@@ -1230,7 +1230,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                     </button>
                                 </div>
                             );
-                        } else if (!pendingStage && (insp.isComplete || stages.full_avg?.approvalStatus === 'approved') && stageKey === 'full_avg') {
+                        } else if (!pendingStage && detailEntry.status === 'PHYSICAL_INSPECTION' && (insp.isComplete || stages.full_avg?.approvalStatus === 'approved') && stageKey === 'full_avg') {
                             actionsCell = (
                                 <div style={{ display: 'flex', gap: '10px' }}>
                                     <button
@@ -1361,10 +1361,10 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
 
                 const stageKeys = [
                     { key: 'lot_avg', label: 'Lot Avg' },
-                    { key: 'balanced_lot', label: 'Balanced Lot' },
+                    { key: 'nit_avg', label: 'Nit Avg' },
                     { key: 'half_lorry', label: 'Half Lorry' },
                     { key: 'full_avg', label: 'Full Avg Lorry' },
-                    { key: 'nit_avg', label: 'Nit Avg' }
+                    { key: 'balanced_lot', label: 'Balanced Lot' }
                 ];
 
                 stageKeys.forEach(({ key, label }) => {
@@ -1498,9 +1498,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         if (pendingQueue.length > 0 && isPending) {
             pendingQueue.forEach((request: any, idx: number) => {
                 const pendingData = request.data || {};
-                const isDispute = pendingData.disputeBaseRate !== undefined && pendingData.disputeBaseRate !== null && pendingData.disputeBaseRate !== '';
-                const isRevision = (pendingData.revisedHamali !== undefined && pendingData.revisedHamali !== null && pendingData.revisedHamali !== '')
-                    || (pendingData.revisedLf !== undefined && pendingData.revisedLf !== null && pendingData.revisedLf !== '');
+                const isDispute = pendingData.__requestType === 'dispute' || (pendingData.__requestType === undefined && pendingData.disputeBaseRate !== undefined && pendingData.disputeBaseRate !== null && pendingData.disputeBaseRate !== '');
+                const isRevision = pendingData.__requestType === 'revision' || (pendingData.__requestType === undefined && ((pendingData.revisedHamali !== undefined && pendingData.revisedHamali !== null && pendingData.revisedHamali !== '')
+                    || (pendingData.revisedLf !== undefined && pendingData.revisedLf !== null && pendingData.revisedLf !== '')));
 
                 if (!isDispute && !isRevision) return;
 
@@ -1612,9 +1612,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             let revisionCount = 0;
 
             disputeVersions.forEach((v: any) => {
-                const isDispute = v.type === 'dispute' || (v.disputeBaseRate !== undefined && v.disputeBaseRate !== null && v.disputeBaseRate !== '');
-                const isRevision = v.type === 'revision' || (v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== '')
-                    || (v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== '');
+                const isDispute = v.type === 'dispute' || (v.type === undefined && v.disputeBaseRate !== undefined && v.disputeBaseRate !== null && v.disputeBaseRate !== '');
+                const isRevision = v.type === 'revision' || (v.type === undefined && ((v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== '')
+                    || (v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== '')));
 
                 if (!isDispute && !isRevision) return;
 
@@ -2799,10 +2799,10 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                 </thead>
                                                 <tbody>
                                                     {lot && lot.reportedBy && renderRow('Lot Avg', '#d05d00', '#fffaf5', lot, false)}
-                                                    {balanced && balanced.reportedBy && renderRow('Balanced Lot', '#4a148c', '#faf5ff', balanced, true)}
+                                                    {nit && nit.reportedBy && renderRow('Nit Avg', '#c2185b', '#fdf2f8', nit, false)}
                                                     {half && half.reportedBy && renderRow('Half Lorry', '#b45309', '#fffdfa', half, false)}
                                                     {full && full.reportedBy && renderRow('Full Avg Lorry', '#15803d', '#fffaf0', full, true)}
-                                                    {nit && nit.reportedBy && renderRow('Nit Avg', '#c2185b', '#fdf2f8', nit, false)}
+                                                    {balanced && balanced.reportedBy && renderRow('Balanced Lot', '#4a148c', '#faf5ff', balanced, true)}
                                                 </tbody>
                                             </table>
                                         </div>

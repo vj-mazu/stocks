@@ -196,39 +196,39 @@ const WORKFLOW_TRANSITIONS = [
   {
     fromStatus: 'PHYSICAL_INSPECTION',
     toStatus: 'INVENTORY_ENTRY',
-    allowedRoles: ['inventory_staff', 'admin', 'manager'],
+    allowedRoles: ['inventory_staff', 'admin', 'manager', 'owner'],
     requiredData: ['physicalInspection']
   },
   // Allow physical supervisor to add more inspections while already in PHYSICAL_INSPECTION
   {
     fromStatus: 'PHYSICAL_INSPECTION',
     toStatus: 'PHYSICAL_INSPECTION',
-    allowedRoles: ['physical_supervisor', 'manager', 'admin'],
+    allowedRoles: ['physical_supervisor', 'manager', 'admin', 'owner'],
     requiredData: []
   },
   // Allow going back from later stages to PHYSICAL_INSPECTION when a new lorry trip is added
   {
     fromStatus: 'INVENTORY_ENTRY',
     toStatus: 'PHYSICAL_INSPECTION',
-    allowedRoles: ['physical_supervisor', 'manager', 'admin'],
+    allowedRoles: ['physical_supervisor', 'manager', 'admin', 'owner'],
     requiredData: []
   },
   {
     fromStatus: 'OWNER_FINANCIAL',
     toStatus: 'PHYSICAL_INSPECTION',
-    allowedRoles: ['physical_supervisor', 'manager', 'admin'],
+    allowedRoles: ['physical_supervisor', 'manager', 'admin', 'owner'],
     requiredData: []
   },
   {
     fromStatus: 'MANAGER_FINANCIAL',
     toStatus: 'PHYSICAL_INSPECTION',
-    allowedRoles: ['physical_supervisor', 'manager', 'admin'],
+    allowedRoles: ['physical_supervisor', 'manager', 'admin', 'owner'],
     requiredData: []
   },
   {
     fromStatus: 'FINAL_REVIEW',
     toStatus: 'PHYSICAL_INSPECTION',
-    allowedRoles: ['physical_supervisor', 'manager', 'admin'],
+    allowedRoles: ['physical_supervisor', 'manager', 'admin', 'owner'],
     requiredData: []
   },
   // Allow manager/admin to reject and send back to LOT_ALLOTMENT
@@ -286,7 +286,7 @@ const WORKFLOW_TRANSITIONS = [
   {
     fromStatus: 'FINAL_REVIEW',
     toStatus: 'COMPLETED',
-    allowedRoles: ['admin', 'manager'],
+    allowedRoles: ['admin', 'manager', 'owner'],
     requiredData: []
   }
 ];

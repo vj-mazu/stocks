@@ -135,6 +135,29 @@ const buildPendingSummary = (data?: Record<string, any> | null, offering?: Recor
       tone: shouldHighlight ? managerPendingFieldTone : standardPendingFieldTone
     });
   };
+
+  const reqType = pendingData.__requestType;
+
+  if (reqType === 'dispute') {
+    if (pendingData.disputeBaseRate !== undefined && pendingData.disputeBaseRate !== null && pendingData.disputeBaseRate !== '') {
+      pushRow('disputeBaseRate', 'Dispute Rate', `₹${toDisplayNumber(pendingData.disputeBaseRate)} (${pendingData.disputeBaseRateType || 'PD/WB'})`);
+    }
+    if (pendingData.disputeReason !== undefined && pendingData.disputeReason !== null && pendingData.disputeReason !== '') {
+      pushRow('disputeReason', 'Dispute Reason', String(pendingData.disputeReason));
+    }
+    return rows;
+  }
+
+  if (reqType === 'revision') {
+    if (pendingData.revisedHamali !== undefined && pendingData.revisedHamali !== null && pendingData.revisedHamali !== '') {
+      pushRow('revisedHamali', 'Rev. Hamali', `₹${toDisplayNumber(pendingData.revisedHamali)} ${formatChargeUnit(pendingData.hamaliUnit || offering?.hamaliUnit)}`.trim());
+    }
+    if (pendingData.revisedLf !== undefined && pendingData.revisedLf !== null && pendingData.revisedLf !== '') {
+      pushRow('revisedLf', 'Rev. LF', `₹${toDisplayNumber(pendingData.revisedLf)} ${formatChargeUnit(pendingData.lfUnit || offering?.lfUnit)}`.trim());
+    }
+    return rows;
+  }
+
   if (pendingData.disputeBaseRate !== undefined && pendingData.disputeBaseRate !== null && pendingData.disputeBaseRate !== '') {
     pushRow('disputeBaseRate', 'Dispute Rate', `₹${toDisplayNumber(pendingData.disputeBaseRate)} (${pendingData.disputeBaseRateType || 'PD/WB'})`);
   }
@@ -201,6 +224,25 @@ const buildOriginalSummary = (data?: Record<string, any> | null, offering?: Reco
       }
     });
   };
+
+  const reqType = pendingData.__requestType;
+
+  if (reqType === 'dispute') {
+    if (pendingData.disputeBaseRate !== undefined && pendingData.disputeBaseRate !== null && pendingData.disputeBaseRate !== '') {
+      pushRow('disputeBaseRate', 'Orig. Rate', `₹${toDisplayNumber(offering?.finalBaseRate ?? offering?.offerBaseRateValue)} (${offering?.baseRateType || 'PD/WB'})`);
+    }
+    return rows;
+  }
+
+  if (reqType === 'revision') {
+    if (pendingData.revisedHamali !== undefined && pendingData.revisedHamali !== null && pendingData.revisedHamali !== '') {
+      pushRow('revisedHamali', 'Orig. Hamali', `₹${toDisplayNumber(offering?.hamali)} ${formatChargeUnit(offering?.hamaliUnit)}`.trim());
+    }
+    if (pendingData.revisedLf !== undefined && pendingData.revisedLf !== null && pendingData.revisedLf !== '') {
+      pushRow('revisedLf', 'Orig. LF', `₹${toDisplayNumber(offering?.lf)} ${formatChargeUnit(offering?.lfUnit)}`.trim());
+    }
+    return rows;
+  }
 
   if (pendingData.disputeBaseRate !== undefined && pendingData.disputeBaseRate !== null && pendingData.disputeBaseRate !== '') {
     pushRow('disputeBaseRate', 'Orig. Rate', `₹${toDisplayNumber(offering?.finalBaseRate ?? offering?.offerBaseRateValue)} (${offering?.baseRateType || 'PD/WB'})`);

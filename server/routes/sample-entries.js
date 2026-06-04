@@ -1446,39 +1446,16 @@ router.post('/:id/manager-value-approval-decision', authenticateToken, async (re
     const approverUser = await User.findByPk(req.user.userId, { attributes: ['fullName', 'username'] });
     const approverName = approverUser?.fullName || approverUser?.username || 'Admin';
 
-    const hasOfferVersions = Array.isArray(offering.offerVersions) && offering.offerVersions.length > 0;
-    const isDispute = pendingData.disputeBaseRate !== undefined && pendingData.disputeBaseRate !== null && pendingData.disputeBaseRate !== '';
-    const isRevision = hasOfferVersions && (
-      (pendingData.revisedHamali !== undefined && pendingData.revisedHamali !== null && pendingData.revisedHamali !== '')
-      || (pendingData.revisedLf !== undefined && pendingData.revisedLf !== null && pendingData.revisedLf !== '')
-    );
-
-    const disputeVersions = Array.isArray(offering.disputeVersions) ? [...offering.disputeVersions] : [];
-    const newVersion = {
-      id: targetRequest.id || `disp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      type: pendingData.__requestType || (isDispute ? 'dispute' : 'revision'),
-      disputeBaseRate: pendingData.disputeBaseRate !== undefined ? pendingData.disputeBaseRate : null,
-      disputeBaseRateType: pendingData.disputeBaseRateType || null,
-      disputeReason: pendingData.disputeReason || null,
-      revisedHamali: hasOfferVersions && pendingData.revisedHamali !== undefined ? pendingData.revisedHamali : null,
-      revisedLf: hasOfferVersions && pendingData.revisedLf !== undefined ? pendingData.revisedLf : null,
-      revisedRateOption: hasOfferVersions ? (pendingData.revisedRateOption || null) : null,
-      hamaliUnit: pendingData.hamaliUnit || offering.hamaliUnit || 'per_bag',
-      lfUnit: pendingData.lfUnit || offering.lfUnit || 'per_bag',
-      requestedBy: targetRequest.requestedBy,
-      requestedByName: requesterName,
-      requestedAt: targetRequest.requestedAt || new Date(),
-      approvedBy: req.user.userId,
-      approvedByName: approverName,
-      approvedAt: new Date(),
-      linkedDisputeRequestId: pendingData.__linkedDisputeRequestId || null,
-      linkedDisputeLabel: pendingData.__linkedDisputeLabel || null
-    };
-    disputeVersions.push(newVersion);
-
     await SampleEntryService.setFinalPrice(
       req.params.id,
-      { ...pendingData, fillMissingValues: false },
+      { 
+        ...pendingData, 
+        fillMissingValues: false,
+        requestId: targetRequest.id,
+        requestedBy: targetRequest.requestedBy,
+        requestedByName: requesterName,
+        requestedAt: targetRequest.requestedAt || new Date()
+      },
       req.user.userId,
       'admin'
     );
@@ -1491,17 +1468,23 @@ router.post('/:id/manager-value-approval-decision', authenticateToken, async (re
     const remainingQueue = pendingQueue.filter((_, index) => index !== requestIndex);
     const latestPending = remainingQueue[remainingQueue.length - 1] || null;
 
-    await offering.update({
-      ...managerFieldUpdates,
-      disputeVersions,
-      pendingManagerValueApprovalStatus: latestPending ? 'pending' : 'approved',
-      pendingManagerValueApprovalApprovedBy: latestPending ? null : req.user.userId,
-      pendingManagerValueApprovalApprovedAt: latestPending ? null : new Date(),
-      pendingManagerValueApprovalQueue: remainingQueue,
-      pendingManagerValueApprovalData: latestPending ? latestPending.data : null,
-      pendingManagerValueApprovalRequestedBy: latestPending ? latestPending.requestedBy : null,
-      pendingManagerValueApprovalRequestedAt: latestPending ? latestPending.requestedAt : null
+    // Reload offering from database to prevent clobbering disputeVersions
+    const updatedOffering = await SampleEntryOffering.findOne({
+      where: { sampleEntryId: req.params.id }
     });
+
+    if (updatedOffering) {
+      await updatedOffering.update({
+        ...managerFieldUpdates,
+        pendingManagerValueApprovalStatus: latestPending ? 'pending' : 'approved',
+        pendingManagerValueApprovalApprovedBy: latestPending ? null : req.user.userId,
+        pendingManagerValueApprovalApprovedAt: latestPending ? null : new Date(),
+        pendingManagerValueApprovalQueue: remainingQueue,
+        pendingManagerValueApprovalData: latestPending ? latestPending.data : null,
+        pendingManagerValueApprovalRequestedBy: latestPending ? latestPending.requestedBy : null,
+        pendingManagerValueApprovalRequestedAt: latestPending ? latestPending.requestedAt : null
+      });
+    }
 
     if (pendingData.isFinalized) {
       try {

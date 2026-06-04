@@ -475,7 +475,7 @@ class SampleEntryRepository {
     const username = String(filters.staffUsername || '').trim().toLowerCase();
     let staffVisibilityClause = null;
 
-    if (role !== 'admin' && role !== 'manager') {
+    if (role !== 'admin' && role !== 'manager' && role !== 'owner') {
       const isSharedResampleCookingSupervisorView =
         (requestedStatus === 'RESAMPLE_COOKING_BOOK' || requestedStatus === 'COOKING_BOOK')
         && (

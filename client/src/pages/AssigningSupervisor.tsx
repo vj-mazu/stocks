@@ -13,6 +13,15 @@ import {
 
 import { API_URL } from '../config/api';
 
+const LF_RATE_TYPES = new Set(['PD_LOOSE', 'MD_LOOSE', 'PD_WB']);
+const EGB_RATE_TYPES = new Set(['PD_LOOSE', 'MD_LOOSE']);
+const hasLfForRateType = (value?: string) => LF_RATE_TYPES.has(String(value || '').toUpperCase());
+const hasEgbForRateType = (value?: string) => EGB_RATE_TYPES.has(String(value || '').toUpperCase());
+const hasPositiveAmount = (value: any) => {
+  const num = Number(value);
+  return Number.isFinite(num) && num > 0;
+};
+
 interface SampleEntry {
   id: string;
   serialNo?: number;
@@ -138,11 +147,20 @@ const AssigningSupervisor: React.FC = () => {
       // Filter to only include entries where all required manager values are filled (needsFill is false)
       const filteredEntries = entriesWithoutSupervisor.filter((entry: SampleEntry) => {
         const o = offerCache[entry.id] || {};
-        const needsFill = (o.suteEnabled === false && !parseFloat(o.finalSute) && !parseFloat(o.sute)) ||
-          (o.moistureEnabled === false && !parseFloat(o.moistureValue)) ||
-          (o.hamaliEnabled === false && !parseFloat(o.hamali)) ||
-          (o.brokerageEnabled === false && !parseFloat(o.brokerage)) ||
-          (o.lfEnabled === false && !parseFloat(o.lf));
+        const hasLf = hasLfForRateType(o.baseRateType);
+        const hasEgb = hasEgbForRateType(o.baseRateType);
+        const effectiveHamaliValue = o.hamali ?? o.hamaliPerKg;
+        const suteMissing = !parseFloat(o.finalSute) && !parseFloat(o.sute);
+        const mstMissing = !parseFloat(o.moistureValue);
+        const hamaliMissing = !hasPositiveAmount(effectiveHamaliValue);
+        const bkrgMissing = !parseFloat(o.brokerage);
+        const lfMissing = hasLf && !parseFloat(o.lf);
+        const cdMissing = !!o.cdEnabled && !parseFloat(o.cdValue);
+        const bankLoanMissing = !!o.bankLoanEnabled && !parseFloat(o.bankLoanValue);
+        const paymentEnabled = !!o.paymentConditionEnabled;
+        const paymentMissing = paymentEnabled && !parseInt(o.paymentConditionValue, 10);
+        const egbMissing = hasEgb && o.egbType === 'purchase' && !parseFloat(o.egbValue);
+        const needsFill = suteMissing || mstMissing || hamaliMissing || bkrgMissing || lfMissing || cdMissing || bankLoanMissing || paymentMissing || egbMissing;
         return !needsFill;
       });
 
@@ -183,11 +201,20 @@ const AssigningSupervisor: React.FC = () => {
     const supervisorId = selectedSupervisors[entry.id];
 
     // Safety check - shouldn't happen due to UI disabled state, but just in case
-    const needsFill = (o.suteEnabled === false && !parseFloat(o.finalSute) && !parseFloat(o.sute)) ||
-      (o.moistureEnabled === false && !parseFloat(o.moistureValue)) ||
-      (o.hamaliEnabled === false && !parseFloat(o.hamali)) ||
-      (o.brokerageEnabled === false && !parseFloat(o.brokerage)) ||
-      (o.lfEnabled === false && !parseFloat(o.lf));
+    const hasLf = hasLfForRateType(o.baseRateType);
+    const hasEgb = hasEgbForRateType(o.baseRateType);
+    const effectiveHamaliValue = o.hamali ?? o.hamaliPerKg;
+    const suteMissing = !parseFloat(o.finalSute) && !parseFloat(o.sute);
+    const mstMissing = !parseFloat(o.moistureValue);
+    const hamaliMissing = !hasPositiveAmount(effectiveHamaliValue);
+    const bkrgMissing = !parseFloat(o.brokerage);
+    const lfMissing = hasLf && !parseFloat(o.lf);
+    const cdMissing = !!o.cdEnabled && !parseFloat(o.cdValue);
+    const bankLoanMissing = !!o.bankLoanEnabled && !parseFloat(o.bankLoanValue);
+    const paymentEnabled = !!o.paymentConditionEnabled;
+    const paymentMissing = paymentEnabled && !parseInt(o.paymentConditionValue, 10);
+    const egbMissing = hasEgb && o.egbType === 'purchase' && !parseFloat(o.egbValue);
+    const needsFill = suteMissing || mstMissing || hamaliMissing || bkrgMissing || lfMissing || cdMissing || bankLoanMissing || paymentMissing || egbMissing;
 
     if (needsFill) {
       showNotification('Please fill missing financial values in the Loading Lots tab first.', 'error');

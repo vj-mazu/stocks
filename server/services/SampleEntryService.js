@@ -984,6 +984,7 @@ class SampleEntryService {
     if (isManagerMissingValueRequest) {
       const pendingData = {};
       const pendingFieldGroups = [
+        ['finalBaseRate', 'finalPrice', 'baseRateType', 'baseRateUnit'],
         ['finalSute', 'finalSuteUnit'],
         ['moistureValue'],
         ['hamali', 'hamaliUnit'],
@@ -1161,6 +1162,10 @@ class SampleEntryService {
       if (finalData.isFinalized !== undefined) updates.isFinalized = finalData.isFinalized;
       if (finalData.disputeBaseRate !== undefined) updates.disputeBaseRate = finalData.disputeBaseRate;
       if (finalData.disputeBaseRateType !== undefined) updates.disputeBaseRateType = finalData.disputeBaseRateType;
+      const LotAllotment = require('../models/LotAllotment');
+      const allotment = await LotAllotment.findOne({ where: { sampleEntryId: id } });
+      const isAllotted = !!allotment;
+
       if (hasOfferVersions) {
         if (finalData.revisedHamali !== undefined) updates.revisedHamali = finalData.revisedHamali;
         if (finalData.revisedLf !== undefined) updates.revisedLf = finalData.revisedLf;
@@ -1172,100 +1177,81 @@ class SampleEntryService {
       }
 
       // When the admin directly submits/updates a dispute or revision, automatically create or update the version in disputeVersions
-      const isDispute = finalData.disputeBaseRate !== undefined && finalData.disputeBaseRate !== null && finalData.disputeBaseRate !== '';
-      const isRevision = hasOfferVersions && (
-        ((finalData.revisedHamali !== undefined && finalData.revisedHamali !== null && finalData.revisedHamali !== '') && 
-         (Number(finalData.revisedHamali) !== Number(finalData.hamali ?? offering.hamali)))
-        || ((finalData.revisedLf !== undefined && finalData.revisedLf !== null && finalData.revisedLf !== '') && 
-            (Number(finalData.revisedLf) !== Number(finalData.lf ?? offering.lf)))
-      );
+      let isDispute = false;
+      let isRevision = false;
+      if (finalData.requestId !== undefined) {
+        if (finalData.__requestType === 'dispute') {
+          isDispute = true;
+        } else if (finalData.__requestType === 'revision') {
+          isRevision = true;
+        } else {
+          // Fallback if __requestType is missing but requestId is present
+          isDispute = finalData.disputeBaseRate !== undefined && finalData.disputeBaseRate !== null && finalData.disputeBaseRate !== '';
+          isRevision = hasOfferVersions && isAllotted && (
+            (finalData.revisedHamali !== undefined && finalData.revisedHamali !== null && finalData.revisedHamali !== '')
+            || (finalData.revisedLf !== undefined && finalData.revisedLf !== null && finalData.revisedLf !== '')
+          );
+        }
+      } else {
+        isDispute = finalData.disputeBaseRate !== undefined && finalData.disputeBaseRate !== null && finalData.disputeBaseRate !== '';
+        isRevision = hasOfferVersions && isAllotted && (
+          ((finalData.revisedHamali !== undefined && finalData.revisedHamali !== null && finalData.revisedHamali !== '') && 
+           (Number(finalData.revisedHamali) !== Number(finalData.hamali ?? offering.hamali)))
+          || ((finalData.revisedLf !== undefined && finalData.revisedLf !== null && finalData.revisedLf !== '') && 
+              (Number(finalData.revisedLf) !== Number(finalData.lf ?? offering.lf)))
+        );
+      }
 
       if (isDispute || isRevision) {
         const disputeVersions = Array.isArray(offering.disputeVersions) ? [...offering.disputeVersions] : [];
         let hasChanges = false;
 
         if (isDispute) {
-          const existingDisputeIdx = disputeVersions.findIndex((v) => v.type === 'dispute');
-          if (existingDisputeIdx !== -1) {
-            // Update existing dispute version in-place
-            disputeVersions[existingDisputeIdx] = {
-              ...disputeVersions[existingDisputeIdx],
-              disputeBaseRate: finalData.disputeBaseRate,
-              disputeBaseRateType: finalData.disputeBaseRateType || null,
-              disputeReason: finalData.disputeReason || null,
-              updatedBy: userId,
-              updatedByName: updatedByFullName,
-              updatedAt: new Date(),
-              approvedBy: userId,
-              approvedByName: updatedByFullName,
-              approvedAt: new Date()
-            };
-          } else {
-            // Create a new dispute version
-            disputeVersions.push({
-              id: `disp-${Date.now()}-d-${Math.random().toString(36).slice(2, 6)}`,
-              type: 'dispute',
-              disputeBaseRate: finalData.disputeBaseRate,
-              disputeBaseRateType: finalData.disputeBaseRateType || null,
-              disputeReason: finalData.disputeReason || null,
-              revisedHamali: null,
-              revisedLf: null,
-              revisedRateOption: null,
-              hamaliUnit: offering.hamaliUnit || 'per_bag',
-              lfUnit: offering.lfUnit || 'per_bag',
-              requestedBy: userId,
-              requestedByName: updatedByFullName,
-              requestedAt: new Date(),
-              approvedBy: userId,
-              approvedByName: updatedByFullName,
-              approvedAt: new Date(),
-              linkedDisputeRequestId: null,
-              linkedDisputeLabel: null
-            });
-          }
+          // Always create a new dispute version
+          disputeVersions.push({
+            id: finalData.requestId || `disp-${Date.now()}-d-${Math.random().toString(36).slice(2, 6)}`,
+            type: 'dispute',
+            disputeBaseRate: finalData.disputeBaseRate,
+            disputeBaseRateType: finalData.disputeBaseRateType || null,
+            disputeReason: finalData.disputeReason || null,
+            revisedHamali: null,
+            revisedLf: null,
+            revisedRateOption: null,
+            hamaliUnit: offering.hamaliUnit || 'per_bag',
+            lfUnit: offering.lfUnit || 'per_bag',
+            requestedBy: finalData.requestedBy || userId,
+            requestedByName: finalData.requestedByName || updatedByFullName,
+            requestedAt: finalData.requestedAt || new Date(),
+            approvedBy: userId,
+            approvedByName: updatedByFullName,
+            approvedAt: new Date(),
+            linkedDisputeRequestId: null,
+            linkedDisputeLabel: null
+          });
           hasChanges = true;
         }
 
         if (isRevision) {
-          const existingRevisionIdx = disputeVersions.findIndex((v) => v.type === 'revision');
-          if (existingRevisionIdx !== -1) {
-            // Update existing revision version in-place
-            disputeVersions[existingRevisionIdx] = {
-              ...disputeVersions[existingRevisionIdx],
-              revisedHamali: finalData.revisedHamali !== undefined ? finalData.revisedHamali : null,
-              revisedLf: finalData.revisedLf !== undefined ? finalData.revisedLf : null,
-              revisedRateOption: finalData.revisedRateOption || null,
-              hamaliUnit: finalData.hamaliUnit || offering.hamaliUnit || 'per_bag',
-              lfUnit: finalData.lfUnit || offering.lfUnit || 'per_bag',
-              updatedBy: userId,
-              updatedByName: updatedByFullName,
-              updatedAt: new Date(),
-              approvedBy: userId,
-              approvedByName: updatedByFullName,
-              approvedAt: new Date()
-            };
-          } else {
-            // Create a new revision version
-            disputeVersions.push({
-              id: `disp-${Date.now()}-r-${Math.random().toString(36).slice(2, 6)}`,
-              type: 'revision',
-              disputeBaseRate: null,
-              disputeBaseRateType: null,
-              revisedHamali: finalData.revisedHamali !== undefined ? finalData.revisedHamali : null,
-              revisedLf: finalData.revisedLf !== undefined ? finalData.revisedLf : null,
-              revisedRateOption: finalData.revisedRateOption || null,
-              hamaliUnit: finalData.hamaliUnit || offering.hamaliUnit || 'per_bag',
-              lfUnit: finalData.lfUnit || offering.lfUnit || 'per_bag',
-              requestedBy: userId,
-              requestedByName: updatedByFullName,
-              requestedAt: new Date(),
-              approvedBy: userId,
-              approvedByName: updatedByFullName,
-              approvedAt: new Date(),
-              linkedDisputeRequestId: finalData.linkedDisputeRequestId || null,
-              linkedDisputeLabel: finalData.linkedDisputeLabel || null
-            });
-          }
+          // Always create a new revision version
+          disputeVersions.push({
+            id: finalData.requestId || `disp-${Date.now()}-r-${Math.random().toString(36).slice(2, 6)}`,
+            type: 'revision',
+            disputeBaseRate: null,
+            disputeBaseRateType: null,
+            revisedHamali: finalData.revisedHamali !== undefined ? finalData.revisedHamali : null,
+            revisedLf: finalData.revisedLf !== undefined ? finalData.revisedLf : null,
+            revisedRateOption: finalData.revisedRateOption || null,
+            hamaliUnit: finalData.hamaliUnit || offering.hamaliUnit || 'per_bag',
+            lfUnit: finalData.lfUnit || offering.lfUnit || 'per_bag',
+            requestedBy: finalData.requestedBy || userId,
+            requestedByName: finalData.requestedByName || updatedByFullName,
+            requestedAt: finalData.requestedAt || new Date(),
+            approvedBy: userId,
+            approvedByName: updatedByFullName,
+            approvedAt: new Date(),
+            linkedDisputeRequestId: finalData.linkedDisputeRequestId || null,
+            linkedDisputeLabel: finalData.linkedDisputeLabel || null
+          });
           hasChanges = true;
         }
 

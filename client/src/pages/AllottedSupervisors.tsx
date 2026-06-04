@@ -1641,8 +1641,12 @@ const AllottedSupervisors: React.FC = () => {
           detailEntry={detailModalEntry as any}
           detailMode="history"
           progressiveMode={true}
-          onClose={() => setDetailModalEntry(null)}
+          onClose={() => {
+            setDetailModalEntry(null);
+            loadEntries();
+          }}
           showCollectorLoginPair={false}
+          onUpdate={loadEntries}
         />
       )}
 
