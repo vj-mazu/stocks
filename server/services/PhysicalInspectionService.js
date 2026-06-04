@@ -232,16 +232,21 @@ class PhysicalInspectionService {
         const updates = {};
 
         if (stage === 'full_avg' || stage === 'balanced_lot') {
-          let actualBags = Number.parseInt(inspectionData.actualBags || '0');
-          const totalInspected = existingInspections
+          const otherTripsBags = existingInspections
             .filter(i => i.id !== currentInspection.id)
             .reduce((sum, i) => sum + (i.bags || 0), 0);
-          const remainingBags = totalAllottedBags - totalInspected;
+
+          const currentTripFullAvgBags = Number.parseInt(stages.full_avg?.actualBags || currentInspection.bags || '0');
 
           if (stage === 'balanced_lot') {
-            actualBags = remainingBags;
-            stageData.actualBags = actualBags;
+            const totalInspected = otherTripsBags + currentTripFullAvgBags;
+            const remainingBags = totalAllottedBags - totalInspected;
+            
+            stageData.actualBags = remainingBags;
+            updates.bags = currentTripFullAvgBags + remainingBags;
           } else {
+            let actualBags = Number.parseInt(inspectionData.actualBags || '0');
+            const remainingBags = totalAllottedBags - otherTripsBags;
             if (!actualBags || actualBags <= 0) {
               throw new Error('Please enter valid actual bags for Full Avg Lorry');
             }
@@ -249,16 +254,16 @@ class PhysicalInspectionService {
               throw new Error(`Cannot inspect ${actualBags} bags. Only ${remainingBags} bags remaining.`);
             }
             stageData.actualBags = actualBags;
+            updates.bags = actualBags;
           }
 
-          updates.bags = actualBags;
           updates.cutting1 = stageData.cutting1 || 0;
           updates.cutting2 = stageData.cutting2 || 0;
           updates.bend = stageData.bend1 || 0;
           updates.bend2 = stageData.bend2 || 0;
           updates.remarks = inspectionData.remarks || null;
 
-          const newTotalInspected = totalInspected + actualBags;
+          const newTotalInspected = otherTripsBags + (updates.bags || 0);
           if (newTotalInspected >= totalAllottedBags || stage === 'balanced_lot') {
             updates.isComplete = true;
           }
