@@ -429,7 +429,8 @@ class PhysicalInspectionService {
         bend2: inspection.bend2,
         reportedBy: inspection.reportedBy,
         samplingStages: inspection.samplingStages || {},
-        lotAllotment: inspection.lotAllotment
+        lotAllotment: inspection.lotAllotment,
+        createdAt: inspection.createdAt
       }));
 
       // Merge LOT_AVG trip with actual lorry trip on the fly for legacy data
@@ -450,6 +451,25 @@ class PhysicalInspectionService {
           }
         }
       }
+
+      // Sort progressive trips chronologically by the earliest reported stage timestamp
+      previousInspections.sort((a, b) => {
+        const getEarliestTimestamp = (insp) => {
+          const stages = insp.samplingStages || {};
+          let earliest = null;
+          for (const key in stages) {
+            const stage = stages[key];
+            if (stage && stage.reportedAt) {
+              const t = new Date(stage.reportedAt).getTime();
+              if (!earliest || t < earliest) {
+                earliest = t;
+              }
+            }
+          }
+          return earliest || (insp.createdAt ? new Date(insp.createdAt).getTime() : null) || (insp.id * 1000) || 9999999999999;
+        };
+        return getEarliestTimestamp(a) - getEarliestTimestamp(b);
+      });
 
       return {
         totalBags,
