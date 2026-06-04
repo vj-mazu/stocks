@@ -36,7 +36,7 @@ const WORKFLOW_TRANSITIONS = [
   {
     fromStatus: 'STAFF_ENTRY',
     toStatus: 'FAILED',
-    allowedRoles: ['admin', 'manager'],
+    allowedRoles: ['admin', 'manager', 'owner'],
     requiredData: []
   },
   {
@@ -54,88 +54,88 @@ const WORKFLOW_TRANSITIONS = [
   {
     fromStatus: 'QUALITY_CHECK',
     toStatus: 'FINAL_REPORT',
-    allowedRoles: ['admin', 'manager'],
+    allowedRoles: ['admin', 'manager', 'owner'],
     requiredData: []
   },
   {
     fromStatus: 'QUALITY_CHECK',
     toStatus: 'FAILED',
-    allowedRoles: ['admin', 'manager'],
+    allowedRoles: ['admin', 'manager', 'owner'],
     requiredData: []
   },
   // Re-sample: Allow self-transition QUALITY_CHECK → QUALITY_CHECK when FAIL decision re-enters
   {
     fromStatus: 'QUALITY_CHECK',
     toStatus: 'QUALITY_CHECK',
-    allowedRoles: ['admin', 'manager', 'staff', 'quality_supervisor', 'physical_supervisor'],
+    allowedRoles: ['admin', 'manager', 'owner', 'staff', 'quality_supervisor', 'physical_supervisor'],
     requiredData: []
   },
   {
     fromStatus: 'LOT_SELECTION',
     toStatus: 'COOKING_REPORT',
-    allowedRoles: ['admin', 'manager'],
+    allowedRoles: ['admin', 'manager', 'owner'],
     requiredData: []
   },
   {
     fromStatus: 'LOT_SELECTION',
     toStatus: 'FINAL_REPORT',
-    allowedRoles: ['admin', 'manager'],
+    allowedRoles: ['admin', 'manager', 'owner'],
     requiredData: []
   },
   {
     fromStatus: 'LOT_SELECTION',
     toStatus: 'QUALITY_CHECK',
-    allowedRoles: ['admin', 'manager'],
+    allowedRoles: ['admin', 'manager', 'owner'],
     requiredData: []
   },
   {
     fromStatus: 'LOT_SELECTION',
     toStatus: 'FAILED',
-    allowedRoles: ['admin', 'manager'],
+    allowedRoles: ['admin', 'manager', 'owner'],
     requiredData: []
   },
   // Re-sample: Allow LOT_SELECTION → STAFF_ENTRY for resample workflow
   {
     fromStatus: 'LOT_SELECTION',
     toStatus: 'STAFF_ENTRY',
-    allowedRoles: ['admin', 'manager'],
+    allowedRoles: ['admin', 'manager', 'owner'],
     requiredData: []
   },
   // Re-sample: Allow FINAL_REPORT → STAFF_ENTRY for resample workflow
   {
     fromStatus: 'FINAL_REPORT',
     toStatus: 'STAFF_ENTRY',
-    allowedRoles: ['admin', 'manager'],
+    allowedRoles: ['admin', 'manager', 'owner'],
     requiredData: []
   },
   {
     fromStatus: 'COOKING_REPORT',
     toStatus: 'LOT_SELECTION',
-    allowedRoles: ['admin', 'manager'],
+    allowedRoles: ['admin', 'manager', 'owner'],
     requiredData: ['cookingReport']
   },
   {
     fromStatus: 'COOKING_REPORT',
     toStatus: 'FINAL_REPORT',
-    allowedRoles: ['admin', 'manager'],
+    allowedRoles: ['admin', 'manager', 'owner'],
     requiredData: ['cookingReport']
   },
   {
     fromStatus: 'COOKING_REPORT',
     toStatus: 'FAILED',
-    allowedRoles: ['admin', 'manager'],
+    allowedRoles: ['admin', 'manager', 'owner'],
     requiredData: ['cookingReport']
   },
   {
     fromStatus: 'FINAL_REPORT',
     toStatus: 'QUALITY_CHECK',
-    allowedRoles: ['admin', 'manager'],
+    allowedRoles: ['admin', 'manager', 'owner'],
     requiredData: []
   },
   {
     fromStatus: 'FINAL_REPORT',
     toStatus: 'LOT_SELECTION',
-    allowedRoles: ['staff', 'quality_supervisor', 'physical_supervisor', 'paddy_supervisor', 'admin', 'manager'],
+    allowedRoles: ['staff', 'quality_supervisor', 'physical_supervisor', 'paddy_supervisor', 'admin', 'manager', 'owner'],
     requiredData: ['cookingReport']
   },
   {
@@ -159,19 +159,19 @@ const WORKFLOW_TRANSITIONS = [
   {
     fromStatus: 'LOT_ALLOTMENT',
     toStatus: 'PHYSICAL_INSPECTION',
-    allowedRoles: ['physical_supervisor', 'manager', 'admin'],
+    allowedRoles: ['physical_supervisor', 'paddy_supervisor', 'staff', 'manager', 'admin', 'owner'],
     requiredData: ['lotAllotment']
   },
   {
     fromStatus: 'LOT_ALLOTMENT',
     toStatus: 'QUALITY_CHECK',
-    allowedRoles: ['staff', 'quality_supervisor', 'physical_supervisor', 'admin', 'manager'],
+    allowedRoles: ['staff', 'quality_supervisor', 'physical_supervisor', 'admin', 'manager', 'owner'],
     requiredData: []
   },
   {
     fromStatus: 'LOT_ALLOTMENT',
     toStatus: 'LOT_SELECTION',
-    allowedRoles: ['staff', 'quality_supervisor', 'physical_supervisor', 'paddy_supervisor', 'admin', 'manager'],
+    allowedRoles: ['staff', 'quality_supervisor', 'physical_supervisor', 'paddy_supervisor', 'admin', 'manager', 'owner'],
     requiredData: []
   },
   {
@@ -184,13 +184,13 @@ const WORKFLOW_TRANSITIONS = [
   {
     fromStatus: 'FAILED',
     toStatus: 'QUALITY_CHECK',
-    allowedRoles: ['admin', 'manager'],
+    allowedRoles: ['admin', 'manager', 'owner'],
     requiredData: []
   },
   {
     fromStatus: 'FAILED',
     toStatus: 'COOKING_REPORT',
-    allowedRoles: ['admin', 'manager'],
+    allowedRoles: ['admin', 'manager', 'owner'],
     requiredData: []
   },
   {
@@ -203,46 +203,46 @@ const WORKFLOW_TRANSITIONS = [
   {
     fromStatus: 'PHYSICAL_INSPECTION',
     toStatus: 'PHYSICAL_INSPECTION',
-    allowedRoles: ['physical_supervisor', 'manager', 'admin', 'owner'],
+    allowedRoles: ['physical_supervisor', 'paddy_supervisor', 'staff', 'manager', 'admin', 'owner'],
     requiredData: []
   },
   // Allow going back from later stages to PHYSICAL_INSPECTION when a new lorry trip is added
   {
     fromStatus: 'INVENTORY_ENTRY',
     toStatus: 'PHYSICAL_INSPECTION',
-    allowedRoles: ['physical_supervisor', 'manager', 'admin', 'owner'],
+    allowedRoles: ['physical_supervisor', 'paddy_supervisor', 'staff', 'manager', 'admin', 'owner'],
     requiredData: []
   },
   {
     fromStatus: 'OWNER_FINANCIAL',
     toStatus: 'PHYSICAL_INSPECTION',
-    allowedRoles: ['physical_supervisor', 'manager', 'admin', 'owner'],
+    allowedRoles: ['physical_supervisor', 'paddy_supervisor', 'staff', 'manager', 'admin', 'owner'],
     requiredData: []
   },
   {
     fromStatus: 'MANAGER_FINANCIAL',
     toStatus: 'PHYSICAL_INSPECTION',
-    allowedRoles: ['physical_supervisor', 'manager', 'admin', 'owner'],
+    allowedRoles: ['physical_supervisor', 'paddy_supervisor', 'staff', 'manager', 'admin', 'owner'],
     requiredData: []
   },
   {
     fromStatus: 'FINAL_REVIEW',
     toStatus: 'PHYSICAL_INSPECTION',
-    allowedRoles: ['physical_supervisor', 'manager', 'admin', 'owner'],
+    allowedRoles: ['physical_supervisor', 'paddy_supervisor', 'staff', 'manager', 'admin', 'owner'],
     requiredData: []
   },
-  // Allow manager/admin to reject and send back to LOT_ALLOTMENT
+  // Allow manager/admin/owner to reject and send back to LOT_ALLOTMENT
   {
     fromStatus: 'PHYSICAL_INSPECTION',
     toStatus: 'LOT_ALLOTMENT',
-    allowedRoles: ['admin', 'manager'],
+    allowedRoles: ['admin', 'manager', 'owner'],
     requiredData: []
   },
-  // Manager can close a lot early (party didn't send all bags)
+  // Manager/owner can close a lot early (party didn't send all bags)
   {
     fromStatus: 'LOT_ALLOTMENT',
     toStatus: 'INVENTORY_ENTRY',
-    allowedRoles: ['manager', 'admin'],
+    allowedRoles: ['manager', 'admin', 'owner'],
     requiredData: []
   },
   // First time: INVENTORY_ENTRY -> OWNER_FINANCIAL
@@ -255,13 +255,13 @@ const WORKFLOW_TRANSITIONS = [
   {
     fromStatus: 'OWNER_FINANCIAL',
     toStatus: 'MANAGER_FINANCIAL',
-    allowedRoles: ['manager', 'admin'],
+    allowedRoles: ['manager', 'admin', 'owner'],
     requiredData: ['ownerFinancialCalculations']
   },
   {
     fromStatus: 'MANAGER_FINANCIAL',
     toStatus: 'FINAL_REVIEW',
-    allowedRoles: ['admin', 'manager'],
+    allowedRoles: ['admin', 'manager', 'owner'],
     requiredData: ['managerFinancialCalculations']
   },
   // KEY FIX: Allow going back when new inventory (new lorry) is added at any stage

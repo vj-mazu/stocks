@@ -324,8 +324,8 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
       return 'Half Lorry / Nit Avg Sampling (Pending)';
     }
     
+    if (stages.balanced_lot?.approvalStatus === 'approved') return 'Balanced Lot Sampling (Approved)';
     if (stages.full_avg?.approvalStatus === 'approved') return 'Full Lorry Sampling (Approved)';
-    if (stages.balanced_lot?.approvalStatus === 'approved' && !stages.half_lorry?.reportedBy && !stages.full_avg?.reportedBy) return 'Balanced Lot Sampling (Approved)';
     if (stages.nit_avg?.approvalStatus === 'approved') return 'Nit Avg Sampling (Approved)';
     if (stages.half_lorry?.approvalStatus === 'approved') return 'Half Lorry Sampling (Approved)';
     if (stages.lot_avg?.approvalStatus === 'approved') return 'Lot Avg Sampling (Approved)';
@@ -517,7 +517,8 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                               }
                               
                               const stages = activeInsp.samplingStages || {};
-                              if (activeInsp.isComplete || stages.full_avg?.approvalStatus === 'approved') {
+                              const isFinalApproved = stages.balanced_lot?.approvalStatus === 'approved';
+                              if (activeInsp.isComplete || isFinalApproved) {
                                 return (
                                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                     <button

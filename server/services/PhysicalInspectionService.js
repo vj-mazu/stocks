@@ -177,6 +177,9 @@ class PhysicalInspectionService {
           bagsVal = totalAllottedBags - totalInspected;
           stageData.actualBags = bagsVal;
           completeVal = true;
+        } else if (stage === 'full_avg') {
+          bagsVal = Number.parseInt(inspectionData.actualBags || '0');
+          stageData.actualBags = bagsVal;
         }
         const newInspectionData = {
           sampleEntryId: inspectionData.sampleEntryId,
@@ -226,10 +229,7 @@ class PhysicalInspectionService {
           throw new Error(`Sampling stage '${inspectionData.stage}' has already been submitted and is locked.`);
         }
 
-        stages[stage] = stageData;
-        const updates = {
-          samplingStages: JSON.parse(JSON.stringify(stages))
-        };
+        const updates = {};
 
         if (stage === 'full_avg' || stage === 'balanced_lot') {
           let actualBags = Number.parseInt(inspectionData.actualBags || '0');
@@ -248,6 +248,7 @@ class PhysicalInspectionService {
             if (actualBags > remainingBags) {
               throw new Error(`Cannot inspect ${actualBags} bags. Only ${remainingBags} bags remaining.`);
             }
+            stageData.actualBags = actualBags;
           }
 
           updates.bags = actualBags;
@@ -262,6 +263,9 @@ class PhysicalInspectionService {
             updates.isComplete = true;
           }
         }
+
+        stages[stage] = stageData;
+        updates.samplingStages = JSON.parse(JSON.stringify(stages));
 
         inspection = await PhysicalInspectionRepository.update(currentInspection.id, updates);
         await AuditService.logUpdate(userId, 'physical_inspections', currentInspection.id, currentInspection, inspection);

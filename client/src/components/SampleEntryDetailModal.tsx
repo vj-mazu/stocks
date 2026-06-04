@@ -1230,7 +1230,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                     </button>
                                 </div>
                             );
-                        } else if (!pendingStage && detailEntry.status === 'PHYSICAL_INSPECTION' && (insp.isComplete || stages.full_avg?.approvalStatus === 'approved') && stageKey === 'full_avg') {
+                        } else if (!pendingStage && detailEntry.status === 'PHYSICAL_INSPECTION' && (insp.isComplete || stages.balanced_lot?.approvalStatus === 'approved') && stageKey === 'balanced_lot') {
                             actionsCell = (
                                 <div style={{ display: 'flex', gap: '10px' }}>
                                     <button
@@ -1278,7 +1278,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                             );
                         } else if (stageObj.approvalStatus === 'rejected') {
                             actionsCell = <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '10px' }}>Rejected</span>;
-                        } else if (!pendingStage && stageKey === 'full_avg') {
+                        } else if (!pendingStage && stageKey === 'full_avg' && !stages.balanced_lot?.reportedBy) {
                             actionsCell = (
                                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                     <span style={{ color: '#64748b', fontSize: '10px', fontWeight: '600' }}>Awaiting Next</span>
@@ -2276,8 +2276,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         '🔬', 
                                         '#f97316', 
                                         progressiveMode 
-                                            ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS COUNT', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'NIT', 'ACTIONS']
-                                            : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS COUNT', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'NIT'],
+                                            ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS COUNT', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'NIT NO', 'ACTIONS']
+                                            : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS COUNT', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'NIT NO'],
                                         buildQualityRows(),
                                         { isQuality: true }
                                     )}
@@ -2792,7 +2792,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                         <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>SK</th>
                                                         <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>SMELL</th>
                                                         <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PADDY WB</th>
-                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>NIT</th>
+                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>NIT NO</th>
                                                         <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>LOADED BAGS</th>
                                                         <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PHOTO</th>
                                                     </tr>

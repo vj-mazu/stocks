@@ -534,6 +534,14 @@ const PhysicalInspection: React.FC = () => {
     );
 
     if (prevLorryInspection && prevLorryInspection.samplingStages) {
+      // Check if date has changed (not today)
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (prevLorryInspection.inspectionDate && prevLorryInspection.inspectionDate !== todayStr) {
+        showNotification('Cannot resume or edit this trip because the date has changed. Please start a new trip.', 'error');
+        handleInputChange(entryId, 'lorryNumber', '');
+        return;
+      }
+
       const stages = prevLorryInspection.samplingStages || {};
       const stageKeys = Object.keys(stages);
       
@@ -560,6 +568,7 @@ const PhysicalInspection: React.FC = () => {
           paddyWbEnabled: dbStage.paddyWbEnabled ? 'Y' : 'N',
           paddyWb: dbStage.paddyWb !== null && dbStage.paddyWb !== undefined ? dbStage.paddyWb.toString() : '',
           actualBags: dbStage.bags !== null && dbStage.bags !== undefined ? dbStage.bags.toString() : '',
+          nit: dbStage.nit !== null && dbStage.nit !== undefined ? dbStage.nit.toString() : '',
           imageUrl: dbStage.imageUrl || null,
           reportedBy: dbStage.reportedBy || 'System',
           approvalStatus: dbStage.approvalStatus || 'approved',
@@ -579,6 +588,24 @@ const PhysicalInspection: React.FC = () => {
           ...newStageData
         }
       }));
+
+      // Automatically determine and select the next logical stage
+      const lotStage = stages.lot_avg || {};
+      const nitStage = stages.nit_avg || {};
+      const halfStage = stages.half_lorry || {};
+      const fullStage = stages.full_avg || {};
+      let nextStage = 'lot_avg';
+      
+      if (lotStage.approvalStatus === 'approved') nextStage = 'nit_avg';
+      if (nitStage.approvalStatus === 'approved' || (nitStage.reportedBy && lotStage.approvalStatus === 'approved')) nextStage = 'half_lorry';
+      if (halfStage.approvalStatus === 'approved') nextStage = 'full_avg';
+      if (fullStage.approvalStatus === 'approved') nextStage = 'balanced_lot';
+
+      setSelectedStage(prev => ({
+        ...prev,
+        [entryId]: nextStage
+      }));
+
     } else {
       setActiveCards(prev => ({
         ...prev,
@@ -597,11 +624,31 @@ const PhysicalInspection: React.FC = () => {
     }
     const cleanLorry = (inspectionData[entryId]?.lorryNumber || '').trim().toUpperCase();
     const prevInsps = inspectionProgress[entryId]?.previousInspections || [];
-    return prevInsps.some(insp => {
-      const isGlobalStage = stageKey === 'lot_avg' || stageKey === 'balanced_lot';
-      const lorryMatch = isGlobalStage || (insp.lorryNumber || '').trim().toUpperCase() === cleanLorry;
+    
+    // Check if approved with current lorry number
+    const approvedWithCurrent = prevInsps.some(insp => {
+      const targetLorry = cleanLorry || (stageKey === 'lot_avg' ? 'LOT_AVG' : (stageKey === 'balanced_lot' ? 'BALANCED_LOT' : ''));
+      const lorryMatch = (insp.lorryNumber || '').trim().toUpperCase() === targetLorry;
       return lorryMatch && insp.samplingStages?.[stageKey]?.approvalStatus === 'approved';
     });
+    if (approvedWithCurrent) return true;
+
+    // Fallback for lot_avg on the first real lorry load
+    if (stageKey === 'lot_avg' && cleanLorry && cleanLorry !== 'LOT_AVG' && cleanLorry !== 'BALANCED_LOT') {
+      const priorRealLorries = prevInsps.filter(insp => {
+        const l = (insp.lorryNumber || '').trim().toUpperCase();
+        return l !== cleanLorry && l !== 'LOT_AVG' && l !== 'BALANCED_LOT';
+      });
+      if (priorRealLorries.length === 0) {
+        // This is the first real lorry load. Check if lot_avg is approved under 'LOT_AVG'
+        return prevInsps.some(insp => {
+          const l = (insp.lorryNumber || '').trim().toUpperCase();
+          return l === 'LOT_AVG' && insp.samplingStages?.lot_avg?.approvalStatus === 'approved';
+        });
+      }
+    }
+
+    return false;
   };
 
   const isAnyFullAvgSavedOrApproved = (entryId: string) => {
@@ -624,13 +671,6 @@ const PhysicalInspection: React.FC = () => {
     if (!isAnyFullAvgSavedOrApproved(entryId)) {
       return true;
     }
-    const tripDate = inspectionData[entryId]?.inspectionDate;
-    if (tripDate) {
-      const todayStr = new Date().toISOString().split('T')[0];
-      if (tripDate < todayStr) {
-        return true;
-      }
-    }
     return false;
   };
 
@@ -641,8 +681,8 @@ const PhysicalInspection: React.FC = () => {
     const cleanLorry = (inspectionData[entryId]?.lorryNumber || '').trim().toUpperCase();
     const prevInsps = inspectionProgress[entryId]?.previousInspections || [];
     return prevInsps.some(insp => {
-      const isGlobalStage = stageKey === 'lot_avg' || stageKey === 'balanced_lot';
-      const lorryMatch = isGlobalStage || (insp.lorryNumber || '').trim().toUpperCase() === cleanLorry;
+      const targetLorry = cleanLorry || (stageKey === 'lot_avg' ? 'LOT_AVG' : (stageKey === 'balanced_lot' ? 'BALANCED_LOT' : ''));
+      const lorryMatch = (insp.lorryNumber || '').trim().toUpperCase() === targetLorry;
       return lorryMatch && insp.samplingStages?.[stageKey];
     });
   };
@@ -674,14 +714,21 @@ const PhysicalInspection: React.FC = () => {
     );
     const mostRecentPrior = sortedPrior[sortedPrior.length - 1];
     
-    // Check if balanced_lot was recorded on the same date as the most recent prior inspection
-    const lastLorryDate = new Date(mostRecentPrior.inspectionDate).toDateString();
-    const hasBalancedOnLastLorryDate = progress.previousInspections.some(insp => {
-      const inspDate = new Date(insp.inspectionDate).toDateString();
-      return inspDate === lastLorryDate && insp.samplingStages && insp.samplingStages.balanced_lot;
+    // Check if balanced_lot was recorded for the most recent prior lorry or on its same day
+    const hasBalancedOnLastLorry = progress.previousInspections.some(insp => {
+      const lorry = (insp.lorryNumber || '').trim().toUpperCase();
+      if (lorry === mostRecentPrior.lorryNumber.trim().toUpperCase() && insp.samplingStages?.balanced_lot) {
+        return true;
+      }
+      if (lorry === 'BALANCED_LOT' && insp.samplingStages?.balanced_lot) {
+        const inspDate = new Date(insp.inspectionDate).toDateString();
+        const lastLorryDate = new Date(mostRecentPrior.inspectionDate).toDateString();
+        if (inspDate === lastLorryDate) return true;
+      }
+      return false;
     });
     
-    return !hasBalancedOnLastLorryDate;
+    return !hasBalancedOnLastLorry;
   };
 
   const handleAddStage = (entryId: string) => {
@@ -719,14 +766,14 @@ const PhysicalInspection: React.FC = () => {
     }
 
     if (stage === 'balanced_lot') {
-      const tripDate = inspectionData[entryId]?.inspectionDate;
-      const todayStr = new Date().toISOString().split('T')[0];
-      if (tripDate && tripDate < todayStr) {
-        showNotification('Cannot add Balanced Lot stage for a past date (deadline was midnight of the load date)', 'error');
-        return;
-      }
       if (!isAnyFullAvgSavedOrApproved(entryId)) {
         showNotification('Cannot add Balanced Lot stage until Full Avg is saved or approved', 'error');
+        return;
+      }
+      const tripDate = inspectionData[entryId]?.inspectionDate;
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (tripDate && tripDate !== todayStr) {
+        showNotification('Cannot add Balanced Lot on a different date from the trip date. Please start a new trip.', 'error');
         return;
       }
     }
@@ -947,20 +994,21 @@ const PhysicalInspection: React.FC = () => {
         if (lorry === 'LOT_AVG' || lorry === 'BALANCED_LOT') return false;
         
         const stages = trip.samplingStages || {};
-        return !(stages.full_avg && stages.full_avg.approvalStatus === 'approved') && 
-               !(stages.balanced_lot && stages.balanced_lot.approvalStatus === 'approved');
+        return !(stages.full_avg && stages.full_avg.approvalStatus === 'approved');
       });
       
       if (incompleteTrip) {
         const stages = incompleteTrip.samplingStages || {};
         const lotStage = stages.lot_avg || {};
-        const halfStage = stages.half_lorry || {};
         const nitStage = stages.nit_avg || {};
+        const halfStage = stages.half_lorry || {};
+        const fullStage = stages.full_avg || {};
         
         // Determine logical next stage based on what's missing or pending
         if (lotStage.approvalStatus === 'approved') nextStage = 'nit_avg';
         if (nitStage.approvalStatus === 'approved' || (nitStage.reportedBy && lotStage.approvalStatus === 'approved')) nextStage = 'half_lorry';
         if (halfStage.approvalStatus === 'approved') nextStage = 'full_avg';
+        if (fullStage.approvalStatus === 'approved') nextStage = 'balanced_lot';
       }
     }
 
@@ -1031,11 +1079,33 @@ const PhysicalInspection: React.FC = () => {
       }));
       
       // Select logical default next stage instead of hardcoded 'lot_avg'
-      const hasLotAvg = isStageLockedForLot(entryId, 'lot_avg') || isStageApprovedForLot(entryId, 'lot_avg');
-      const hasBalanced = isStageLockedForLot(entryId, 'balanced_lot') || isStageApprovedForLot(entryId, 'balanced_lot');
       let defaultStage = 'lot_avg';
-      if (hasLotAvg || hasBalanced) {
-        defaultStage = 'half_lorry';
+      if (progress && progress.previousInspections && progress.previousInspections.length > 0) {
+        const realPrior = progress.previousInspections.filter(i => {
+          const lorry = (i.lorryNumber || '').trim().toUpperCase();
+          return lorry !== 'LOT_AVG' && lorry !== 'BALANCED_LOT';
+        });
+        if (realPrior.length > 0) {
+          const sorted = [...realPrior].sort((a, b) => 
+            new Date(a.inspectionDate).getTime() - new Date(b.inspectionDate).getTime()
+          );
+          const mostRecent = sorted[sorted.length - 1];
+          const hasBalancedOnMostRecent = progress.previousInspections.some(insp => {
+            const lorry = (insp.lorryNumber || '').trim().toUpperCase();
+            if (lorry === mostRecent.lorryNumber.trim().toUpperCase() && insp.samplingStages?.balanced_lot) {
+              return true;
+            }
+            if (lorry === 'BALANCED_LOT' && insp.samplingStages?.balanced_lot) {
+              const inspDate = new Date(insp.inspectionDate).toDateString();
+              const lastLorryDate = new Date(mostRecent.inspectionDate).toDateString();
+              if (inspDate === lastLorryDate) return true;
+            }
+            return false;
+          });
+          if (hasBalancedOnMostRecent) {
+            defaultStage = 'half_lorry';
+          }
+        }
       }
       
       setSelectedStage(prev => ({
@@ -1055,14 +1125,21 @@ const PhysicalInspection: React.FC = () => {
     setSelectedEntry(entryId);
   };
 
-  const handleResumeLorry = (entryId: string, lorryNumber: string, stages: any) => {
+  const handleResumeLorry = (entryId: string, lorryNumber: string, stages: any, inspectionDate?: string, onlyBalanced?: boolean) => {
     const cleanLorry = lorryNumber.trim().toUpperCase();
+    
+    // If date has changed, do not allow resuming/editing the trip
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (inspectionDate && inspectionDate !== todayStr) {
+      showNotification('Cannot resume or edit this trip because the date has changed. Please start a new trip.', 'error');
+      return;
+    }
     
     // Set inspection entry form state
     setInspectionData(prev => ({
       ...prev,
       [entryId]: {
-        inspectionDate: new Date().toISOString().split('T')[0],
+        inspectionDate: inspectionDate || new Date().toISOString().split('T')[0],
         lorryNumber: cleanLorry,
         remarks: ''
       }
@@ -1093,6 +1170,7 @@ const PhysicalInspection: React.FC = () => {
         paddyWbEnabled: dbStage.paddyWbEnabled ? 'Y' : 'N',
         paddyWb: dbStage.paddyWb !== null && dbStage.paddyWb !== undefined ? dbStage.paddyWb.toString() : '',
         actualBags: dbStage.bags !== null && dbStage.bags !== undefined ? dbStage.bags.toString() : '',
+        nit: dbStage.nit !== null && dbStage.nit !== undefined ? dbStage.nit.toString() : '',
         imageUrl: dbStage.imageUrl || null,
         reportedBy: dbStage.reportedBy || 'System',
         approvalStatus: dbStage.approvalStatus || 'approved',
@@ -1101,26 +1179,62 @@ const PhysicalInspection: React.FC = () => {
     });
 
     // Set stage data
+    const stageDataWithBalanced = { ...newStageData };
+    if (onlyBalanced) {
+      stageDataWithBalanced['balanced_lot'] = {
+        moisture: '',
+        dryMoisture: 'N',
+        dryMoistureValue: '',
+        grainsCount: '',
+        cutting: '',
+        bend: '',
+        mix: '',
+        smixEnabled: 'N',
+        mixS: '',
+        lmixEnabled: 'N',
+        mixL: '',
+        sk: '',
+        kandu: '',
+        oil: '',
+        smellHas: 'No',
+        smellType: '',
+        paddyWbEnabled: 'N',
+        paddyWb: '',
+        actualBags: '',
+        reportedBy: user?.username || 'System',
+        isLocked: false
+      };
+    }
+
     setSamplingStageData(prev => ({
       ...prev,
-      [entryId]: newStageData
+      [entryId]: onlyBalanced ? { ...prev[entryId], ...stageDataWithBalanced } : newStageData
     }));
 
     // Set active cards
     setActiveCards(prev => ({
       ...prev,
-      [entryId]: stageKeys
+      [entryId]: onlyBalanced ? ['balanced_lot'] : stageKeys
     }));
 
     // Determine next stage
     const lotStage = stages.lot_avg || {};
+    const nitStage = stages.nit_avg || {};
     const halfStage = stages.half_lorry || {};
+    const fullStage = stages.full_avg || {};
     let nextStage = 'lot_avg';
+    
     if (lotStage.approvalStatus === 'approved') {
+      nextStage = 'nit_avg';
+    }
+    if (nitStage.approvalStatus === 'approved' || (nitStage.reportedBy && lotStage.approvalStatus === 'approved')) {
       nextStage = 'half_lorry';
     }
     if (halfStage.approvalStatus === 'approved') {
       nextStage = 'full_avg';
+    }
+    if (fullStage.approvalStatus === 'approved') {
+      nextStage = 'balanced_lot';
     }
 
     setSelectedStage(prev => ({
@@ -1167,9 +1281,8 @@ const PhysicalInspection: React.FC = () => {
     }
     // Hide completed/closed lots
     const isClosed = !!entry.lotAllotment?.closedAt;
-    const progress = inspectionProgress[entry.id];
-    const isComplete = progress ? progress.progressPercentage >= 100 : false;
-    if (isClosed || isComplete) return false;
+    const isWorkflowCompleted = entry.workflowStatus === 'COMPLETED';
+    if (isClosed || isWorkflowCompleted) return false;
     return true;
   });
 
@@ -1363,9 +1476,10 @@ const PhysicalInspection: React.FC = () => {
                               const progress = inspectionProgress[entry.id];
                               if (!progress || !progress.previousInspections) return false;
                               return progress.previousInspections.some(trip => {
+                                const lorry = (trip.lorryNumber || '').trim().toUpperCase();
+                                if (lorry === 'LOT_AVG' || lorry === 'BALANCED_LOT') return false;
                                 const stages = trip.samplingStages || {};
-                                return !(stages.full_avg && stages.full_avg.approvalStatus === 'approved') && 
-                                       !(stages.balanced_lot && stages.balanced_lot.approvalStatus === 'approved');
+                                return !(stages.full_avg && stages.full_avg.approvalStatus === 'approved');
                               });
                             })();
                             return hasIncompleteTrip ? 'Add Sample' : 'Add Lorry Load';
@@ -1412,7 +1526,7 @@ const PhysicalInspection: React.FC = () => {
                                     </td>
                                     <td style={{ border: '1px solid #000', padding: '6px', fontWeight: '700' }}>
                                       <span
-                                        onClick={() => setSelectedLorryForComparison({ lorryNumber: inspection.lorryNumber, previousInspections: [inspection], lotAllotment: entry.lotAllotment, singleLorryMode: true })}
+                                        onClick={() => setSelectedLorryForComparison({ entryId: entry.id, lorryNumber: inspection.lorryNumber, previousInspections: [inspection], lotAllotment: entry.lotAllotment, singleLorryMode: true })}
                                         style={{ color: '#1565c0', textDecoration: 'underline', cursor: 'pointer' }}
                                       >
                                         {inspection.lorryNumber?.toUpperCase()}
@@ -1694,15 +1808,16 @@ const PhysicalInspection: React.FC = () => {
                                         opacity: isLocked ? 0.85 : 1
                                       }}>
                                         <div style={{
-                                          fontSize: '13px',
+                                          fontSize: '18px',
                                           fontWeight: '700',
                                           color: cardStyle.color,
                                           borderBottom: `2px solid ${cardStyle.color}1a`,
-                                          paddingBottom: '6px',
+                                          paddingBottom: '8px',
                                           marginBottom: '12px',
                                           display: 'flex',
-                                          justifyContent: 'space-between',
-                                          alignItems: 'center'
+                                          justifyContent: 'center',
+                                          alignItems: 'center',
+                                          textAlign: 'center'
                                         }}>
                                           <span>{cardStyle.title}</span>
                                           {isLocked && (() => {
@@ -2229,7 +2344,7 @@ const PhysicalInspection: React.FC = () => {
                       <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.smellHas ? 'Yes' : '-'}</td>
                       <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.paddyWbEnabled ? formatField(stageObj.paddyWbRaw || stageObj.paddyWb) : '-'}</td>
                       <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.nit)}</td>
-                      <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{isFull ? formatField(inspection.bags) : '-'}</td>
+                      <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{isFull ? formatField(stageObj.actualBags || inspection.bags) : '-'}</td>
                       <td style={{ padding: '8px 10px', textAlign: 'center' }}>
                         {stageObj.imageUrl ? <a href={resolveMediaUrl(stageObj.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
                       </td>
@@ -2242,6 +2357,37 @@ const PhysicalInspection: React.FC = () => {
                     <div style={{ background: 'linear-gradient(90deg, #f2711c 0%, #f26202 100%)', padding: '8px 12px', fontWeight: 'bold', fontSize: '12px', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span>Trip #{idx + 1} | Lorry No: {inspection.lorryNumber?.toUpperCase()} | Bags Loaded: {inspection.bags || '-'}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        {(() => {
+                          const todayStr = new Date().toISOString().split('T')[0];
+                          const isToday = inspection.inspectionDate && inspection.inspectionDate.split('T')[0] === todayStr;
+                          const stages = inspection.samplingStages || {};
+                          const hasFullAvg = !!stages.full_avg;
+                          const hasBalanced = !!stages.balanced_lot;
+
+                          if (isToday && hasFullAvg && !hasBalanced && selectedLorryForComparison.entryId) {
+                            return (
+                              <button
+                                onClick={() => {
+                                  setSelectedLorryForComparison(null);
+                                  handleResumeLorry(selectedLorryForComparison.entryId, inspection.lorryNumber, inspection.samplingStages || {}, inspection.inspectionDate, true);
+                                }}
+                                style={{
+                                  backgroundColor: '#ffffff',
+                                  color: '#f26202',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  padding: '4px 10px',
+                                  fontWeight: 'bold',
+                                  fontSize: '11px',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                ⚖️ Add Balanced Lot
+                              </button>
+                            );
+                          }
+                          return null;
+                        })()}
                         <span>Reported By: {inspection.reportedBy?.username || 'System'} | Date: {new Date(inspection.inspectionDate).toLocaleDateString()}</span>
                       </div>
                     </div>
@@ -2264,7 +2410,7 @@ const PhysicalInspection: React.FC = () => {
                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>SK</th>
                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>SMELL</th>
                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PADDY WB</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>NIT</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>NIT NO</th>
                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>LOADED BAGS</th>
                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PHOTO</th>
                           </tr>
@@ -2538,15 +2684,17 @@ const PhysicalInspection: React.FC = () => {
                     opacity: isLocked ? 0.85 : 1
                   }}>
                     <div style={{
-                      fontSize: '13px',
+                      fontSize: '24px',
                       fontWeight: '700',
                       color: cardStyle.color,
                       borderBottom: `2px solid ${cardStyle.color}1a`,
-                      paddingBottom: '6px',
-                      marginBottom: '12px',
+                      paddingBottom: '10px',
+                      marginBottom: '16px',
                       display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      gap: '12px',
+                      textAlign: 'center'
                     }}>
                       <span>{cardStyle.title}</span>
                       {isLocked && (() => {
