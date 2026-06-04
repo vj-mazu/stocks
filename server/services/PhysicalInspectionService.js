@@ -527,15 +527,22 @@ class PhysicalInspectionService {
       });
       const totalAllottedBags = lotAllotment?.allottedBags || entry.bags || 0;
 
-      if (totalInspected >= totalAllottedBags) {
+      if (totalInspected >= totalAllottedBags || cleanStage === 'balanced_lot') {
         updates.isComplete = true;
+        
+        // Update sample entry bags to actual inspected bags if balanced early
+        if (entry.bags !== totalInspected) {
+          entry.bags = totalInspected;
+          await entry.save();
+        }
+
         // Transition workflow to INVENTORY_ENTRY
         await WorkflowEngine.transitionTo(
           sampleEntryId,
           'INVENTORY_ENTRY',
           userId,
           userRole,
-          { reason: 'Physical inspection completed and approved' }
+          { reason: cleanStage === 'balanced_lot' ? 'Physical inspection balanced and approved' : 'Physical inspection completed and approved' }
         );
       }
     }
