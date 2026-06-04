@@ -501,8 +501,14 @@ class PhysicalInspectionService {
 
     // If approving full_avg or balanced_lot, copy values to main columns of physical inspection
     if (cleanStage === 'full_avg' || cleanStage === 'balanced_lot') {
-      const stageData = stages[cleanStage];
-      updates.bags = stageData.actualBags !== undefined ? Number(stageData.actualBags) : inspection.bags;
+      const stageData = stages[cleanStage] || {};
+      if (cleanStage === 'balanced_lot') {
+        const fullAvgBags = Number(stages.full_avg?.actualBags || 0);
+        const balancedBags = Number(stages.balanced_lot?.actualBags || 0);
+        updates.bags = fullAvgBags + balancedBags;
+      } else {
+        updates.bags = stageData.actualBags !== undefined ? Number(stageData.actualBags) : inspection.bags;
+      }
       updates.cutting1 = stageData.cutting1 || 0;
       updates.cutting2 = stageData.cutting2 || 0;
       updates.bend = stageData.bend1 || 0;
