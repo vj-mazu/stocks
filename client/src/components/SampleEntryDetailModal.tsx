@@ -940,7 +940,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         return 'Pending';
     };
 
-    const renderHorizontalTable = (title: string, icon: string, headerColor: string, columns: string[], rows: any[], options: { isQuality?: boolean; compact?: boolean } = {}) => {
+    const renderHorizontalTable = (title: React.ReactNode, icon: string, headerColor: string, columns: string[], rows: any[], options: { isQuality?: boolean; compact?: boolean } = {}) => {
         if (rows.length === 0) return null;
         const isCompact = options.compact === true;
 
@@ -984,11 +984,17 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         border: '1px solid #000000'
                                     };
                                     
-                                    if (name === 'MIX' || name === 'S MIX' || name === 'L MIX') {
+                                    if (name === 'MIX' || name === 'S MIX' || name === 'L MIX' || name === 'WB-R' || name === 'WB-BK' || name === 'WB-T' || name === 'OIL' || name === 'KANDU' || name === 'SK') {
                                         thStyle.width = '45px';
                                         thStyle.textAlign = 'center';
-                                    } else if (name === 'GRAINS COUNT') {
-                                        thStyle.width = '80px';
+                                    } else if (name === 'GRAINS') {
+                                        thStyle.width = '55px';
+                                        thStyle.textAlign = 'center';
+                                    } else if (name === 'CUTTING' || name === 'BEND') {
+                                        thStyle.width = '55px';
+                                        thStyle.textAlign = 'center';
+                                    } else if (name === 'SMELL' || name === 'PADDY WB') {
+                                        thStyle.width = '50px';
                                         thStyle.textAlign = 'center';
                                     } else if (name === 'MOISTURE') {
                                         thStyle.width = '70px';
@@ -1000,7 +1006,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                     } else if (name === 'REPORTED AT') {
                                         thStyle.width = '85px';
                                     } else if (name === 'ACTIONS') {
-                                        thStyle.width = '140px';
+                                        thStyle.width = '170px';
+                                        thStyle.textAlign = 'center';
                                     }
                                     
                                     return (
@@ -1049,11 +1056,17 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             };
                                             
                                             const upperCol = colName.toUpperCase().trim();
-                                            if (upperCol === 'MIX' || upperCol === 'S MIX' || upperCol === 'L MIX') {
+                                            if (upperCol === 'MIX' || upperCol === 'S MIX' || upperCol === 'L MIX' || upperCol === 'WB-R' || upperCol === 'WB-BK' || upperCol === 'WB-T' || upperCol === 'OIL' || upperCol === 'KANDU' || upperCol === 'SK') {
                                                 cellStyle.width = '45px';
                                                 cellStyle.textAlign = 'center';
-                                            } else if (upperCol === 'GRAINS COUNT') {
-                                                cellStyle.width = '80px';
+                                            } else if (upperCol === 'GRAINS') {
+                                                cellStyle.width = '55px';
+                                                cellStyle.textAlign = 'center';
+                                            } else if (upperCol === 'CUTTING' || upperCol === 'BEND') {
+                                                cellStyle.width = '55px';
+                                                cellStyle.textAlign = 'center';
+                                            } else if (upperCol === 'SMELL' || upperCol === 'PADDY WB') {
+                                                cellStyle.width = '50px';
                                                 cellStyle.textAlign = 'center';
                                             } else if (upperCol === 'MOISTURE') {
                                                 cellStyle.width = '70px';
@@ -1070,8 +1083,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                 cellStyle.width = '85px';
                                                 cellStyle.maxWidth = '85px';
                                             } else if (upperCol === 'ACTIONS') {
-                                                cellStyle.width = '140px';
-                                                cellStyle.maxWidth = '140px';
+                                                cellStyle.width = '170px';
+                                                cellStyle.maxWidth = '170px';
+                                                cellStyle.textAlign = 'center';
                                                 cellStyle.wordBreak = 'break-word';
                                             }
                                             
@@ -1222,12 +1236,17 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     rows.push({ type: 'spacer' });
                 }
 
-                // Add header row for the Lorry/Trip
+                const isLorryNotAdded = !insp.lorryNumber || 
+                    ['LOT_AVG', 'BALANCED_LOT'].includes(insp.lorryNumber.toUpperCase().trim()) ||
+                    insp.lorryNumber.toLowerCase().includes('next loading lorry');
+
                 rows.push({
                     type: 'header',
-                    content: tripIdx === 0
-                        ? `Load 1 - Loading Sample Details : ${insp.lorryNumber?.toUpperCase() || 'Lorry'}`
-                        : `Load ${tripIdx + 1} - Lorry Number: ${insp.lorryNumber?.toUpperCase() || 'Lorry'}`
+                    content: isLorryNotAdded
+                        ? <span style={{ color: '#dc2626', fontWeight: 'bold' }}>Next Loading Lorry Sampling: Lot Avg Sampling or Balance Lot Sampling</span>
+                        : tripIdx === 0
+                            ? `Load 1 - Loading Sample Details : ${insp.lorryNumber?.toUpperCase() || 'Lorry'}`
+                            : `Load ${tripIdx + 1} - Lorry Number: ${insp.lorryNumber?.toUpperCase() || 'Lorry'}`
                 });
 
                 const getPendingStageOfTrip = (currentInsp: any) => {
@@ -2686,8 +2705,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         '🔬', 
                                         '#f97316', 
                                         progressiveMode
-                                            ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS COUNT', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'ACTIONS']
-                                            : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS COUNT', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB'],
+                                            ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'ACTIONS']
+                                            : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB'],
                                         buildInitialQualityRows(),
                                         { isQuality: true }
                                     )}
@@ -2695,14 +2714,19 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                     {/* Progressive Loads */}
                                     {progressiveMode && inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections) && 
                                         inspectionsProgress.previousInspections.map((insp: any, tripIdx: number) => {
-                                            const title = tripIdx === 0
-                                                ? `Load 1 - Loading Sample Details : ${insp.lorryNumber?.toUpperCase() || 'Lorry'}`
-                                                : `Load ${tripIdx + 1} - Lorry Number: ${insp.lorryNumber?.toUpperCase() || 'Lorry'}`;
+                                            const isLorryNotAdded = !insp.lorryNumber || 
+                                                ['LOT_AVG', 'BALANCED_LOT'].includes(insp.lorryNumber.toUpperCase().trim()) ||
+                                                insp.lorryNumber.toLowerCase().includes('next loading lorry');
+                                            const title = isLorryNotAdded
+                                                ? <span style={{ color: '#dc2626', fontWeight: 'bold' }}>Next Loading Lorry Sampling: Lot Avg Sampling or Balance Lot Sampling</span>
+                                                : tripIdx === 0
+                                                    ? `Load 1 - Loading Sample Details : ${insp.lorryNumber?.toUpperCase() || 'Lorry'}`
+                                                    : `Load ${tripIdx + 1} - Lorry Number: ${insp.lorryNumber?.toUpperCase() || 'Lorry'}`;
                                             return renderHorizontalTable(
                                                 title,
                                                 '🚚',
                                                 '#f97316',
-                                                ['STAGE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS COUNT', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'ACTIONS'],
+                                                ['STAGE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'ACTIONS'],
                                                 buildTripQualityRows(insp, tripIdx),
                                                 { isQuality: true }
                                             );
@@ -3174,17 +3198,17 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                 {stageObj.reportedAt ? (new Date(stageObj.reportedAt).toLocaleDateString('en-GB') + ', ' + new Date(stageObj.reportedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()) : '-'}
                                             </td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatMoisture(stageObj)}</td>
-                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatCutting(stageObj)}</td>
-                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatBend(stageObj)}</td>
-                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>({formatField(stageObj.grainsCountRaw || stageObj.grainsCount)})</td>
-                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.mixRaw || stageObj.mix)}</td>
-                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.smixEnabled ? formatField(stageObj.mixSRaw || stageObj.mixS) || 'Yes' : '-'}</td>
-                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.lmixEnabled ? formatField(stageObj.mixLRaw || stageObj.mixL) || 'Yes' : '-'}</td>
-                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.kanduRaw || stageObj.kandu)}</td>
-                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.oilRaw || stageObj.oil)}</td>
-                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
-                                            <td style={{ padding: '8px 10px', textAlign: 'center' }}>{renderBeautifulSmell(stageObj)}</td>
-                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.paddyWbEnabled ? formatField(stageObj.paddyWbRaw || stageObj.paddyWb) : '-'}</td>
+                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600', width: '55px' }}>{formatCutting(stageObj)}</td>
+                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600', width: '55px' }}>{formatBend(stageObj)}</td>
+                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '55px' }}>({formatField(stageObj.grainsCountRaw || stageObj.grainsCount)})</td>
+                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.mixRaw || stageObj.mix)}</td>
+                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{stageObj.smixEnabled ? formatField(stageObj.mixSRaw || stageObj.mixS) || 'Yes' : '-'}</td>
+                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{stageObj.lmixEnabled ? formatField(stageObj.mixLRaw || stageObj.mixL) || 'Yes' : '-'}</td>
+                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.kanduRaw || stageObj.kandu)}</td>
+                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.oilRaw || stageObj.oil)}</td>
+                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
+                                            <td style={{ padding: '8px 10px', textAlign: 'center', width: '50px' }}>{renderBeautifulSmell(stageObj)}</td>
+                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '50px' }}>{stageObj.paddyWbEnabled ? formatField(stageObj.paddyWbRaw || stageObj.paddyWb) : '-'}</td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.nit)}</td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{isFull ? formatField(inspection.bags) : '-'}</td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center' }}>
@@ -3194,10 +3218,21 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                     );
                                 };
 
+                                const isLorryNotAdded = !inspection.lorryNumber || 
+                                     ['LOT_AVG', 'BALANCED_LOT'].includes(inspection.lorryNumber.toUpperCase().trim()) ||
+                                     inspection.lorryNumber.toLowerCase().includes('next loading lorry');
+
                                 return (
                                     <div key={inspection.id} style={{ border: '1px solid #f2cfb6', borderRadius: '8px', overflow: 'hidden' }}>
                                         <div style={{ background: 'linear-gradient(90deg, #f2711c 0%, #f26202 100%)', padding: '8px 12px', fontWeight: 'bold', fontSize: '12px', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
-                                            <span>Load {idx + 1} | Lorry No: {inspection.lorryNumber?.toUpperCase()} | Bags Loaded: {inspection.bags || '-'}</span>
+                                            <span>
+                                                {isLorryNotAdded ? (
+                                                    <span style={{ color: '#ffcccc', fontWeight: '900' }}>Next Loading Lorry Sampling: Lot Avg Sampling or Balance Lot Sampling</span>
+                                                ) : (
+                                                    <>Load {idx + 1} | Lorry No: {inspection.lorryNumber?.toUpperCase()}</>
+                                                )}
+                                                {` | Bags Loaded: ${inspection.bags || '-'}`}
+                                            </span>
                                             <span>Reported By: {inspection.reportedBy?.username || 'System'} | Date: {new Date(inspection.inspectionDate).toLocaleDateString()}</span>
                                         </div>
                                         <div style={{ overflowX: 'auto' }}>
@@ -3208,17 +3243,17 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                         <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>REPORTED BY</th>
                                                         <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>REPORTED AT</th>
                                                         <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>MOISTURE</th>
-                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>CUTTING</th>
-                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BEND</th>
-                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>GRAINS COUNT</th>
-                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>MIX</th>
-                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>S MIX</th>
-                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>L MIX</th>
-                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>KANDU</th>
-                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>OIL</th>
-                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>SK</th>
-                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>SMELL</th>
-                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PADDY WB</th>
+                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '55px' }}>CUTTING</th>
+                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '55px' }}>BEND</th>
+                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '55px' }}>GRAINS</th>
+                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '45px' }}>MIX</th>
+                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '45px' }}>S MIX</th>
+                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '45px' }}>L MIX</th>
+                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '45px' }}>KANDU</th>
+                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '45px' }}>OIL</th>
+                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '45px' }}>SK</th>
+                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '50px' }}>SMELL</th>
+                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '50px' }}>PADDY WB</th>
                                                         <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>NIT NO</th>
                                                         <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>LOADED BAGS</th>
                                                         <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PHOTO</th>

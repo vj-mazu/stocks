@@ -689,6 +689,15 @@ const PhysicalInspection: React.FC = () => {
         insp.samplingStages?.[stageKey] || (insp.lorryNumber || '').trim().toUpperCase() === 'BALANCED_LOT'
       );
     }
+    if (stageKey === 'nit_avg') {
+      const cleanLorry = (inspectionData[entryId]?.lorryNumber || '').trim().toUpperCase();
+      return prevInsps.some(insp => {
+        const targetLorry = cleanLorry;
+        const lorryMatch = (insp.lorryNumber || '').trim().toUpperCase() === targetLorry;
+        const stages = insp.samplingStages || {};
+        return lorryMatch && (stages.half_lorry || stages.full_avg || stages.balanced_lot);
+      });
+    }
     const cleanLorry = (inspectionData[entryId]?.lorryNumber || '').trim().toUpperCase();
     return prevInsps.some(insp => {
       const targetLorry = cleanLorry;
@@ -1541,7 +1550,7 @@ const PhysicalInspection: React.FC = () => {
                       <tr>
                         <td colSpan={11} style={{ padding: '12px', backgroundColor: '#fdf6f0', border: '1px solid #666', borderBottom: '3px solid #666' }}>
                           <div style={{ fontSize: '13px', fontWeight: '800', marginBottom: '8px', color: '#1a237e', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>📋 Inspection Trips ({progress.previousInspections.length}) — {progress.inspectedBags} of {progress.totalBags} bags inspected</span>
+                            <span>📋 Lorry Loaded ({progress.previousInspections.length}) — {progress.inspectedBags} of {progress.totalBags} bags inspected</span>
                           </div>
                           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', border: '1px solid #000', backgroundColor: '#ffffff' }}>
                             <thead>
@@ -1644,7 +1653,7 @@ const PhysicalInspection: React.FC = () => {
                                           if (stages.balanced_lot.approvalStatus === 'pending') {
                                             return <span style={{ color: '#d97706', fontWeight: 'bold', fontSize: '11px' }}>Balanced Lot: Pending</span>;
                                           }
-                                          return <span style={{ color: '#1565c0', fontWeight: 'bold', fontSize: '11px' }}>Balanced</span>;
+                                          return <span style={{ color: '#2e7d32', fontWeight: 'bold', fontSize: '11px' }}>Completed</span>;
                                         }
 
                                         // Check if incomplete trip to resume
@@ -1698,7 +1707,7 @@ const PhysicalInspection: React.FC = () => {
                                           );
                                         }
 
-                                        return <span style={{ color: '#2e7d32', fontWeight: 'bold', fontSize: '11px' }}>Complete</span>;
+                                        return <span style={{ color: '#2e7d32', fontWeight: 'bold', fontSize: '11px' }}>Completed</span>;
                                       })()}
                                     </td>
                                   </tr>
@@ -1809,7 +1818,7 @@ const PhysicalInspection: React.FC = () => {
                                         }}
                                       >
                                         <option value="lot_avg" disabled={isStageLockedForLot(entry.id, 'lot_avg') || isStageLockedForLot(entry.id, 'balanced_lot')}>1. Lot Avg Sampling</option>
-                                        <option value="nit_avg" disabled={isStageLockedForLot(entry.id, 'nit_avg') && !isAnyFullAvgSavedOrApproved(entry.id)}>2. Nit Avg Sampling</option>
+                                        <option value="nit_avg" disabled={isStageLockedForLot(entry.id, 'nit_avg')}>2. Nit Avg Sampling</option>
                                         <option value="half_lorry" disabled={isStageLockedForLot(entry.id, 'half_lorry')}>3. Half Lorry Sampling</option>
                                         <option value="full_avg" disabled={(!isStageApprovedForLot(entry.id, 'half_lorry') && !isStageApprovedForLot(entry.id, 'nit_avg')) || isStageLockedForLot(entry.id, 'full_avg')}>4. Full Avg Lorry Sampling</option>
                                         <option value="balanced_lot" disabled={isBalancedLotDisabled(entry.id)}>5. Balanced Lot Sampling</option>
@@ -2469,17 +2478,17 @@ const PhysicalInspection: React.FC = () => {
                         {stageObj.reportedAt ? new Date(stageObj.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-'}
                       </td>
                       <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatMoisture(stageObj)}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatCutting(stageObj)}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatBend(stageObj)}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>({formatField(stageObj.grainsCountRaw || stageObj.grainsCount)})</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.mixRaw || stageObj.mix)}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.smixEnabled ? formatField(stageObj.mixSRaw || stageObj.mixS) || 'Yes' : '-'}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.lmixEnabled ? formatField(stageObj.mixLRaw || stageObj.mixL) || 'Yes' : '-'}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.kanduRaw || stageObj.kandu)}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.oilRaw || stageObj.oil)}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.smellHas ? 'Yes' : '-'}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.paddyWbEnabled ? formatField(stageObj.paddyWbRaw || stageObj.paddyWb) : '-'}</td>
+                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600', width: '55px' }}>{formatCutting(stageObj)}</td>
+                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600', width: '55px' }}>{formatBend(stageObj)}</td>
+                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '55px' }}>({formatField(stageObj.grainsCountRaw || stageObj.grainsCount)})</td>
+                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.mixRaw || stageObj.mix)}</td>
+                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{stageObj.smixEnabled ? formatField(stageObj.mixSRaw || stageObj.mixS) || 'Yes' : '-'}</td>
+                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{stageObj.lmixEnabled ? formatField(stageObj.mixLRaw || stageObj.mixL) || 'Yes' : '-'}</td>
+                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.kanduRaw || stageObj.kandu)}</td>
+                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.oilRaw || stageObj.oil)}</td>
+                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
+                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '50px' }}>{stageObj.smellHas ? 'Yes' : '-'}</td>
+                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '50px' }}>{stageObj.paddyWbEnabled ? formatField(stageObj.paddyWbRaw || stageObj.paddyWb) : '-'}</td>
                       <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{isFull ? formatField(stageObj.actualBags || inspection.bags) : '-'}</td>
                       <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center' }}>
                         {stageObj.imageUrl ? <a href={resolveMediaUrl(stageObj.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
@@ -2488,9 +2497,15 @@ const PhysicalInspection: React.FC = () => {
                   );
                 };
 
-                const tripHeaderLabel = idx === 0
-                  ? `Load 1 - Loading Sample Details : ${inspection.lorryNumber?.toUpperCase() || ''}`
-                  : `Load ${idx + 1} - Lorry Number: ${inspection.lorryNumber?.toUpperCase() || ''}`;
+                const isLorryNotAdded = !inspection.lorryNumber || 
+                  ['LOT_AVG', 'BALANCED_LOT'].includes(inspection.lorryNumber.toUpperCase().trim()) ||
+                  inspection.lorryNumber.toLowerCase().includes('next loading lorry');
+
+                const tripHeaderLabel = isLorryNotAdded
+                  ? <span style={{ color: '#ffcccc', fontWeight: '900' }}>Next Loading Lorry Sampling: Lot Avg Sampling or Balance Lot Sampling</span>
+                  : idx === 0
+                    ? `Load 1 - Loading Sample Details : ${inspection.lorryNumber?.toUpperCase() || ''}`
+                    : `Load ${idx + 1} - Lorry Number: ${inspection.lorryNumber?.toUpperCase() || ''}`;
 
                 return (
                   <div key={inspection.id} style={{ border: '1px solid #000000', borderRadius: '8px', overflow: 'hidden' }}>
@@ -2539,17 +2554,17 @@ const PhysicalInspection: React.FC = () => {
                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>REPORTED BY</th>
                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>REPORTED AT</th>
                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>MOISTURE</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>CUTTING</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>BEND</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>GRAINS COUNT</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>MIX</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>S MIX</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>L MIX</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>KANDU</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>OIL</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>SK</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>SMELL</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>PADDY WB</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '55px' }}>CUTTING</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '55px' }}>BEND</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '55px' }}>GRAINS</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '45px' }}>MIX</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '45px' }}>S MIX</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '45px' }}>L MIX</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '45px' }}>KANDU</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '45px' }}>OIL</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '45px' }}>SK</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '50px' }}>SMELL</th>
+                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '50px' }}>PADDY WB</th>
                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>LOADED BAGS</th>
                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>PHOTO</th>
                           </tr>
@@ -2698,7 +2713,7 @@ const PhysicalInspection: React.FC = () => {
                       }}
                     >
                       <option value="lot_avg" disabled={isStageLockedForLot(entry.id, 'lot_avg') || isStageLockedForLot(entry.id, 'balanced_lot')}>1. Lot Avg Sampling</option>
-                      <option value="nit_avg" disabled={isStageLockedForLot(entry.id, 'nit_avg') && !isAnyFullAvgSavedOrApproved(entry.id)}>2. Nit Avg Sampling</option>
+                      <option value="nit_avg" disabled={isStageLockedForLot(entry.id, 'nit_avg')}>2. Nit Avg Sampling</option>
                       <option value="half_lorry" disabled={isStageLockedForLot(entry.id, 'half_lorry')}>3. Half Lorry Sampling</option>
                       <option value="full_avg" disabled={(!isStageApprovedForLot(entry.id, 'half_lorry') && !isStageApprovedForLot(entry.id, 'nit_avg')) || isStageLockedForLot(entry.id, 'full_avg')}>4. Full Avg Lorry Sampling</option>
                       <option value="balanced_lot" disabled={isBalancedLotDisabled(entry.id)}>5. Balanced Lot Sampling</option>
@@ -3251,10 +3266,10 @@ const PhysicalInspection: React.FC = () => {
           progressiveMode={true}
           onClose={() => {
             setDetailModalEntry(null);
-            loadEntries();
+            loadEntries(true);
           }}
           showCollectorLoginPair={false}
-          onUpdate={loadEntries}
+          onUpdate={() => loadEntries(true)}
         />
       )}
     </div>

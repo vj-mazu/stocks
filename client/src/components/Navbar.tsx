@@ -466,23 +466,23 @@ const Navbar: React.FC = () => {
           )}
           {user && user.role === 'manager' && (
             <>
-              <NavLink to="/paddy-sample-reports" $active={isActive('/paddy-sample-reports') || isActive('/owner-sample-reports')}>
-                Paddy Sample Reports
+              <NavLink to="/paddy-sample-reports" $active={isActive('/paddy-sample-reports') || isActive('/owner-sample-reports')} style={{ whiteSpace: 'normal', textAlign: 'center', lineHeight: 1.1 }}>
+                Paddy Sample<br />Reports
                 {resampleCount > 0 && <ResampleBadge>{resampleCount}</ResampleBadge>}
                 {editApprovalCount > 0 && <NotificationBadge>{editApprovalCount}</NotificationBadge>}
               </NavLink>
-              <NavLink to="/rice-sample-reports" $active={isActive('/rice-sample-reports')}>Rice Sample Reports</NavLink>
+              <NavLink to="/rice-sample-reports" $active={isActive('/rice-sample-reports')} style={{ whiteSpace: 'normal', textAlign: 'center', lineHeight: 1.1 }}>Rice Sample<br />Reports</NavLink>
               <NavLink to="/sample-entry-ledger" $active={isActive('/sample-entry-ledger')}>Paddy Sample Book</NavLink>
             </>
           )}
           {user && user.role === 'admin' && (
             <>
-              <NavLink to="/paddy-sample-reports" $active={isActive('/paddy-sample-reports') || isActive('/owner-sample-reports')}>
-                Paddy Sample Reports
+              <NavLink to="/paddy-sample-reports" $active={isActive('/paddy-sample-reports') || isActive('/owner-sample-reports')} style={{ whiteSpace: 'normal', textAlign: 'center', lineHeight: 1.1 }}>
+                Paddy Sample<br />Reports
                 {resampleCount > 0 && <ResampleBadge>{resampleCount}</ResampleBadge>}
                 {editApprovalCount > 0 && <NotificationBadge>{editApprovalCount}</NotificationBadge>}
               </NavLink>
-              <NavLink to="/rice-sample-reports" $active={isActive('/rice-sample-reports')}>Rice Sample Reports</NavLink>
+              <NavLink to="/rice-sample-reports" $active={isActive('/rice-sample-reports')} style={{ whiteSpace: 'normal', textAlign: 'center', lineHeight: 1.1 }}>Rice Sample<br />Reports</NavLink>
               <NavLink to="/arrivals" $active={isActive('/arrivals')}>Arrivals</NavLink>
               <NavLink to="/records" $active={isActive('/records')}>File</NavLink>
             </>
