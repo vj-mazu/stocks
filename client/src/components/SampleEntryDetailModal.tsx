@@ -1511,12 +1511,12 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
 
             const rowData = [
                 <span style={{ color: '#c2410c' }}>{label} Sample</span>,
-                getCollectorLabel(attempt.reportedBy),
+                <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#1e293b' }}>{getCollectorLabel(attempt.reportedBy)}</span>,
                 renderStackedDateTime(reportedAt),
-                moisture,
+                <span style={{ fontSize: '9.5px', fontWeight: '700' }}>{moisture}</span>,
                 cutting,
                 bend,
-                grains,
+                <span style={{ fontSize: '9.5px', fontWeight: '700', color: '#475569' }}>{grains}</span>,
                 formatQ(attempt.mixRaw, attempt.mix),
                 formatQ(attempt.mixSRaw, attempt.mixS),
                 formatQ(attempt.mixLRaw, attempt.mixL),
@@ -1529,6 +1529,10 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 renderBeautifulSmell(getQualityAttemptSmellLabel(detailEntry, attempt)),
                 formatQ(attempt.paddyWbRaw, attempt.paddyWb)
             ];
+
+            if (progressiveMode) {
+                rowData.push('-');
+            }
 
             const smellLabel = getQualityAttemptSmellLabel(detailEntry, attempt);
             (rowData as any).hasSmell = attempt?.smellHas === true 
@@ -2681,7 +2685,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         'Quality Parameters', 
                                         '🔬', 
                                         '#f97316', 
-                                        ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS COUNT', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB'],
+                                        progressiveMode
+                                            ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS COUNT', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'ACTIONS']
+                                            : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS COUNT', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB'],
                                         buildInitialQualityRows(),
                                         { isQuality: true }
                                     )}
