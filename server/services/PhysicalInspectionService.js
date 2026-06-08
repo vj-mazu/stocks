@@ -225,7 +225,7 @@ class PhysicalInspectionService {
         const currentInspection = await PhysicalInspectionRepository.findById(existingLorryInspection.id);
         const stages = currentInspection.samplingStages || {};
         
-        if (stages[stage]) {
+        if (stages[stage] && stage !== 'nit_avg') {
           throw new Error(`Sampling stage '${inspectionData.stage}' has already been submitted and is locked.`);
         }
 
@@ -274,7 +274,18 @@ class PhysicalInspectionService {
           }
         }
 
-        stages[stage] = stageData;
+        let targetStageKey = stage;
+        if (stage === 'nit_avg') {
+          if (stages.nit_avg) {
+            let suffix = 2;
+            while (stages[`nit_avg_${suffix}`]) {
+              suffix++;
+            }
+            targetStageKey = `nit_avg_${suffix}`;
+          }
+        }
+
+        stages[targetStageKey] = stageData;
         updates.samplingStages = JSON.parse(JSON.stringify(stages));
 
         inspection = await PhysicalInspectionRepository.update(currentInspection.id, updates);

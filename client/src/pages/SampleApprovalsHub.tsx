@@ -206,7 +206,25 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     if (stages.lot_avg?.approvalStatus === 'pending') return { key: 'lot_avg', label: 'Lot Avg' };
     if (stages.balanced_lot?.approvalStatus === 'pending') return { key: 'balanced_lot', label: 'Balanced Lot' };
     if (stages.half_lorry?.approvalStatus === 'pending') return { key: 'half_lorry', label: 'Half Lorry' };
-    if (stages.nit_avg?.approvalStatus === 'pending') return { key: 'nit_avg', label: 'Nit Avg' };
+    
+    // Check all nit_avg stages
+    const nitKeys = Object.keys(stages)
+      .filter(k => k.startsWith('nit_avg'))
+      .sort((a, b) => {
+        if (a === 'nit_avg') return -1;
+        if (b === 'nit_avg') return 1;
+        const numA = parseInt(a.replace('nit_avg_', '')) || 0;
+        const numB = parseInt(b.replace('nit_avg_', '')) || 0;
+        return numA - numB;
+      });
+    for (const key of nitKeys) {
+      if (stages[key]?.approvalStatus === 'pending') {
+        const idx = nitKeys.indexOf(key);
+        const label = idx === 0 ? 'Nit Avg' : `Nit Avg ${idx + 1}`;
+        return { key, label };
+      }
+    }
+
     if (stages.full_avg?.approvalStatus === 'pending') return { key: 'full_avg', label: 'Full Lorry' };
     return null;
   };
@@ -214,7 +232,23 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
   const getLatestApprovedStageLabel = (insp: any) => {
     const stages = insp.samplingStages || {};
     if (stages.full_avg?.approvalStatus === 'approved') return 'Full Lorry';
-    if (stages.nit_avg?.approvalStatus === 'approved') return 'Nit Avg';
+    
+    const nitKeys = Object.keys(stages)
+      .filter(k => k.startsWith('nit_avg'))
+      .sort((a, b) => {
+        if (a === 'nit_avg') return -1;
+        if (b === 'nit_avg') return 1;
+        const numA = parseInt(a.replace('nit_avg_', '')) || 0;
+        const numB = parseInt(b.replace('nit_avg_', '')) || 0;
+        return numA - numB;
+      });
+    for (let i = nitKeys.length - 1; i >= 0; i--) {
+      const key = nitKeys[i];
+      if (stages[key]?.approvalStatus === 'approved') {
+        return i === 0 ? 'Nit Avg' : `Nit Avg ${i + 1}`;
+      }
+    }
+
     if (stages.half_lorry?.approvalStatus === 'approved') return 'Half Lorry';
     if (stages.balanced_lot?.approvalStatus === 'approved') return 'Balanced Lot';
     if (stages.lot_avg?.approvalStatus === 'approved') return 'Lot Avg';
@@ -838,7 +872,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                         <tr style={{ borderBottom: '1px solid #000000', backgroundColor: bgColor }}>
                           <td style={{ border: '1px solid #000000', padding: '8px 10px', fontWeight: '800', color: color }}>
                             {name}
-                            {name === 'Nit Avg' && stageObj.nit && (
+                            {name.startsWith('Nit Avg') && stageObj.nit && (
                               <span style={{ color: '#ef6c00', marginLeft: '5px' }}>({stageObj.nit})</span>
                             )}
                           </td>
@@ -866,15 +900,35 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                       );
                     };
 
-                    return (
-                      <>
-                        {lot.reportedBy && renderRow('Lot Avg', '#1565c0', '#f0f9ff', lot, false)}
-                        {balanced.reportedBy && renderRow('Balanced Lot', '#1565c0', '#f0f9ff', balanced, true)}
-                        {half.reportedBy && renderRow('Half Lorry', '#b45309', '#fffbeb', half, false)}
-                        {full.reportedBy && renderRow('Full Avg Lorry', '#15803d', '#f0fdf4', full, true)}
-                        {nit.reportedBy && renderRow('Nit Avg', '#6b21a8', '#faf5ff', nit, false)}
-                      </>
-                    );
+                      const dynamicNitRows: React.ReactNode[] = [];
+                      Object.keys(stages)
+                        .filter(k => k.startsWith('nit_avg'))
+                        .sort((a, b) => {
+                          if (a === 'nit_avg') return -1;
+                          if (b === 'nit_avg') return 1;
+                          const numA = parseInt(a.replace('nit_avg_', '')) || 0;
+                          const numB = parseInt(b.replace('nit_avg_', '')) || 0;
+                          return numA - numB;
+                        })
+                        .forEach((key, index) => {
+                          const stageObj = stages[key];
+                          if (stageObj && stageObj.reportedBy) {
+                            const label = index === 0 ? 'Nit Avg' : `Nit Avg ${index + 1}`;
+                            dynamicNitRows.push(
+                              renderRow(label, '#6b21a8', '#faf5ff', stageObj, false)
+                            );
+                          }
+                        });
+
+                      return (
+                        <>
+                          {lot.reportedBy && renderRow('Lot Avg', '#1565c0', '#f0f9ff', lot, false)}
+                          {balanced.reportedBy && renderRow('Balanced Lot', '#1565c0', '#f0f9ff', balanced, true)}
+                          {half.reportedBy && renderRow('Half Lorry', '#b45309', '#fffbeb', half, false)}
+                          {full.reportedBy && renderRow('Full Avg Lorry', '#15803d', '#f0fdf4', full, true)}
+                          {dynamicNitRows}
+                        </>
+                      );
                   })()}
                 </tbody>
               </table>

@@ -297,12 +297,17 @@ const PhysicalInspection: React.FC = () => {
           }
         });
         if (dataChanged) {
+          // Preserve any unlocked (currently being edited) entries — especially new nit_avg forms
+          const merged = { ...currentVal };
+          Object.keys(newStageData).forEach(k => {
+            // Only overwrite if the current entry is locked or doesn't exist
+            if (!merged[k] || merged[k].isLocked) {
+              merged[k] = newStageData[k];
+            }
+          });
           return {
             ...prev,
-            [entryId]: {
-              ...currentVal,
-              ...newStageData
-            }
+            [entryId]: merged
           };
         }
         return prev;
@@ -675,6 +680,9 @@ const PhysicalInspection: React.FC = () => {
   };
 
   const isStageLockedForLot = (entryId: string, stageKey: string) => {
+    if (stageKey.startsWith('nit_avg')) {
+      return false;
+    }
     if (samplingStageData[entryId]?.[stageKey]?.isLocked) {
       return true;
     }
@@ -690,13 +698,7 @@ const PhysicalInspection: React.FC = () => {
       );
     }
     if (stageKey === 'nit_avg') {
-      const cleanLorry = (inspectionData[entryId]?.lorryNumber || '').trim().toUpperCase();
-      return prevInsps.some(insp => {
-        const targetLorry = cleanLorry;
-        const lorryMatch = (insp.lorryNumber || '').trim().toUpperCase() === targetLorry;
-        const stages = insp.samplingStages || {};
-        return lorryMatch && (stages.half_lorry || stages.full_avg || stages.balanced_lot);
-      });
+      return false;
     }
     const cleanLorry = (inspectionData[entryId]?.lorryNumber || '').trim().toUpperCase();
     return prevInsps.some(insp => {
@@ -772,13 +774,52 @@ const PhysicalInspection: React.FC = () => {
   };
 
   const handleAddStage = (entryId: string) => {
-    const stage = selectedStage[entryId];
+    let stage = selectedStage[entryId];
     if (!stage) {
       showNotification('Please select a sampling stage from the dropdown', 'error');
       return;
     }
 
     const currentActive = activeCards[entryId] || [];
+    const existingStages = samplingStageData[entryId] || {};
+    
+    if (stage === 'nit_avg') {
+      // Collect ALL existing nit_avg keys from both local state AND database progress
+      const allNitKeys = new Set<string>();
+      
+      // Check local samplingStageData
+      Object.keys(existingStages).forEach(k => {
+        if (k.startsWith('nit_avg')) allNitKeys.add(k);
+      });
+      
+      // Also check database progress (previousInspections) for saved nit_avg keys
+      const progress = inspectionProgress[entryId];
+      const currentLorry = (inspectionData[entryId]?.lorryNumber || '').trim().toUpperCase();
+      if (progress?.previousInspections) {
+        progress.previousInspections.forEach(insp => {
+          const lorry = (insp.lorryNumber || '').trim().toUpperCase();
+          if (lorry === currentLorry && insp.samplingStages) {
+            Object.keys(insp.samplingStages).forEach(k => {
+              if (k.startsWith('nit_avg')) allNitKeys.add(k);
+            });
+          }
+        });
+      }
+      
+      // Also check activeCards for any nit_avg cards currently open
+      currentActive.forEach(k => {
+        if (k.startsWith('nit_avg')) allNitKeys.add(k);
+      });
+      
+      if (allNitKeys.has('nit_avg')) {
+        let suffix = 2;
+        while (allNitKeys.has(`nit_avg_${suffix}`)) {
+          suffix++;
+        }
+        stage = `nit_avg_${suffix}`;
+      }
+    }
+
     if (currentActive.includes(stage)) {
       showNotification('This card is already open', 'error');
       return;
@@ -920,7 +961,7 @@ const PhysicalInspection: React.FC = () => {
       }
     }
 
-    if (stage === 'nit_avg' && (!stageVal.nit || !stageVal.nit.trim())) {
+    if (stage.startsWith('nit_avg') && (!stageVal.nit || !stageVal.nit.trim())) {
       showNotification('Nit is required for Nit Avg Sampling', 'error');
       return;
     }
@@ -930,7 +971,7 @@ const PhysicalInspection: React.FC = () => {
       const formData = new FormData();
       formData.append('inspectionDate', data.inspectionDate);
       formData.append('lorryNumber', lorryNum);
-      formData.append('stage', stage);
+      formData.append('stage', stage.startsWith('nit_avg') ? 'nit_avg' : stage);
       formData.append('moisture', stageVal.moisture || '0');
       formData.append('dryMoisture', stageVal.dryMoisture === 'Y' ? (stageVal.dryMoistureValue || '1') : '0');
       formData.append('dryMoistureRaw', stageVal.dryMoisture === 'Y' ? (stageVal.dryMoistureValue || 'Y') : 'N');
@@ -958,7 +999,7 @@ const PhysicalInspection: React.FC = () => {
         formData.append('actualBags', stageVal.actualBags || '0');
       }
 
-      if (stage === 'nit_avg') {
+      if (stage.startsWith('nit_avg')) {
         formData.append('nit', stageVal.nit || '');
       }
 
@@ -1932,7 +1973,7 @@ const PhysicalInspection: React.FC = () => {
                                       if (stage === 'lot_avg') return { title: 'Lot Avg Sampling', color: '#e67e22', border: '2px solid #e67e22' };
                                       if (stage === 'balanced_lot') return { title: 'Balanced Lot Sampling', color: '#e67e22', border: '2px solid #e67e22' };
                                       if (stage === 'half_lorry') return { title: 'Half Lorry Sampling', color: '#8e44ad', border: '2px solid #8e44ad' };
-                                      if (stage === 'nit_avg') return { title: 'Nit Avg Sampling', color: '#8e44ad', border: '2px solid #8e44ad' };
+                                      if (stage.startsWith('nit_avg')) return { title: 'Nit Avg Sampling', color: '#8e44ad', border: '2px solid #8e44ad' };
                                       return { title: 'Full Avg Lorry Sampling', color: '#2980b9', border: '2px solid #2980b9' };
                                     };
 
@@ -1989,7 +2030,7 @@ const PhysicalInspection: React.FC = () => {
                                         </div>
 
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '11px' }}>
-                                          {stage === 'nit_avg' && (
+                                          {stage.startsWith('nit_avg') && (
                                             <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
                                               <div style={{ flex: 1 }}>
                                                 <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>
@@ -2502,7 +2543,7 @@ const PhysicalInspection: React.FC = () => {
                   inspection.lorryNumber.toLowerCase().includes('next loading lorry');
 
                 const tripHeaderLabel = isLorryNotAdded
-                  ? <span style={{ color: '#ffcccc', fontWeight: '900' }}>Next Loading Lorry Sampling: Lot Avg Sampling or Balance Lot Sampling</span>
+                  ? <span style={{ color: 'white', fontWeight: '900' }}>Next Loading Lorry Sampling: Lot Avg Sampling or Balance Lot Sampling</span>
                   : idx === 0
                     ? `Load 1 - Loading Sample Details : ${inspection.lorryNumber?.toUpperCase() || ''}`
                     : `Load ${idx + 1} - Lorry Number: ${inspection.lorryNumber?.toUpperCase() || ''}`;
@@ -2571,7 +2612,29 @@ const PhysicalInspection: React.FC = () => {
                         </thead>
                         <tbody>
                           {lot && lot.reportedBy && renderRow('Lot Avg', '#d05d00', '#fffaf5', lot, false)}
-                          {stages.nit_avg && stages.nit_avg.reportedBy && renderRow('Nit Avg', '#6b21a8', '#faf5ff', stages.nit_avg, false)}
+                          {Object.keys(stages)
+                             .filter(k => k.startsWith('nit_avg'))
+                             .sort((a, b) => {
+                               if (a === 'nit_avg') return -1;
+                               if (b === 'nit_avg') return 1;
+                               const numA = parseInt(a.replace('nit_avg_', '')) || 0;
+                               const numB = parseInt(b.replace('nit_avg_', '')) || 0;
+                               return numA - numB;
+                             })
+                             .map((key, index) => {
+                               const stageObj = stages[key];
+                               if (stageObj && stageObj.reportedBy) {
+                                 return renderRow(
+                                   index === 0 ? 'Nit Avg' : `Nit Avg ${index + 1}`,
+                                   '#6b21a8',
+                                   '#faf5ff',
+                                   stageObj,
+                                   false
+                                 );
+                               }
+                               return null;
+                             })
+                           }
                           {half && half.reportedBy && renderRow('Half Lorry', '#b45309', '#fffdfa', half, false)}
                           {full && full.reportedBy && renderRow('Full Avg Lorry', '#15803d', '#fffaf0', full, true)}
                           {stages.balanced_lot && stages.balanced_lot.reportedBy && renderRow('Balanced Lot', '#d05d00', '#fffaf5', stages.balanced_lot, false)}
@@ -2820,7 +2883,7 @@ const PhysicalInspection: React.FC = () => {
                   if (stage === 'lot_avg') return { title: 'Lot Avg Sampling', color: '#e67e22', border: '2px solid #e67e22' };
                   if (stage === 'balanced_lot') return { title: 'Balanced Lot Sampling', color: '#e67e22', border: '2px solid #e67e22' };
                   if (stage === 'half_lorry') return { title: 'Half Lorry Sampling', color: '#8e44ad', border: '2px solid #8e44ad' };
-                  if (stage === 'nit_avg') return { title: 'Nit Avg Sampling', color: '#8e44ad', border: '2px solid #8e44ad' };
+                  if (stage.startsWith('nit_avg')) return { title: 'Nit Avg Sampling', color: '#8e44ad', border: '2px solid #8e44ad' };
                   return { title: 'Full Avg Lorry Sampling', color: '#2980b9', border: '2px solid #2980b9' };
                 };
 
@@ -2879,7 +2942,7 @@ const PhysicalInspection: React.FC = () => {
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', fontSize: '13px' }}>
-                      {stage === 'nit_avg' && (
+                      {stage.startsWith('nit_avg') && (
                         <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
                           <div style={{ flex: 1 }}>
                             <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>

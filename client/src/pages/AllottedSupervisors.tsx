@@ -1775,7 +1775,7 @@ const AllottedSupervisors: React.FC = () => {
                   inspection.lorryNumber.toLowerCase().includes('next loading lorry');
 
                 const tripHeaderLabel = isLorryNotAdded
-                  ? <span style={{ color: '#ffcccc', fontWeight: '900' }}>Next Loading Lorry Sampling: Lot Avg Sampling or Balance Lot Sampling</span>
+                  ? <span style={{ color: 'white', fontWeight: '900' }}>Next Loading Lorry Sampling: Lot Avg Sampling or Balance Lot Sampling</span>
                   : idx === 0
                     ? `Load 1 - Loading Sample Details : ${inspection.lorryNumber?.toUpperCase() || ''}`
                     : `Load ${idx + 1} - Lorry Number: ${inspection.lorryNumber?.toUpperCase() || ''}`;

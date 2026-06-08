@@ -1254,7 +1254,25 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     if (stg.lot_avg?.approvalStatus === 'pending') return { key: 'lot_avg', label: 'Lot Avg' };
                     if (stg.balanced_lot?.approvalStatus === 'pending') return { key: 'balanced_lot', label: 'Balanced Lot' };
                     if (stg.half_lorry?.approvalStatus === 'pending') return { key: 'half_lorry', label: 'Half Lorry' };
-                    if (stg.nit_avg?.approvalStatus === 'pending') return { key: 'nit_avg', label: 'Nit Avg' };
+                    
+                    // Scan all nit_avg keys
+                    const nitKeys = Object.keys(stg)
+                        .filter(k => k.startsWith('nit_avg'))
+                        .sort((a, b) => {
+                            if (a === 'nit_avg') return -1;
+                            if (b === 'nit_avg') return 1;
+                            const numA = parseInt(a.replace('nit_avg_', '')) || 0;
+                            const numB = parseInt(b.replace('nit_avg_', '')) || 0;
+                            return numA - numB;
+                        });
+                    for (const key of nitKeys) {
+                        if (stg[key]?.approvalStatus === 'pending') {
+                            const idx = nitKeys.indexOf(key);
+                            const label = idx === 0 ? 'Nit Avg' : `Nit Avg ${idx + 1}`;
+                            return { key, label };
+                        }
+                    }
+
                     if (stg.full_avg?.approvalStatus === 'pending') return { key: 'full_avg', label: 'Full Lorry' };
                     return null;
                 };
@@ -1432,13 +1450,25 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     ];
                 };
 
-                const stageKeys = [
-                    { key: 'lot_avg', label: 'Lot Avg' },
-                    { key: 'nit_avg', label: 'Nit Avg' },
-                    { key: 'half_lorry', label: 'Half Lorry' },
-                    { key: 'full_avg', label: 'Full Avg Lorry' },
-                    { key: 'balanced_lot', label: 'Balanced Lot' }
-                ];
+                const stageKeys: { key: string; label: string }[] = [];
+                if (stages.lot_avg) stageKeys.push({ key: 'lot_avg', label: 'Lot Avg' });
+                
+                Object.keys(stages)
+                    .filter(k => k.startsWith('nit_avg'))
+                    .sort((a, b) => {
+                        if (a === 'nit_avg') return -1;
+                        if (b === 'nit_avg') return 1;
+                        const numA = parseInt(a.replace('nit_avg_', '')) || 0;
+                        const numB = parseInt(b.replace('nit_avg_', '')) || 0;
+                        return numA - numB;
+                    })
+                    .forEach((key, index) => {
+                        stageKeys.push({ key, label: index === 0 ? 'Nit Avg' : `Nit Avg ${index + 1}` });
+                    });
+                
+                if (stages.half_lorry) stageKeys.push({ key: 'half_lorry', label: 'Half Lorry' });
+                if (stages.full_avg) stageKeys.push({ key: 'full_avg', label: 'Full Avg Lorry' });
+                if (stages.balanced_lot) stageKeys.push({ key: 'balanced_lot', label: 'Balanced Lot' });
 
                 stageKeys.forEach(({ key, label }) => {
                     const stageObj = stages[key];
@@ -1456,7 +1486,21 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 style={{ color: '#000000', textDecoration: 'underline', cursor: 'pointer', fontWeight: 900 }}
                                 title="Click to view side-by-side stage comparison"
                             >
-                                {key === 'nit_avg' && stageObj.nit ? `${label} (${stageObj.nit})` : label}
+                                {key.startsWith('nit_avg') && stageObj.nit ? (
+                                    <>
+                                        {label}{' '}
+                                        <span style={{ color: '#ef6c00', fontWeight: '900' }}>
+                                            ({stageObj.nit})
+                                        </span>
+                                    </>
+                                ) : key === 'full_avg' && insp.bags ? (
+                                    <>
+                                        {label}{' '}
+                                        <span style={{ color: '#1565c0', fontWeight: '900' }}>
+                                            ({insp.bags})
+                                        </span>
+                                    </>
+                                ) : label}
                             </span>
                         );
                         const stageRow = makeRow(labelElement, stageObj, key);
@@ -1605,7 +1649,25 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             if (stg.lot_avg?.approvalStatus === 'pending') return { key: 'lot_avg', label: 'Lot Avg' };
             if (stg.balanced_lot?.approvalStatus === 'pending') return { key: 'balanced_lot', label: 'Balanced Lot' };
             if (stg.half_lorry?.approvalStatus === 'pending') return { key: 'half_lorry', label: 'Half Lorry' };
-            if (stg.nit_avg?.approvalStatus === 'pending') return { key: 'nit_avg', label: 'Nit Avg' };
+            
+            // Scan all nit_avg keys
+            const nitKeys = Object.keys(stg)
+                .filter(k => k.startsWith('nit_avg'))
+                .sort((a, b) => {
+                    if (a === 'nit_avg') return -1;
+                    if (b === 'nit_avg') return 1;
+                    const numA = parseInt(a.replace('nit_avg_', '')) || 0;
+                    const numB = parseInt(b.replace('nit_avg_', '')) || 0;
+                    return numA - numB;
+                });
+            for (const key of nitKeys) {
+                if (stg[key]?.approvalStatus === 'pending') {
+                    const idx = nitKeys.indexOf(key);
+                    const label = idx === 0 ? 'Nit Avg' : `Nit Avg ${idx + 1}`;
+                    return { key, label };
+                }
+            }
+
             if (stg.full_avg?.approvalStatus === 'pending') return { key: 'full_avg', label: 'Full Lorry' };
             return null;
         };
@@ -1783,13 +1845,25 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             ];
         };
 
-        const stageKeys = [
-            { key: 'lot_avg', label: 'Lot Avg' },
-            { key: 'nit_avg', label: 'Nit Avg' },
-            { key: 'half_lorry', label: 'Half Lorry' },
-            { key: 'full_avg', label: 'Full Avg Lorry' },
-            { key: 'balanced_lot', label: 'Balanced Lot' }
-        ];
+        const stageKeys: { key: string; label: string }[] = [];
+        if (stages.lot_avg) stageKeys.push({ key: 'lot_avg', label: 'Lot Avg' });
+        
+        Object.keys(stages)
+            .filter(k => k.startsWith('nit_avg'))
+            .sort((a, b) => {
+                if (a === 'nit_avg') return -1;
+                if (b === 'nit_avg') return 1;
+                const numA = parseInt(a.replace('nit_avg_', '')) || 0;
+                const numB = parseInt(b.replace('nit_avg_', '')) || 0;
+                return numA - numB;
+            })
+            .forEach((key, index) => {
+                stageKeys.push({ key, label: index === 0 ? 'Nit Avg' : `Nit Avg ${index + 1}` });
+            });
+        
+        if (stages.half_lorry) stageKeys.push({ key: 'half_lorry', label: 'Half Lorry' });
+        if (stages.full_avg) stageKeys.push({ key: 'full_avg', label: 'Full Avg Lorry' });
+        if (stages.balanced_lot) stageKeys.push({ key: 'balanced_lot', label: 'Balanced Lot' });
 
         stageKeys.forEach(({ key, label }) => {
             const stageObj = stages[key];
@@ -1807,11 +1881,18 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         style={{ color: '#000000', textDecoration: 'underline', cursor: 'pointer', fontWeight: 900 }}
                         title="Click to view side-by-side stage comparison"
                     >
-                        {key === 'nit_avg' && stageObj.nit ? (
+                        {key.startsWith('nit_avg') && stageObj.nit ? (
                             <>
                                 {label}{' '}
                                 <span style={{ color: '#ef6c00', fontWeight: '900' }}>
                                     ({stageObj.nit})
+                                </span>
+                            </>
+                        ) : key === 'full_avg' && insp.bags ? (
+                            <>
+                                {label}{' '}
+                                <span style={{ color: '#1565c0', fontWeight: '900' }}>
+                                    ({insp.bags})
                                 </span>
                             </>
                         ) : label}
@@ -2718,7 +2799,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                 ['LOT_AVG', 'BALANCED_LOT'].includes(insp.lorryNumber.toUpperCase().trim()) ||
                                                 insp.lorryNumber.toLowerCase().includes('next loading lorry');
                                             const title = isLorryNotAdded
-                                                ? <span style={{ color: '#dc2626', fontWeight: 'bold' }}>Next Loading Lorry Sampling: Lot Avg Sampling or Balance Lot Sampling</span>
+                                                ? <span style={{ color: 'white', fontWeight: 'bold' }}>Next Loading Lorry Sampling: Lot Avg Sampling or Balance Lot Sampling</span>
                                                 : tripIdx === 0
                                                     ? `Load 1 - Loading Sample Details : ${insp.lorryNumber?.toUpperCase() || 'Lorry'}`
                                                     : `Load ${tripIdx + 1} - Lorry Number: ${insp.lorryNumber?.toUpperCase() || 'Lorry'}`;
