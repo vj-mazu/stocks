@@ -967,9 +967,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 </div>
                 {/* Table */}
                 <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: isCompact ? 'fit-content' : '100%', maxWidth: '100%' }}>
-                    <table style={{ width: isCompact ? 'auto' : '100%', minWidth: isCompact ? '760px' : undefined, borderCollapse: 'collapse', fontSize: '11px' }}>
+                    <table style={{ width: isCompact ? 'auto' : '100%', minWidth: isCompact ? '760px' : undefined, borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #000000' }}>
                         <thead>
-                            <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '2px solid #dee2e6' }}>
+                            <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '2px solid #000000' }}>
                                 {columns.map((col, i) => (
                                     <th key={i} style={{
                                         padding: '6px 4px',
@@ -980,7 +980,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         fontSize: '10.5px',
                                         whiteSpace: 'nowrap',
                                         letterSpacing: '0.2px',
-                                        borderRight: i < columns.length - 1 ? '1px solid #e9ecef' : 'none'
+                                        border: '1px solid #000000'
                                     }}>
                                         {col}
                                     </th>
@@ -992,7 +992,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 if (row && row.type === 'header') {
                                     return (
                                         <tr key={i} style={{ backgroundColor: '#e2e8f0', borderBottom: '2px solid #cbd5e1' }}>
-                                            <td colSpan={columns.length} style={{ padding: '8px 10px', fontWeight: '800', color: '#1e293b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                                            <td colSpan={columns.length} style={{ padding: '8px 10px', fontWeight: '800', color: '#1e293b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.4px', border: '1px solid #000000' }}>
                                                 {row.content}
                                             </td>
                                         </tr>
@@ -1010,7 +1010,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         backgroundColor: row.hasSmell 
                                             ? '#ffebee' 
                                             : (i % 2 === 0 ? '#ffffff' : '#f8fafb'),
-                                        borderBottom: row.hasSmell ? '2px solid #ef5350' : '1px solid #e9ecef',
+                                        borderBottom: row.hasSmell ? '2px solid #ef5350' : '1px solid #000000',
                                         transition: 'background-color 0.2s'
                                     }}>
                                         {row.map((cell: any, j: number) => (
@@ -1020,7 +1020,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                 fontWeight: j === 0 ? 700 : 500,
                                                 whiteSpace: j === 0 || j === 1 || j === 2 || j === 18 ? 'normal' : 'nowrap',
                                                 fontSize: '11px',
-                                                borderRight: j < row.length - 1 ? '1px solid #f1f5f9' : 'none',
+                                                border: '1px solid #000000',
                                                 maxWidth: j === 0 ? '130px' : j === 1 ? '110px' : j === 18 ? '140px' : undefined,
                                                 wordBreak: j === 0 || j === 1 || j === 18 ? 'break-word' : undefined
                                             }}>
@@ -1109,8 +1109,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 formatQ(attempt.wbBkRaw, attempt.wbBk),
                 formatQ(attempt.wbTRaw, attempt.wbT),
                 renderBeautifulSmell(getQualityAttemptSmellLabel(detailEntry, attempt)),
-                formatQ(attempt.paddyWbRaw, attempt.paddyWb),
-                formatQ(attempt.nitRaw, attempt.nit)
+                formatQ(attempt.paddyWbRaw, attempt.paddyWb)
             ];
 
             if (progressiveMode) {
@@ -1172,7 +1171,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 // Add header row for the Lorry/Trip
                 rows.push({
                     type: 'header',
-                    content: `Load ${tripIdx + 1} - Lorry Number: ${insp.lorryNumber?.toUpperCase() || 'Lorry'}`
+                    content: tripIdx === 0
+                        ? `Load 1 - Loading Sample Details : ${insp.lorryNumber?.toUpperCase() || 'Lorry'}`
+                        : `Load ${tripIdx + 1} - Lorry Number: ${insp.lorryNumber?.toUpperCase() || 'Lorry'}`
                 });
 
                 const getPendingStageOfTrip = (currentInsp: any) => {
@@ -1354,7 +1355,6 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         formatQ(stageObj.wbTRaw, stageObj.wbT),
                         renderBeautifulSmell(stageObj),
                         stageObj.paddyWbEnabled ? formatQ(stageObj.paddyWbRaw, stageObj.paddyWb) : '-',
-                        formatQ(stageObj.nitRaw, stageObj.nit),
                         actionsCell
                     ];
                 };
@@ -1383,7 +1383,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 style={{ color: '#000000', textDecoration: 'underline', cursor: 'pointer', fontWeight: 900 }}
                                 title="Click to view side-by-side stage comparison"
                             >
-                                {label}
+                                {key === 'nit_avg' && stageObj.nit ? `${label} (${stageObj.nit})` : label}
                             </span>
                         );
                         const stageRow = makeRow(labelElement, stageObj, key);
@@ -1397,6 +1397,358 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 });
             });
         }
+
+        return rows;
+    };
+
+    const buildInitialQualityRows = () => {
+        const attempts = getQualityAttemptsForEntry(detailEntry);
+        return attempts.map((attempt: any, idx: number) => {
+            const label = getSamplingLabel(attempt.attemptNo || idx + 1);
+            const reportedAt = attempt.reportedAt || attempt.updatedAt || attempt.createdAt;
+            
+            const formatQ = (raw: any, val: any) => {
+                if (raw !== undefined && raw !== null && raw !== '') return raw;
+                const s = String(val === undefined || val === null ? '' : val).trim();
+                if (!s || s === '0' || s === '0.00') return '-';
+                return s;
+            };
+
+            const mRaw = attempt.moistureRaw;
+            const mVal = String(attempt.moisture === undefined || attempt.moisture === null ? '' : attempt.moisture);
+            const moisture = mRaw ? `${mRaw}%` : (mVal && mVal !== '0' && mVal !== '0.00' ? `${mVal}%` : '-');
+
+            const c1Raw = attempt.cutting1Raw;
+            const c1Val = String(attempt.cutting1 === undefined || attempt.cutting1 === null ? '' : attempt.cutting1);
+            const c2Raw = attempt.cutting2Raw;
+            const c2Val = String(attempt.cutting2 === undefined || attempt.cutting2 === null ? '' : attempt.cutting2);
+            let cutting = '-';
+            if (c1Raw) cutting = `${c1Raw}x${c2Raw || 0}`;
+            else if (c1Val && c1Val !== '0' && c1Val !== '0.00') cutting = `${c1Val}x${c2Val || 0}`;
+
+            const b1Raw = attempt.bend1Raw;
+            const b1Val = String(attempt.bend1 === undefined || attempt.bend1 === null ? '' : attempt.bend1);
+            const b2Raw = attempt.bend2Raw;
+            const b2Val = String(attempt.bend2 === undefined || attempt.bend2 === null ? '' : attempt.bend2);
+            let bend = '-';
+            if (b1Raw) bend = `${b1Raw}x${b2Raw || 0}`;
+            else if (b1Val && b1Val !== '0' && b1Val !== '0.00') bend = `${b1Val}x${b2Val || 0}`;
+
+            const gRaw = attempt.grainsCountRaw;
+            const gVal = String(attempt.grainsCount === undefined || attempt.grainsCount === null ? '' : attempt.grainsCount);
+            const grains = gRaw ? `(${gRaw})` : (gVal && gVal !== '0' && gVal !== '0.00' ? `(${gVal})` : '-');
+
+            const renderStackedDateTime = (dtStr: any) => {
+                if (!dtStr) return '-';
+                try {
+                    const d = new Date(dtStr);
+                    const dStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    const tStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase();
+                    return (
+                        <div style={{ display: 'flex', flexDirection: 'column', fontSize: '10.5px', lineHeight: '1.2' }}>
+                            <span style={{ fontWeight: '600' }}>{dStr}</span>
+                            <span style={{ color: '#64748b', fontSize: '9.5px' }}>{tStr}</span>
+                        </div>
+                    );
+                } catch {
+                    return '-';
+                }
+            };
+
+            const rowData = [
+                <span style={{ color: '#c2410c' }}>{label} Sample</span>,
+                getCollectorLabel(attempt.reportedBy),
+                renderStackedDateTime(reportedAt),
+                moisture,
+                cutting,
+                bend,
+                grains,
+                formatQ(attempt.mixRaw, attempt.mix),
+                formatQ(attempt.mixSRaw, attempt.mixS),
+                formatQ(attempt.mixLRaw, attempt.mixL),
+                formatQ(attempt.kanduRaw, attempt.kandu),
+                formatQ(attempt.oilRaw, attempt.oil),
+                formatQ(attempt.skRaw, attempt.sk),
+                formatQ(attempt.wbRRaw, attempt.wbR),
+                formatQ(attempt.wbBkRaw, attempt.wbBk),
+                formatQ(attempt.wbTRaw, attempt.wbT),
+                renderBeautifulSmell(getQualityAttemptSmellLabel(detailEntry, attempt)),
+                formatQ(attempt.paddyWbRaw, attempt.paddyWb)
+            ];
+
+            const smellLabel = getQualityAttemptSmellLabel(detailEntry, attempt);
+            (rowData as any).hasSmell = attempt?.smellHas === true 
+                || String(attempt?.smellHas).trim().toUpperCase() === 'YES'
+                || (smellLabel && smellLabel !== '-' && smellLabel !== 'No');
+
+            return rowData;
+        });
+    };
+
+    const buildTripQualityRows = (insp: any, tripIdx: number) => {
+        const rows: any[] = [];
+        const stages = insp.samplingStages || {};
+        const canApprove = ['admin', 'owner', 'manager'].includes(String(user?.role || '').toLowerCase());
+        
+        const formatQ = (raw: any, val: any) => {
+            if (raw !== undefined && raw !== null && raw !== '') return raw;
+            const s = String(val === undefined || val === null ? '' : val).trim();
+            if (!s || s === '0' || s === '0.00') return '-';
+            return s;
+        };
+
+        const formatStageMoisture = (stageObj: any) => {
+            const raw = stageObj.moistureRaw;
+            const val = stageObj.moisture;
+            if (raw) return `${raw}%`;
+            if (val !== undefined && val !== null && String(val) !== '0') return `${val}%`;
+            return '-';
+        };
+
+        const formatStageCutting = (stageObj: any) => {
+            if (stageObj.cutting1 === undefined || stageObj.cutting1 === null || String(stageObj.cutting1) === '0') return '-';
+            return `${stageObj.cutting1}x${stageObj.cutting2 || 0}`;
+        };
+
+        const formatStageBend = (stageObj: any) => {
+            if (stageObj.bend1 === undefined || stageObj.bend1 === null || String(stageObj.bend1) === '0') return '-';
+            return `${stageObj.bend1}x${stageObj.bend2 || 0}`;
+        };
+
+        const formatStageGrains = (stageObj: any) => {
+            const raw = stageObj.grainsCountRaw;
+            const val = stageObj.grainsCount;
+            if (raw) return `(${raw})`;
+            if (val !== undefined && val !== null && String(val) !== '0') return `(${val})`;
+            return '-';
+        };
+
+        const getPendingStageOfTrip = (currentInsp: any) => {
+            const stg = currentInsp.samplingStages || {};
+            if (stg.lot_avg?.approvalStatus === 'pending') return { key: 'lot_avg', label: 'Lot Avg' };
+            if (stg.balanced_lot?.approvalStatus === 'pending') return { key: 'balanced_lot', label: 'Balanced Lot' };
+            if (stg.half_lorry?.approvalStatus === 'pending') return { key: 'half_lorry', label: 'Half Lorry' };
+            if (stg.nit_avg?.approvalStatus === 'pending') return { key: 'nit_avg', label: 'Nit Avg' };
+            if (stg.full_avg?.approvalStatus === 'pending') return { key: 'full_avg', label: 'Full Lorry' };
+            return null;
+        };
+
+        const pendingStage = getPendingStageOfTrip(insp);
+
+        const makeRow = (labelElement: any, stageObj: any, stageKey: string) => {
+            if (!stageObj || !stageObj.reportedBy) return null;
+            const reportedAt = stageObj.reportedAt;
+            
+            let actionsCell: any = '-';
+            if (canApprove) {
+                if (pendingStage && pendingStage.key === stageKey) {
+                    actionsCell = (
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <button
+                                onClick={() => handleApproveProgressiveStage(detailEntry.id, insp.id, stageKey, pendingStage.label)}
+                                disabled={processingAction}
+                                style={{
+                                    background: '#27ae60',
+                                    border: 'none',
+                                    color: '#fff',
+                                    fontWeight: 'bold',
+                                    cursor: 'pointer',
+                                    fontSize: '10px',
+                                    padding: '3px 8px',
+                                    borderRadius: '3px'
+                                }}
+                            >
+                                Approve
+                            </button>
+                            <button
+                                onClick={() => handleRejectSpecificLorry(detailEntry.id, insp.id, insp.lorryNumber)}
+                                disabled={processingAction}
+                                style={{
+                                    background: '#dc2626',
+                                    border: 'none',
+                                    color: '#fff',
+                                    fontWeight: 'bold',
+                                    cursor: 'pointer',
+                                    fontSize: '10px',
+                                    padding: '3px 8px',
+                                    borderRadius: '3px'
+                                }}
+                            >
+                                Reject
+                            </button>
+                        </div>
+                    );
+                } else if (!pendingStage && detailEntry.status === 'PHYSICAL_INSPECTION' && (insp.isComplete || stages.balanced_lot?.approvalStatus === 'approved') && stageKey === 'balanced_lot' && (inspectionsProgress?.inspectedBags >= inspectionsProgress?.totalBags)) {
+                    actionsCell = (
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <button
+                                onClick={() => handleApproveLorryQuality(detailEntry.id)}
+                                disabled={processingAction}
+                                style={{
+                                    background: '#27ae60',
+                                    border: 'none',
+                                    color: '#fff',
+                                    fontWeight: 'bold',
+                                    cursor: 'pointer',
+                                    fontSize: '10px',
+                                    padding: '3px 8px',
+                                    borderRadius: '3px'
+                                }}
+                            >
+                                Approve Lorry
+                            </button>
+                            <button
+                                onClick={() => handleRejectSpecificLorry(detailEntry.id, insp.id, insp.lorryNumber)}
+                                disabled={processingAction}
+                                style={{
+                                    background: '#dc2626',
+                                    border: 'none',
+                                    color: '#fff',
+                                    fontWeight: 'bold',
+                                    cursor: 'pointer',
+                                    fontSize: '10px',
+                                    padding: '3px 8px',
+                                    borderRadius: '3px'
+                                }}
+                            >
+                                Reject
+                            </button>
+                        </div>
+                    );
+                } else if (stageObj.approvalStatus === 'approved') {
+                    const fallbackManagerName = detailEntry.lotAllotment?.manager?.fullName || detailEntry.lotAllotment?.manager?.username || 'MANAGER';
+                    const name = stageObj.approvedBy ? stageObj.approvedBy : fallbackManagerName;
+                    actionsCell = (
+                        <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.2', border: '1px solid rgba(39, 174, 96, 0.3)', backgroundColor: '#e8f5e9', padding: '3px 8px', borderRadius: '4px', textAlign: 'center' }}>
+                            <span style={{ color: '#2e7d32', fontWeight: '800', fontSize: '10px', textTransform: 'uppercase' }}>Approved</span>
+                            <span style={{ color: '#1b5e20', fontSize: '9px', fontWeight: '700', whiteSpace: 'normal', maxWidth: '100px', wordBreak: 'break-word' }}>by {name.toUpperCase()}</span>
+                        </div>
+                    );
+                } else if (stageObj.approvalStatus === 'rejected') {
+                    actionsCell = <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '10px' }}>Rejected</span>;
+                } else if (!pendingStage && stageKey === 'full_avg' && !stages.balanced_lot?.reportedBy) {
+                    actionsCell = (
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <span style={{ color: '#64748b', fontSize: '10px', fontWeight: '600' }}>Awaiting Next</span>
+                            <button
+                                onClick={() => handleRejectSpecificLorry(detailEntry.id, insp.id, insp.lorryNumber)}
+                                disabled={processingAction}
+                                style={{
+                                    background: '#dc2626',
+                                    border: 'none',
+                                    color: '#fff',
+                                    fontWeight: 'bold',
+                                    cursor: 'pointer',
+                                    fontSize: '10px',
+                                    padding: '3px 8px',
+                                    borderRadius: '3px'
+                                }}
+                            >
+                                Reject
+                            </button>
+                        </div>
+                    );
+                }
+            } else {
+                if (stageObj.approvalStatus === 'approved') {
+                    const fallbackManagerName = detailEntry.lotAllotment?.manager?.fullName || detailEntry.lotAllotment?.manager?.username || 'MANAGER';
+                    const name = stageObj.approvedBy ? stageObj.approvedBy : fallbackManagerName;
+                    actionsCell = (
+                        <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.2', border: '1px solid rgba(39, 174, 96, 0.3)', backgroundColor: '#e8f5e9', padding: '3px 8px', borderRadius: '4px', textAlign: 'center' }}>
+                            <span style={{ color: '#2e7d32', fontWeight: '800', fontSize: '10px', textTransform: 'uppercase' }}>Approved</span>
+                            <span style={{ color: '#1b5e20', fontSize: '9px', fontWeight: '700', whiteSpace: 'normal', maxWidth: '100px', wordBreak: 'break-word' }}>by {name.toUpperCase()}</span>
+                        </div>
+                    );
+                } else if (stageObj.approvalStatus === 'rejected') {
+                    actionsCell = <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '10px' }}>Rejected</span>;
+                } else if (stageObj.approvalStatus === 'pending') {
+                    actionsCell = <span style={{ color: '#d97706', fontWeight: 'bold', fontSize: '10px' }}>Pending Approval</span>;
+                }
+            }
+
+            const renderStageReportedAtStacked = (dtStr: any) => {
+                if (!dtStr) return '-';
+                try {
+                    const d = new Date(dtStr);
+                    const dStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    const tStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase();
+                    return (
+                        <div style={{ display: 'flex', flexDirection: 'column', fontSize: '10.5px', lineHeight: '1.2' }}>
+                            <span style={{ fontWeight: '600' }}>{dStr}</span>
+                            <span style={{ color: '#64748b', fontSize: '9.5px' }}>{tStr}</span>
+                        </div>
+                    );
+                } catch {
+                    return '-';
+                }
+            };
+
+            return [
+                labelElement,
+                getCollectorLabel(stageObj.reportedBy),
+                renderStageReportedAtStacked(reportedAt),
+                formatStageMoisture(stageObj),
+                formatStageCutting(stageObj),
+                formatStageBend(stageObj),
+                formatStageGrains(stageObj),
+                formatQ(stageObj.mixRaw, stageObj.mix),
+                stageObj.smixEnabled ? formatQ(stageObj.mixSRaw, stageObj.mixS) || 'Yes' : '-',
+                stageObj.lmixEnabled ? formatQ(stageObj.mixLRaw, stageObj.mixL) || 'Yes' : '-',
+                formatQ(stageObj.kanduRaw, stageObj.kandu),
+                formatQ(stageObj.oilRaw, stageObj.oil),
+                formatQ(stageObj.skRaw, stageObj.sk),
+                formatQ(stageObj.wbRRaw, stageObj.wbR),
+                formatQ(stageObj.wbBkRaw, stageObj.wbBk),
+                formatQ(stageObj.wbTRaw, stageObj.wbT),
+                renderBeautifulSmell(stageObj),
+                stageObj.paddyWbEnabled ? formatQ(stageObj.paddyWbRaw, stageObj.paddyWb) : '-',
+                actionsCell
+            ];
+        };
+
+        const stageKeys = [
+            { key: 'lot_avg', label: 'Lot Avg' },
+            { key: 'nit_avg', label: 'Nit Avg' },
+            { key: 'half_lorry', label: 'Half Lorry' },
+            { key: 'full_avg', label: 'Full Avg Lorry' },
+            { key: 'balanced_lot', label: 'Balanced Lot' }
+        ];
+
+        stageKeys.forEach(({ key, label }) => {
+            const stageObj = stages[key];
+            if (stageObj && stageObj.reportedBy) {
+                const labelElement = (
+                    <span
+                        onClick={() => {
+                            setSelectedLorryForComparison({
+                                lorryNumber: insp.lorryNumber,
+                                previousInspections: [insp],
+                                lotAllotment: detailEntry.lotAllotment,
+                                singleLorryMode: true
+                            });
+                        }}
+                        style={{ color: '#000000', textDecoration: 'underline', cursor: 'pointer', fontWeight: 900 }}
+                        title="Click to view side-by-side stage comparison"
+                    >
+                        {key === 'nit_avg' && stageObj.nit ? (
+                            <>
+                                {label}{' '}
+                                <span style={{ color: '#ef6c00', fontWeight: '900' }}>
+                                    ({stageObj.nit})
+                                </span>
+                            </>
+                        ) : label}
+                    </span>
+                );
+                const stageRow = makeRow(labelElement, stageObj, key);
+                if (stageRow) {
+                    (stageRow as any).hasSmell = stageObj.smellHas === true 
+                        || String(stageObj.smellHas).trim().toUpperCase() === 'YES'
+                        || (stageObj.smellType && String(stageObj.smellType).trim() !== '' && String(stageObj.smellType).trim() !== '-' && String(stageObj.smellType).trim().toLowerCase() !== 'no');
+                    rows.push(stageRow);
+                }
+            }
+        });
 
         return rows;
     };
@@ -2275,12 +2627,27 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         'Quality Parameters', 
                                         '🔬', 
                                         '#f97316', 
-                                        progressiveMode 
-                                            ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS COUNT', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'NIT NO', 'ACTIONS']
-                                            : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS COUNT', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'NIT NO'],
-                                        buildQualityRows(),
+                                        ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS COUNT', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB'],
+                                        buildInitialQualityRows(),
                                         { isQuality: true }
                                     )}
+
+                                    {/* Progressive Loads */}
+                                    {progressiveMode && inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections) && 
+                                        inspectionsProgress.previousInspections.map((insp: any, tripIdx: number) => {
+                                            const title = tripIdx === 0
+                                                ? `Load 1 - Loading Sample Details : ${insp.lorryNumber?.toUpperCase() || 'Lorry'}`
+                                                : `Load ${tripIdx + 1} - Lorry Number: ${insp.lorryNumber?.toUpperCase() || 'Lorry'}`;
+                                            return renderHorizontalTable(
+                                                title,
+                                                '🚚',
+                                                '#f97316',
+                                                ['STAGE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS COUNT', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'ACTIONS'],
+                                                buildTripQualityRows(insp, tripIdx),
+                                                { isQuality: true }
+                                            );
+                                        })
+                                    }
 
                                     {/* Cooking History */}
                                     {!progressiveMode && renderHorizontalTable(

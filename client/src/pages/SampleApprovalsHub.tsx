@@ -281,6 +281,16 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     // Copy to avoid mutating original objects
     inspections = JSON.parse(JSON.stringify(inspections));
     
+    // Sort chronologically ascending
+    inspections.sort((a: any, b: any) => {
+      const idA = Number(a.id) || 0;
+      const idB = Number(b.id) || 0;
+      if (idA !== idB) return idA - idB;
+      const dateA = new Date(a.createdAt || a.inspectionDate || 0).getTime();
+      const dateB = new Date(b.createdAt || b.inspectionDate || 0).getTime();
+      return dateA - dateB;
+    });
+    
     // Merge LOT_AVG trip on the fly
     if (inspections.length > 1) {
       const lotAvgIdx = inspections.findIndex((i: any) => (i.lorryNumber || '').trim().toUpperCase() === 'LOT_AVG');
@@ -335,7 +345,19 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
 
   const getLorryNumber = (entry: any) => {
     const inspections = entry.physicalInspections || entry.lotAllotment?.physicalInspections || [];
-    const activeInsp = inspections.find((insp: any) => getPendingStage(insp) !== null) || inspections[inspections.length - 1];
+    if (inspections.length === 0) return entry.lorryNumber?.toUpperCase() || '-';
+    
+    // Sort chronologically ascending
+    const sorted = [...inspections].sort((a: any, b: any) => {
+      const idA = Number(a.id) || 0;
+      const idB = Number(b.id) || 0;
+      if (idA !== idB) return idA - idB;
+      const dateA = new Date(a.createdAt || a.inspectionDate || 0).getTime();
+      const dateB = new Date(b.createdAt || b.inspectionDate || 0).getTime();
+      return dateA - dateB;
+    });
+
+    const activeInsp = sorted.find((insp: any) => getPendingStage(insp) !== null) || sorted[sorted.length - 1];
     return activeInsp?.lorryNumber?.toUpperCase() || entry.lorryNumber?.toUpperCase() || '-';
   };
 
@@ -436,7 +458,15 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
               </thead>
               <tbody>
                 {filteredInspections.map((entry, index) => {
-                  const inspections = entry.physicalInspections || entry.lotAllotment?.physicalInspections || [];
+                  const inspectionsRaw = entry.physicalInspections || entry.lotAllotment?.physicalInspections || [];
+                  const inspections = [...inspectionsRaw].sort((a: any, b: any) => {
+                    const idA = Number(a.id) || 0;
+                    const idB = Number(b.id) || 0;
+                    if (idA !== idB) return idA - idB;
+                    const dateA = new Date(a.createdAt || a.inspectionDate || 0).getTime();
+                    const dateB = new Date(b.createdAt || b.inspectionDate || 0).getTime();
+                    return dateA - dateB;
+                  });
                   const activeInsp = inspections.find((insp: any) => getPendingStage(insp) !== null) || inspections[inspections.length - 1];
 
                   return (
@@ -749,27 +779,26 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
               </button>
             </div>
             <div style={{ padding: '16px 18px 18px', overflowY: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #000000' }}>
                 <thead>
-                  <tr style={{ backgroundColor: '#1a237e', color: '#fff', borderBottom: '2px solid #cbd5e1' }}>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'left' }}>SAMPLE / STAGE</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>REPORTED BY</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>REPORTED AT</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>MOISTURE</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>CUTTING</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>BEND</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>GRAINS COUNT</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>MIX</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>S MIX</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>L MIX</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>KANDU</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>OIL</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>SK</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>SMELL</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>PADDY WB</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>NIT</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>LOADED BAGS</th>
-                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center' }}>PHOTO</th>
+                  <tr style={{ backgroundColor: '#f1f5f9', color: '#334155', borderBottom: '2px solid #000000' }}>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'left', border: '1px solid #000000' }}>SAMPLE / STAGE</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>REPORTED BY</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>REPORTED AT</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>MOISTURE</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>CUTTING</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>BEND</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>GRAINS COUNT</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>MIX</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>S MIX</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>L MIX</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>KANDU</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>OIL</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>SK</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>SMELL</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>PADDY WB</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>LOADED BAGS</th>
+                    <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>PHOTO</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -806,27 +835,31 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
 
                     const renderRow = (name: string, color: string, bgColor: string, stageObj: any, isFull: boolean) => {
                       return (
-                        <tr style={{ borderBottom: '1px solid #cbd5e1', backgroundColor: bgColor }}>
-                          <td style={{ padding: '8px 10px', fontWeight: '800', color: color }}>{name}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.reportedBy)}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>
+                        <tr style={{ borderBottom: '1px solid #000000', backgroundColor: bgColor }}>
+                          <td style={{ border: '1px solid #000000', padding: '8px 10px', fontWeight: '800', color: color }}>
+                            {name}
+                            {name === 'Nit Avg' && stageObj.nit && (
+                              <span style={{ color: '#ef6c00', marginLeft: '5px' }}>({stageObj.nit})</span>
+                            )}
+                          </td>
+                          <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.reportedBy)}</td>
+                          <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>
                             {stageObj.reportedAt ? new Date(stageObj.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-'}
                           </td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatMoisture(stageObj)}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatCutting(stageObj)}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatBend(stageObj)}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>({formatField(stageObj.grainsCountRaw || stageObj.grainsCount)})</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.mixRaw || stageObj.mix)}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.smixEnabled ? formatField(stageObj.mixSRaw || stageObj.mixS) || 'Yes' : '-'}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.lmixEnabled ? formatField(stageObj.mixLRaw || stageObj.mixL) || 'Yes' : '-'}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.kanduRaw || stageObj.kandu)}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.oilRaw || stageObj.oil)}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.smellHas ? 'Yes' : '-'}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.paddyWbEnabled ? formatField(stageObj.paddyWbRaw || stageObj.paddyWb) : '-'}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.nit)}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{isFull ? formatField(selectedLorryForComparison.bags) : '-'}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                          <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatMoisture(stageObj)}</td>
+                          <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatCutting(stageObj)}</td>
+                          <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatBend(stageObj)}</td>
+                          <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>({formatField(stageObj.grainsCountRaw || stageObj.grainsCount)})</td>
+                          <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.mixRaw || stageObj.mix)}</td>
+                          <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.smixEnabled ? formatField(stageObj.mixSRaw || stageObj.mixS) || 'Yes' : '-'}</td>
+                          <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.lmixEnabled ? formatField(stageObj.mixLRaw || stageObj.mixL) || 'Yes' : '-'}</td>
+                          <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.kanduRaw || stageObj.kandu)}</td>
+                          <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.oilRaw || stageObj.oil)}</td>
+                          <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
+                          <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.smellHas ? 'Yes' : '-'}</td>
+                          <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.paddyWbEnabled ? formatField(stageObj.paddyWbRaw || stageObj.paddyWb) : '-'}</td>
+                          <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{isFull ? formatField(selectedLorryForComparison.bags) : '-'}</td>
+                          <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center' }}>
                             {stageObj.imageUrl ? <a href={resolveMediaUrl(stageObj.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
                           </td>
                         </tr>
