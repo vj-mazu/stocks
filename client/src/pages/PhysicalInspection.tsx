@@ -406,6 +406,26 @@ const PhysicalInspection: React.FC = () => {
                 }
               }
             }
+
+            // Sort progressive trips chronologically: first load first
+            mapped.sort((a, b) => {
+              const getEarliestTimestamp = (insp: any) => {
+                const stages = insp.samplingStages || {};
+                let earliest: number | null = null;
+                for (const key in stages) {
+                  const stage = stages[key];
+                  if (stage && stage.reportedAt) {
+                    const t = new Date(stage.reportedAt).getTime();
+                    if (!earliest || t < earliest) earliest = t;
+                  }
+                }
+                const createdAtTime = insp.createdAt ? new Date(insp.createdAt).getTime() : null;
+                const inspectionDateTime = insp.inspectionDate ? new Date(insp.inspectionDate).getTime() : null;
+                return earliest || createdAtTime || inspectionDateTime || (Number(insp.id) * 1000) || 9999999999999;
+              };
+              return getEarliestTimestamp(a) - getEarliestTimestamp(b);
+            });
+
             return mapped;
           })()
         };
@@ -436,9 +456,31 @@ const PhysicalInspection: React.FC = () => {
       const response = await axios.get<InspectionProgress>(`${API_URL}/sample-entries/${entryId}/inspection-progress`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      
+      const data = response.data;
+      if (data && data.previousInspections) {
+        data.previousInspections.sort((a: any, b: any) => {
+          const getEarliestTimestamp = (insp: any) => {
+            const stages = insp.samplingStages || {};
+            let earliest: number | null = null;
+            for (const key in stages) {
+              const stage = stages[key];
+              if (stage && stage.reportedAt) {
+                const t = new Date(stage.reportedAt).getTime();
+                if (!earliest || t < earliest) earliest = t;
+              }
+            }
+            const createdAtTime = insp.createdAt ? new Date(insp.createdAt).getTime() : null;
+            const inspectionDateTime = insp.inspectionDate ? new Date(insp.inspectionDate).getTime() : null;
+            return earliest || createdAtTime || inspectionDateTime || (Number(insp.id) * 1000) || 9999999999999;
+          };
+          return getEarliestTimestamp(a) - getEarliestTimestamp(b);
+        });
+      }
+      
       setInspectionProgress(prev => ({
         ...prev,
-        [entryId]: response.data as InspectionProgress
+        [entryId]: data
       }));
     } catch (error: any) {
       console.error('Failed to load inspection progress:', error);
