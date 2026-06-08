@@ -970,8 +970,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     <table style={{ width: isCompact ? 'auto' : '100%', minWidth: isCompact ? '760px' : undefined, borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #000000' }}>
                         <thead>
                             <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '2px solid #000000' }}>
-                                {columns.map((col, i) => (
-                                    <th key={i} style={{
+                                {columns.map((col, i) => {
+                                    const name = col.toUpperCase().trim();
+                                    const thStyle: React.CSSProperties = {
                                         padding: '6px 4px',
                                         textAlign: 'left',
                                         color: '#495057',
@@ -981,10 +982,33 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         whiteSpace: 'nowrap',
                                         letterSpacing: '0.2px',
                                         border: '1px solid #000000'
-                                    }}>
-                                        {col}
-                                    </th>
-                                ))}
+                                    };
+                                    
+                                    if (name === 'MIX' || name === 'S MIX' || name === 'L MIX') {
+                                        thStyle.width = '45px';
+                                        thStyle.textAlign = 'center';
+                                    } else if (name === 'GRAINS COUNT') {
+                                        thStyle.width = '80px';
+                                        thStyle.textAlign = 'center';
+                                    } else if (name === 'MOISTURE') {
+                                        thStyle.width = '70px';
+                                        thStyle.textAlign = 'center';
+                                    } else if (name === 'STAGE' || name === 'SAMPLE') {
+                                        thStyle.width = '90px';
+                                    } else if (name === 'REPORTED BY') {
+                                        thStyle.width = '100px';
+                                    } else if (name === 'REPORTED AT') {
+                                        thStyle.width = '85px';
+                                    } else if (name === 'ACTIONS') {
+                                        thStyle.width = '140px';
+                                    }
+                                    
+                                    return (
+                                        <th key={i} style={thStyle}>
+                                            {col}
+                                        </th>
+                                    );
+                                })}
                             </tr>
                         </thead>
                         <tbody>
@@ -1013,20 +1037,50 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         borderBottom: row.hasSmell ? '2px solid #ef5350' : '1px solid #000000',
                                         transition: 'background-color 0.2s'
                                     }}>
-                                        {row.map((cell: any, j: number) => (
-                                            <td key={j} style={{
+                                        {row.map((cell: any, j: number) => {
+                                            const colName = columns[j] || '';
+                                            const cellStyle: React.CSSProperties = {
                                                 padding: '6px 4px',
                                                 color: '#1e293b',
                                                 fontWeight: j === 0 ? 700 : 500,
-                                                whiteSpace: j === 0 || j === 1 || j === 2 || j === 18 ? 'normal' : 'nowrap',
+                                                whiteSpace: j === 0 || j === 1 || j === 2 || colName === 'ACTIONS' ? 'normal' : 'nowrap',
                                                 fontSize: '11px',
                                                 border: '1px solid #000000',
-                                                maxWidth: j === 0 ? '130px' : j === 1 ? '110px' : j === 18 ? '140px' : undefined,
-                                                wordBreak: j === 0 || j === 1 || j === 18 ? 'break-word' : undefined
-                                            }}>
-                                                {cell}
-                                            </td>
-                                        ))}
+                                            };
+                                            
+                                            const upperCol = colName.toUpperCase().trim();
+                                            if (upperCol === 'MIX' || upperCol === 'S MIX' || upperCol === 'L MIX') {
+                                                cellStyle.width = '45px';
+                                                cellStyle.textAlign = 'center';
+                                            } else if (upperCol === 'GRAINS COUNT') {
+                                                cellStyle.width = '80px';
+                                                cellStyle.textAlign = 'center';
+                                            } else if (upperCol === 'MOISTURE') {
+                                                cellStyle.width = '70px';
+                                                cellStyle.textAlign = 'center';
+                                            } else if (upperCol === 'STAGE' || upperCol === 'SAMPLE') {
+                                                cellStyle.width = '90px';
+                                                cellStyle.maxWidth = '90px';
+                                                cellStyle.wordBreak = 'break-word';
+                                            } else if (upperCol === 'REPORTED BY') {
+                                                cellStyle.width = '100px';
+                                                cellStyle.maxWidth = '100px';
+                                                cellStyle.wordBreak = 'break-word';
+                                            } else if (upperCol === 'REPORTED AT') {
+                                                cellStyle.width = '85px';
+                                                cellStyle.maxWidth = '85px';
+                                            } else if (upperCol === 'ACTIONS') {
+                                                cellStyle.width = '140px';
+                                                cellStyle.maxWidth = '140px';
+                                                cellStyle.wordBreak = 'break-word';
+                                            }
+                                            
+                                            return (
+                                                <td key={j} style={cellStyle}>
+                                                    {cell}
+                                                </td>
+                                            );
+                                        })}
                                     </tr>
                                 );
                              })}
@@ -1093,12 +1147,12 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
 
             const rowData = [
                 <span style={{ color: '#c2410c' }}>{label} Sample</span>,
-                getCollectorLabel(attempt.reportedBy),
+                <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#1e293b' }}>{getCollectorLabel(attempt.reportedBy)}</span>,
                 renderStackedDateTime(reportedAt),
-                moisture,
+                <span style={{ fontSize: '9.5px', fontWeight: '700' }}>{moisture}</span>,
                 cutting,
                 bend,
-                grains,
+                <span style={{ fontSize: '9.5px', fontWeight: '700', color: '#475569' }}>{grains}</span>,
                 formatQ(attempt.mixRaw, attempt.mix),
                 formatQ(attempt.mixSRaw, attempt.mixS),
                 formatQ(attempt.mixLRaw, attempt.mixL),
@@ -1272,9 +1326,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                             const fallbackManagerName = detailEntry.lotAllotment?.manager?.fullName || detailEntry.lotAllotment?.manager?.username || 'MANAGER';
                             const name = stageObj.approvedBy ? stageObj.approvedBy : fallbackManagerName;
                             actionsCell = (
-                                <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.2', border: '1px solid rgba(39, 174, 96, 0.3)', backgroundColor: '#e8f5e9', padding: '3px 8px', borderRadius: '4px', textAlign: 'center' }}>
-                                    <span style={{ color: '#2e7d32', fontWeight: '800', fontSize: '10px', textTransform: 'uppercase' }}>Approved</span>
-                                    <span style={{ color: '#1b5e20', fontSize: '9px', fontWeight: '700', whiteSpace: 'normal', maxWidth: '100px', wordBreak: 'break-word' }}>by {name.toUpperCase()}</span>
+                                <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.1', border: '1px solid rgba(39, 174, 96, 0.3)', backgroundColor: '#e8f5e9', padding: '3px 8px', borderRadius: '4px', textAlign: 'center' }}>
+                                    <span style={{ color: '#2e7d32', fontWeight: '700', fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Approved</span>
+                                    <span style={{ color: '#1b5e20', fontSize: '13px', fontWeight: '900', whiteSpace: 'normal', maxWidth: '110px', wordBreak: 'break-word' }}>by {name.toUpperCase()}</span>
                                 </div>
                             );
                         } else if (stageObj.approvalStatus === 'rejected') {
@@ -1307,9 +1361,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                             const fallbackManagerName = detailEntry.lotAllotment?.manager?.fullName || detailEntry.lotAllotment?.manager?.username || 'MANAGER';
                             const name = stageObj.approvedBy ? stageObj.approvedBy : fallbackManagerName;
                             actionsCell = (
-                                <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.2', border: '1px solid rgba(39, 174, 96, 0.3)', backgroundColor: '#e8f5e9', padding: '3px 8px', borderRadius: '4px', textAlign: 'center' }}>
-                                    <span style={{ color: '#2e7d32', fontWeight: '800', fontSize: '10px', textTransform: 'uppercase' }}>Approved</span>
-                                    <span style={{ color: '#1b5e20', fontSize: '9px', fontWeight: '700', whiteSpace: 'normal', maxWidth: '100px', wordBreak: 'break-word' }}>by {name.toUpperCase()}</span>
+                                <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.1', border: '1px solid rgba(39, 174, 96, 0.3)', backgroundColor: '#e8f5e9', padding: '3px 8px', borderRadius: '4px', textAlign: 'center' }}>
+                                    <span style={{ color: '#2e7d32', fontWeight: '700', fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Approved</span>
+                                    <span style={{ color: '#1b5e20', fontSize: '13px', fontWeight: '900', whiteSpace: 'normal', maxWidth: '110px', wordBreak: 'break-word' }}>by {name.toUpperCase()}</span>
                                 </div>
                             );
                         } else if (stageObj.approvalStatus === 'rejected') {
@@ -1338,12 +1392,12 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
 
                     return [
                         labelElement,
-                        getCollectorLabel(stageObj.reportedBy),
+                        <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#1e293b' }}>{getCollectorLabel(stageObj.reportedBy)}</span>,
                         renderStageReportedAtStacked(reportedAt),
-                        formatStageMoisture(stageObj),
+                        <span style={{ fontSize: '9.5px', fontWeight: '700' }}>{formatStageMoisture(stageObj)}</span>,
                         formatStageCutting(stageObj),
                         formatStageBend(stageObj),
-                        formatStageGrains(stageObj),
+                        <span style={{ fontSize: '9.5px', fontWeight: '700', color: '#475569' }}>{formatStageGrains(stageObj)}</span>,
                         formatQ(stageObj.mixRaw, stageObj.mix),
                         stageObj.smixEnabled ? formatQ(stageObj.mixSRaw, stageObj.mixS) || 'Yes' : '-',
                         stageObj.lmixEnabled ? formatQ(stageObj.mixLRaw, stageObj.mixL) || 'Yes' : '-',
@@ -1619,9 +1673,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     const fallbackManagerName = detailEntry.lotAllotment?.manager?.fullName || detailEntry.lotAllotment?.manager?.username || 'MANAGER';
                     const name = stageObj.approvedBy ? stageObj.approvedBy : fallbackManagerName;
                     actionsCell = (
-                        <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.2', border: '1px solid rgba(39, 174, 96, 0.3)', backgroundColor: '#e8f5e9', padding: '3px 8px', borderRadius: '4px', textAlign: 'center' }}>
-                            <span style={{ color: '#2e7d32', fontWeight: '800', fontSize: '10px', textTransform: 'uppercase' }}>Approved</span>
-                            <span style={{ color: '#1b5e20', fontSize: '9px', fontWeight: '700', whiteSpace: 'normal', maxWidth: '100px', wordBreak: 'break-word' }}>by {name.toUpperCase()}</span>
+                        <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.1', border: '1px solid rgba(39, 174, 96, 0.3)', backgroundColor: '#e8f5e9', padding: '3px 8px', borderRadius: '4px', textAlign: 'center' }}>
+                            <span style={{ color: '#2e7d32', fontWeight: '700', fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Approved</span>
+                            <span style={{ color: '#1b5e20', fontSize: '13px', fontWeight: '900', whiteSpace: 'normal', maxWidth: '110px', wordBreak: 'break-word' }}>by {name.toUpperCase()}</span>
                         </div>
                     );
                 } else if (stageObj.approvalStatus === 'rejected') {
@@ -1654,9 +1708,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     const fallbackManagerName = detailEntry.lotAllotment?.manager?.fullName || detailEntry.lotAllotment?.manager?.username || 'MANAGER';
                     const name = stageObj.approvedBy ? stageObj.approvedBy : fallbackManagerName;
                     actionsCell = (
-                        <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.2', border: '1px solid rgba(39, 174, 96, 0.3)', backgroundColor: '#e8f5e9', padding: '3px 8px', borderRadius: '4px', textAlign: 'center' }}>
-                            <span style={{ color: '#2e7d32', fontWeight: '800', fontSize: '10px', textTransform: 'uppercase' }}>Approved</span>
-                            <span style={{ color: '#1b5e20', fontSize: '9px', fontWeight: '700', whiteSpace: 'normal', maxWidth: '100px', wordBreak: 'break-word' }}>by {name.toUpperCase()}</span>
+                        <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.1', border: '1px solid rgba(39, 174, 96, 0.3)', backgroundColor: '#e8f5e9', padding: '3px 8px', borderRadius: '4px', textAlign: 'center' }}>
+                            <span style={{ color: '#2e7d32', fontWeight: '700', fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Approved</span>
+                            <span style={{ color: '#1b5e20', fontSize: '13px', fontWeight: '900', whiteSpace: 'normal', maxWidth: '110px', wordBreak: 'break-word' }}>by {name.toUpperCase()}</span>
                         </div>
                     );
                 } else if (stageObj.approvalStatus === 'rejected') {
@@ -1685,12 +1739,12 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
 
             return [
                 labelElement,
-                getCollectorLabel(stageObj.reportedBy),
+                <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#1e293b' }}>{getCollectorLabel(stageObj.reportedBy)}</span>,
                 renderStageReportedAtStacked(reportedAt),
-                formatStageMoisture(stageObj),
+                <span style={{ fontSize: '9.5px', fontWeight: '700' }}>{formatStageMoisture(stageObj)}</span>,
                 formatStageCutting(stageObj),
                 formatStageBend(stageObj),
-                formatStageGrains(stageObj),
+                <span style={{ fontSize: '9.5px', fontWeight: '700', color: '#475569' }}>{formatStageGrains(stageObj)}</span>,
                 formatQ(stageObj.mixRaw, stageObj.mix),
                 stageObj.smixEnabled ? formatQ(stageObj.mixSRaw, stageObj.mixS) || 'Yes' : '-',
                 stageObj.lmixEnabled ? formatQ(stageObj.mixLRaw, stageObj.mixL) || 'Yes' : '-',
