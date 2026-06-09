@@ -1972,6 +1972,7 @@ const PhysicalInspection: React.FC = () => {
                                   </div>
                                 </div>
 
+
                                 <div style={{ borderTop: '1px solid #eee', paddingTop: '10px', display: 'flex', gap: '10px', marginTop: '10px' }}>
                                   <button
                                     onClick={() => {
@@ -2850,42 +2851,88 @@ const PhysicalInspection: React.FC = () => {
                   <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
                     Sampling *
                   </label>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <select
-                      value={selectedStage[entry.id] || ''}
-                      onChange={(e) => setSelectedStage(prev => ({ ...prev, [entry.id]: e.target.value }))}
-                      style={{
-                        flex: 1,
-                        padding: '8px',
-                        fontSize: '12px',
-                        border: '1px solid #ccc',
-                        borderRadius: '4px',
-                        backgroundColor: '#fff'
-                      }}
-                    >
-                      <option value="lot_avg" disabled={isStageLockedForLot(entry.id, 'lot_avg') || isStageLockedForLot(entry.id, 'balanced_lot')}>1. Lot Avg Sampling</option>
-                      <option value="nit_avg" disabled={isStageLockedForLot(entry.id, 'nit_avg')}>2. Nit Avg Sampling</option>
-                      <option value="half_lorry" disabled={isStageLockedForLot(entry.id, 'half_lorry')}>3. Half Lorry Sampling</option>
-                      <option value="full_avg" disabled={(!isStageApprovedForLot(entry.id, 'half_lorry') && !isStageApprovedForLot(entry.id, 'nit_avg')) || isStageLockedForLot(entry.id, 'full_avg')}>4. Full Avg Lorry Sampling</option>
-                      <option value="balanced_lot" disabled={isBalancedLotDisabled(entry.id)}>5. Balanced Lot Sampling</option>
-                    </select>
-                    <button
-                      onClick={() => handleAddStage(entry.id)}
-                      type="button"
-                      style={{
-                        padding: '6px 12px',
-                        backgroundColor: '#e74c3c',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        fontWeight: '700',
-                        cursor: 'pointer',
-                        fontSize: '12px'
-                      }}
-                    >
-                      Submit
+                  {(() => {
+                    const stageItems = [
+                      { value: 'lot_avg', label: '1. Lot Avg Sampling', disabled: isStageLockedForLot(entry.id, 'lot_avg') || isStageLockedForLot(entry.id, 'balanced_lot') },
+                      { value: 'nit_avg', label: '2. Nit Avg Sampling', disabled: isStageLockedForLot(entry.id, 'nit_avg') },
+                      { value: 'half_lorry', label: '3. Half Lorry Sampling', disabled: isStageLockedForLot(entry.id, 'half_lorry') },
+                      { value: 'full_avg', label: '4. Full Avg Lorry Sampling', disabled: (!isStageApprovedForLot(entry.id, 'half_lorry') && !isStageApprovedForLot(entry.id, 'nit_avg')) || isStageLockedForLot(entry.id, 'full_avg') },
+                      { value: 'balanced_lot', label: '5. Balanced Lot Sampling', disabled: isBalancedLotDisabled(entry.id) }
+                    ];
+                    return (
+                      <>
+                        <div style={{ border: '1px solid #ddd', borderRadius: '6px', overflow: 'hidden', marginBottom: '8px' }}>
+                          {stageItems.map((item) => {
+                            const isDisabled = item.disabled;
+                            const isSelected = (selectedStage[entry.id] || 'lot_avg') === item.value;
+                            return (
+                              <div
+                                key={item.value}
+                                onClick={() => {
+                                  if (!isDisabled) {
+                                    setSelectedStage(prev => ({ ...prev, [entry.id]: item.value }));
+                                  }
+                                }}
+                                style={{
+                                  padding: '10px 14px',
+                                  fontSize: '13px',
+                                  fontWeight: isSelected ? '700' : '500',
+                                  cursor: isDisabled ? 'not-allowed' : 'pointer',
+                                  backgroundColor: isDisabled ? '#e8e8e8' : isSelected ? '#e8f5e9' : '#fff',
+                                  color: isDisabled ? '#aaa' : isSelected ? '#1b5e20' : '#333',
+                                  borderBottom: '1px solid #eee',
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  transition: 'background-color 0.15s',
+                                  opacity: isDisabled ? 0.6 : 1,
+                                  textDecoration: isDisabled ? 'line-through' : 'none'
+                                }}
+                              >
+                                <span>{item.label}</span>
+                                {isDisabled && <span style={{ fontSize: '10px', color: '#999', fontWeight: '600' }}>✓ Done</span>}
+                                {isSelected && !isDisabled && <span style={{ fontSize: '10px', color: '#27ae60', fontWeight: '700' }}>● Selected</span>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <select
+                            value={selectedStage[entry.id] || ''}
+                            onChange={(e) => setSelectedStage(prev => ({ ...prev, [entry.id]: e.target.value }))}
+                            style={{
+                              flex: 1,
+                              padding: '8px',
+                              fontSize: '12px',
+                              border: '1px solid #ccc',
+                              borderRadius: '4px',
+                              backgroundColor: '#fff'
+                            }}
+                          >
+                            {stageItems.map(item => (
+                              <option key={item.value} value={item.value} disabled={item.disabled}>{item.label}</option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={() => handleAddStage(entry.id)}
+                            type="button"
+                            style={{
+                              padding: '6px 12px',
+                              backgroundColor: '#e74c3c',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              fontWeight: '700',
+                              cursor: 'pointer',
+                              fontSize: '12px'
+                            }}
+                          >
+                            Submit
                     </button>
                   </div>
+                      </>
+                    );
+                  })()}
                 </div>
 
                 <div style={{ borderTop: '1px solid #eee', paddingTop: '10px', display: 'flex', gap: '10px', marginTop: '10px' }}>
