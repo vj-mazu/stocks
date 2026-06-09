@@ -967,6 +967,47 @@ class SampleEntryService {
     const currentUser = await User.findByPk(userId, { attributes: ['id', 'username', 'fullName'] });
     const updatedByFullName = currentUser?.fullName || currentUser?.username || 'System';
     const hasOfferVersions = Array.isArray(offering.offerVersions) && offering.offerVersions.length > 0;
+
+    // Resolve revised Hamali & LF from linked revision if applicable
+    if (finalData && finalData.revisedRateOption === 'dispute' && finalData.linkedRevisionId) {
+      const disputeVersions = Array.isArray(offering.disputeVersions) ? offering.disputeVersions : [];
+      let matchedRev = disputeVersions.find(v => v.id === finalData.linkedRevisionId);
+      if (!matchedRev && finalData.linkedRevisionId === 'legacy-revision') {
+        matchedRev = {
+          revisedHamali: offering.revisedHamali,
+          revisedLf: offering.revisedLf,
+          hamaliUnit: offering.hamaliUnit,
+          lfUnit: offering.lfUnit
+        };
+      }
+      if (!matchedRev) {
+        const pendingQueue = normalizePendingManagerApprovalQueue(offering);
+        const matchedPending = pendingQueue.find(req => req.id === finalData.linkedRevisionId);
+        if (matchedPending && matchedPending.data) {
+          matchedRev = {
+            revisedHamali: matchedPending.data.revisedHamali,
+            revisedLf: matchedPending.data.revisedLf,
+            hamaliUnit: matchedPending.data.hamaliUnit,
+            lfUnit: matchedPending.data.lfUnit
+          };
+        }
+      }
+      if (matchedRev) {
+        if (finalData.revisedHamali === undefined || finalData.revisedHamali === null) {
+          finalData.revisedHamali = matchedRev.revisedHamali;
+        }
+        if (finalData.revisedLf === undefined || finalData.revisedLf === null) {
+          finalData.revisedLf = matchedRev.revisedLf;
+        }
+        if (finalData.hamaliUnit === undefined || finalData.hamaliUnit === null) {
+          finalData.hamaliUnit = matchedRev.hamaliUnit;
+        }
+        if (finalData.lfUnit === undefined || finalData.lfUnit === null) {
+          finalData.lfUnit = matchedRev.lfUnit;
+        }
+      }
+    }
+
     const updates = { updatedBy: userId, updatedByFullName };
     const isManagerMissingValueRequest = userRole === 'manager' && finalData?.fillMissingValues === true;
     const normalizeComparableValue = (value) => {
@@ -1038,7 +1079,7 @@ class SampleEntryService {
         return requestData.disputeBaseRate !== undefined && requestData.disputeBaseRate !== null && requestData.disputeBaseRate !== '';
       });
       const isDisputeRequest = pendingData.disputeBaseRate !== undefined && pendingData.disputeBaseRate !== null && pendingData.disputeBaseRate !== '';
-      const isRevisionRequest = hasOfferVersions && (
+      const isRevisionRequest = !isDisputeRequest && hasOfferVersions && (
         (pendingData.revisedHamali !== undefined && pendingData.revisedHamali !== null && pendingData.revisedHamali !== '')
         || (pendingData.revisedLf !== undefined && pendingData.revisedLf !== null && pendingData.revisedLf !== '')
       );
@@ -1213,13 +1254,8 @@ class SampleEntryService {
         if (isDispute) {
           const disputeId = finalData.requestId || `disp-${Date.now()}-d-${Math.random().toString(36).slice(2, 6)}`;
           
-          if (finalData.linkedRevisionId) {
-            const rev = disputeVersions.find(v => v.id === finalData.linkedRevisionId);
-            if (rev) {
-              rev.linkedDisputeRequestId = disputeId;
-              rev.linkedDisputeLabel = `Dispute ${finalData.disputeBaseRate} (${finalData.disputeBaseRateType || 'PD/WB'})`;
-            }
-          }
+          // Keep the revision's original target unchanged when a later dispute references it.
+          // Dispute record itself stores the linkedRevisionId.
 
           disputeVersions.push({
             id: disputeId,
@@ -1227,11 +1263,11 @@ class SampleEntryService {
             disputeBaseRate: finalData.disputeBaseRate,
             disputeBaseRateType: finalData.disputeBaseRateType || null,
             disputeReason: finalData.disputeReason || null,
-            revisedHamali: null,
-            revisedLf: null,
-            revisedRateOption: null,
-            hamaliUnit: offering.hamaliUnit || 'per_bag',
-            lfUnit: offering.lfUnit || 'per_bag',
+            revisedHamali: finalData.revisedHamali !== undefined ? finalData.revisedHamali : null,
+            revisedLf: finalData.revisedLf !== undefined ? finalData.revisedLf : null,
+            revisedRateOption: finalData.revisedRateOption || null,
+            hamaliUnit: finalData.hamaliUnit || offering.hamaliUnit || 'per_bag',
+            lfUnit: finalData.lfUnit || offering.lfUnit || 'per_bag',
             finalSute: finalData.finalSute !== undefined ? finalData.finalSute : (offering.finalSute ?? null),
             finalSuteUnit: finalData.finalSuteUnit !== undefined ? finalData.finalSuteUnit : (offering.finalSuteUnit ?? null),
             moistureValue: finalData.moistureValue !== undefined ? finalData.moistureValue : (offering.moistureValue ?? null),

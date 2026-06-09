@@ -3,6 +3,7 @@ import axios from 'axios';
 import { API_URL } from '../config/api';
 import { useNotification } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
+import { SampleEntryDetailModal } from '../components/SampleEntryDetailModal';
 
 interface ApprovalEntry {
   id: string;
@@ -148,14 +149,14 @@ const buildPendingSummary = (data?: Record<string, any> | null, offering?: Recor
     if (pendingData.disputeBaseRate !== undefined && pendingData.disputeBaseRate !== null && pendingData.disputeBaseRate !== '') {
       pushRow('disputeBaseRate', 'Dispute Rate', `₹${toDisplayNumber(pendingData.disputeBaseRate)} (${pendingData.disputeBaseRateType || 'PD/WB'})`);
     }
-    if (pendingData.disputeReason !== undefined && pendingData.disputeReason !== null && pendingData.disputeReason !== '') {
-      pushRow('disputeReason', 'Dispute Reason', String(pendingData.disputeReason));
-    }
     if (pendingData.finalSute !== undefined && pendingData.finalSute !== null && pendingData.finalSute !== '') {
       pushRow('finalSute', 'Sute', `${toDisplayNumber(pendingData.finalSute)} ${formatChargeUnit(pendingData.finalSuteUnit)}`.trim());
     }
     if (pendingData.moistureValue !== undefined && pendingData.moistureValue !== null && pendingData.moistureValue !== '') {
       pushRow('moistureValue', 'Moisture', `${toDisplayNumber(pendingData.moistureValue)}%`);
+    }
+    if (pendingData.disputeReason !== undefined && pendingData.disputeReason !== null && pendingData.disputeReason !== '') {
+      pushRow('disputeReason', 'Dispute Reason', String(pendingData.disputeReason));
     }
     return rows;
   }
@@ -173,14 +174,14 @@ const buildPendingSummary = (data?: Record<string, any> | null, offering?: Recor
   if (pendingData.disputeBaseRate !== undefined && pendingData.disputeBaseRate !== null && pendingData.disputeBaseRate !== '') {
     pushRow('disputeBaseRate', 'Dispute Rate', `₹${toDisplayNumber(pendingData.disputeBaseRate)} (${pendingData.disputeBaseRateType || 'PD/WB'})`);
   }
-  if (pendingData.disputeReason !== undefined && pendingData.disputeReason !== null && pendingData.disputeReason !== '') {
-    pushRow('disputeReason', 'Dispute Reason', String(pendingData.disputeReason));
-  }
   if (pendingData.finalSute !== undefined && pendingData.finalSute !== null && pendingData.finalSute !== '') {
     pushRow('finalSute', 'Sute', `${toDisplayNumber(pendingData.finalSute)} ${formatChargeUnit(pendingData.finalSuteUnit)}`.trim());
   }
   if (pendingData.moistureValue !== undefined && pendingData.moistureValue !== null && pendingData.moistureValue !== '') {
     pushRow('moistureValue', 'Moisture', `${toDisplayNumber(pendingData.moistureValue)}%`);
+  }
+  if (pendingData.disputeReason !== undefined && pendingData.disputeReason !== null && pendingData.disputeReason !== '') {
+    pushRow('disputeReason', 'Dispute Reason', String(pendingData.disputeReason));
   }
   if (pendingData.revisedHamali !== undefined && pendingData.revisedHamali !== null && pendingData.revisedHamali !== '') {
     pushRow('revisedHamali', 'Rev. Hamali', `₹${toDisplayNumber(pendingData.revisedHamali)} ${formatChargeUnit(pendingData.hamaliUnit || offering?.hamaliUnit)}`.trim());
@@ -287,6 +288,7 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
   const [submittingId, setSubmittingId] = useState<string | null>(null);
   const [selectedLorryForComparison, setSelectedLorryForComparison] = useState<any>(null);
   const [loadingInspectionProgress, setLoadingInspectionProgress] = useState(false);
+  const [detailModalEntry, setDetailModalEntry] = useState<any | null>(null);
 
   const resolveMediaUrl = (value?: string | null) => {
     const url = String(value || '').trim();
@@ -300,18 +302,14 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
     try {
       setLoadingInspectionProgress(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/sample-entries/${entry.id}/inspection-progress`, {
+      const response = await axios.get(`${API_URL}/sample-entries/${entry.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const progress = response.data;
-      if (progress && progress.previousInspections && progress.previousInspections.length > 0) {
-        setSelectedLorryForComparison(progress.previousInspections[0]);
-      } else {
-        showNotification('No progressive physical inspection trips loaded/submitted yet for this lot.', 'error');
-      }
-    } catch (err) {
-      console.error('Error loading inspection progress for comparison:', err);
-      showNotification('No progressive physical inspection trips loaded/submitted yet for this lot.', 'error');
+      setDetailModalEntry(response.data || entry);
+    } catch (err: any) {
+      console.error('Error loading entry details:', err);
+      showNotification(err.response?.data?.error || 'Failed to load entry details', 'error');
+      setDetailModalEntry(entry);
     } finally {
       setLoadingInspectionProgress(false);
     }
@@ -745,6 +743,12 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
             </div>
           </div>
         </div>
+      )}
+      {detailModalEntry && (
+        <SampleEntryDetailModal
+          detailEntry={detailModalEntry}
+          onClose={() => setDetailModalEntry(null)}
+        />
       )}
     </div>
   );

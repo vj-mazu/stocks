@@ -674,11 +674,19 @@ const PhysicalInspection: React.FC = () => {
     });
     if (approvedWithCurrent) return true;
 
-    // Fallback for lot_avg anywhere in the lot history
-    if (stageKey === 'lot_avg') {
-      return prevInsps.some(insp => {
-        return insp.samplingStages?.lot_avg?.approvalStatus === 'approved';
+    // Fallback for lot_avg on the first real lorry load
+    if (stageKey === 'lot_avg' && cleanLorry && cleanLorry !== 'LOT_AVG' && cleanLorry !== 'BALANCED_LOT') {
+      const priorRealLorries = prevInsps.filter(insp => {
+        const l = (insp.lorryNumber || '').trim().toUpperCase();
+        return l !== cleanLorry && l !== 'LOT_AVG' && l !== 'BALANCED_LOT';
       });
+      if (priorRealLorries.length === 0) {
+        // This is the first real lorry load. Check if lot_avg is approved under 'LOT_AVG'
+        return prevInsps.some(insp => {
+          const l = (insp.lorryNumber || '').trim().toUpperCase();
+          return l === 'LOT_AVG' && insp.samplingStages?.lot_avg?.approvalStatus === 'approved';
+        });
+      }
     }
 
     return false;
@@ -732,8 +740,11 @@ const PhysicalInspection: React.FC = () => {
     }
     const prevInsps = inspectionProgress[entryId]?.previousInspections || [];
     if (stageKey === 'lot_avg') {
+      const cleanLorry = (inspectionData[entryId]?.lorryNumber || '').trim().toUpperCase();
+      const targetLorry = cleanLorry || 'LOT_AVG';
       return prevInsps.some(insp => {
-        return !!insp.samplingStages?.[stageKey];
+        const lorryMatch = (insp.lorryNumber || '').trim().toUpperCase() === targetLorry;
+        return lorryMatch && insp.samplingStages?.[stageKey];
       });
     }
     if (stageKey === 'balanced_lot') {
@@ -821,9 +832,27 @@ const PhysicalInspection: React.FC = () => {
       return true;
     }
     
-    // Once there is a prior real lorry, we've already started the lot with lot_avg.
-    // So lot_avg is no longer required for subsequent trips.
-    return false;
+    // Find the most recent prior inspection by date
+    const sortedPrior = [...priorInsps].sort((a, b) => 
+      new Date(a.inspectionDate).getTime() - new Date(b.inspectionDate).getTime()
+    );
+    const mostRecentPrior = sortedPrior[sortedPrior.length - 1];
+    
+    // Check if balanced_lot was recorded for the most recent prior lorry or on its same day
+    const hasBalancedOnLastLorry = progress.previousInspections.some(insp => {
+      const lorry = (insp.lorryNumber || '').trim().toUpperCase();
+      if (lorry === mostRecentPrior.lorryNumber.trim().toUpperCase() && insp.samplingStages?.balanced_lot) {
+        return true;
+      }
+      if (lorry === 'BALANCED_LOT' && insp.samplingStages?.balanced_lot) {
+        const inspDate = new Date(insp.inspectionDate).toDateString();
+        const lastLorryDate = new Date(mostRecentPrior.inspectionDate).toDateString();
+        if (inspDate === lastLorryDate) return true;
+      }
+      return false;
+    });
+    
+    return !hasBalancedOnLastLorry;
   };
 
   const handleAddStage = (entryId: string) => {
@@ -1791,7 +1820,7 @@ const PhysicalInspection: React.FC = () => {
                                         }
 
                                         // If full_avg is approved but not balanced, and it's today
-                                        const todayStr = new Date().toISOString().split('T')[0];
+                                        const todayStr = new Date().toLocaleDateString('en-CA');
                                         const isToday = inspection.inspectionDate && inspection.inspectionDate.split('T')[0] === todayStr;
                                         if (isToday && !hasBalanced) {
                                           return (

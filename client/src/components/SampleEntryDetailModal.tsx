@@ -2255,9 +2255,24 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         }
 
                         const disputes = disputeVersions.filter((d: any) => d.type === 'dispute' || d.disputeBaseRate);
+                        const rDate = new Date(v.approvedAt || v.requestedAt || v.updatedAt || 0).getTime();
+                        
+                        // Chronologically, the revision targets a dispute created at or before it
+                        const eligibleDisputes = disputes.filter((d: any) => {
+                            const dDate = new Date(d.approvedAt || d.requestedAt || d.updatedAt || 0).getTime();
+                            return dDate <= rDate;
+                        });
+
                         let linkedIdx = -1;
                         if (v.linkedDisputeRequestId) {
-                            linkedIdx = disputes.findIndex((d: any) => String(d.id) === String(v.linkedDisputeRequestId));
+                            const matchedDispute = eligibleDisputes.find((d: any) => String(d.id) === String(v.linkedDisputeRequestId));
+                            if (matchedDispute) {
+                                linkedIdx = disputes.findIndex((d: any) => String(d.id) === String(matchedDispute.id));
+                            }
+                        }
+                        if (linkedIdx === -1 && eligibleDisputes.length > 0) {
+                            const lastEligible = eligibleDisputes[eligibleDisputes.length - 1];
+                            linkedIdx = disputes.findIndex((d: any) => String(d.id) === String(lastEligible.id));
                         }
                         if (linkedIdx === -1) {
                             linkedIdx = disputes.findIndex((d: any) => Number(d.disputeBaseRate) === Number(displayDisputeRate));
@@ -2306,28 +2321,43 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     }
                 }
 
-                const linkedRev = (isDispute && v.linkedRevisionId)
-                    ? disputeVersions.find((d: any) => d.type === 'revision' && d.id === v.linkedRevisionId)
+                const linkedRev = isDispute
+                    ? (v.linkedRevisionId 
+                        ? disputeVersions.find((d: any) => d.type === 'revision' && d.id === v.linkedRevisionId)
+                        : disputeVersions.find((d: any) => d.type === 'revision' && d.linkedDisputeRequestId === v.id)
+                      )
                     : null;
 
                 const hamaliVal = isDispute
-                    ? (linkedRev && linkedRev.revisedHamali !== undefined && linkedRev.revisedHamali !== null && linkedRev.revisedHamali !== '' ? linkedRev.revisedHamali : o.hamali)
+                    ? (v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== '' 
+                        ? v.revisedHamali 
+                        : (linkedRev && linkedRev.revisedHamali !== undefined && linkedRev.revisedHamali !== null && linkedRev.revisedHamali !== '' ? linkedRev.revisedHamali : o.hamali)
+                      )
                     : (v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== '' ? v.revisedHamali : o.hamali);
                 const hasHamali = isDispute
-                    ? (linkedRev && linkedRev.revisedHamali !== undefined && linkedRev.revisedHamali !== null && linkedRev.revisedHamali !== '')
+                    ? (v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== ''
+                        ? true
+                        : (linkedRev && linkedRev.revisedHamali !== undefined && linkedRev.revisedHamali !== null && linkedRev.revisedHamali !== '')
+                      )
                     : (v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== '');
                 const hamaliUnitVal = isDispute
-                    ? (linkedRev?.hamaliUnit || o.hamaliUnit || 'per_bag')
+                    ? (v.hamaliUnit || linkedRev?.hamaliUnit || o.hamaliUnit || 'per_bag')
                     : (v.hamaliUnit || o.hamaliUnit || 'per_bag');
 
                 const lfVal = isDispute
-                    ? (linkedRev && linkedRev.revisedLf !== undefined && linkedRev.revisedLf !== null && linkedRev.revisedLf !== '' ? linkedRev.revisedLf : o.lf)
+                    ? (v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== ''
+                        ? v.revisedLf
+                        : (linkedRev && linkedRev.revisedLf !== undefined && linkedRev.revisedLf !== null && linkedRev.revisedLf !== '' ? linkedRev.revisedLf : o.lf)
+                      )
                     : (v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== '' ? v.revisedLf : o.lf);
                 const hasLf = isDispute
-                    ? (linkedRev && linkedRev.revisedLf !== undefined && linkedRev.revisedLf !== null && linkedRev.revisedLf !== '')
+                    ? (v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== ''
+                        ? true
+                        : (linkedRev && linkedRev.revisedLf !== undefined && linkedRev.revisedLf !== null && linkedRev.revisedLf !== '')
+                      )
                     : (v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== '');
                 const lfUnitVal = isDispute
-                    ? (linkedRev?.lfUnit || o.lfUnit || 'per_bag')
+                    ? (v.lfUnit || linkedRev?.lfUnit || o.lfUnit || 'per_bag')
                     : (v.lfUnit || o.lfUnit || 'per_bag');
 
                 rows.push([
@@ -2350,7 +2380,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     (() => {
                         const baseSute = o.sute || 0;
                         const currentSute = v.finalSute !== undefined && v.finalSute !== null ? v.finalSute : baseSute;
-                        const isSuteChanged = v.finalSute !== undefined && v.finalSute !== null && Number(v.finalSute) !== Number(baseSute);
+                        const isSuteChanged = isDispute && v.finalSute !== undefined && v.finalSute !== null && Number(v.finalSute) !== Number(baseSute);
                         return (
                             <span style={isSuteChanged ? { color: '#16a34a', fontWeight: 700 } : undefined}>
                                 {`${toNumberText(currentSute, 2)} / ${formatRateUnitLabel(v.finalSuteUnit !== undefined && v.finalSuteUnit !== null ? v.finalSuteUnit : (o.suteUnit || 'per_ton'))}`}
@@ -2361,7 +2391,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     (() => {
                         const baseMoisture = detailEntry.qualityParameters?.moisture || o.moistureValue;
                         const currentMoisture = v.moistureValue !== undefined && v.moistureValue !== null ? v.moistureValue : baseMoisture;
-                        const isMoistureChanged = v.moistureValue !== undefined && v.moistureValue !== null && Number(v.moistureValue) !== Number(baseMoisture);
+                        const isMoistureChanged = isDispute && v.moistureValue !== undefined && v.moistureValue !== null && Number(v.moistureValue) !== Number(baseMoisture);
                         return currentMoisture ? (
                             <span style={isMoistureChanged ? { color: '#16a34a', fontWeight: 700 } : undefined}>
                                 {formatMeasurementText(currentMoisture, '%')}

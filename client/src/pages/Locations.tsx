@@ -402,7 +402,7 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
   const [brokers, setBrokers] = useState<any[]>([]);
   const [editingBroker, setEditingBroker] = useState<any>(null);
   const [brokerStatusFilter, setBrokerStatusFilter] = useState<'active' | 'inactive'>('active');
-  const [brokerTypeFilter, setBrokerTypeFilter] = useState<'all' | 'paddy' | 'rice'>('all');
+  const [brokerTypeFilter, setBrokerTypeFilter] = useState<'all' | 'paddy' | 'rice' | 'both'>('all');
 
   // Production (Outturn) form
   const [outturnCode, setOutturnCode] = useState('');
@@ -1682,6 +1682,21 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
               >
                 Rice Brokers
               </button>
+              <button
+                onClick={() => setBrokerTypeFilter('both')}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '15px',
+                  border: '1px solid #d1d5db',
+                  fontSize: '0.8rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  backgroundColor: brokerTypeFilter === 'both' ? '#3b82f6' : '#fff',
+                  color: brokerTypeFilter === 'both' ? '#fff' : '#374151'
+                }}
+              >
+                Both Brokers
+              </button>
             </div>
 
             <div>
@@ -1692,10 +1707,13 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
 
                   if (brokerTypeFilter === 'all') return true;
                   if (brokerTypeFilter === 'paddy') {
-                    return broker.type === 'paddy' || broker.type === 'both';
+                    return broker.type === 'paddy';
                   }
                   if (brokerTypeFilter === 'rice') {
-                    return broker.type === 'rice' || broker.type === 'both';
+                    return broker.type === 'rice';
+                  }
+                  if (brokerTypeFilter === 'both') {
+                    return broker.type === 'both';
                   }
                   return true;
                 });
