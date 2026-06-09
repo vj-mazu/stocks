@@ -2347,9 +2347,27 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         displayDisputeType ? <span>{`${displayDisputeType.replace(/_/g, '/')} / ${formatRateUnitLabel(v.baseRateUnit || o.finalBaseRateUnit || o.baseRateUnit)}`}</span> : '-'
                     ),
                     // SUTE
-                    <span>{`${toNumberText(v.finalSute !== undefined && v.finalSute !== null ? v.finalSute : (o.sute || 0), 2)} / ${formatRateUnitLabel(v.finalSuteUnit !== undefined && v.finalSuteUnit !== null ? v.finalSuteUnit : (o.suteUnit || 'per_ton'))}`}</span>,
+                    (() => {
+                        const baseSute = o.sute || 0;
+                        const currentSute = v.finalSute !== undefined && v.finalSute !== null ? v.finalSute : baseSute;
+                        const isSuteChanged = v.finalSute !== undefined && v.finalSute !== null && Number(v.finalSute) !== Number(baseSute);
+                        return (
+                            <span style={isSuteChanged ? { color: '#16a34a', fontWeight: 700 } : undefined}>
+                                {`${toNumberText(currentSute, 2)} / ${formatRateUnitLabel(v.finalSuteUnit !== undefined && v.finalSuteUnit !== null ? v.finalSuteUnit : (o.suteUnit || 'per_ton'))}`}
+                            </span>
+                        );
+                    })(),
                     // MOISTURE
-                    (v.moistureValue !== undefined && v.moistureValue !== null ? v.moistureValue : (detailEntry.qualityParameters?.moisture || o.moistureValue)) ? formatMeasurementText(v.moistureValue !== undefined && v.moistureValue !== null ? v.moistureValue : (detailEntry.qualityParameters?.moisture || o.moistureValue), '%') : '-',
+                    (() => {
+                        const baseMoisture = detailEntry.qualityParameters?.moisture || o.moistureValue;
+                        const currentMoisture = v.moistureValue !== undefined && v.moistureValue !== null ? v.moistureValue : baseMoisture;
+                        const isMoistureChanged = v.moistureValue !== undefined && v.moistureValue !== null && Number(v.moistureValue) !== Number(baseMoisture);
+                        return currentMoisture ? (
+                            <span style={isMoistureChanged ? { color: '#16a34a', fontWeight: 700 } : undefined}>
+                                {formatMeasurementText(currentMoisture, '%')}
+                            </span>
+                        ) : '-';
+                    })(),
                     // HAMALI
                     hasHamali ? (
                         <span style={{ color: '#16a34a', fontWeight: 600 }}>
