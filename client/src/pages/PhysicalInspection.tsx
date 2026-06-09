@@ -808,8 +808,6 @@ const PhysicalInspection: React.FC = () => {
   };
 
   const isLotAvgRequiredForLorry = (entryId: string, cleanLorry: string) => {
-    if (!cleanLorry) return true;
-    
     const progress = inspectionProgress[entryId];
     if (!progress || !progress.previousInspections || progress.previousInspections.length === 0) {
       return true;
