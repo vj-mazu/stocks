@@ -1008,7 +1008,7 @@ class SampleEntryService {
         
         let filteredKeys = [...providedKeys];
         
-        const isDisputeGroup = providedKeys.includes('disputeBaseRate');
+        const isDisputeGroup = providedKeys.includes('disputeBaseRate') || ((finalData.disputeBaseRate !== undefined && finalData.disputeBaseRate !== null && finalData.disputeBaseRate !== '') && (providedKeys.includes('finalSute') || providedKeys.includes('moistureValue')));
         const isRevisionGroup = providedKeys.includes('revisedHamali') || providedKeys.includes('revisedLf') || providedKeys.includes('revisedRateOption');
         
         if (!isDisputeGroup && !isRevisionGroup) {
@@ -1232,6 +1232,9 @@ class SampleEntryService {
             revisedRateOption: null,
             hamaliUnit: offering.hamaliUnit || 'per_bag',
             lfUnit: offering.lfUnit || 'per_bag',
+            finalSute: finalData.finalSute !== undefined ? finalData.finalSute : (offering.finalSute ?? null),
+            finalSuteUnit: finalData.finalSuteUnit !== undefined ? finalData.finalSuteUnit : (offering.finalSuteUnit ?? null),
+            moistureValue: finalData.moistureValue !== undefined ? finalData.moistureValue : (offering.moistureValue ?? null),
             requestedBy: finalData.requestedBy || userId,
             requestedByName: finalData.requestedByName || updatedByFullName,
             requestedAt: finalData.requestedAt || new Date(),
@@ -1257,6 +1260,9 @@ class SampleEntryService {
             revisedRateOption: finalData.revisedRateOption || null,
             hamaliUnit: finalData.hamaliUnit || offering.hamaliUnit || 'per_bag',
             lfUnit: finalData.lfUnit || offering.lfUnit || 'per_bag',
+            finalSute: finalData.finalSute !== undefined ? finalData.finalSute : (offering.finalSute ?? null),
+            finalSuteUnit: finalData.finalSuteUnit !== undefined ? finalData.finalSuteUnit : (offering.finalSuteUnit ?? null),
+            moistureValue: finalData.moistureValue !== undefined ? finalData.moistureValue : (offering.moistureValue ?? null),
             requestedBy: finalData.requestedBy || userId,
             requestedByName: finalData.requestedByName || updatedByFullName,
             requestedAt: finalData.requestedAt || new Date(),

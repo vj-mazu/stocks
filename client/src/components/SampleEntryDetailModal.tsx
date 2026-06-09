@@ -2181,9 +2181,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         )
                     ),
                     // SUTE
-                    <span>{`${toNumberText(pendingData.finalSute || o.finalSute || o.sute || 0, 2)} / ${formatRateUnitLabel(pendingData.finalSuteUnit || o.finalSuteUnit || o.suteUnit || 'per_ton')}`}</span>,
+                    <span>{`${toNumberText(pendingData.finalSute !== undefined && pendingData.finalSute !== null ? pendingData.finalSute : (o.finalSute || o.sute || 0), 2)} / ${formatRateUnitLabel(pendingData.finalSuteUnit !== undefined && pendingData.finalSuteUnit !== null ? pendingData.finalSuteUnit : (o.finalSuteUnit || o.suteUnit || 'per_ton'))}`}</span>,
                     // MOISTURE
-                    pendingData.moistureValue || o.moistureValue ? formatMeasurementText(pendingData.moistureValue || o.moistureValue, '%') : '-',
+                    (pendingData.moistureValue !== undefined && pendingData.moistureValue !== null ? pendingData.moistureValue : o.moistureValue) ? formatMeasurementText(pendingData.moistureValue !== undefined && pendingData.moistureValue !== null ? pendingData.moistureValue : o.moistureValue, '%') : '-',
                     // HAMALI
                     hasHamaliChanged ? (
                         <span style={{ color: '#dc2626', fontWeight: 600 }}>
@@ -2347,9 +2347,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         displayDisputeType ? <span>{`${displayDisputeType.replace(/_/g, '/')} / ${formatRateUnitLabel(v.baseRateUnit || o.finalBaseRateUnit || o.baseRateUnit)}`}</span> : '-'
                     ),
                     // SUTE
-                    <span>{`${toNumberText(v.finalSute || o.finalSute || o.sute || 0, 2)} / ${formatRateUnitLabel(v.finalSuteUnit || o.finalSuteUnit || o.suteUnit || 'per_ton')}`}</span>,
+                    <span>{`${toNumberText(v.finalSute !== undefined && v.finalSute !== null ? v.finalSute : (o.sute || 0), 2)} / ${formatRateUnitLabel(v.finalSuteUnit !== undefined && v.finalSuteUnit !== null ? v.finalSuteUnit : (o.suteUnit || 'per_ton'))}`}</span>,
                     // MOISTURE
-                    v.moistureValue || o.moistureValue ? formatMeasurementText(v.moistureValue || o.moistureValue, '%') : '-',
+                    (v.moistureValue !== undefined && v.moistureValue !== null ? v.moistureValue : (detailEntry.qualityParameters?.moisture || o.moistureValue)) ? formatMeasurementText(v.moistureValue !== undefined && v.moistureValue !== null ? v.moistureValue : (detailEntry.qualityParameters?.moisture || o.moistureValue), '%') : '-',
                     // HAMALI
                     hasHamali ? (
                         <span style={{ color: '#16a34a', fontWeight: 600 }}>
@@ -3122,12 +3122,27 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         };
                                         const getPricingRows = (offInfo: NonNullable<SampleEntry['offering']>, mode: 'offer' | 'final') => {
                                             const isFinalMode = mode === 'final';
-                                            const suteValue = isFinalMode ? offInfo.finalSute : offInfo.sute;
-                                            const suteUnit = isFinalMode ? offInfo.finalSuteUnit : offInfo.suteUnit;
+                                            const o = offInfo as any;
+                                            const isPending = isFinalMode && String(o.pendingManagerValueApprovalStatus || '').toLowerCase() === 'pending';
+                                            const pendingData = isPending ? (o.pendingManagerValueApprovalData || {}) : {};
+
+                                            const suteValue = isFinalMode
+                                                ? (pendingData.finalSute !== undefined ? pendingData.finalSute : offInfo.finalSute)
+                                                : offInfo.sute;
+                                            const suteUnit = isFinalMode
+                                                ? (pendingData.finalSuteUnit !== undefined ? pendingData.finalSuteUnit : offInfo.finalSuteUnit)
+                                                : offInfo.suteUnit;
+                                            const moistureVal = isFinalMode
+                                                ? (pendingData.moistureValue !== undefined ? pendingData.moistureValue : offInfo.moistureValue)
+                                                : offInfo.moistureValue;
+
+                                            const suteLabel = isFinalMode && pendingData.finalSute !== undefined ? 'Sute (Pending)' : 'Sute';
+                                            const moistureLabel = isFinalMode && pendingData.moistureValue !== undefined ? 'Moisture (Pending)' : 'Moisture';
+
                                             const baseRows = [
                                                 [isFinalMode ? 'Final Rate' : 'Offer Rate', isFinalMode ? getFinalRateText(offInfo) : getOfferRateText(offInfo)],
-                                                ['Sute', suteValue ? `${toNumberText(suteValue)} / ${formatRateUnitLabel(suteUnit || undefined)}` : '-'],
-                                                ['Moisture', offInfo.moistureValue ? formatMeasurementText(offInfo.moistureValue, '%') : '-'],
+                                                [suteLabel, suteValue ? `${toNumberText(suteValue)} / ${formatRateUnitLabel(suteUnit || undefined)}` : '-'],
+                                                [moistureLabel, moistureVal ? formatMeasurementText(moistureVal, '%') : '-'],
                                                 ['Hamali', getChargeText(offInfo.hamali, offInfo.hamaliUnit)],
                                                 ['Brokerage', getChargeText(offInfo.brokerage, offInfo.brokerageUnit)],
                                                 ['LF', getChargeText(offInfo.lf, offInfo.lfUnit)],

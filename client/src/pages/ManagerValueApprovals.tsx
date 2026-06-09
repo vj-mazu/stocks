@@ -88,7 +88,7 @@ const standardPendingFieldTone: PendingSummaryRow['tone'] = {
   textColor: '#1e3a8a'
 };
 
-const managerHighlightedFieldKeys = new Set(['hamali', 'brokerage', 'lf', 'disputeBaseRate', 'revisedHamali', 'revisedLf', 'disputeReason']);
+const managerHighlightedFieldKeys = new Set(['hamali', 'brokerage', 'lf', 'disputeBaseRate', 'revisedHamali', 'revisedLf', 'disputeReason', 'finalSute', 'moistureValue']);
 
 const normalizeComparableValue = (value: any) => {
   if (value === null || value === undefined) return '';
@@ -119,7 +119,13 @@ const hasPendingFieldChanged = (offering: Record<string, any> | undefined, pendi
   const compareKeys = pendingComparisonKeysMap[rowKey] || [rowKey];
   return compareKeys.some((key) => {
     if (!pendingData || !(key in pendingData)) return false;
-    return normalizeComparableValue(pendingData[key]) !== normalizeComparableValue(offering?.[key]);
+    let baselineValue = offering?.[key];
+    if (key === 'finalSute') {
+      baselineValue = offering?.finalSute ?? offering?.sute;
+    } else if (key === 'finalSuteUnit') {
+      baselineValue = offering?.finalSuteUnit ?? offering?.suteUnit;
+    }
+    return normalizeComparableValue(pendingData[key]) !== normalizeComparableValue(baselineValue);
   });
 };
 
@@ -144,6 +150,12 @@ const buildPendingSummary = (data?: Record<string, any> | null, offering?: Recor
     }
     if (pendingData.disputeReason !== undefined && pendingData.disputeReason !== null && pendingData.disputeReason !== '') {
       pushRow('disputeReason', 'Dispute Reason', String(pendingData.disputeReason));
+    }
+    if (pendingData.finalSute !== undefined && pendingData.finalSute !== null && pendingData.finalSute !== '') {
+      pushRow('finalSute', 'Sute', `${toDisplayNumber(pendingData.finalSute)} ${formatChargeUnit(pendingData.finalSuteUnit)}`.trim());
+    }
+    if (pendingData.moistureValue !== undefined && pendingData.moistureValue !== null && pendingData.moistureValue !== '') {
+      pushRow('moistureValue', 'Moisture', `${toDisplayNumber(pendingData.moistureValue)}%`);
     }
     return rows;
   }
@@ -230,6 +242,12 @@ const buildOriginalSummary = (data?: Record<string, any> | null, offering?: Reco
   if (reqType === 'dispute') {
     if (pendingData.disputeBaseRate !== undefined && pendingData.disputeBaseRate !== null && pendingData.disputeBaseRate !== '') {
       pushRow('disputeBaseRate', 'Orig. Rate', `₹${toDisplayNumber(offering?.finalBaseRate ?? offering?.offerBaseRateValue)} (${offering?.baseRateType || 'PD/WB'})`);
+    }
+    if (pendingData.finalSute !== undefined && pendingData.finalSute !== null && pendingData.finalSute !== '') {
+      pushRow('finalSute', 'Orig. Sute', `${toDisplayNumber(offering?.finalSute ?? offering?.sute)} ${formatChargeUnit(offering?.finalSuteUnit ?? offering?.suteUnit)}`.trim());
+    }
+    if (pendingData.moistureValue !== undefined && pendingData.moistureValue !== null && pendingData.moistureValue !== '') {
+      pushRow('moistureValue', 'Orig. Moisture', `${toDisplayNumber(offering?.moistureValue)}%`);
     }
     return rows;
   }

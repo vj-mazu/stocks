@@ -173,10 +173,7 @@ class PhysicalInspectionService {
         let bagsVal = null;
         let completeVal = false;
         if (stage === 'balanced_lot') {
-          const totalInspected = existingInspections.reduce((sum, i) => sum + (i.bags || 0), 0);
-          bagsVal = totalAllottedBags - totalInspected;
-          stageData.actualBags = bagsVal;
-          completeVal = true;
+          throw new Error('Full Avg Lorry must be submitted on the lorry trip before adding Balanced Lot.');
         } else if (stage === 'full_avg') {
           bagsVal = Number.parseInt(inspectionData.actualBags || '0');
           stageData.actualBags = bagsVal;
@@ -239,6 +236,19 @@ class PhysicalInspectionService {
           const currentTripFullAvgBags = Number.parseInt(stages.full_avg?.actualBags || currentInspection.bags || '0');
 
           if (stage === 'balanced_lot') {
+            const fullAvgStage = stages.full_avg;
+            if (!fullAvgStage) {
+              throw new Error('Full Avg Lorry must be submitted on the lorry trip before adding Balanced Lot.');
+            }
+            if (fullAvgStage.reportedAt) {
+              const fullAvgDate = new Date(fullAvgStage.reportedAt);
+              const today = new Date();
+              const fullAvgDay = new Date(fullAvgDate.getFullYear(), fullAvgDate.getMonth(), fullAvgDate.getDate());
+              const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+              if (todayDay > fullAvgDay) {
+                throw new Error('Cannot add Balanced Lot. The midnight deadline has expired.');
+              }
+            }
             stageData.actualBags = 0;
             updates.bags = currentTripFullAvgBags;
           } else {

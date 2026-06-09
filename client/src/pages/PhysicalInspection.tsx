@@ -712,6 +712,22 @@ const PhysicalInspection: React.FC = () => {
     if (!isAnyFullAvgSavedOrApproved(entryId)) {
       return true;
     }
+    const cleanLorry = (inspectionData[entryId]?.lorryNumber || '').trim().toUpperCase();
+    if (cleanLorry) {
+      const progress = inspectionProgress[entryId];
+      const currentTrip = progress?.previousInspections?.find(
+        (i: any) => (i.lorryNumber || '').trim().toUpperCase() === cleanLorry
+      );
+      if (currentTrip && currentTrip.samplingStages?.full_avg?.reportedAt) {
+        const fullAvgDate = new Date(currentTrip.samplingStages.full_avg.reportedAt);
+        const today = new Date();
+        const fullAvgDay = new Date(fullAvgDate.getFullYear(), fullAvgDate.getMonth(), fullAvgDate.getDate());
+        const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        if (todayDay > fullAvgDay) {
+          return true;
+        }
+      }
+    }
     return false;
   };
 
@@ -724,14 +740,20 @@ const PhysicalInspection: React.FC = () => {
     }
     const prevInsps = inspectionProgress[entryId]?.previousInspections || [];
     if (stageKey === 'lot_avg') {
-      return prevInsps.some(insp => 
-        insp.samplingStages?.[stageKey] || (insp.lorryNumber || '').trim().toUpperCase() === 'LOT_AVG'
-      );
+      const cleanLorry = (inspectionData[entryId]?.lorryNumber || '').trim().toUpperCase();
+      const targetLorry = cleanLorry || 'LOT_AVG';
+      return prevInsps.some(insp => {
+        const lorryMatch = (insp.lorryNumber || '').trim().toUpperCase() === targetLorry;
+        return lorryMatch && insp.samplingStages?.[stageKey];
+      });
     }
     if (stageKey === 'balanced_lot') {
-      return prevInsps.some(insp => 
-        insp.samplingStages?.[stageKey] || (insp.lorryNumber || '').trim().toUpperCase() === 'BALANCED_LOT'
-      );
+      const cleanLorry = (inspectionData[entryId]?.lorryNumber || '').trim().toUpperCase();
+      const targetLorry = cleanLorry || 'BALANCED_LOT';
+      return prevInsps.some(insp => {
+        const lorryMatch = (insp.lorryNumber || '').trim().toUpperCase() === targetLorry;
+        return lorryMatch && insp.samplingStages?.[stageKey];
+      });
     }
     if (stageKey === 'nit_avg') {
       return false;
@@ -1918,7 +1940,7 @@ const PhysicalInspection: React.FC = () => {
                                   </label>
                                   {(() => {
                                     const stageItems = [
-                                      { value: 'lot_avg', label: '1. Lot Avg Sampling', disabled: isStageLockedForLot(entry.id, 'lot_avg') || isStageLockedForLot(entry.id, 'balanced_lot') },
+                                      { value: 'lot_avg', label: '1. Lot Avg Sampling', disabled: isStageLockedForLot(entry.id, 'lot_avg') || !isLotAvgRequiredForLorry(entry.id, (inspectionData[entry.id]?.lorryNumber || '').trim().toUpperCase()) },
                                       { value: 'nit_avg', label: '2. Nit Avg Sampling', disabled: isStageLockedForLot(entry.id, 'nit_avg') },
                                       { value: 'half_lorry', label: '3. Half Lorry Sampling', disabled: isStageLockedForLot(entry.id, 'half_lorry') },
                                       { value: 'full_avg', label: '4. Full Avg Lorry Sampling', disabled: (!isStageApprovedForLot(entry.id, 'half_lorry') && !isStageApprovedForLot(entry.id, 'nit_avg')) || isStageLockedForLot(entry.id, 'full_avg') },
@@ -1931,6 +1953,21 @@ const PhysicalInspection: React.FC = () => {
                                           {stageItems.map((item) => {
                                             const isDisabled = freezed || item.disabled;
                                             const isSelected = (selectedStage[entry.id] || 'lot_avg') === item.value;
+                                            
+                                            let statusLabel = '✓ Done';
+                                            if (isDisabled && !freezed) {
+                                              if (item.value === 'balanced_lot') {
+                                                const isLocked = isStageLockedForLot(entry.id, 'balanced_lot');
+                                                if (!isLocked && isAnyFullAvgSavedOrApproved(entry.id)) {
+                                                  statusLabel = 'Expired / Not Added';
+                                                }
+                                              } else if (item.value === 'lot_avg') {
+                                                const isLocked = isStageLockedForLot(entry.id, 'lot_avg');
+                                                if (!isLocked && !isLotAvgRequiredForLorry(entry.id, (inspectionData[entry.id]?.lorryNumber || '').trim().toUpperCase())) {
+                                                  statusLabel = 'Not Required';
+                                                }
+                                              }
+                                            }
                                             return (
                                               <div
                                                 key={item.value}
@@ -1956,7 +1993,15 @@ const PhysicalInspection: React.FC = () => {
                                                 }}
                                               >
                                                 <span>{item.label}</span>
-                                                {isDisabled && <span style={{ fontSize: '10px', color: '#999', fontWeight: '600' }}>✓ Done</span>}
+                                                {isDisabled && (
+                                                  <span style={{ 
+                                                    fontSize: '10px', 
+                                                    color: statusLabel.startsWith('Expired') ? '#d32f2f' : '#999', 
+                                                    fontWeight: '600' 
+                                                  }}>
+                                                    {statusLabel}
+                                                  </span>
+                                                )}
                                                 {isSelected && !isDisabled && <span style={{ fontSize: '10px', color: '#27ae60', fontWeight: '700' }}>● Selected</span>}
                                               </div>
                                             );
@@ -2885,7 +2930,7 @@ const PhysicalInspection: React.FC = () => {
                   </label>
                   {(() => {
                     const stageItems = [
-                      { value: 'lot_avg', label: '1. Lot Avg Sampling', disabled: isStageLockedForLot(entry.id, 'lot_avg') || isStageLockedForLot(entry.id, 'balanced_lot') },
+                      { value: 'lot_avg', label: '1. Lot Avg Sampling', disabled: isStageLockedForLot(entry.id, 'lot_avg') || !isLotAvgRequiredForLorry(entry.id, (inspectionData[entry.id]?.lorryNumber || '').trim().toUpperCase()) },
                       { value: 'nit_avg', label: '2. Nit Avg Sampling', disabled: isStageLockedForLot(entry.id, 'nit_avg') },
                       { value: 'half_lorry', label: '3. Half Lorry Sampling', disabled: isStageLockedForLot(entry.id, 'half_lorry') },
                       { value: 'full_avg', label: '4. Full Avg Lorry Sampling', disabled: (!isStageApprovedForLot(entry.id, 'half_lorry') && !isStageApprovedForLot(entry.id, 'nit_avg')) || isStageLockedForLot(entry.id, 'full_avg') },
@@ -2897,6 +2942,21 @@ const PhysicalInspection: React.FC = () => {
                           {stageItems.map((item) => {
                             const isDisabled = item.disabled;
                             const isSelected = (selectedStage[entry.id] || 'lot_avg') === item.value;
+                            
+                            let statusLabel = '✓ Done';
+                            if (isDisabled) {
+                              if (item.value === 'balanced_lot') {
+                                const isLocked = isStageLockedForLot(entry.id, 'balanced_lot');
+                                if (!isLocked && isAnyFullAvgSavedOrApproved(entry.id)) {
+                                  statusLabel = 'Expired / Not Added';
+                                }
+                              } else if (item.value === 'lot_avg') {
+                                const isLocked = isStageLockedForLot(entry.id, 'lot_avg');
+                                if (!isLocked && !isLotAvgRequiredForLorry(entry.id, (inspectionData[entry.id]?.lorryNumber || '').trim().toUpperCase())) {
+                                  statusLabel = 'Not Required';
+                                }
+                              }
+                            }
                             return (
                               <div
                                 key={item.value}
@@ -2922,7 +2982,15 @@ const PhysicalInspection: React.FC = () => {
                                 }}
                               >
                                 <span>{item.label}</span>
-                                {isDisabled && <span style={{ fontSize: '10px', color: '#999', fontWeight: '600' }}>✓ Done</span>}
+                                {isDisabled && (
+                                  <span style={{ 
+                                    fontSize: '10px', 
+                                    color: statusLabel.startsWith('Expired') ? '#d32f2f' : '#999', 
+                                    fontWeight: '600' 
+                                  }}>
+                                    {statusLabel}
+                                  </span>
+                                )}
                                 {isSelected && !isDisabled && <span style={{ fontSize: '10px', color: '#27ae60', fontWeight: '700' }}>● Selected</span>}
                               </div>
                             );

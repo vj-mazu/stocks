@@ -671,7 +671,7 @@ const AllottedSupervisors: React.FC = () => {
       revisedRateOption: o.revisedRateOption || 'final',
       linkedDisputeRequestId: '',
       linkedRevisionId: '',
-      disputeReason: (Array.isArray(o.disputeVersions) && [...o.disputeVersions].reverse().find((v: any) => v.type === 'dispute')?.disputeReason) || o.disputeReason || ''
+      disputeReason: ''
     });
   };
 
