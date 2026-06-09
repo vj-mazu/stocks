@@ -1008,6 +1008,34 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                     } else if (name === 'ACTIONS') {
                                         thStyle.width = '170px';
                                         thStyle.textAlign = 'center';
+                                    } else if (name === 'HAMALI' || name === 'BROKERAGE' || name === 'LF') {
+                                        thStyle.width = '110px';
+                                        thStyle.textAlign = 'center';
+                                    } else if (name === 'SUTE') {
+                                        thStyle.width = '95px';
+                                        thStyle.textAlign = 'center';
+                                    } else if (name === 'BANK LOAN') {
+                                        thStyle.width = '100px';
+                                        thStyle.textAlign = 'center';
+                                    } else if (name === 'TYPE') {
+                                        thStyle.width = '110px';
+                                    } else if (name === 'RATE') {
+                                        thStyle.width = '85px';
+                                        thStyle.textAlign = 'center';
+                                    } else if (name === 'RATE TYPE') {
+                                        thStyle.width = '120px';
+                                        thStyle.textAlign = 'center';
+                                    } else if (name === 'EGB') {
+                                        thStyle.width = '75px';
+                                        thStyle.textAlign = 'center';
+                                    } else if (name === 'CD') {
+                                        thStyle.width = '55px';
+                                        thStyle.textAlign = 'center';
+                                    } else if (name === 'PAYMENT') {
+                                        thStyle.width = '85px';
+                                        thStyle.textAlign = 'center';
+                                    } else if (name === 'REMARKS') {
+                                        thStyle.width = '120px';
                                     }
                                     
                                     return (
@@ -1087,6 +1115,44 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                 cellStyle.maxWidth = '170px';
                                                 cellStyle.textAlign = 'center';
                                                 cellStyle.wordBreak = 'break-word';
+                                            } else if (upperCol === 'HAMALI' || upperCol === 'BROKERAGE' || upperCol === 'LF') {
+                                                cellStyle.width = '110px';
+                                                cellStyle.maxWidth = '110px';
+                                                cellStyle.textAlign = 'center';
+                                            } else if (upperCol === 'SUTE') {
+                                                cellStyle.width = '95px';
+                                                cellStyle.maxWidth = '95px';
+                                                cellStyle.textAlign = 'center';
+                                            } else if (upperCol === 'BANK LOAN') {
+                                                cellStyle.width = '100px';
+                                                cellStyle.maxWidth = '100px';
+                                                cellStyle.textAlign = 'center';
+                                            } else if (upperCol === 'TYPE') {
+                                                cellStyle.width = '110px';
+                                                cellStyle.maxWidth = '110px';
+                                            } else if (upperCol === 'RATE') {
+                                                cellStyle.width = '85px';
+                                                cellStyle.maxWidth = '85px';
+                                                cellStyle.textAlign = 'center';
+                                            } else if (upperCol === 'RATE TYPE') {
+                                                cellStyle.width = '120px';
+                                                cellStyle.maxWidth = '120px';
+                                                cellStyle.textAlign = 'center';
+                                            } else if (upperCol === 'EGB') {
+                                                cellStyle.width = '75px';
+                                                cellStyle.maxWidth = '75px';
+                                                cellStyle.textAlign = 'center';
+                                            } else if (upperCol === 'CD') {
+                                                cellStyle.width = '55px';
+                                                cellStyle.maxWidth = '55px';
+                                                cellStyle.textAlign = 'center';
+                                            } else if (upperCol === 'PAYMENT') {
+                                                cellStyle.width = '85px';
+                                                cellStyle.maxWidth = '85px';
+                                                cellStyle.textAlign = 'center';
+                                            } else if (upperCol === 'REMARKS') {
+                                                cellStyle.width = '120px';
+                                                cellStyle.maxWidth = '120px';
                                             }
                                             
                                             return (
@@ -1962,9 +2028,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 `${(v.baseRateType || o.baseRateType || 'PD/WB').replace(/_/g, '/')} / ${formatRateUnitLabel(v.baseRateUnit || o.baseRateUnit)}`,
                 suteVal ? `${toNumberText(suteVal, 2)} / ${formatRateUnitLabel(suteUnitVal || 'per_ton')}` : '-',
                 v.moistureValue ?? o.moistureValue ? formatMeasurementText(v.moistureValue ?? o.moistureValue, '%') : '-',
-                v.hamali ? formatFlexibleValue(v.hamali) : '-',
-                v.brokerage ? formatFlexibleValue(v.brokerage) : '-',
-                v.lf ? formatFlexibleValue(v.lf) : '-',
+                v.hamali ? `${formatFlexibleValue(v.hamali)} / ${formatToggleUnitLabel(v.hamaliUnit || o.hamaliUnit || 'per_bag')}` : '-',
+                v.brokerage ? `${formatFlexibleValue(v.brokerage)} / ${formatToggleUnitLabel(v.brokerageUnit || o.brokerageUnit || 'per_bag')}` : '-',
+                v.lf ? `${formatFlexibleValue(v.lf)} / ${formatToggleUnitLabel(v.lfUnit || o.lfUnit || 'per_bag')}` : '-',
                 formatUnitValueText(v.egbValue ?? o.egbValue ?? 0, toTitleCase(egbTypeVal || 'Mill')),
                 v.cdValue ? formatFlexibleValue(v.cdValue) : '-',
                 v.bankLoanValue ? `Rs ${formatIndianCurrencyFlexible(v.bankLoanValue)}` : '-',
@@ -1985,9 +2051,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 `${(o.finalBaseRateType || o.baseRateType || 'PD/WB').replace(/_/g, '/')} / ${formatRateUnitLabel(o.finalBaseRateUnit || o.baseRateUnit)}`,
                 `${toNumberText(o.finalSute || o.sute || 0, 2)} / ${formatRateUnitLabel(o.finalSuteUnit || o.suteUnit || 'per_ton')}`,
                 o.moistureValue ? formatMeasurementText(o.moistureValue, '%') : '-',
-                o.hamali ? formatFlexibleValue(o.hamali) : '-',
-                o.brokerage ? formatFlexibleValue(o.brokerage) : '-',
-                o.lf ? formatFlexibleValue(o.lf) : '-',
+                o.hamali ? `${formatFlexibleValue(o.hamali)} / ${formatToggleUnitLabel(o.hamaliUnit || 'per_bag')}` : '-',
+                o.brokerage ? `${formatFlexibleValue(o.brokerage)} / ${formatToggleUnitLabel(o.brokerageUnit || 'per_bag')}` : '-',
+                o.lf ? `${formatFlexibleValue(o.lf)} / ${formatToggleUnitLabel(o.lfUnit || 'per_bag')}` : '-',
                 formatUnitValueText(o.egbValue ?? 0, toTitleCase(o.egbType || 'Mill')),
                 o.cdValue ? formatFlexibleValue(o.cdValue) : '-',
                 o.bankLoanValue ? `Rs ${formatIndianCurrencyFlexible(o.bankLoanValue)}` : '-',
@@ -2085,11 +2151,11 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         o.revisedHamali ? (
                             <span>{formatFlexibleValue(o.revisedHamali)} / {formatToggleUnitLabel(o.hamaliUnit || 'per_bag')}</span>
                         ) : (
-                            o.hamali ? formatFlexibleValue(o.hamali) : '-'
+                            o.hamali ? `${formatFlexibleValue(o.hamali)} / ${formatToggleUnitLabel(o.hamaliUnit || 'per_bag')}` : '-'
                         )
                     ),
                     // BROKERAGE
-                    o.brokerage ? formatFlexibleValue(o.brokerage) : '-',
+                    o.brokerage ? `${formatFlexibleValue(o.brokerage)} / ${formatToggleUnitLabel(o.brokerageUnit || 'per_bag')}` : '-',
                     // LF
                     hasLfChanged ? (
                         <span style={{ color: '#dc2626', fontWeight: 600 }}>
@@ -2099,7 +2165,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         o.revisedLf ? (
                             <span>{formatFlexibleValue(o.revisedLf)} / {formatToggleUnitLabel(o.lfUnit || 'per_bag')}</span>
                         ) : (
-                            o.lf ? formatFlexibleValue(o.lf) : '-'
+                            o.lf ? `${formatFlexibleValue(o.lf)} / ${formatToggleUnitLabel(o.lfUnit || 'per_bag')}` : '-'
                         )
                     ),
                     // EGB
@@ -2212,17 +2278,17 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                             {formatFlexibleValue(v.revisedHamali)} / {formatToggleUnitLabel(hamaliUnitVal)}
                         </span>
                     ) : (
-                        o.hamali ? formatFlexibleValue(o.hamali) : '-'
+                        o.hamali ? `${formatFlexibleValue(o.hamali)} / ${formatToggleUnitLabel(o.hamaliUnit || 'per_bag')}` : '-'
                     ),
                     // BROKERAGE
-                    o.brokerage ? formatFlexibleValue(o.brokerage) : '-',
+                    o.brokerage ? `${formatFlexibleValue(o.brokerage)} / ${formatToggleUnitLabel(o.brokerageUnit || 'per_bag')}` : '-',
                     // LF
                     hasLf ? (
                         <span style={{ color: '#16a34a', fontWeight: 600 }}>
                             {formatFlexibleValue(v.revisedLf)} / {formatToggleUnitLabel(lfUnitVal)}
                         </span>
                     ) : (
-                        o.lf ? formatFlexibleValue(o.lf) : '-'
+                        o.lf ? `${formatFlexibleValue(o.lf)} / ${formatToggleUnitLabel(o.lfUnit || 'per_bag')}` : '-'
                     ),
                     // EGB
                     formatUnitValueText(v.egbValue ?? o.egbValue ?? 0, toTitleCase(v.egbType || o.egbType || 'Mill')),
@@ -2263,15 +2329,15 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     o.revisedHamali ? (
                         <span>{formatFlexibleValue(o.revisedHamali)} / {formatToggleUnitLabel(o.hamaliUnit || 'per_bag')}</span>
                     ) : (
-                        o.hamali ? formatFlexibleValue(o.hamali) : '-'
+                        o.hamali ? `${formatFlexibleValue(o.hamali)} / ${formatToggleUnitLabel(o.hamaliUnit || 'per_bag')}` : '-'
                     ),
                     // BROKERAGE
-                    o.brokerage ? formatFlexibleValue(o.brokerage) : '-',
+                    o.brokerage ? `${formatFlexibleValue(o.brokerage)} / ${formatToggleUnitLabel(o.brokerageUnit || 'per_bag')}` : '-',
                     // LF
                     o.revisedLf ? (
                         <span>{formatFlexibleValue(o.revisedLf)} / {formatToggleUnitLabel(o.lfUnit || 'per_bag')}</span>
                     ) : (
-                        o.lf ? formatFlexibleValue(o.lf) : '-'
+                        o.lf ? `${formatFlexibleValue(o.lf)} / ${formatToggleUnitLabel(o.lfUnit || 'per_bag')}` : '-'
                     ),
                     // EGB
                     formatUnitValueText(o.egbValue ?? 0, toTitleCase(o.egbType || 'Mill')),
@@ -2323,7 +2389,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         {formatFlexibleValue(o.revisedHamali)} / {formatToggleUnitLabel(o.hamaliUnit || 'per_bag')}
                     </span>,
                     // BROKERAGE
-                    o.brokerage ? formatFlexibleValue(o.brokerage) : '-',
+                    o.brokerage ? `${formatFlexibleValue(o.brokerage)} / ${formatToggleUnitLabel(o.brokerageUnit || 'per_bag')}` : '-',
                     // LF
                     <span style={{ color: '#16a34a', fontWeight: 600 }}>
                         {formatFlexibleValue(o.revisedLf)} / {formatToggleUnitLabel(o.lfUnit || 'per_bag')}

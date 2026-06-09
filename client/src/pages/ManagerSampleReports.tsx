@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import AdminSampleBook2 from './AdminSampleBook2';
 import AssigningSupervisor from './AssigningSupervisor';
@@ -34,18 +35,44 @@ interface TabConfig {
 const tabs: TabConfig[] = [
     { key: 'paddy-samples', label: 'Paddy Sample Records', icon: '\u{1F33E}', color: '#2e7d32' },
     { key: 'staff-cooking-report', label: 'Staff Cooking Book', icon: '\u{1F373}', color: '#ef6c00' },
-    { key: 'sample-book-2', label: 'Paddy Sample Book', icon: '\u{1F4D7}', color: '#1565c0' },
-    { key: 'pending-lots', label: 'Pending (Sample Selection)', icon: '\u{1F4CB}', color: '#3498db' },
+    { key: 'pending-lots', label: 'Sample Selection', icon: '\u{1F4CB}', color: '#3498db' },
     { key: 'cooking-report', label: 'Cooking Book', icon: '\u{1F35A}', color: '#e67e22' },
     { key: 'lots-passed', label: 'Final Pass Lots', icon: '\u{2705}', color: '#27ae60' },
     { key: 'loading-lots', label: 'Loading Lots', icon: '\u{1F69A}', color: '#f39c12' },
     { key: 'completed-lots', label: 'Completed Lots', icon: '\u{1F4E6}', color: '#e74c3c' },
     { key: 'approvals', label: 'Approvals', icon: '\u{1F4DD}', color: '#8e44ad' },
+    { key: 'sample-book-2', label: 'Paddy Sample Book', icon: '\u{1F4D7}', color: '#1565c0' },
 ];
 
 const ManagerSampleReports: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<TabKey>('paddy-samples');
-    const [activeSubTab, setActiveSubTab] = useState<'financials' | 'assign-supervisor' | 'assigned-lots'>('financials');
+    const [searchParams] = useSearchParams();
+    const tabParam = searchParams.get('tab') as TabKey;
+    const subTabParam = searchParams.get('subtab') as 'financials' | 'assign-supervisor' | 'assigned-lots';
+
+    const [activeTab, setActiveTab] = useState<TabKey>(() => {
+        const validTabs: TabKey[] = [
+            'paddy-samples',
+            'staff-cooking-report',
+            'pending-lots',
+            'cooking-report',
+            'lots-passed',
+            'loading-lots',
+            'approvals',
+            'completed-lots',
+            'sample-book-2'
+        ];
+        if (tabParam && validTabs.includes(tabParam)) {
+            return tabParam;
+        }
+        return 'paddy-samples';
+    });
+    const [activeSubTab, setActiveSubTab] = useState<'financials' | 'assign-supervisor' | 'assigned-lots'>(() => {
+        const validSubTabs = ['financials', 'assign-supervisor', 'assigned-lots'];
+        if (subTabParam && validSubTabs.includes(subTabParam)) {
+            return subTabParam;
+        }
+        return 'financials';
+    });
     const [approvalPendingCount, setApprovalPendingCount] = useState(0);
     const { user } = useAuth();
     const loadApprovalPendingCount = useCallback(async () => {

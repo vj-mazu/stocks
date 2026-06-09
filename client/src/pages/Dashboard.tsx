@@ -196,9 +196,20 @@ const Dashboard: React.FC = () => {
             📊 View Records
           </ActionButton>
           {(user?.role === 'manager' || user?.role === 'admin') && (
-            <ActionButton href="/locations">
-              📍 Manage Locations
-            </ActionButton>
+            <>
+              <ActionButton href="/locations">
+                📍 Manage Locations
+              </ActionButton>
+              <ActionButton href={user?.role === 'manager' ? '/manager-sample-reports?tab=sample-book-2' : '/paddy-sample-reports?tab=sample-book-2'}>
+                📖 MIS (Paddy Sample Book)
+              </ActionButton>
+              <ActionButton href={user?.role === 'manager' ? '/manager-sample-reports?tab=loading-lots&subtab=financials' : '/paddy-sample-reports?tab=loading-lots&subtab=financials'}>
+                🚚 Pending Loading Lots
+              </ActionButton>
+              <ActionButton href={user?.role === 'manager' ? '/manager-sample-reports?tab=lots-passed' : '/paddy-sample-reports?tab=lots-passed'}>
+                ✅ Final Pass Lots
+              </ActionButton>
+            </>
           )}
         </ActionGrid>
       </QuickActions>

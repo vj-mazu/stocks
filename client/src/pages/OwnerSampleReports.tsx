@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import LotSelection from './LotSelection';
 import CookingReport from './CookingReport';
@@ -33,8 +34,7 @@ interface TabConfig {
 
 const baseTabs: TabConfig[] = [
   { key: 'paddy-samples', label: 'Paddy Sample Records', icon: '\u{1F33E}', color: '#2e7d32' },
-  { key: 'sample-book-2', label: 'Paddy Sample Book', icon: '\u{1F4D7}', color: '#1565c0' },
-  { key: 'pending-lots', label: 'Pending (Sample Selection)', icon: '\u{1F4CB}', color: '#3498db' },
+  { key: 'pending-lots', label: 'Sample Selection', icon: '\u{1F4CB}', color: '#3498db' },
   { key: 'cooking-report', label: 'Cooking Book', icon: '\u{1F35A}', color: '#e67e22' },
   { key: 'lots-passed', label: 'Final Pass Lots', icon: '\u{2705}', color: '#27ae60' },
   { key: 'loading-lots', label: 'Loading Lots', icon: '\u{1F69A}', color: '#f39c12' },
@@ -42,13 +42,40 @@ const baseTabs: TabConfig[] = [
 ];
 
 const approvalTabs: TabConfig[] = [
-  { key: 'approvals', label: 'Paddy Approvals', icon: '\u{1F4DD}', color: '#8e44ad' }
+  { key: 'approvals', label: 'Paddy Approvals', icon: '\u{1F4DD}', color: '#8e44ad' },
+  { key: 'sample-book-2', label: 'Paddy Sample Book', icon: '\u{1F4D7}', color: '#1565c0' }
 ];
 
 const OwnerSampleReports: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<TabKey>('paddy-samples');
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab') as TabKey;
+  const subTabParam = searchParams.get('subtab') as 'financials' | 'assign-supervisor' | 'assigned-lots';
+
+  const [activeTab, setActiveTab] = useState<TabKey>(() => {
+    const validTabs: TabKey[] = [
+      'paddy-samples',
+      'staff-cooking-report',
+      'pending-lots',
+      'cooking-report',
+      'lots-passed',
+      'loading-lots',
+      'approvals',
+      'completed-lots',
+      'sample-book-2'
+    ];
+    if (tabParam && validTabs.includes(tabParam)) {
+      return tabParam;
+    }
+    return 'paddy-samples';
+  });
   const [approvalPendingCount, setApprovalPendingCount] = useState(0);
-  const [activeSubTab, setActiveSubTab] = useState<'financials' | 'assign-supervisor' | 'assigned-lots'>('financials');
+  const [activeSubTab, setActiveSubTab] = useState<'financials' | 'assign-supervisor' | 'assigned-lots'>(() => {
+    const validSubTabs = ['financials', 'assign-supervisor', 'assigned-lots'];
+    if (subTabParam && validSubTabs.includes(subTabParam)) {
+      return subTabParam;
+    }
+    return 'financials';
+  });
   const { user } = useAuth();
   const isManager = user?.role === 'manager';
   const loadApprovalPendingCount = useCallback(async () => {
@@ -87,14 +114,14 @@ const OwnerSampleReports: React.FC = () => {
     };
     const reorderedBaseTabs = [
       baseTabsWithApprovals.find((tab) => tab.key === 'paddy-samples'),
-      baseTabsWithApprovals.find((tab) => tab.key === 'sample-book-2'),
       baseTabsWithApprovals.find((tab) => tab.key === 'pending-lots'),
       staffTab,
       baseTabsWithApprovals.find((tab) => tab.key === 'cooking-report'),
       baseTabsWithApprovals.find((tab) => tab.key === 'lots-passed'),
       baseTabsWithApprovals.find((tab) => tab.key === 'loading-lots'),
       baseTabsWithApprovals.find((tab) => tab.key === 'completed-lots'),
-      baseTabsWithApprovals.find((tab) => tab.key === 'approvals')
+      baseTabsWithApprovals.find((tab) => tab.key === 'approvals'),
+      baseTabsWithApprovals.find((tab) => tab.key === 'sample-book-2')
     ].filter(Boolean) as TabConfig[];
 
     return reorderedBaseTabs;

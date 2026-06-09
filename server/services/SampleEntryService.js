@@ -1166,7 +1166,7 @@ class SampleEntryService {
       const allotment = await LotAllotment.findOne({ where: { sampleEntryId: id } });
       const isAllotted = !!allotment;
 
-      if (hasOfferVersions) {
+      if (hasOfferVersions || isAllotted) {
         if (finalData.revisedHamali !== undefined) updates.revisedHamali = finalData.revisedHamali;
         if (finalData.revisedLf !== undefined) updates.revisedLf = finalData.revisedLf;
         if (finalData.revisedRateOption !== undefined) updates.revisedRateOption = finalData.revisedRateOption;
@@ -1187,14 +1187,14 @@ class SampleEntryService {
         } else {
           // Fallback if __requestType is missing but requestId is present
           isDispute = finalData.disputeBaseRate !== undefined && finalData.disputeBaseRate !== null && finalData.disputeBaseRate !== '';
-          isRevision = hasOfferVersions && isAllotted && (
+          isRevision = isAllotted && (
             (finalData.revisedHamali !== undefined && finalData.revisedHamali !== null && finalData.revisedHamali !== '')
             || (finalData.revisedLf !== undefined && finalData.revisedLf !== null && finalData.revisedLf !== '')
           );
         }
       } else {
         isDispute = finalData.disputeBaseRate !== undefined && finalData.disputeBaseRate !== null && finalData.disputeBaseRate !== '';
-        isRevision = hasOfferVersions && isAllotted && (
+        isRevision = isAllotted && (
           ((finalData.revisedHamali !== undefined && finalData.revisedHamali !== null && finalData.revisedHamali !== '') && 
            (Number(finalData.revisedHamali) !== Number(finalData.hamali ?? offering.hamali)))
           || ((finalData.revisedLf !== undefined && finalData.revisedLf !== null && finalData.revisedLf !== '') && 
@@ -1292,7 +1292,7 @@ class SampleEntryService {
       if (finalData.isFinalized !== undefined) updates.isFinalized = finalData.isFinalized;
       if (finalData.disputeBaseRate !== undefined) updates.disputeBaseRate = finalData.disputeBaseRate;
       if (finalData.disputeBaseRateType !== undefined) updates.disputeBaseRateType = finalData.disputeBaseRateType;
-      if (hasOfferVersions) {
+      if (hasOfferVersions || isAllotted) {
         if (finalData.revisedHamali !== undefined) updates.revisedHamali = finalData.revisedHamali;
         if (finalData.revisedLf !== undefined) updates.revisedLf = finalData.revisedLf;
         if (finalData.revisedRateOption !== undefined) updates.revisedRateOption = finalData.revisedRateOption;

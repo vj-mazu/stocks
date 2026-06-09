@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { toast } from '../utils/toast';
 import { NotificationMessages } from '../utils/notificationMessages';
@@ -187,15 +188,18 @@ const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
   margin-top: 1rem;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 `;
 
 const Th = styled.th`
-  background: #f8fafc;
+  background: linear-gradient(135deg, #4472c4, #3b5998);
+  color: white;
   padding: 1rem;
   text-align: left;
   font-weight: 600;
-  color: #374151;
-  border-bottom: 2px solid #e5e7eb;
   font-size: 0.9rem;
 `;
 
@@ -249,10 +253,92 @@ const EmptyState = styled.div`
   font-size: 1.1rem;
 `;
 
+const AddButton = styled.button`
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  }
+`;
+
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  padding: 2rem;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  
+  input, select {
+    background-color: #ffffff;
+  }
+`;
+
+const ModalTitle = styled.h2`
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+  color: #1f2937;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #f3f4f6;
+`;
+
+const ButtonRow = styled.div`
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+`;
+
 const Locations: React.FC = () => {
   const { user } = useAuth();
   const { warehouses, kunchinittus, varieties, riceVarieties, fetchWarehouses, fetchKunchinittus, fetchVarieties, fetchRiceVarieties } = useLocationContext();
-  const [activeTab, setActiveTab] = useState<'warehouse' | 'kunchinittu' | 'variety' | 'riceVariety' | 'production' | 'packaging' | 'riceStockLocation' | 'hamali' | 'riceHamali' | 'broker'>('warehouse');
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const [showModal, setShowModal] = useState(false);
+  
+  const [activeTab, setActiveTab] = useState<'warehouse' | 'kunchinittu' | 'variety' | 'riceVariety' | 'production' | 'packaging' | 'riceStockLocation' | 'hamali' | 'riceHamali' | 'broker'>(() => {
+    const validTabs = ['warehouse', 'kunchinittu', 'variety', 'riceVariety', 'production', 'packaging', 'riceStockLocation', 'hamali', 'riceHamali', 'broker'];
+    if (tabParam && validTabs.includes(tabParam)) {
+      return tabParam as any;
+    }
+    return 'warehouse';
+  });
+
+  useEffect(() => {
+    const validTabs = ['warehouse', 'kunchinittu', 'variety', 'riceVariety', 'production', 'packaging', 'riceStockLocation', 'hamali', 'riceHamali', 'broker'];
+    if (tabParam && validTabs.includes(tabParam)) {
+      setActiveTab(tabParam as any);
+    }
+  }, [tabParam]);
 
   // Warehouse form
   const [warehouseName, setWarehouseName] = useState('');
@@ -421,6 +507,7 @@ const Locations: React.FC = () => {
       setAllottedVariety('');
       setOutturnType('Raw');
       fetchOutturns();
+      setShowModal(false);
     } catch (error: any) {
       toast.error(error.response?.data?.error || (editingOutturn ? 'Failed to update outturn' : 'Failed to create outturn'));
     }
@@ -489,6 +576,7 @@ const Locations: React.FC = () => {
 
       setWarehouseName('');
       fetchWarehouses();
+      setShowModal(false);
     } catch (error) {
       toast.error(editingWarehouse ? 'Failed to update warehouse' : 'Failed to create warehouse');
     }
@@ -530,6 +618,7 @@ const Locations: React.FC = () => {
       setSelectedWarehouseId('');
       setSelectedVarietyId('');
       fetchKunchinittus();
+      setShowModal(false);
     } catch (error: any) {
       const errorMessage = error.response?.data?.error || (editingKunchinittu ? 'Failed to update KanchiNittu' : 'Failed to create KanchiNittu');
       toast.error(errorMessage);
@@ -567,6 +656,7 @@ const Locations: React.FC = () => {
       setVarietyName('');
       fetchVarieties();
       notifyLocationsUpdated();
+      setShowModal(false);
     } catch (error: any) {
       toast.error(error.response?.data?.error || (editingVariety ? 'Failed to update variety' : 'Failed to create variety'));
     }
@@ -600,6 +690,7 @@ const Locations: React.FC = () => {
 
       setRiceVarietyName('');
       fetchRiceVarieties();
+      setShowModal(false);
     } catch (error: any) {
       toast.error(error.response?.data?.error || (editingRiceVariety ? 'Failed to update rice variety' : 'Failed to create rice variety'));
     }
@@ -718,6 +809,7 @@ const Locations: React.FC = () => {
       setPackagingKg('25');
       setEditingPackaging(null);
       await fetchPackagings();
+      setShowModal(false);
     } catch (error: any) {
       console.error('Packaging operation error:', error);
       toast.error(error.response?.data?.error || (editingPackaging ? 'Failed to update packaging' : 'Failed to create packaging'));
@@ -800,6 +892,7 @@ const Locations: React.FC = () => {
       setRiceStockLocationName('');
       setEditingRiceStockLocation(null);
       fetchRiceStockLocations();
+      setShowModal(false);
     } catch (error: any) {
       toast.error(error.response?.data?.error || (editingRiceStockLocation ? 'Failed to update location' : 'Failed to create location'));
     }
@@ -943,6 +1036,7 @@ const Locations: React.FC = () => {
       setEditingBroker(null);
       fetchBrokers();
       notifyLocationsUpdated();
+      setShowModal(false);
     } catch (error: any) {
       toast.error(error.response?.data?.error || (editingBroker ? 'Failed to update broker' : 'Failed to create broker'));
     }
@@ -1018,71 +1112,48 @@ const Locations: React.FC = () => {
         {activeTab === 'warehouse' && (
           <>
             <SectionHeader>
-              <SectionTitle>Create New Warehouse</SectionTitle>
+              <SectionTitle>Warehouses</SectionTitle>
+              {canEdit && (
+                <AddButton onClick={() => { handleCancelEdit(); setShowModal(true); }}>
+                  ➕ Add Warehouse
+                </AddButton>
+              )}
             </SectionHeader>
 
-            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-              {/* Left Column - Creation Form */}
-              <div>
-                <FormGroup>
-                  <Label>Warehouse Name</Label>
-                  <Input
-                    type="text"
-                    value={warehouseName}
-                    onChange={(e) => setWarehouseName(e.target.value)}
-                    placeholder="Enter warehouse name"
-                  />
-                </FormGroup>
-
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  {editingWarehouse && (
-                    <Button className="secondary" onClick={handleCancelEdit}>
-                      Cancel
-                    </Button>
-                  )}
-                  <Button className="primary" onClick={handleCreateWarehouse}>
-                    {editingWarehouse ? 'Update Warehouse' : 'Create Warehouse'}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Right Column - Warehouses Table */}
-              <div>
-                <h3 style={{ marginBottom: '1rem', color: '#1f2937' }}>Existing Warehouses</h3>
-                {warehouses.length === 0 ? (
-                  <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
-                    No warehouses created yet
-                  </p>
-                ) : (
-                  <Table>
-                    <thead>
-                      <tr>
-                        <Th>Warehouse Name</Th>
-                        {canEdit && <Th>Actions</Th>}
+            <div>
+              {warehouses.length === 0 ? (
+                <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
+                  No warehouses created yet
+                </p>
+              ) : (
+                <Table>
+                  <thead>
+                    <tr>
+                      <Th>Warehouse Name</Th>
+                      {canEdit && <Th style={{ width: '120px' }}>Actions</Th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {warehouses.map((warehouse) => (
+                      <tr key={warehouse.id}>
+                        <Td>{warehouse.name}</Td>
+                        {canEdit && (
+                          <Td>
+                            <ActionButtons>
+                              <IconButton className="edit" onClick={() => { handleEdit('warehouse', warehouse); setShowModal(true); }}>
+                                ✏️
+                              </IconButton>
+                              <IconButton className="delete" onClick={() => handleDelete('warehouse', warehouse.id)}>
+                                🗑️
+                              </IconButton>
+                            </ActionButtons>
+                          </Td>
+                        )}
                       </tr>
-                    </thead>
-                    <tbody>
-                      {warehouses.map((warehouse) => (
-                        <tr key={warehouse.id}>
-                          <Td>{warehouse.name}</Td>
-                          {canEdit && (
-                            <Td>
-                              <ActionButtons>
-                                <IconButton className="edit" onClick={() => handleEdit('warehouse', warehouse)}>
-                                  ✏️
-                                </IconButton>
-                                <IconButton className="delete" onClick={() => handleDelete('warehouse', warehouse.id)}>
-                                  🗑️
-                                </IconButton>
-                              </ActionButtons>
-                            </Td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                )}
-              </div>
+                    ))}
+                  </tbody>
+                </Table>
+              )}
             </div>
           </>
         )}
@@ -1090,71 +1161,48 @@ const Locations: React.FC = () => {
         {activeTab === 'variety' && (
           <>
             <SectionHeader>
-              <SectionTitle>Create New Variety</SectionTitle>
+              <SectionTitle>Varieties</SectionTitle>
+              {canEdit && (
+                <AddButton onClick={() => { handleCancelEdit(); setShowModal(true); }}>
+                  ➕ Add Variety
+                </AddButton>
+              )}
             </SectionHeader>
 
-            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-              {/* Left Column - Creation Form */}
-              <div>
-                <FormGroup>
-                  <Label>Variety Name</Label>
-                  <Input
-                    type="text"
-                    value={varietyName}
-                    onChange={(e) => setVarietyName(e.target.value)}
-                    placeholder="Enter variety name"
-                  />
-                </FormGroup>
-
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  {editingVariety && (
-                    <Button className="secondary" onClick={handleCancelEdit}>
-                      Cancel
-                    </Button>
-                  )}
-                  <Button className="primary" onClick={handleCreateVariety}>
-                    {editingVariety ? 'Update Variety' : 'Create Variety'}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Right Column - Varieties Table */}
-              <div>
-                <h3 style={{ marginBottom: '1rem', color: '#1f2937' }}>Existing Varieties</h3>
-                {varieties.length === 0 ? (
-                  <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
-                    No varieties created yet
-                  </p>
-                ) : (
-                  <Table>
-                    <thead>
-                      <tr>
-                        <Th>Variety Name</Th>
-                        {canEdit && <Th>Actions</Th>}
+            <div>
+              {varieties.length === 0 ? (
+                <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
+                  No varieties created yet
+                </p>
+              ) : (
+                <Table>
+                  <thead>
+                    <tr>
+                      <Th>Variety Name</Th>
+                      {canEdit && <Th style={{ width: '120px' }}>Actions</Th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {varieties.map((variety) => (
+                      <tr key={variety.id}>
+                        <Td>{toTitleCase(variety.name)}</Td>
+                        {canEdit && (
+                          <Td>
+                            <ActionButtons>
+                              <IconButton className="edit" onClick={() => { handleEdit('variety', variety); setShowModal(true); }}>
+                                ✏️
+                              </IconButton>
+                              <IconButton className="delete" onClick={() => handleDelete('variety', variety.id)}>
+                                🗑️
+                              </IconButton>
+                            </ActionButtons>
+                          </Td>
+                        )}
                       </tr>
-                    </thead>
-                    <tbody>
-                      {varieties.map((variety) => (
-                        <tr key={variety.id}>
-                          <Td>{toTitleCase(variety.name)}</Td>
-                          {canEdit && (
-                            <Td>
-                              <ActionButtons>
-                                <IconButton className="edit" onClick={() => handleEdit('variety', variety)}>
-                                  ✏️
-                                </IconButton>
-                                <IconButton className="delete" onClick={() => handleDelete('variety', variety.id)}>
-                                  🗑️
-                                </IconButton>
-                              </ActionButtons>
-                            </Td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                )}
-              </div>
+                    ))}
+                  </tbody>
+                </Table>
+              )}
             </div>
           </>
         )}
@@ -1162,101 +1210,52 @@ const Locations: React.FC = () => {
         {activeTab === 'kunchinittu' && (
           <>
             <SectionHeader>
-              <SectionTitle>Create New KN</SectionTitle>
+              <SectionTitle>KanchiNittu (KN)</SectionTitle>
+              {canEdit && (
+                <AddButton onClick={() => { handleCancelEdit(); setShowModal(true); }}>
+                  ➕ Add KN
+                </AddButton>
+              )}
             </SectionHeader>
 
-            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-              {/* Left Column - Creation Form */}
-              <div>
-                <FormGroup>
-                  <Label>KN Name</Label>
-                  <Input
-                    type="text"
-                    value={kunchinintuName}
-                    onChange={(e) => setKunchinintuName(e.target.value)}
-                    placeholder="Enter KN name"
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label>Alloted Warehouse</Label>
-                  <Select
-                    value={selectedWarehouseId}
-                    onChange={(e) => setSelectedWarehouseId(e.target.value)}
-                  >
-                    <option value="">-- Select Warehouse --</option>
-                    {warehouses.map((w) => (
-                      <option key={w.id} value={w.id}>{w.name}</option>
-                    ))}
-                  </Select>
-                </FormGroup>
-
-                <FormGroup>
-                  <Label>Alloted Variety</Label>
-                  <Select
-                    value={selectedVarietyId}
-                    onChange={(e) => setSelectedVarietyId(e.target.value)}
-                  >
-                    <option value="">-- Select Variety --</option>
-                    {varieties.map((v) => (
-                      <option key={v.id} value={v.id}>{v.name}</option>
-                    ))}
-                  </Select>
-                </FormGroup>
-
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  {editingKunchinittu && (
-                    <Button className="secondary" onClick={handleCancelEdit}>
-                      Cancel
-                    </Button>
-                  )}
-                  <Button className="primary" onClick={handleCreateKunchinittu}>
-                    {editingKunchinittu ? 'Update KN' : 'Create KN'}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Right Column - KanchiNittus Table */}
-              <div>
-                <h3 style={{ marginBottom: '1rem', color: '#1f2937' }}>Existing KN</h3>
-                {kunchinittus.length === 0 ? (
-                  <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
-                    No KanchiNittus created yet
-                  </p>
-                ) : (
-                  <Table>
-                    <thead>
-                      <tr>
-                        <Th>KanchiNittu</Th>
-                        <Th>Alloted Warehouse</Th>
-                        <Th>Alloted Variety</Th>
-                        {canEdit && <Th>Actions</Th>}
+            <div>
+              {kunchinittus.length === 0 ? (
+                <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
+                  No KanchiNittus created yet
+                </p>
+              ) : (
+                <Table>
+                  <thead>
+                    <tr>
+                      <Th>KanchiNittu</Th>
+                      <Th>Alloted Warehouse</Th>
+                      <Th>Alloted Variety</Th>
+                      {canEdit && <Th style={{ width: '120px' }}>Actions</Th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {kunchinittus.map((kn) => (
+                      <tr key={kn.id}>
+                        <Td>{kn.name}</Td>
+                        <Td>{kn.warehouse?.name || '-'}</Td>
+                        <Td>{kn.variety?.name || '-'}</Td>
+                        {canEdit && (
+                          <Td>
+                            <ActionButtons>
+                              <IconButton className="edit" onClick={() => { handleEdit('kunchinittu', kn); setShowModal(true); }}>
+                                ✏️
+                              </IconButton>
+                              <IconButton className="delete" onClick={() => handleDelete('kunchinittu', kn.id)}>
+                                🗑️
+                              </IconButton>
+                            </ActionButtons>
+                          </Td>
+                        )}
                       </tr>
-                    </thead>
-                    <tbody>
-                      {kunchinittus.map((kn) => (
-                        <tr key={kn.id}>
-                          <Td>{kn.name}</Td>
-                          <Td>{kn.warehouse?.name || '-'}</Td>
-                          <Td>{kn.variety?.name || '-'}</Td>
-                          {canEdit && (
-                            <Td>
-                              <ActionButtons>
-                                <IconButton className="edit" onClick={() => handleEdit('kunchinittu', kn)}>
-                                  ✏️
-                                </IconButton>
-                                <IconButton className="delete" onClick={() => handleDelete('kunchinittu', kn.id)}>
-                                  🗑️
-                                </IconButton>
-                              </ActionButtons>
-                            </Td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                )}
-              </div>
+                    ))}
+                  </tbody>
+                </Table>
+              )}
             </div>
           </>
         )}
@@ -1265,171 +1264,99 @@ const Locations: React.FC = () => {
           <>
             <SectionHeader>
               <SectionTitle>Rice Variety Management</SectionTitle>
+              {canEdit && (
+                <AddButton onClick={() => { handleCancelEdit(); setShowModal(true); }}>
+                  ➕ Add Rice Variety
+                </AddButton>
+              )}
             </SectionHeader>
 
-            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-              {/* Left Column - Creation Form */}
-              <div>
-                <FormGroup>
-                  <Label>Rice Variety Name</Label>
-                  <Input
-                    type="text"
-                    value={riceVarietyName}
-                    onChange={(e) => setRiceVarietyName(e.target.value)}
-                    placeholder="e.g., SUM25 RNR RAW"
-                  />
-                </FormGroup>
-
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-                  {editingRiceVariety && (
-                    <Button className="secondary" onClick={handleCancelEdit}>
-                      Cancel
-                    </Button>
-                  )}
-                  <Button className="primary" onClick={handleCreateRiceVariety}>
-                    {editingRiceVariety ? 'Update Rice Variety' : 'Create Rice Variety'}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Right Column - Rice Varieties Table */}
-              <div>
-                <h3 style={{ marginBottom: '1rem', color: '#1f2937' }}>Existing Rice Varieties</h3>
-                {riceVarieties.length === 0 ? (
-                  <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
-                    No rice varieties created yet
-                  </p>
-                ) : (
-                  <Table>
-                    <thead>
-                      <tr>
-                        <Th>Name</Th>
-                        <Th>Code</Th>
-                        {canEdit && <Th>Actions</Th>}
+            <div>
+              {riceVarieties.length === 0 ? (
+                <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
+                  No rice varieties created yet
+                </p>
+              ) : (
+                <Table>
+                  <thead>
+                    <tr>
+                      <Th>Name</Th>
+                      <Th>Code</Th>
+                      {canEdit && <Th style={{ width: '120px' }}>Actions</Th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {riceVarieties.map((v: any) => (
+                      <tr key={v.id}>
+                        <Td style={{ fontWeight: '600' }}>{v.name}</Td>
+                        <Td>{v.code}</Td>
+                        {canEdit && (
+                          <Td>
+                            <ActionButtons>
+                              <IconButton className="edit" onClick={() => { handleEdit('riceVariety', v); setShowModal(true); }}>
+                                ✏️
+                              </IconButton>
+                              <IconButton className="delete" onClick={() => handleDelete('riceVariety', v.id)}>
+                                🗑️
+                              </IconButton>
+                            </ActionButtons>
+                          </Td>
+                        )}
                       </tr>
-                    </thead>
-                    <tbody>
-                      {riceVarieties.map((v: any) => (
-                        <tr key={v.id}>
-                          <Td style={{ fontWeight: '600' }}>{v.name}</Td>
-                          <Td>{v.code}</Td>
-                          {canEdit && (
-                            <Td>
-                              <ActionButtons>
-                                <IconButton className="edit" onClick={() => handleEdit('riceVariety', v)}>
-                                  ✏️
-                                </IconButton>
-                                <IconButton className="delete" onClick={() => handleDelete('riceVariety', v.id)}>
-                                  🗑️
-                                </IconButton>
-                              </ActionButtons>
-                            </Td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                )}
-              </div>
+                    ))}
+                  </tbody>
+                </Table>
+              )}
             </div>
           </>
         )}
         {activeTab === 'production' && (
           <>
             <SectionHeader>
-              <SectionTitle>Create Outturn</SectionTitle>
+              <SectionTitle>Outturns</SectionTitle>
+              {canEdit && (
+                <AddButton onClick={() => { handleCancelEdit(); setShowModal(true); }}>
+                  ➕ Add Outturn
+                </AddButton>
+              )}
             </SectionHeader>
 
-            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-              {/* Left Column - Creation Form */}
-              <div>
-                <FormGroup>
-                  <Label>Outturn Code</Label>
-                  <Input
-                    type="text"
-                    value={outturnCode}
-                    onChange={(e) => setOutturnCode(e.target.value)}
-                    placeholder="Enter outturn code"
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label>Allotted Variety</Label>
-                  <Select
-                    value={allottedVariety}
-                    onChange={(e) => setAllottedVariety(e.target.value)}
-                  >
-                    <option value="">-- Select Variety --</option>
-                    {varieties.map((variety: any) => (
-                      <option key={variety.id} value={variety.name}>
-                        {variety.name}
-                      </option>
-                    ))}
-                  </Select>
-                </FormGroup>
-
-                <FormGroup>
-                  <Label>Type</Label>
-                  <Select
-                    value={outturnType}
-                    onChange={(e) => setOutturnType(e.target.value as 'Raw' | 'Steam')}
-                  >
-                    <option value="Raw">Raw</option>
-                    <option value="Steam">Steam</option>
-                  </Select>
-                </FormGroup>
-
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  {editingOutturn && (
-                    <Button className="secondary" onClick={handleCancelOutturnEdit}>
-                      Cancel
-                    </Button>
-                  )}
-                  <Button className="primary" onClick={handleCreateOutturn}>
-                    {editingOutturn ? 'Update Outturn' : 'Create Outturn'}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Right Column - Outturns Table */}
-              <div>
-                <h3 style={{ marginBottom: '1rem', color: '#1f2937' }}>Existing Outturns</h3>
-                {outturns.length === 0 ? (
-                  <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
-                    No outturns created yet
-                  </p>
-                ) : (
-                  <Table>
-                    <thead>
-                      <tr>
-                        <Th>Code</Th>
-                        <Th>Allotted Variety</Th>
-                        <Th>Type</Th>
-                        <Th>Actions</Th>
+            <div>
+              {outturns.length === 0 ? (
+                <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
+                  No outturns created yet
+                </p>
+              ) : (
+                <Table>
+                  <thead>
+                    <tr>
+                      <Th>Code</Th>
+                      <Th>Allotted Variety</Th>
+                      <Th>Type</Th>
+                      <Th style={{ width: '120px' }}>Actions</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {outturns.map((outturn: any) => (
+                      <tr key={outturn.id}>
+                        <Td>{outturn.code}</Td>
+                        <Td>{outturn.allottedVariety}</Td>
+                        <Td>{outturn.type || 'Raw'}</Td>
+                        <Td>
+                          <ActionButtons>
+                            <IconButton className="edit" onClick={() => { handleEditOutturn(outturn); setShowModal(true); }}>
+                              ✏️
+                            </IconButton>
+                            <IconButton className="delete" onClick={() => handleDeleteOutturn(outturn.id)}>
+                              🗑️
+                            </IconButton>
+                          </ActionButtons>
+                        </Td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {outturns.map((outturn: any) => (
-                        <tr key={outturn.id}>
-                          <Td>{outturn.code}</Td>
-                          <Td>{outturn.allottedVariety}</Td>
-                          <Td>{outturn.type || 'Raw'}</Td>
-                          <Td>
-                            <ActionButtons>
-                              <IconButton className="edit" onClick={() => handleEditOutturn(outturn)}>
-                                ✏️
-                              </IconButton>
-                              <IconButton className="delete" onClick={() => handleDeleteOutturn(outturn.id)}>
-                                🗑️
-                              </IconButton>
-                            </ActionButtons>
-                          </Td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                )}
-              </div>
+                    ))}
+                  </tbody>
+                </Table>
+              )}
             </div>
           </>
         )}
@@ -1438,93 +1365,49 @@ const Locations: React.FC = () => {
           <>
             <SectionHeader>
               <SectionTitle>Packaging / Brand Management</SectionTitle>
+              {canEdit && (
+                <AddButton onClick={() => { handleCancelEdit(); setShowModal(true); }}>
+                  ➕ Add Packaging
+                </AddButton>
+              )}
             </SectionHeader>
 
-            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-              {/* Left Column - Creation Form */}
-              <div>
-                <FormGroup>
-                  <Label>Brand Name *</Label>
-                  <Input
-                    type="text"
-                    value={packagingBrandName}
-                    onChange={(e) => setPackagingBrandName(e.target.value)}
-                    placeholder="e.g., A1, B1, Premium"
-                    disabled={!canEdit}
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label>Allotted KG per Bag *</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="999.99"
-                    value={packagingKg}
-                    onChange={(e) => setPackagingKg(e.target.value)}
-                    placeholder="e.g., 25, 26.5, 30"
-                    disabled={!canEdit}
-                  />
-                </FormGroup>
-
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  {editingPackaging && (
-                    <Button className="secondary" onClick={handleCancelEdit} disabled={!canEdit}>
-                      Cancel
-                    </Button>
-                  )}
-                  <Button className="primary" onClick={handleCreatePackaging} disabled={!canEdit}>
-                    {editingPackaging ? 'Update Packaging' : 'Create Packaging'}
-                  </Button>
-                </div>
-
-                {!canEdit && (
-                  <p style={{ marginTop: '1rem', color: '#6b7280', fontSize: '0.9rem' }}>
-                    Only Managers and Admins can create/edit packagings
-                  </p>
-                )}
-              </div>
-
-              {/* Right Column - Packagings Table */}
-              <div>
-                <h3 style={{ marginBottom: '1rem', color: '#1f2937' }}>Existing Packagings</h3>
-                {packagings.length === 0 ? (
-                  <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
-                    No packagings created yet
-                  </p>
-                ) : (
-                  <Table>
-                    <thead>
-                      <tr>
-                        <Th>Brand Name</Th>
-                        <Th>KG/Bag</Th>
-                        {canEdit && <Th>Actions</Th>}
+            <div>
+              {packagings.length === 0 ? (
+                <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
+                  No packagings created yet
+                </p>
+              ) : (
+                <Table>
+                  <thead>
+                    <tr>
+                      <Th>Brand Name</Th>
+                      <Th>KG/Bag</Th>
+                      {canEdit && <Th style={{ width: '120px' }}>Actions</Th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {packagings.map((pkg: any) => (
+                      <tr key={pkg.id}>
+                        <Td style={{ fontWeight: '600' }}>{pkg.brandName}</Td>
+                        <Td>{pkg.allottedKg} KG</Td>
+                        {canEdit && (
+                          <Td>
+                            <ActionButtons>
+                              <IconButton className="edit" onClick={() => { handleEditPackaging(pkg); setShowModal(true); }}>
+                                ✏️
+                              </IconButton>
+                              <IconButton className="delete" onClick={() => handleDeletePackaging(pkg.id)}>
+                                🗑️
+                              </IconButton>
+                            </ActionButtons>
+                          </Td>
+                        )}
                       </tr>
-                    </thead>
-                    <tbody>
-                      {packagings.map((pkg: any) => (
-                        <tr key={pkg.id}>
-                          <Td style={{ fontWeight: '600' }}>{pkg.brandName}</Td>
-                          <Td>{pkg.allottedKg} KG</Td>
-                          {canEdit && (
-                            <Td>
-                              <ActionButtons>
-                                <IconButton className="edit" onClick={() => handleEditPackaging(pkg)}>
-                                  ✏️
-                                </IconButton>
-                                <IconButton className="delete" onClick={() => handleDeletePackaging(pkg.id)}>
-                                  🗑️
-                                </IconButton>
-                              </ActionButtons>
-                            </Td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                )}
-              </div>
+                    ))}
+                  </tbody>
+                </Table>
+              )}
             </div>
           </>
         )}
@@ -1532,100 +1415,59 @@ const Locations: React.FC = () => {
         {activeTab === 'riceStockLocation' && (
           <>
             <SectionHeader>
-              <SectionTitle>Rice Stock Location Management</SectionTitle>
+              <SectionTitle>Rice Stock Locations</SectionTitle>
+              {canEdit && (
+                <AddButton onClick={() => { handleCancelEdit(); setShowModal(true); }}>
+                  ➕ Add Rice Stock Location
+                </AddButton>
+              )}
             </SectionHeader>
 
-            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-              {/* Left Column - Creation Form */}
-              <div>
-                <FormGroup>
-                  <Label>Location Code *</Label>
-                  <Input
-                    type="text"
-                    value={riceStockLocationCode}
-                    onChange={(e) => setRiceStockLocationCode(e.target.value)}
-                    placeholder="e.g., A1, A2, B8"
-                    disabled={!canEdit}
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label>Description (Optional)</Label>
-                  <Input
-                    type="text"
-                    value={riceStockLocationName}
-                    onChange={(e) => setRiceStockLocationName(e.target.value)}
-                    placeholder="e.g., Storage Area A1"
-                    disabled={!canEdit}
-                  />
-                </FormGroup>
-
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  {editingRiceStockLocation && (
-                    <Button className="secondary" onClick={handleCancelEdit} disabled={!canEdit}>
-                      Cancel
-                    </Button>
-                  )}
-                  <Button className="primary" onClick={handleCreateRiceStockLocation} disabled={!canEdit}>
-                    {editingRiceStockLocation ? 'Update Location' : 'Create Location'}
-                  </Button>
-                </div>
-
-                {!canEdit && (
-                  <p style={{ marginTop: '1rem', color: '#6b7280', fontSize: '0.9rem' }}>
-                    Only Managers and Admins can create/edit rice stock locations
-                  </p>
-                )}
-              </div>
-
-              {/* Right Column - Locations Table */}
-              <div>
-                <h3 style={{ marginBottom: '1rem', color: '#1f2937' }}>Existing Rice Stock Locations</h3>
-                {riceStockLocations.length === 0 ? (
-                  <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
-                    No rice stock locations created yet
-                  </p>
-                ) : (
-                  <Table>
-                    <thead>
-                      <tr>
-                        <Th>Code</Th>
-                        <Th>Description</Th>
-                        <Th>Status</Th>
-                        {canEdit && <Th>Actions</Th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {riceStockLocations.map((location: any) => (
-                        <tr key={location.id}>
-                          <Td style={{ fontWeight: '600' }}>{location.code}</Td>
-                          <Td>{location.name || '-'}</Td>
+            <div>
+              {riceStockLocations.length === 0 ? (
+                <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
+                  No rice stock locations created yet
+                </p>
+              ) : (
+                <Table>
+                  <thead>
+                    <tr>
+                      <Th>Code</Th>
+                      <Th>Description</Th>
+                      <Th>Status</Th>
+                      {canEdit && <Th style={{ width: '120px' }}>Actions</Th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {riceStockLocations.map((location: any) => (
+                      <tr key={location.id}>
+                        <Td style={{ fontWeight: '600' }}>{location.code}</Td>
+                        <Td>{location.name || '-'}</Td>
+                        <Td>
+                          <span style={{
+                            color: location.isActive ? '#10b981' : '#6b7280',
+                            fontWeight: '600'
+                          }}>
+                            {location.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        </Td>
+                        {canEdit && (
                           <Td>
-                            <span style={{
-                              color: location.isActive ? '#10b981' : '#6b7280',
-                              fontWeight: '600'
-                            }}>
-                              {location.isActive ? 'Active' : 'Inactive'}
-                            </span>
+                            <ActionButtons>
+                              <IconButton className="edit" onClick={() => { handleEditRiceStockLocation(location); setShowModal(true); }}>
+                                ✏️
+                              </IconButton>
+                              <IconButton className="delete" onClick={() => handleDeleteRiceStockLocation(location.id)}>
+                                🗑️
+                              </IconButton>
+                            </ActionButtons>
                           </Td>
-                          {canEdit && (
-                            <Td>
-                              <ActionButtons>
-                                <IconButton className="edit" onClick={() => handleEditRiceStockLocation(location)}>
-                                  ✏️
-                                </IconButton>
-                                <IconButton className="delete" onClick={() => handleDeleteRiceStockLocation(location.id)}>
-                                  🗑️
-                                </IconButton>
-                              </ActionButtons>
-                            </Td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                )}
-              </div>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              )}
             </div>
           </>
         )}
@@ -1642,11 +1484,323 @@ const Locations: React.FC = () => {
           <>
             <SectionHeader>
               <SectionTitle>Broker Management</SectionTitle>
+              {canEdit && (
+                <AddButton onClick={() => { handleCancelEdit(); setShowModal(true); }}>
+                  ➕ Add Broker
+                </AddButton>
+              )}
             </SectionHeader>
 
-            <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-              {/* Left Column - Creation Form */}
-              <div>
+            <div>
+              {brokers.length === 0 ? (
+                <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
+                  No brokers created yet
+                </p>
+              ) : (
+                <Table>
+                  <thead>
+                    <tr>
+                      <Th>Broker Name</Th>
+                      <Th>Description</Th>
+                      {canEdit && <Th style={{ width: '120px' }}>Actions</Th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {brokers.map((broker) => (
+                      <tr key={broker.id}>
+                        <Td>{toTitleCase(broker.name)}</Td>
+                        <Td>{broker.description || '-'}</Td>
+                        {canEdit && (
+                          <Td>
+                            <ActionButtons>
+                              <IconButton className="edit" onClick={() => { handleEditBroker(broker); setShowModal(true); }}>
+                                ✏️
+                              </IconButton>
+                              <IconButton className="delete" onClick={() => handleDeleteBroker(broker.id)}>
+                                🗑️
+                              </IconButton>
+                            </ActionButtons>
+                          </Td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              )}
+            </div>
+          </>
+        )}
+      </SectionContainer>
+
+      {showModal && (
+        <ModalOverlay onClick={() => { setShowModal(false); handleCancelEdit(); }}>
+          <ModalContent onClick={(e) => e.stopPropagation()}>
+            <ModalTitle>
+              {editingWarehouse || editingVariety || editingKunchinittu || editingRiceVariety || editingOutturn || editingPackaging || editingRiceStockLocation || editingBroker
+                ? `✏️ Edit ${
+                    activeTab === 'warehouse' ? 'Warehouse' :
+                    activeTab === 'variety' ? 'Variety' :
+                    activeTab === 'kunchinittu' ? 'KanchiNittu' :
+                    activeTab === 'riceVariety' ? 'Rice Variety' :
+                    activeTab === 'production' ? 'Outturn' :
+                    activeTab === 'packaging' ? 'Packaging' :
+                    activeTab === 'riceStockLocation' ? 'Rice Stock Location' :
+                    activeTab === 'broker' ? 'Broker' : ''
+                  }`
+                : `➕ Add New ${
+                    activeTab === 'warehouse' ? 'Warehouse' :
+                    activeTab === 'variety' ? 'Variety' :
+                    activeTab === 'kunchinittu' ? 'KanchiNittu' :
+                    activeTab === 'riceVariety' ? 'Rice Variety' :
+                    activeTab === 'production' ? 'Outturn' :
+                    activeTab === 'packaging' ? 'Packaging' :
+                    activeTab === 'riceStockLocation' ? 'Rice Stock Location' :
+                    activeTab === 'broker' ? 'Broker' : ''
+                  }`
+              }
+            </ModalTitle>
+
+            {activeTab === 'warehouse' && (
+              <form onSubmit={(e) => { e.preventDefault(); handleCreateWarehouse(); }}>
+                <FormGroup>
+                  <Label>Warehouse Name</Label>
+                  <Input
+                    type="text"
+                    value={warehouseName}
+                    onChange={(e) => setWarehouseName(e.target.value)}
+                    placeholder="Enter warehouse name"
+                    required
+                  />
+                </FormGroup>
+                <ButtonRow>
+                  <Button type="button" className="secondary" onClick={() => { setShowModal(false); handleCancelEdit(); }}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="primary">
+                    {editingWarehouse ? 'Update Warehouse' : 'Create Warehouse'}
+                  </Button>
+                </ButtonRow>
+              </form>
+            )}
+
+            {activeTab === 'variety' && (
+              <form onSubmit={(e) => { e.preventDefault(); handleCreateVariety(); }}>
+                <FormGroup>
+                  <Label>Variety Name</Label>
+                  <Input
+                    type="text"
+                    value={varietyName}
+                    onChange={(e) => setVarietyName(e.target.value)}
+                    placeholder="Enter variety name"
+                    required
+                  />
+                </FormGroup>
+                <ButtonRow>
+                  <Button type="button" className="secondary" onClick={() => { setShowModal(false); handleCancelEdit(); }}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="primary">
+                    {editingVariety ? 'Update Variety' : 'Create Variety'}
+                  </Button>
+                </ButtonRow>
+              </form>
+            )}
+
+            {activeTab === 'kunchinittu' && (
+              <form onSubmit={(e) => { e.preventDefault(); handleCreateKunchinittu(); }}>
+                <FormGroup>
+                  <Label>KN Name</Label>
+                  <Input
+                    type="text"
+                    value={kunchinintuName}
+                    onChange={(e) => setKunchinintuName(e.target.value)}
+                    placeholder="Enter KN name"
+                    required
+                  />
+                </FormGroup>
+                <FormGroup>
+                  <Label>Alloted Warehouse</Label>
+                  <Select
+                    value={selectedWarehouseId}
+                    onChange={(e) => setSelectedWarehouseId(e.target.value)}
+                    required
+                  >
+                    <option value="">-- Select Warehouse --</option>
+                    {warehouses.map((w) => (
+                      <option key={w.id} value={w.id}>{w.name}</option>
+                    ))}
+                  </Select>
+                </FormGroup>
+                <FormGroup>
+                  <Label>Alloted Variety</Label>
+                  <Select
+                    value={selectedVarietyId}
+                    onChange={(e) => setSelectedVarietyId(e.target.value)}
+                    required
+                  >
+                    <option value="">-- Select Variety --</option>
+                    {varieties.map((v) => (
+                      <option key={v.id} value={v.id}>{v.name}</option>
+                    ))}
+                  </Select>
+                </FormGroup>
+                <ButtonRow>
+                  <Button type="button" className="secondary" onClick={() => { setShowModal(false); handleCancelEdit(); }}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="primary">
+                    {editingKunchinittu ? 'Update KN' : 'Create KN'}
+                  </Button>
+                </ButtonRow>
+              </form>
+            )}
+
+            {activeTab === 'riceVariety' && (
+              <form onSubmit={(e) => { e.preventDefault(); handleCreateRiceVariety(); }}>
+                <FormGroup>
+                  <Label>Rice Variety Name</Label>
+                  <Input
+                    type="text"
+                    value={riceVarietyName}
+                    onChange={(e) => setRiceVarietyName(e.target.value)}
+                    placeholder="e.g., SUM25 RNR RAW"
+                    required
+                  />
+                </FormGroup>
+                <ButtonRow>
+                  <Button type="button" className="secondary" onClick={() => { setShowModal(false); handleCancelEdit(); }}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="primary">
+                    {editingRiceVariety ? 'Update Rice Variety' : 'Create Rice Variety'}
+                  </Button>
+                </ButtonRow>
+              </form>
+            )}
+
+            {activeTab === 'production' && (
+              <form onSubmit={(e) => { e.preventDefault(); handleCreateOutturn(); }}>
+                <FormGroup>
+                  <Label>Outturn Code</Label>
+                  <Input
+                    type="text"
+                    value={outturnCode}
+                    onChange={(e) => setOutturnCode(e.target.value)}
+                    placeholder="Enter outturn code"
+                    required
+                  />
+                </FormGroup>
+                <FormGroup>
+                  <Label>Allotted Variety</Label>
+                  <Select
+                    value={allottedVariety}
+                    onChange={(e) => setAllottedVariety(e.target.value)}
+                    required
+                  >
+                    <option value="">-- Select Variety --</option>
+                    {varieties.map((variety: any) => (
+                      <option key={variety.id} value={variety.name}>
+                        {variety.name}
+                      </option>
+                    ))}
+                  </Select>
+                </FormGroup>
+                <FormGroup>
+                  <Label>Type</Label>
+                  <Select
+                    value={outturnType}
+                    onChange={(e) => setOutturnType(e.target.value as 'Raw' | 'Steam')}
+                    required
+                  >
+                    <option value="Raw">Raw</option>
+                    <option value="Steam">Steam</option>
+                  </Select>
+                </FormGroup>
+                <ButtonRow>
+                  <Button type="button" className="secondary" onClick={() => { setShowModal(false); handleCancelOutturnEdit(); }}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="primary">
+                    {editingOutturn ? 'Update Outturn' : 'Create Outturn'}
+                  </Button>
+                </ButtonRow>
+              </form>
+            )}
+
+            {activeTab === 'packaging' && (
+              <form onSubmit={(e) => { e.preventDefault(); handleCreatePackaging(); }}>
+                <FormGroup>
+                  <Label>Brand Name *</Label>
+                  <Input
+                    type="text"
+                    value={packagingBrandName}
+                    onChange={(e) => setPackagingBrandName(e.target.value)}
+                    placeholder="e.g., A1, B1, Premium"
+                    disabled={!canEdit}
+                    required
+                  />
+                </FormGroup>
+                <FormGroup>
+                  <Label>Allotted KG per Bag *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="999.99"
+                    value={packagingKg}
+                    onChange={(e) => setPackagingKg(e.target.value)}
+                    placeholder="e.g., 25, 26.5, 30"
+                    disabled={!canEdit}
+                    required
+                  />
+                </FormGroup>
+                <ButtonRow>
+                  <Button type="button" className="secondary" onClick={() => { setShowModal(false); handleCancelEdit(); }} disabled={!canEdit}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="primary" disabled={!canEdit}>
+                    {editingPackaging ? 'Update Packaging' : 'Create Packaging'}
+                  </Button>
+                </ButtonRow>
+              </form>
+            )}
+
+            {activeTab === 'riceStockLocation' && (
+              <form onSubmit={(e) => { e.preventDefault(); handleCreateRiceStockLocation(); }}>
+                <FormGroup>
+                  <Label>Location Code *</Label>
+                  <Input
+                    type="text"
+                    value={riceStockLocationCode}
+                    onChange={(e) => setRiceStockLocationCode(e.target.value)}
+                    placeholder="e.g., A1, A2, B8"
+                    disabled={!canEdit}
+                    required
+                  />
+                </FormGroup>
+                <FormGroup>
+                  <Label>Description (Optional)</Label>
+                  <Input
+                    type="text"
+                    value={riceStockLocationName}
+                    onChange={(e) => setRiceStockLocationName(e.target.value)}
+                    placeholder="e.g., Storage Area A1"
+                    disabled={!canEdit}
+                  />
+                </FormGroup>
+                <ButtonRow>
+                  <Button type="button" className="secondary" onClick={() => { setShowModal(false); handleCancelEdit(); }} disabled={!canEdit}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="primary" disabled={!canEdit}>
+                    {editingRiceStockLocation ? 'Update Location' : 'Create Location'}
+                  </Button>
+                </ButtonRow>
+              </form>
+            )}
+
+            {activeTab === 'broker' && (
+              <form onSubmit={(e) => { e.preventDefault(); handleCreateBroker(); }}>
                 <FormGroup>
                   <Label>Broker Name *</Label>
                   <Input
@@ -1654,9 +1808,9 @@ const Locations: React.FC = () => {
                     value={brokerName}
                     onChange={(e) => setBrokerName(e.target.value)}
                     placeholder="Enter broker name"
+                    required
                   />
                 </FormGroup>
-
                 <FormGroup>
                   <Label>Description (Optional)</Label>
                   <Input
@@ -1666,62 +1820,19 @@ const Locations: React.FC = () => {
                     placeholder="Enter description"
                   />
                 </FormGroup>
-
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-                  {editingBroker && (
-                    <Button className="secondary" onClick={handleCancelEdit}>
-                      Cancel
-                    </Button>
-                  )}
-                  <Button className="primary" onClick={handleCreateBroker} disabled={!canEdit}>
+                <ButtonRow>
+                  <Button type="button" className="secondary" onClick={() => { setShowModal(false); handleCancelEdit(); }}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="primary" disabled={!canEdit}>
                     {editingBroker ? 'Update Broker' : 'Create Broker'}
                   </Button>
-                </div>
-              </div>
-
-              {/* Right Column - Brokers Table */}
-              <div>
-                <h3 style={{ marginBottom: '1rem', color: '#1f2937' }}>Existing Brokers</h3>
-                {brokers.length === 0 ? (
-                  <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
-                    No brokers created yet
-                  </p>
-                ) : (
-                  <Table>
-                    <thead>
-                      <tr>
-                        <Th>Broker Name</Th>
-                        <Th>Description</Th>
-                        {canEdit && <Th>Actions</Th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {brokers.map((broker) => (
-                        <tr key={broker.id}>
-                          <Td>{toTitleCase(broker.name)}</Td>
-                          <Td>{broker.description || '-'}</Td>
-                          {canEdit && (
-                            <Td>
-                              <ActionButtons>
-                                <IconButton className="edit" onClick={() => handleEditBroker(broker)}>
-                                  ✏️
-                                </IconButton>
-                                <IconButton className="delete" onClick={() => handleDeleteBroker(broker.id)}>
-                                  🗑️
-                                </IconButton>
-                              </ActionButtons>
-                            </Td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                )}
-              </div>
-            </div>
-          </>
-        )}
-      </SectionContainer>
+                </ButtonRow>
+              </form>
+            )}
+          </ModalContent>
+        </ModalOverlay>
+      )}
     </Container>
   );
 };

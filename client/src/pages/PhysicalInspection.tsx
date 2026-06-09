@@ -771,6 +771,30 @@ const PhysicalInspection: React.FC = () => {
     );
   };
 
+  const isTripMissingBalancedLotRestrictive = (trip: any) => {
+    const lorry = (trip.lorryNumber || '').trim().toUpperCase();
+    if (lorry === 'LOT_AVG' || lorry === 'BALANCED_LOT') return false;
+    
+    const stages = trip.samplingStages || {};
+    const hasFullAvg = stages.full_avg && stages.full_avg.approvalStatus === 'approved';
+    const hasBalancedLot = stages.balanced_lot && (stages.balanced_lot.approvalStatus === 'approved' || stages.balanced_lot.approvalStatus === 'pending');
+    
+    if (hasFullAvg && !hasBalancedLot) {
+      if (trip.inspectionDate) {
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        
+        const tripDate = new Date(trip.inspectionDate);
+        const tripDateStr = tripDate.toISOString().split('T')[0];
+        
+        if (tripDateStr === todayStr) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
   const isLotAvgRequiredForLorry = (entryId: string, cleanLorry: string) => {
     if (!cleanLorry) return true;
     
@@ -1119,7 +1143,11 @@ const PhysicalInspection: React.FC = () => {
         if (lorry === 'LOT_AVG' || lorry === 'BALANCED_LOT') return false;
         
         const stages = trip.samplingStages || {};
-        return !(stages.full_avg && stages.full_avg.approvalStatus === 'approved');
+        const hasApprovedFullAvg = stages.full_avg && stages.full_avg.approvalStatus === 'approved';
+        const hasPending = Object.values(stages).some((stg: any) => stg.approvalStatus === 'pending');
+        const isMissingBalanced = isTripMissingBalancedLotRestrictive(trip);
+        
+        return !hasApprovedFullAvg || hasPending || isMissingBalanced;
       });
       
       if (incompleteTrip) {
@@ -1129,11 +1157,17 @@ const PhysicalInspection: React.FC = () => {
         const halfStage = stages.half_lorry || {};
         const fullStage = stages.full_avg || {};
         
-        // Determine logical next stage based on what's missing or pending
-        if (lotStage.approvalStatus === 'approved') nextStage = 'nit_avg';
-        if (nitStage.approvalStatus === 'approved' || (nitStage.reportedBy && lotStage.approvalStatus === 'approved')) nextStage = 'half_lorry';
-        if (halfStage.approvalStatus === 'approved') nextStage = 'full_avg';
-        if (fullStage.approvalStatus === 'approved') nextStage = 'balanced_lot';
+        const pendingStageKey = Object.keys(stages).find(k => stages[k]?.approvalStatus === 'pending');
+        
+        if (pendingStageKey) {
+          nextStage = pendingStageKey;
+        } else {
+          // Determine logical next stage based on what's missing or pending
+          if (lotStage.approvalStatus === 'approved') nextStage = 'nit_avg';
+          if (nitStage.approvalStatus === 'approved' || (nitStage.reportedBy && lotStage.approvalStatus === 'approved')) nextStage = 'half_lorry';
+          if (halfStage.approvalStatus === 'approved') nextStage = 'full_avg';
+          if (fullStage.approvalStatus === 'approved') nextStage = 'balanced_lot';
+        }
       }
     }
 
@@ -1495,6 +1529,14 @@ const PhysicalInspection: React.FC = () => {
                 const progress = inspectionProgress[entry.id];
                 const progressPercentage = progress?.progressPercentage || 0;
 
+                const hasPendingStage = (() => {
+                  if (!progress || !progress.previousInspections) return false;
+                  return progress.previousInspections.some(trip => {
+                    const stages = trip.samplingStages || {};
+                    return Object.values(stages).some((stg: any) => stg && stg.approvalStatus === 'pending');
+                  });
+                })();
+
                 // Check if this is a new lot (different from previous)
                 const prevEntry = filteredEntries[index - 1];
                 const isNewLot = !prevEntry || prevEntry.id !== entry.id;
@@ -1586,21 +1628,22 @@ const PhysicalInspection: React.FC = () => {
                       <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '6px', textAlign: 'left' }}>
                         <button
                           onClick={() => initializeInspectionData(entry.id)}
-                          disabled={progressPercentage >= 100 || !!entry.lotAllotment?.closedAt}
+                          disabled={progressPercentage >= 100 || !!entry.lotAllotment?.closedAt || hasPendingStage}
                           style={{
                             fontSize: '12px',
                             padding: '6px 12px',
                             fontWeight: '700',
-                            backgroundColor: (progressPercentage >= 100 || entry.lotAllotment?.closedAt) ? '#ccc' : (selectedEntry === entry.id ? '#FF9800' : '#4CAF50'),
+                            backgroundColor: (progressPercentage >= 100 || entry.lotAllotment?.closedAt || hasPendingStage) ? '#ccc' : (selectedEntry === entry.id ? '#FF9800' : '#4CAF50'),
                             color: 'white',
                             border: 'none',
                             borderRadius: '3px',
-                            cursor: (progressPercentage >= 100 || entry.lotAllotment?.closedAt) ? 'not-allowed' : 'pointer'
+                            cursor: (progressPercentage >= 100 || entry.lotAllotment?.closedAt || hasPendingStage) ? 'not-allowed' : 'pointer'
                           }}
                         >
                           {(() => {
                             if (entry.lotAllotment?.closedAt) return 'Closed';
                             if (progressPercentage >= 100) return 'Complete';
+                            if (hasPendingStage) return 'Awaiting Approval';
                             if (selectedEntry === entry.id) return 'Editing...';
                             
                             const hasIncompleteTrip = (() => {
@@ -1610,7 +1653,10 @@ const PhysicalInspection: React.FC = () => {
                                 const lorry = (trip.lorryNumber || '').trim().toUpperCase();
                                 if (lorry === 'LOT_AVG' || lorry === 'BALANCED_LOT') return false;
                                 const stages = trip.samplingStages || {};
-                                return !(stages.full_avg && stages.full_avg.approvalStatus === 'approved');
+                                const hasApprovedFullAvg = stages.full_avg && stages.full_avg.approvalStatus === 'approved';
+                                const hasPending = Object.values(stages).some((stg: any) => stg.approvalStatus === 'pending');
+                                const isMissingBalanced = isTripMissingBalancedLotRestrictive(trip);
+                                return !hasApprovedFullAvg || hasPending || isMissingBalanced;
                               });
                             })();
                             

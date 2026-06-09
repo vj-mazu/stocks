@@ -141,6 +141,30 @@ const ActionButton = styled.button<{ variant?: 'edit' | 'toggle' | 'delete' }>`
     }}
 `;
 
+const TabContainer = styled.div`
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid #e5e7eb;
+`;
+
+const TabButton = styled.button<{ $active: boolean }>`
+  padding: 0.75rem 1.5rem;
+  border: none;
+  background: ${props => props.$active ? 'linear-gradient(135deg, #10b981, #059669)' : 'transparent'};
+  color: ${props => props.$active ? 'white' : '#6b7280'};
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px 8px 0 0;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  
+  &:hover {
+    background: ${props => props.$active ? 'linear-gradient(135deg, #10b981, #059669)' : '#f3f4f6'};
+    color: ${props => props.$active ? 'white' : '#374151'};
+  }
+`;
+
 // Modal Styles
 const ModalOverlay = styled.div`
   position: fixed;
@@ -538,6 +562,7 @@ const EditModal: React.FC<EditModalProps> = ({ user, mode, onClose, onSave }) =>
 const UserManagement: React.FC = () => {
     const { user: currentUser } = useAuth();
     const [users, setUsers] = useState<User[]>([]);
+    const [activeFilterTab, setActiveFilterTab] = useState<'active' | 'inactive'>('active');
     const [loading, setLoading] = useState(true);
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [modalMode, setModalMode] = useState<'create' | 'edit'>('edit');
@@ -641,6 +666,8 @@ const UserManagement: React.FC = () => {
         }
     };
 
+    const filteredUsers = users.filter(user => activeFilterTab === 'active' ? user.isActive : !user.isActive);
+
     return (
         <Container>
             <HeaderRow>
@@ -649,6 +676,15 @@ const UserManagement: React.FC = () => {
                     ➕ Add New User
                 </AddButton>
             </HeaderRow>
+
+            <TabContainer>
+                <TabButton $active={activeFilterTab === 'active'} onClick={() => setActiveFilterTab('active')}>
+                    Active Users
+                </TabButton>
+                <TabButton $active={activeFilterTab === 'inactive'} onClick={() => setActiveFilterTab('inactive')}>
+                    Inactive Users
+                </TabButton>
+            </TabContainer>
 
             {loading ? (
                 <p>Loading users...</p>
@@ -664,82 +700,68 @@ const UserManagement: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {users.map(user => (
-                            <Tr key={user.id}>
-                                <Td>
-                                    <strong style={{ textTransform: 'capitalize', color: '#2563eb' }}>{user.username}</strong>
-                                </Td>
-                                <Td>
-                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                        <span style={{ fontWeight: '600' }}>{user.fullName || '-'}</span>
-                                        {user.id === currentUser?.id && (
-                                            <span style={{ fontSize: '0.75rem', color: '#2563eb', fontWeight: 'bold' }}>(You)</span>
-                                        )}
-                                    </div>
-                                </Td>
-                                <Td>
-                                    <Select
-                                        value={user.role}
-                                        onChange={e => handleChangeRole(user, e.target.value)}
-                                        disabled={user.id === currentUser?.id}
-                                        style={{ padding: '0.4rem', borderRadius: '6px', fontSize: '0.85rem' }}
-                                    >
-                                        <option value="owner">Owner</option>
-                                        <option value="staff">Paddy Supervisor</option>
-                                        <option value="manager">Manager</option>
-                                        <option value="admin">Admin</option>
-                                        <option value="inventory_staff">Inventory Staff</option>
-                                        <option value="financial_account">Financial Account</option>
-                                    </Select>
-                                    {user.role === 'staff' && (
-                                        <button
-                                            onClick={async () => {
-                                                const newType = user.staffType === 'location' ? 'mill' : 'location';
-                                                try {
-                                                    await axios.put(`${API_URL}/admin/users/${user.id}/role`, { role: 'staff', staffType: newType }, getAuthConfig());
-                                                    toast.success(`Staff type changed to ${newType}`);
-                                                    fetchUsers();
-                                                } catch (err: any) {
-                                                    toast.error(err.response?.data?.error || 'Failed to update staff type');
-                                                }
-                                            }}
-                                            style={{
-                                                marginTop: '4px', padding: '3px 8px', fontSize: '0.75rem', fontWeight: '600',
-                                                border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer',
-                                                backgroundColor: user.staffType === 'location' ? '#fff3e0' : '#e3f2fd',
-                                                color: user.staffType === 'location' ? '#e65100' : '#1565c0'
-                                            }}
-                                        >
-                                            {user.staffType === 'location' ? '📍 Location Staff → 🏭 Mill Staff' : '🏭 Mill Staff → 📍 Location Staff'}
-                                        </button>
-                                    )}
-                                </Td>
-                                <Td>
-                                    <StatusBadge active={user.isActive}>
-                                        {user.isActive ? '✅ Active' : '⛔ Inactive'}
-                                    </StatusBadge>
-                                </Td>
-                                <Td>
-                                    <ActionButton variant="edit" onClick={() => handleEdit(user)}>
-                                        ✏️ Edit User
-                                    </ActionButton>
-                                    <ActionButton
-                                        variant="toggle"
-                                        onClick={() => handleToggleStatus(user)}
-                                        disabled={user.id === currentUser?.id}
-                                    >
-                                        {user.isActive ? '🔒 Deactivate' : '🔓 Activate'}
-                                    </ActionButton>
-                                    <ActionButton
-                                        variant="delete"
-                                        onClick={() => handleDelete(user)}
-                                        disabled={user.id === currentUser?.id}
-                                    >
-                                        🗑️ Delete
-                                    </ActionButton>
+                        {filteredUsers.length === 0 ? (
+                            <Tr>
+                                <Td colSpan={5} style={{ textAlign: 'center', color: '#666', padding: '2rem' }}>
+                                    No {activeFilterTab} users found.
                                 </Td>
                             </Tr>
-                        ))}
+                        ) : (
+                            filteredUsers.map(user => (
+                                <Tr key={user.id}>
+                                    <Td>
+                                        <strong style={{ textTransform: 'capitalize', color: '#2563eb' }}>{user.username}</strong>
+                                    </Td>
+                                    <Td>
+                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                            <span style={{ fontWeight: '600' }}>{user.fullName || '-'}</span>
+                                            {user.id === currentUser?.id && (
+                                                <span style={{ fontSize: '0.75rem', color: '#2563eb', fontWeight: 'bold' }}>(You)</span>
+                                            )}
+                                        </div>
+                                    </Td>
+                                    <Td>
+                                        <Select
+                                            value={user.role}
+                                            onChange={e => handleChangeRole(user, e.target.value)}
+                                            disabled={user.id === currentUser?.id}
+                                            style={{ padding: '0.4rem', borderRadius: '6px', fontSize: '0.85rem' }}
+                                        >
+                                            <option value="owner">Owner</option>
+                                            <option value="staff">Paddy Supervisor</option>
+                                            <option value="manager">Manager</option>
+                                            <option value="admin">Admin</option>
+                                            <option value="inventory_staff">Inventory Staff</option>
+                                            <option value="financial_account">Financial Account</option>
+                                        </Select>
+                                    </Td>
+                                    <Td>
+                                        <StatusBadge active={user.isActive}>
+                                            {user.isActive ? '✅ Active' : '⛔ Inactive'}
+                                        </StatusBadge>
+                                    </Td>
+                                    <Td>
+                                        <ActionButton variant="edit" onClick={() => handleEdit(user)}>
+                                            ✏️ Edit User
+                                        </ActionButton>
+                                        <ActionButton
+                                            variant="toggle"
+                                            onClick={() => handleToggleStatus(user)}
+                                            disabled={user.id === currentUser?.id}
+                                        >
+                                            {user.isActive ? '🔒 Deactivate' : '🔓 Activate'}
+                                        </ActionButton>
+                                        <ActionButton
+                                            variant="delete"
+                                            onClick={() => handleDelete(user)}
+                                            disabled={user.id === currentUser?.id}
+                                        >
+                                            🗑️ Delete
+                                        </ActionButton>
+                                    </Td>
+                                </Tr>
+                            ))
+                        )}
                     </tbody>
                 </Table>
             )}

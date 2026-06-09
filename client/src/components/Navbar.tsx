@@ -316,9 +316,11 @@ const Navbar: React.FC = () => {
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [workflowDropdownOpen, setWorkflowDropdownOpen] = useState(false);
   const [ledgersDropdownOpen, setLedgersDropdownOpen] = useState(false);
+  const [masterDropdownOpen, setMasterDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const ledgersRef = useRef<HTMLDivElement>(null);
   const workflowRef = useRef<HTMLDivElement>(null);
+  const masterRef = useRef<HTMLDivElement>(null);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -329,6 +331,9 @@ const Navbar: React.FC = () => {
       if (workflowRef.current && !workflowRef.current.contains(event.target as Node)) {
         setWorkflowDropdownOpen(false);
       }
+      if (masterRef.current && !masterRef.current.contains(event.target as Node)) {
+        setMasterDropdownOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -338,8 +343,9 @@ const Navbar: React.FC = () => {
   useEffect(() => {
     setLedgersDropdownOpen(false);
     setWorkflowDropdownOpen(false);
+    setMasterDropdownOpen(false);
     setMobileMenuOpen(false);
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
 
   useEffect(() => {
     if (user && (user.role === 'manager' || user.role === 'admin')) {
@@ -412,9 +418,11 @@ const Navbar: React.FC = () => {
     '/physical-inspection', '/pending-approvals', '/loading-lots', '/cooking-book'
   ];
   const ledgersPaths = ['/ledger', '/rice-ledger', '/sample-entry-ledger', '/hamali-book', '/egb-ledger'];
+  const masterPaths = ['/locations', '/admin/users'];
 
   const isWorkflowActive = workflowPaths.some(p => location.pathname === p);
   const isLedgersActive = ledgersPaths.some(p => location.pathname === p);
+  const isMasterActive = masterPaths.some(p => location.pathname === p);
 
   return (
     <Nav>
@@ -472,7 +480,8 @@ const Navbar: React.FC = () => {
                 {editApprovalCount > 0 && <NotificationBadge>{editApprovalCount}</NotificationBadge>}
               </NavLink>
               <NavLink to="/rice-sample-reports" $active={isActive('/rice-sample-reports')} style={{ whiteSpace: 'normal', textAlign: 'center', lineHeight: 1.1 }}>Rice Sample<br />Reports</NavLink>
-              <NavLink to="/sample-entry-ledger" $active={isActive('/sample-entry-ledger')}>Paddy Sample Book</NavLink>
+              <NavLink to="/arrivals" $active={isActive('/arrivals')}>Arrivals</NavLink>
+              <NavLink to="/records" $active={isActive('/records')}>Records Management</NavLink>
             </>
           )}
           {user && user.role === 'admin' && (
@@ -484,8 +493,36 @@ const Navbar: React.FC = () => {
               </NavLink>
               <NavLink to="/rice-sample-reports" $active={isActive('/rice-sample-reports')} style={{ whiteSpace: 'normal', textAlign: 'center', lineHeight: 1.1 }}>Rice Sample<br />Reports</NavLink>
               <NavLink to="/arrivals" $active={isActive('/arrivals')}>Arrivals</NavLink>
-              <NavLink to="/records" $active={isActive('/records')}>File</NavLink>
+              <NavLink to="/records" $active={isActive('/records')}>Records Management</NavLink>
             </>
+          )}
+
+          {/* Master Creation Dropdown - for Manager and Admin */}
+          {(user?.role === 'manager' || user?.role === 'admin') && (
+            <DropdownWrapper ref={masterRef}>
+              <DropdownTrigger
+                $active={isMasterActive}
+                onClick={() => {
+                  setMasterDropdownOpen(!masterDropdownOpen);
+                  setLedgersDropdownOpen(false);
+                  setWorkflowDropdownOpen(false);
+                }}
+              >Master Creation ▾</DropdownTrigger>
+              {masterDropdownOpen && (
+                <DropdownMenu>
+                  {user?.role === 'admin' && (
+                    <DropdownLink to="/admin/users" $active={isActive('/admin/users')}>User Management</DropdownLink>
+                  )}
+                  <DropdownLink to="/locations?tab=broker" $active={isActive('/locations') && new URLSearchParams(location.search).get('tab') === 'broker'}>Broker</DropdownLink>
+                  <DropdownLink to="/locations?tab=variety" $active={isActive('/locations') && new URLSearchParams(location.search).get('tab') === 'variety'}>Variety</DropdownLink>
+                  <DropdownLink to="/locations?tab=warehouse" $active={isActive('/locations') && (new URLSearchParams(location.search).get('tab') === 'warehouse' || !new URLSearchParams(location.search).get('tab'))}>Warehouse</DropdownLink>
+                  <DropdownLink to="/locations?tab=kunchinittu" $active={isActive('/locations') && new URLSearchParams(location.search).get('tab') === 'kunchinittu'}>Kunchinintu</DropdownLink>
+                  <DropdownLink to="/locations?tab=packaging" $active={isActive('/locations') && new URLSearchParams(location.search).get('tab') === 'packaging'}>Packaging</DropdownLink>
+                  <DropdownLink to="/locations?tab=hamali" $active={isActive('/locations') && new URLSearchParams(location.search).get('tab') === 'hamali'}>Paddy Hamali</DropdownLink>
+                  <DropdownLink to="/locations?tab=riceHamali" $active={isActive('/locations') && new URLSearchParams(location.search).get('tab') === 'riceHamali'}>Rice Hamali</DropdownLink>
+                </DropdownMenu>
+              )}
+            </DropdownWrapper>
           )}
 
           {/* Ledgers Dropdown - for Manager and Admin */}
@@ -496,14 +533,12 @@ const Navbar: React.FC = () => {
                 onClick={() => {
                   setLedgersDropdownOpen(!ledgersDropdownOpen);
                   setWorkflowDropdownOpen(false);
+                  setMasterDropdownOpen(false);
                 }}
               >Ledgers ▾</DropdownTrigger>
               {ledgersDropdownOpen && (
                 <DropdownMenu>
                   <DropdownLink to="/sample-entry-ledger" $active={isActive('/sample-entry-ledger')}>Paddy Sample Book</DropdownLink>
-                  {user?.role === 'admin' && (
-                    <DropdownLink to="/paddy-sample-reports" $active={isActive('/paddy-sample-reports') || isActive('/owner-sample-reports')}>Paddy Sample Reports</DropdownLink>
-                  )}
                   <DropdownLink to="/ledger" $active={isActive('/ledger')}>Kunchinittu Ledger</DropdownLink>
                   <DropdownLink to="/rice-ledger" $active={isActive('/rice-ledger')}>Rice Ledger</DropdownLink>
                   <DropdownLink to="/hamali-book" $active={isActive('/hamali-book')}>Hamali Book</DropdownLink>
@@ -517,13 +552,13 @@ const Navbar: React.FC = () => {
           {user?.role === 'staff' && (
             <>
               <NavLink to="/arrivals" $active={isActive('/arrivals')}>Arrivals</NavLink>
-              <NavLink to="/records" $active={isActive('/records')}>File</NavLink>
+              <NavLink to="/records" $active={isActive('/records')}>Records Management</NavLink>
             </>
           )}
           <NavLink to="/hamali" $active={isActive('/hamali')}>Hamali</NavLink>
 
           {/* Workflow Dropdown */}
-          {user && (
+          {user && user.role !== 'admin' && user.role !== 'manager' && user.role !== 'staff' && (
             <DropdownWrapper ref={workflowRef}>
               <DropdownTrigger
                 $active={isWorkflowActive}
@@ -580,13 +615,7 @@ const Navbar: React.FC = () => {
             </DropdownWrapper>
           )}
 
-          {/* Admin Tools */}
-          {user && user.role === 'admin' && (
-            <>
-              <NavLink to="/locations" $active={isActive('/locations')}>Locations</NavLink>
-              <NavLink to="/admin/users" $active={isActive('/admin/users')}>Users</NavLink>
-            </>
-          )}
+
 
           <UserInfo>
             <UserBadge>{user?.role === 'staff' ? 'Paddy Supervisor' : user?.role}</UserBadge>
