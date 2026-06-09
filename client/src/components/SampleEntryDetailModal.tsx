@@ -1306,13 +1306,15 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     ['LOT_AVG', 'BALANCED_LOT'].includes(insp.lorryNumber.toUpperCase().trim()) ||
                     insp.lorryNumber.toLowerCase().includes('next loading lorry');
 
+                const bagsLoaded = stages.full_avg?.actualBags || insp.bags || '-';
+
                 rows.push({
                     type: 'header',
                     content: isLorryNotAdded
                         ? <span style={{ color: '#dc2626', fontWeight: 'bold' }}>Next Loading Lorry Sampling: Lot Avg Sampling or Balance Lot Sampling</span>
                         : tripIdx === 0
-                            ? `Load 1 - Loading Sample Details : ${insp.lorryNumber?.toUpperCase() || 'Lorry'}`
-                            : `Load ${tripIdx + 1} - Lorry Number: ${insp.lorryNumber?.toUpperCase() || 'Lorry'}`
+                            ? `Load 1 - Loading Sample Details : ${insp.lorryNumber?.toUpperCase() || 'Lorry'} | Bags Loaded: ${bagsLoaded}`
+                            : `Load ${tripIdx + 1} - Lorry Number: ${insp.lorryNumber?.toUpperCase() || 'Lorry'} | Bags Loaded: ${bagsLoaded}`
                 });
 
                 const getPendingStageOfTrip = (currentInsp: any) => {
