@@ -1159,7 +1159,7 @@ const SampleEntryPage: React.FC<{
       // Fetch brokers from locations API (new broker endpoint)
       const brokersResponse = await axios.get<{ brokers: Array<{ name: string }> }>(`${API_URL}/locations/brokers`, {
         headers,
-        params: { t: Date.now() }
+        params: { type: 'paddy', t: Date.now() }
       });
       const brokerNames = Array.from(new Set(brokersResponse.data.brokers.map((b) => toTitleCase(b.name))));
       setBrokers(brokerNames);

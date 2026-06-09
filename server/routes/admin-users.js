@@ -1,10 +1,147 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { Op, fn, col, where: sqlWhere } = require('sequelize');
-const User = require('../models/User');
 const { auth, authorize } = require('../middleware/auth');
+const {
+  User,
+  SampleEntry,
+  QualityParameters,
+  LotAllotment,
+  PhysicalInspection,
+  InventoryData,
+  OpeningBalance,
+  OtherHamaliEntry,
+  Outturn,
+  PaddyHamaliEntry,
+  PurchaseRate,
+  RiceHamaliEntry,
+  RiceProduction,
+  RiceStockLocation
+} = require('../models');
 
 const router = express.Router();
+
+/**
+ * Helper to check if a user has recorded any data in any of the system tables.
+ */
+const hasUserCreatedData = async (userId) => {
+    // 1. SampleEntry
+    const sampleEntryCount = await SampleEntry.count({
+        where: {
+            [Op.or]: [
+                { createdByUserId: userId },
+                { lotSelectionByUserId: userId }
+            ]
+        }
+    });
+    if (sampleEntryCount > 0) return true;
+
+    // 2. QualityParameters
+    const qualityParametersCount = await QualityParameters.count({
+        where: { reportedByUserId: userId }
+    });
+    if (qualityParametersCount > 0) return true;
+
+    // 3. LotAllotment
+    const lotAllotmentCount = await LotAllotment.count({
+        where: {
+            [Op.or]: [
+                { allottedByManagerId: userId },
+                { allottedToSupervisorId: userId },
+                { closedByUserId: userId }
+            ]
+        }
+    });
+    if (lotAllotmentCount > 0) return true;
+
+    // 4. PhysicalInspection
+    const physicalInspectionCount = await PhysicalInspection.count({
+        where: { reportedByUserId: userId }
+    });
+    if (physicalInspectionCount > 0) return true;
+
+    // 5. InventoryData
+    const inventoryDataCount = await InventoryData.count({
+        where: { recordedByUserId: userId }
+    });
+    if (inventoryDataCount > 0) return true;
+
+    // 6. OpeningBalance
+    const openingBalanceCount = await OpeningBalance.count({
+        where: { createdBy: userId }
+    });
+    if (openingBalanceCount > 0) return true;
+
+    // 7. OtherHamaliEntry
+    const otherHamaliEntryCount = await OtherHamaliEntry.count({
+        where: {
+            [Op.or]: [
+                { addedBy: userId },
+                { approvedBy: userId }
+            ]
+        }
+    });
+    if (otherHamaliEntryCount > 0) return true;
+
+    // 8. Outturn
+    const outturnCount = await Outturn.count({
+        where: {
+            [Op.or]: [
+                { createdBy: userId },
+                { clearedBy: userId }
+            ]
+        }
+    });
+    if (outturnCount > 0) return true;
+
+    // 9. PaddyHamaliEntry
+    const paddyHamaliEntryCount = await PaddyHamaliEntry.count({
+        where: {
+            [Op.or]: [
+                { addedBy: userId },
+                { approvedBy: userId }
+            ]
+        }
+    });
+    if (paddyHamaliEntryCount > 0) return true;
+
+    // 10. PurchaseRate
+    const purchaseRateCount = await PurchaseRate.count({
+        where: {
+            [Op.or]: [
+                { createdBy: userId },
+                { updatedBy: userId },
+                { adminApprovedBy: userId }
+            ]
+        }
+    });
+    if (purchaseRateCount > 0) return true;
+
+    // 11. RiceHamaliEntry
+    const riceHamaliEntryCount = await RiceHamaliEntry.count({
+        where: { created_by: userId }
+    });
+    if (riceHamaliEntryCount > 0) return true;
+
+    // 12. RiceProduction
+    const riceProductionCount = await RiceProduction.count({
+        where: {
+            [Op.or]: [
+                { createdBy: userId },
+                { approvedBy: userId }
+            ]
+        }
+    });
+    if (riceProductionCount > 0) return true;
+
+    // 13. RiceStockLocation
+    const riceStockLocationCount = await RiceStockLocation.count({
+        where: { createdBy: userId }
+    });
+    if (riceStockLocationCount > 0) return true;
+
+    return false;
+};
 
 /**
  * GET /api/admin/users
@@ -17,9 +154,9 @@ router.get('/users', auth, authorize('admin', 'manager', 'staff'), async (req, r
             order: [['role', 'ASC'], ['username', 'ASC']]
         });
 
-        res.json({
-            success: true,
-            users: users.map(user => ({
+        const usersWithDataFlag = await Promise.all(users.map(async (user) => {
+            const hasData = await hasUserCreatedData(user.id);
+            return {
                 id: user.id,
                 username: user.username,
                 role: user.role,
@@ -29,8 +166,14 @@ router.get('/users', auth, authorize('admin', 'manager', 'staff'), async (req, r
                 customUserId: user.customUserId || null,
                 qualityName: user.qualityName || null,
                 createdAt: user.createdAt,
-                updatedAt: user.updatedAt
-            }))
+                updatedAt: user.updatedAt,
+                hasCreatedData: hasData
+            };
+        }));
+
+        res.json({
+            success: true,
+            users: usersWithDataFlag
         });
     } catch (error) {
         console.error('Get users error:', error);
@@ -91,6 +234,14 @@ router.post('/users', auth, authorize('admin'), async (req, res) => {
         if (!validRoles.includes(normalizedRole)) {
             console.warn(`⚠️ Admin ${req.user.username} tried to create user with invalid role: ${role}`);
             return res.status(400).json({ error: 'Invalid role' });
+        }
+
+        // Limit Admin and Manager roles to maximum of 2 users
+        if (normalizedRole === 'admin' || normalizedRole === 'manager') {
+            const roleCount = await User.count({ where: { role: normalizedRole } });
+            if (roleCount >= 2) {
+                return res.status(400).json({ error: `Cannot create more than 2 users with the ${normalizedRole === 'admin' ? 'Admin' : 'Manager'} role` });
+            }
         }
 
         if (password.length < 4) {
@@ -345,6 +496,19 @@ router.put('/users/:id/role', auth, authorize('admin'), async (req, res) => {
             return res.status(400).json({ error: 'Invalid role. Must be one of: staff, paddy_supervisor, manager, admin, quality_supervisor, physical_supervisor, inventory_staff, financial_account' });
         }
 
+        // Limit Admin and Manager roles to maximum of 2 users
+        if (normalizedRole === 'admin' || normalizedRole === 'manager') {
+            const roleCount = await User.count({
+                where: {
+                    role: normalizedRole,
+                    id: { [Op.ne]: id }
+                }
+            });
+            if (roleCount >= 2) {
+                return res.status(400).json({ error: `Cannot update role. There are already 2 users with the ${normalizedRole === 'admin' ? 'Admin' : 'Manager'} role` });
+            }
+        }
+
         const user = await User.findByPk(id);
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
@@ -399,15 +563,21 @@ router.delete('/users/:id', auth, authorize('admin'), async (req, res) => {
         }
 
         const deletedUsername = user.username;
-        // Soft delete: deactivate user instead of destroying (preserves data records)
-        user.isActive = false;
-        await user.save();
 
-        console.log(`✅ Admin ${req.user.username} deactivated user: ${deletedUsername} (ID: ${id})`);
+        // Check if the user has created any data
+        const hasData = await hasUserCreatedData(id);
+        if (hasData) {
+            return res.status(400).json({ error: 'Cannot delete user who has recorded data in the system' });
+        }
+
+        // Physically delete user if no data is associated
+        await user.destroy();
+
+        console.log(`✅ Admin ${req.user.username} permanently deleted user: ${deletedUsername} (ID: ${id})`);
 
         res.json({
             success: true,
-            message: 'User deactivated successfully (data records preserved)'
+            message: 'User deleted successfully'
         });
     } catch (error) {
         console.error('Delete user error:', error);

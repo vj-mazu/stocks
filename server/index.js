@@ -1726,6 +1726,23 @@ const startServer = async () => {
         console.log('Migration 133 warning:', error.message);
       }
 
+      // New migrations: June 9, 2026
+      try {
+        const updateBrokersType = require('./migrations/20260609_update_brokers_type');
+        await updateBrokersType.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('Migration 20260609_update_brokers_type: brokers type updated successfully');
+      } catch (error) {
+        console.log('Migration 20260609_update_brokers_type warning:', error.message);
+      }
+
+      try {
+        const updateWarehousesType = require('./migrations/20260609_update_warehouses_type');
+        await updateWarehousesType.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('Migration 20260609_update_warehouses_type: warehouses type updated successfully');
+      } catch (error) {
+        console.log('Migration 20260609_update_warehouses_type warning:', error.message);
+      }
+
     // Default warehouses removed - users should create their own warehouses
 
     // Create default users if they don't exist

@@ -418,7 +418,17 @@ const Navbar: React.FC = () => {
     '/physical-inspection', '/pending-approvals', '/loading-lots', '/cooking-book'
   ];
   const ledgersPaths = ['/ledger', '/rice-ledger', '/sample-entry-ledger', '/hamali-book', '/egb-ledger'];
-  const masterPaths = ['/locations', '/admin/users'];
+  const masterPaths = [
+    '/locations',
+    '/admin/users',
+    '/admin/brokers',
+    '/admin/varieties',
+    '/admin/warehouses',
+    '/admin/kunchinittus',
+    '/admin/packaging',
+    '/admin/paddy-hamali',
+    '/admin/rice-hamali'
+  ];
 
   const isWorkflowActive = workflowPaths.some(p => location.pathname === p);
   const isLedgersActive = ledgersPaths.some(p => location.pathname === p);
@@ -545,13 +555,13 @@ const Navbar: React.FC = () => {
                   {user?.role === 'admin' && (
                     <DropdownLink to="/admin/users" $active={isActive('/admin/users')}>User Management</DropdownLink>
                   )}
-                  <DropdownLink to="/locations?tab=broker" $active={isActive('/locations') && new URLSearchParams(location.search).get('tab') === 'broker'}>Broker</DropdownLink>
-                  <DropdownLink to="/locations?tab=variety" $active={isActive('/locations') && new URLSearchParams(location.search).get('tab') === 'variety'}>Variety</DropdownLink>
-                  <DropdownLink to="/locations?tab=warehouse" $active={isActive('/locations') && (new URLSearchParams(location.search).get('tab') === 'warehouse' || !new URLSearchParams(location.search).get('tab'))}>Warehouse</DropdownLink>
-                  <DropdownLink to="/locations?tab=kunchinittu" $active={isActive('/locations') && new URLSearchParams(location.search).get('tab') === 'kunchinittu'}>Kunchinintu</DropdownLink>
-                  <DropdownLink to="/locations?tab=packaging" $active={isActive('/locations') && new URLSearchParams(location.search).get('tab') === 'packaging'}>Packaging</DropdownLink>
-                  <DropdownLink to="/locations?tab=hamali" $active={isActive('/locations') && new URLSearchParams(location.search).get('tab') === 'hamali'}>Paddy Hamali</DropdownLink>
-                  <DropdownLink to="/locations?tab=riceHamali" $active={isActive('/locations') && new URLSearchParams(location.search).get('tab') === 'riceHamali'}>Rice Hamali</DropdownLink>
+                  <DropdownLink to="/admin/brokers" $active={isActive('/admin/brokers')}>Broker</DropdownLink>
+                  <DropdownLink to="/admin/varieties" $active={isActive('/admin/varieties')}>Variety</DropdownLink>
+                  <DropdownLink to="/admin/warehouses" $active={isActive('/admin/warehouses')}>Warehouse</DropdownLink>
+                  <DropdownLink to="/admin/kunchinittus" $active={isActive('/admin/kunchinittus')}>Kunchinintu</DropdownLink>
+                  <DropdownLink to="/admin/packaging" $active={isActive('/admin/packaging')}>Brand Management</DropdownLink>
+                  <DropdownLink to="/admin/paddy-hamali" $active={isActive('/admin/paddy-hamali')}>Paddy Hamali</DropdownLink>
+                  <DropdownLink to="/admin/rice-hamali" $active={isActive('/admin/rice-hamali')}>Rice Hamali</DropdownLink>
                 </DropdownMenu>
               )}
             </DropdownWrapper>

@@ -127,6 +127,15 @@ const ActionButton = styled.button<{ variant?: 'edit' | 'toggle' | 'delete' }>`
   margin-right: 0.5rem;
   transition: all 0.2s;
 
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    &:hover {
+      background: inherit;
+      color: inherit;
+    }
+  }
+
   ${props => {
         switch (props.variant) {
             case 'edit':
@@ -309,6 +318,7 @@ interface User {
     qualityName?: string;
     createdAt: string;
     updatedAt: string;
+    hasCreatedData?: boolean;
 }
 
 interface EditModalProps {
@@ -756,7 +766,14 @@ const UserManagement: React.FC = () => {
                                         <ActionButton
                                             variant="delete"
                                             onClick={() => handleDelete(user)}
-                                            disabled={user.id === currentUser?.id}
+                                            disabled={user.id === currentUser?.id || !!user.hasCreatedData}
+                                            title={
+                                                user.id === currentUser?.id
+                                                    ? "You cannot delete your own account"
+                                                    : user.hasCreatedData
+                                                        ? "Cannot delete user who has recorded data in the system"
+                                                        : "Delete User"
+                                            }
                                         >
                                             🗑️ Delete
                                         </ActionButton>

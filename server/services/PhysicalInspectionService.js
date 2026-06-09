@@ -231,14 +231,6 @@ class PhysicalInspectionService {
 
         const updates = {};
 
-        if (stage === 'balanced_lot') {
-          const tripDateStr = new Date(currentInspection.inspectionDate).toISOString().split('T')[0];
-          const todayStr = new Date().toISOString().split('T')[0];
-          if (tripDateStr !== todayStr) {
-            throw new Error('Cannot add Balanced Lot on a different date from the trip date. Please start a new trip.');
-          }
-        }
-
         if (stage === 'full_avg' || stage === 'balanced_lot') {
           const otherTripsBags = existingInspections
             .filter(i => i.id !== currentInspection.id)

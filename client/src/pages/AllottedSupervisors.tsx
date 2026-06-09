@@ -670,6 +670,7 @@ const AllottedSupervisors: React.FC = () => {
       revisedLf: formatEditDecimal(o.revisedLf ?? o.lf),
       revisedRateOption: o.revisedRateOption || 'final',
       linkedDisputeRequestId: '',
+      linkedRevisionId: '',
       disputeReason: (Array.isArray(o.disputeVersions) && [...o.disputeVersions].reverse().find((v: any) => v.type === 'dispute')?.disputeReason) || o.disputeReason || ''
     });
   };
@@ -709,13 +710,11 @@ const AllottedSupervisors: React.FC = () => {
         payload.moistureValue = editValuesData.moistureValue;
         payload.revisedRateOption = editValuesData.revisedRateOption;
         if (editValuesData.revisedRateOption === 'dispute') {
-          payload.revisedHamali = editValuesData.revisedHamali;
-          payload.hamaliUnit = editValuesData.hamaliUnit;
-          payload.revisedLf = editValuesData.revisedLf;
-          payload.lfUnit = editValuesData.lfUnit;
+          payload.linkedRevisionId = editValuesData.linkedRevisionId;
         } else {
           payload.revisedHamali = null;
           payload.revisedLf = null;
+          payload.linkedRevisionId = null;
         }
         payload.disputeReason = editValuesData.disputeReason;
       } else if (editMode === 'hmlf') {
@@ -1459,39 +1458,78 @@ const AllottedSupervisors: React.FC = () => {
                     <select value={editValuesData.revisedRateOption} onChange={e => setEditValuesData({ ...editValuesData, revisedRateOption: e.target.value })}
                       style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box' }}>
                       <option value="final">Use Final Rate Hamali & LF</option>
-                      <option value="dispute">Revise Hamali & LF for Dispute</option>
+                      <option value="dispute">Use Existing Revised Rate</option>
                     </select>
                   </div>
-                  {editValuesData.revisedRateOption === 'dispute' && (
-                    <>
-                      <div>
-                        <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Revised Hamali{origHamaliText}</label>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <input type="number" step="0.01" value={editValuesData.revisedHamali}
-                            onChange={e => setEditValuesData({ ...editValuesData, revisedHamali: e.target.value })}
-                            style={{ flex: 1, padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', minWidth: 0 }} />
-                          <select value={editValuesData.hamaliUnit} onChange={e => setEditValuesData({ ...editValuesData, hamaliUnit: e.target.value })}
-                            style={{ padding: '8px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', minWidth: '80px' }}>
-                            <option value="per_bag">/Bag</option>
-                            <option value="per_quintal">/Qtl</option>
-                          </select>
+                  {editValuesData.revisedRateOption === 'dispute' && (() => {
+                    const offering = editValuesEntry ? (offeringCache[editValuesEntry.id] || {}) : {};
+                    const pendingQueue = String(offering.pendingManagerValueApprovalStatus || '').toLowerCase() === 'pending'
+                      ? normalizePendingManagerApprovalQueue(offering)
+                      : [];
+                    const pendingRevisions = pendingQueue.filter((request: any) => {
+                      const data = request?.data || {};
+                      return (data.revisedHamali !== undefined && data.revisedHamali !== null && data.revisedHamali !== '')
+                        || (data.revisedLf !== undefined && data.revisedLf !== null && data.revisedLf !== '');
+                    });
+                    
+                    const approvedRevisions = Array.isArray(offering.disputeVersions)
+                      ? offering.disputeVersions.filter((v: any) => v.type === 'revision' || ((v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== '') || (v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== '')))
+                      : [];
+                    const hasLegacyRevision = (approvedRevisions.length === 0 && 
+                      ((offering.revisedHamali !== undefined && offering.revisedHamali !== null && offering.revisedHamali !== '') ||
+                       (offering.revisedLf !== undefined && offering.revisedLf !== null && offering.revisedLf !== '')));
+                    const legacyRevision = hasLegacyRevision ? [{ id: 'legacy-revision', revisedHamali: offering.revisedHamali, hamaliUnit: offering.hamaliUnit, revisedLf: offering.revisedLf, lfUnit: offering.lfUnit }] : [];
+                    const allApprovedRevisions = [...approvedRevisions, ...legacyRevision];
+
+                    const totalRevisions = allApprovedRevisions.length + pendingRevisions.length;
+
+                    if (totalRevisions === 0) {
+                      return (
+                        <div style={{ fontSize: '11px', color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', padding: '8px 10px' }}>
+                          No revised Hamali & LF rates exist yet for this lot. Please add a revised rate first.
                         </div>
-                      </div>
+                      );
+                    }
+
+                    return (
                       <div>
-                        <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Revised LF{origLfText}</label>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <input type="number" step="0.01" value={editValuesData.revisedLf}
-                            onChange={e => setEditValuesData({ ...editValuesData, revisedLf: e.target.value })}
-                            style={{ flex: 1, padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', minWidth: 0 }} />
-                          <select value={editValuesData.lfUnit} onChange={e => setEditValuesData({ ...editValuesData, lfUnit: e.target.value })}
-                            style={{ padding: '8px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', minWidth: '80px' }}>
-                            <option value="per_bag">/Bag</option>
-                            <option value="per_quintal">/Qtl</option>
-                          </select>
-                        </div>
+                        <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Select Revised Rate</label>
+                        <select
+                          value={editValuesData.linkedRevisionId || ''}
+                          onChange={e => setEditValuesData({ ...editValuesData, linkedRevisionId: e.target.value })}
+                          style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box' }}
+                        >
+                          <option value="">-- Select Revision --</option>
+                          {allApprovedRevisions.map((rev: any, index: number) => {
+                            const hVal = rev.revisedHamali || offering.revisedHamali || offering.hamali;
+                            const hUnit = rev.hamaliUnit || offering.hamaliUnit || 'per_bag';
+                            const lfVal = rev.revisedLf || offering.revisedLf || offering.lf;
+                            const lfUnit = rev.lfUnit || offering.lfUnit || 'per_bag';
+                            const labelText = `Revision ${index + 1} (Approved): Hamali ${hVal}/${hUnit === 'per_quintal' ? 'Qtl' : 'Bag'}, LF ${lfVal}/${lfUnit === 'per_quintal' ? 'Qtl' : 'Bag'}`;
+                            return (
+                              <option key={`approved-rev-${rev.id || index}`} value={rev.id || `approved-rev-${index}`}>
+                                {labelText}
+                              </option>
+                            );
+                          })}
+                          {pendingRevisions.map((request: any, index: number) => {
+                            const data = request?.data || {};
+                            const displayNum = allApprovedRevisions.length + index + 1;
+                            const hVal = data.revisedHamali || offering.hamali;
+                            const hUnit = data.hamaliUnit || offering.hamaliUnit || 'per_bag';
+                            const lfVal = data.revisedLf || offering.lf;
+                            const lfUnit = data.lfUnit || offering.lfUnit || 'per_bag';
+                            const labelText = `Revision ${displayNum} (Pending): Hamali ${hVal}/${hUnit === 'per_quintal' ? 'Qtl' : 'Bag'}, LF ${lfVal}/${lfUnit === 'per_quintal' ? 'Qtl' : 'Bag'}`;
+                            return (
+                              <option key={`pending-rev-${request.id || index}`} value={request.id}>
+                                {labelText}
+                              </option>
+                            );
+                          })}
+                        </select>
                       </div>
-                    </>
-                  )}
+                    );
+                  })()}
                   <div>
                     <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Dispute Reason</label>
                     <input type="text" placeholder="Enter reason for dispute" value={editValuesData.disputeReason || ''}
@@ -1550,7 +1588,8 @@ const AllottedSupervisors: React.FC = () => {
                     const approvedDisputes = Array.isArray(offering.disputeVersions)
                       ? offering.disputeVersions.filter((v: any) => v.type === 'dispute' || (v.disputeBaseRate !== undefined && v.disputeBaseRate !== null && v.disputeBaseRate !== ''))
                       : [];
-                    const legacyApprovedDisputes = (approvedDisputes.length === 0 && offering.disputeBaseRate !== undefined && offering.disputeBaseRate !== null && offering.disputeBaseRate !== '')
+                    const hasLegacyApproved = (offering.disputeBaseRate !== undefined && offering.disputeBaseRate !== null && offering.disputeBaseRate !== '') && !approvedDisputes.some((d: any) => d.id === 'legacy-approved');
+                    const legacyApprovedDisputes = hasLegacyApproved
                       ? [{ id: 'legacy-approved', disputeBaseRate: offering.disputeBaseRate, disputeBaseRateType: offering.disputeBaseRateType || 'PD/WB' }]
                       : [];
                     const allApprovedDisputes = [...approvedDisputes, ...legacyApprovedDisputes];

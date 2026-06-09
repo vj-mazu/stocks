@@ -197,7 +197,7 @@ const Dashboard: React.FC = () => {
           </ActionButton>
           {(user?.role === 'manager' || user?.role === 'admin') && (
             <>
-              <ActionButton href="/locations">
+              <ActionButton href="/admin/warehouses">
                 📍 Manage Locations
               </ActionButton>
               <ActionButton href={user?.role === 'manager' ? '/manager-sample-reports?tab=sample-book-2' : '/paddy-sample-reports?tab=sample-book-2'}>

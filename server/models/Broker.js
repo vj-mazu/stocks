@@ -12,9 +12,10 @@ const Broker = sequelize.define('Broker', {
     allowNull: false,
     unique: true
   },
-  description: {
-    type: DataTypes.TEXT,
-    allowNull: true
+  type: {
+    type: DataTypes.ENUM('paddy', 'rice', 'both'),
+    allowNull: false,
+    defaultValue: 'both'
   },
   isActive: {
     type: DataTypes.BOOLEAN,

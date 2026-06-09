@@ -219,13 +219,16 @@ const RiceSampleEntry: React.FC<{ defaultTab?: 'RICE_SAMPLE' | 'RICE_BOOK' }> = 
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
 
-      // Fetch varieties from locations API
-      const varietiesResponse = await axios.get<{ varieties: Array<{ name: string }> }>(`${API_URL}/locations/varieties`, { headers });
+      // Fetch rice varieties from locations API
+      const varietiesResponse = await axios.get<{ varieties: Array<{ name: string }> }>(`${API_URL}/locations/rice-varieties`, { headers });
       const varietyNames = varietiesResponse.data.varieties.map((v) => v.name);
       setVarieties(varietyNames);
 
       // Fetch brokers from locations API (new broker endpoint)
-      const brokersResponse = await axios.get<{ brokers: Array<{ name: string }> }>(`${API_URL}/locations/brokers`, { headers });
+      const brokersResponse = await axios.get<{ brokers: Array<{ name: string }> }>(`${API_URL}/locations/brokers`, { 
+        headers,
+        params: { type: 'rice' }
+      });
       const brokerNames = brokersResponse.data.brokers.map((b) => b.name);
       setBrokers(brokerNames);
 

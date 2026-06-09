@@ -1023,6 +1023,10 @@ class SampleEntryService {
         }
       }
 
+      if (finalData.linkedRevisionId !== undefined) {
+        pendingData.linkedRevisionId = finalData.linkedRevisionId;
+      }
+
       if (Object.keys(pendingData).length === 0) {
         return this.formatOfferingPayload(offering);
       }
@@ -1207,9 +1211,18 @@ class SampleEntryService {
         let hasChanges = false;
 
         if (isDispute) {
-          // Always create a new dispute version
+          const disputeId = finalData.requestId || `disp-${Date.now()}-d-${Math.random().toString(36).slice(2, 6)}`;
+          
+          if (finalData.linkedRevisionId) {
+            const rev = disputeVersions.find(v => v.id === finalData.linkedRevisionId);
+            if (rev) {
+              rev.linkedDisputeRequestId = disputeId;
+              rev.linkedDisputeLabel = `Dispute ${finalData.disputeBaseRate} (${finalData.disputeBaseRateType || 'PD/WB'})`;
+            }
+          }
+
           disputeVersions.push({
-            id: finalData.requestId || `disp-${Date.now()}-d-${Math.random().toString(36).slice(2, 6)}`,
+            id: disputeId,
             type: 'dispute',
             disputeBaseRate: finalData.disputeBaseRate,
             disputeBaseRateType: finalData.disputeBaseRateType || null,
@@ -1226,7 +1239,8 @@ class SampleEntryService {
             approvedByName: updatedByFullName,
             approvedAt: new Date(),
             linkedDisputeRequestId: null,
-            linkedDisputeLabel: null
+            linkedDisputeLabel: null,
+            linkedRevisionId: finalData.linkedRevisionId || null
           });
           hasChanges = true;
         }

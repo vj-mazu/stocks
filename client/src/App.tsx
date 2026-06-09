@@ -22,6 +22,13 @@ const Hamali = React.lazy(() => import('./pages/Hamali'));
 const AddPurchaseRate = React.lazy(() => import('./pages/AddPurchaseRate'));
 const HamaliBookSimple = React.lazy(() => import('./pages/HamaliBookSimple'));
 const UserManagement = React.lazy(() => import('./pages/UserManagement'));
+const BrokerManagement = React.lazy(() => import('./pages/BrokerManagement'));
+const VarietyManagement = React.lazy(() => import('./pages/VarietyManagement'));
+const WarehouseManagement = React.lazy(() => import('./pages/WarehouseManagement'));
+const KunchinintuManagement = React.lazy(() => import('./pages/KunchinintuManagement'));
+const PackagingManagement = React.lazy(() => import('./pages/PackagingManagement'));
+const PaddyHamaliManagement = React.lazy(() => import('./pages/PaddyHamaliManagement'));
+const RiceHamaliManagement = React.lazy(() => import('./pages/RiceHamaliManagement'));
 const PendingApprovals = React.lazy(() => import('./pages/PendingApprovals'));
 const SampleEntry = React.lazy(() => import('./pages/SampleEntry'));
 const RiceSampleEntry = React.lazy(() => import('./pages/RiceSampleEntry'));
@@ -168,6 +175,76 @@ const AppContent: React.FC = () => {
                   <ProtectedRoute roles={['admin']}>
                     <Layout>
                       <UserManagement />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/brokers"
+                element={
+                  <ProtectedRoute roles={['manager', 'admin']}>
+                    <Layout>
+                      <BrokerManagement />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/varieties"
+                element={
+                  <ProtectedRoute roles={['manager', 'admin']}>
+                    <Layout>
+                      <VarietyManagement />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/warehouses"
+                element={
+                  <ProtectedRoute roles={['manager', 'admin']}>
+                    <Layout>
+                      <WarehouseManagement />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/kunchinittus"
+                element={
+                  <ProtectedRoute roles={['manager', 'admin']}>
+                    <Layout>
+                      <KunchinintuManagement />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/packaging"
+                element={
+                  <ProtectedRoute roles={['manager', 'admin']}>
+                    <Layout>
+                      <PackagingManagement />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/paddy-hamali"
+                element={
+                  <ProtectedRoute roles={['manager', 'admin']}>
+                    <Layout>
+                      <PaddyHamaliManagement />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/rice-hamali"
+                element={
+                  <ProtectedRoute roles={['manager', 'admin']}>
+                    <Layout>
+                      <RiceHamaliManagement />
                     </Layout>
                   </ProtectedRoute>
                 }

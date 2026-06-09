@@ -581,13 +581,7 @@ const PhysicalInspection: React.FC = () => {
     );
 
     if (prevLorryInspection && prevLorryInspection.samplingStages) {
-      // Check if date has changed (not today)
-      const todayStr = new Date().toISOString().split('T')[0];
-      if (prevLorryInspection.inspectionDate && prevLorryInspection.inspectionDate !== todayStr) {
-        showNotification('Cannot resume or edit this trip because the date has changed. Please start a new trip.', 'error');
-        handleInputChange(entryId, 'lorryNumber', '');
-        return;
-      }
+      // Check if date has changed (not today) - disabled restriction to allow resuming/editing past trips
 
       const stages = prevLorryInspection.samplingStages || {};
       const stageKeys = Object.keys(stages);
@@ -919,12 +913,7 @@ const PhysicalInspection: React.FC = () => {
         showNotification('Cannot add Balanced Lot stage until Full Avg is saved or approved', 'error');
         return;
       }
-      const tripDate = inspectionData[entryId]?.inspectionDate;
-      const todayStr = new Date().toISOString().split('T')[0];
-      if (tripDate && tripDate !== todayStr) {
-        showNotification('Cannot add Balanced Lot on a different date from the trip date. Please start a new trip.', 'error');
-        return;
-      }
+      // Disabled restrictive date check to allow adding Balanced Lot on different dates
     }
     if (stage === 'lot_avg') {
       if (isStageLockedForLot(entryId, 'balanced_lot')) {
@@ -1293,12 +1282,7 @@ const PhysicalInspection: React.FC = () => {
   const handleResumeLorry = (entryId: string, lorryNumber: string, stages: any, inspectionDate?: string, onlyBalanced?: boolean) => {
     const cleanLorry = lorryNumber.trim().toUpperCase();
     
-    // If date has changed, do not allow resuming/editing the trip
-    const todayStr = new Date().toISOString().split('T')[0];
-    if (inspectionDate && inspectionDate !== todayStr) {
-      showNotification('Cannot resume or edit this trip because the date has changed. Please start a new trip.', 'error');
-      return;
-    }
+    // If date has changed, allow resuming/editing the trip (date check disabled)
     
     // Set inspection entry form state
     setInspectionData(prev => ({

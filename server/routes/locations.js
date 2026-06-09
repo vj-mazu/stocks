@@ -39,7 +39,7 @@ router.get('/warehouses', auth, async (req, res) => {
 
     const warehouses = await Warehouse.findAll({
       where: { isActive: true },
-      attributes: ['id', 'name', 'code', 'location'],
+      attributes: ['id', 'name', 'code', 'location', 'type'],
       order: [['name', 'ASC']],
       include: [{
         model: Kunchinittu,
@@ -64,10 +64,14 @@ router.get('/warehouses', auth, async (req, res) => {
 // Create warehouse (Manager/Admin only)
 router.post('/warehouses', auth, authorize('manager', 'admin'), async (req, res) => {
   try {
-    const { name, code, location, capacity } = req.body;
+    const { name, code, location, capacity, type } = req.body;
 
     if (!name || !code) {
       return res.status(400).json({ error: 'Name and code are required' });
+    }
+
+    if (type === 'outside' && (!location || !location.trim())) {
+      return res.status(400).json({ error: 'Location is required for outside warehouses' });
     }
 
     // Check for duplicate
@@ -84,7 +88,8 @@ router.post('/warehouses', auth, authorize('manager', 'admin'), async (req, res)
       name,
       code,
       location,
-      capacity
+      capacity,
+      type: type || 'mill'
     });
 
     res.status(201).json({
@@ -105,7 +110,11 @@ router.put('/warehouses/:id', auth, authorize('manager', 'admin'), async (req, r
       return res.status(404).json({ error: 'Warehouse not found' });
     }
 
-    const { name, code, location, capacity } = req.body;
+    const { name, code, location, capacity, type } = req.body;
+
+    if (type === 'outside' && (!location || !location.trim())) {
+      return res.status(400).json({ error: 'Location is required for outside warehouses' });
+    }
 
     // Check for duplicate code (excluding current warehouse)
     if (code && code !== warehouse.code) {
@@ -118,7 +127,13 @@ router.put('/warehouses/:id', auth, authorize('manager', 'admin'), async (req, r
     }
 
     invalidateCache('warehouses');
-    await warehouse.update({ name, code, location, capacity });
+    await warehouse.update({
+      name,
+      code,
+      location,
+      capacity,
+      type: type || warehouse.type
+    });
 
     res.json({
       message: 'Warehouse updated successfully',
@@ -440,11 +455,13 @@ router.put('/varieties/:id', auth, authorize('manager', 'admin'), async (req, re
       return str.toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase());
     };
 
-    // CASCADE UPDATE: If variety name changed, update all Arrivals and SampleEntries
+    // CASCADE UPDATE: If variety name changed, update all Arrivals, SampleEntries, InventoryData, and Outturns
     if (normalizedName !== oldName.trim().toUpperCase()) {
       const titleCaseVariety = toTitleCase(name.trim());
       const Arrival = require('../models/Arrival');
       const SampleEntry = require('../models/SampleEntry');
+      const InventoryData = require('../models/InventoryData');
+      const Outturn = require('../models/Outturn');
       const { fn, col, where: sqlWhere } = require('sequelize');
 
       const updatedCount = await Arrival.update(
@@ -469,6 +486,30 @@ router.put('/varieties/:id', auth, authorize('manager', 'admin'), async (req, re
         }
       );
       console.log(`✅ Cascade update: Updated ${entryUpdated[0]} sample entries from variety "${oldName}" to "${titleCaseVariety}"`);
+
+      // Cascade to InventoryData
+      const inventoryUpdated = await InventoryData.update(
+        { variety: titleCaseVariety },
+        {
+          where: sqlWhere(
+            fn('TRIM', fn('LOWER', col('variety'))),
+            oldName.trim().toLowerCase()
+          )
+        }
+      );
+      console.log(`✅ Cascade update: Updated ${inventoryUpdated[0]} inventory records from variety "${oldName}" to "${titleCaseVariety}"`);
+
+      // Cascade to Outturn
+      const outturnUpdated = await Outturn.update(
+        { allottedVariety: normalizedName },
+        {
+          where: sqlWhere(
+            fn('TRIM', fn('LOWER', col('allottedVariety'))),
+            oldName.trim().toLowerCase()
+          )
+        }
+      );
+      console.log(`✅ Cascade update: Updated ${outturnUpdated[0]} outturn records from variety "${oldName}" to "${normalizedName}"`);
     }
 
     res.json({
@@ -481,23 +522,9 @@ router.put('/varieties/:id', auth, authorize('manager', 'admin'), async (req, re
   }
 });
 
-// Delete variety (Manager/Admin only)
+// Delete variety (Manager/Admin only) - DISABLED
 router.delete('/varieties/:id', auth, authorize('manager', 'admin'), async (req, res) => {
-  try {
-    const variety = await Variety.findByPk(req.params.id);
-    if (!variety) {
-      return res.status(404).json({ error: 'Variety not found' });
-    }
-
-    // Soft delete
-    invalidateCache('varieties');
-    await variety.update({ isActive: false });
-
-    res.json({ message: 'Variety deleted successfully' });
-  } catch (error) {
-    console.error('Delete variety error:', error);
-    res.status(500).json({ error: 'Failed to delete variety' });
-  }
+  return res.status(400).json({ error: 'Deletion of varieties is not allowed' });
 });
 
 // ===== RICE STOCK LOCATIONS =====
@@ -781,22 +808,9 @@ router.put('/rice-varieties/:id', auth, authorize('manager', 'admin'), async (re
   }
 });
 
-// Delete rice variety (Admin only)
+// Delete rice variety (Admin only) - DISABLED
 router.delete('/rice-varieties/:id', auth, authorize('admin'), async (req, res) => {
-  try {
-    const variety = await RiceVariety.findByPk(req.params.id);
-    if (!variety) {
-      return res.status(404).json({ error: 'Rice variety not found' });
-    }
-
-    // Soft delete
-    await variety.update({ isActive: false });
-
-    res.json({ message: 'Rice variety deleted successfully' });
-  } catch (error) {
-    console.error('Delete rice variety error:', error);
-    res.status(500).json({ error: 'Failed to delete rice variety' });
-  }
+  return res.status(400).json({ error: 'Deletion of rice varieties is not allowed' });
 });
 
 // ===== BROKERS =====
@@ -804,9 +818,25 @@ router.delete('/rice-varieties/:id', auth, authorize('admin'), async (req, res) 
 // Get all brokers
 router.get('/brokers', auth, async (req, res) => {
   try {
+    const { includeInactive, type } = req.query;
+    const { Op } = require('sequelize');
+    const where = {};
+    
+    if (includeInactive !== 'true') {
+      where.isActive = true;
+    }
+    
+    if (type === 'paddy') {
+      where.type = { [Op.in]: ['paddy', 'both'] };
+    } else if (type === 'rice') {
+      where.type = { [Op.in]: ['rice', 'both'] };
+    } else if (type) {
+      where.type = type;
+    }
+
     const brokers = await Broker.findAll({
-      where: { isActive: true },
-      attributes: ['id', 'name', 'description'],
+      where,
+      attributes: ['id', 'name', 'type', 'isActive'],
       order: [['name', 'ASC']],
       raw: true
     });
@@ -822,11 +852,14 @@ router.get('/brokers', auth, async (req, res) => {
 // Create broker (Manager/Admin only)
 router.post('/brokers', auth, authorize('manager', 'admin'), async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { name, type } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: 'Broker name is required' });
     }
+
+    const validTypes = ['paddy', 'rice', 'both'];
+    const brokerType = validTypes.includes(type) ? type : 'both';
 
     // Check for duplicate active name. If the same broker was soft-deleted earlier, reactivate it.
     const existingName = await Broker.findOne({
@@ -840,7 +873,7 @@ router.post('/brokers', auth, authorize('manager', 'admin'), async (req, res) =>
 
       await existingName.update({
         isActive: true,
-        description: description ? description.trim() : existingName.description
+        type: brokerType
       });
 
       return res.status(201).json({
@@ -851,7 +884,8 @@ router.post('/brokers', auth, authorize('manager', 'admin'), async (req, res) =>
 
     const broker = await Broker.create({
       name: name.trim().toUpperCase(),
-      description: description ? description.trim() : null
+      type: brokerType,
+      isActive: true
     });
 
     res.status(201).json({
@@ -872,7 +906,7 @@ router.put('/brokers/:id', auth, authorize('manager', 'admin'), async (req, res)
       return res.status(404).json({ error: 'Broker not found' });
     }
 
-    const { name, description, isActive } = req.body;
+    const { name, type, isActive } = req.body;
     const { Op } = require('sequelize');
 
     const normalizedName = name ? name.trim().toUpperCase() : null;
@@ -892,11 +926,17 @@ router.put('/brokers/:id', auth, authorize('manager', 'admin'), async (req, res)
       }
     }
 
-    await broker.update({
-      name: normalizedName || broker.name,
-      description: description !== undefined ? (description ? description.trim() : null) : broker.description,
-      isActive: isActive !== undefined ? isActive : broker.isActive
-    });
+    const updateData = {};
+    if (normalizedName) updateData.name = normalizedName;
+    if (type) {
+      const validTypes = ['paddy', 'rice', 'both'];
+      if (validTypes.includes(type)) {
+        updateData.type = type;
+      }
+    }
+    if (isActive !== undefined) updateData.isActive = isActive;
+
+    await broker.update(updateData);
 
     const toTitleCase = (str) => {
       if (!str) return str;

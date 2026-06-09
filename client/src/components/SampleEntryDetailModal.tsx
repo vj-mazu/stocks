@@ -2087,19 +2087,61 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 if (isDispute) {
                     rowLabel = `Dispute Request (Pending)`;
                 } else {
-                    const target = pendingData.revisedRateOption === 'dispute' ? 'Dispute' : 'Final Rate';
-                    let linkLabel = '';
+                    let targetLabel = '(Final)';
                     if (pendingData.revisedRateOption === 'dispute') {
+                        const approvedDisputes = disputeVersions.filter((d: any) => d.type === 'dispute' || d.disputeBaseRate);
+                        const pendingDisputes = pendingQueue.filter((req: any) => {
+                            const pData = req.data || {};
+                            return pData.__requestType === 'dispute' || (pData.__requestType === undefined && pData.disputeBaseRate !== undefined && pData.disputeBaseRate !== null && pData.disputeBaseRate !== '');
+                        });
+
+                        let linkedIdx = -1;
+                        let isPendingMatch = false;
+
+                        // 1. Try to find in approved disputes first
                         if (pendingData.__linkedDisputeRequestId) {
-                            const linkedIdx = pendingQueue.findIndex((req: any) => req.id === pendingData.__linkedDisputeRequestId);
-                            linkLabel = ` (Linked to Dispute Request ${linkedIdx !== -1 ? linkedIdx + 1 : ''})`;
+                            linkedIdx = approvedDisputes.findIndex((d: any) => String(d.id) === String(pendingData.__linkedDisputeRequestId));
+                            if (linkedIdx === -1) {
+                                // Try in pending disputes
+                                linkedIdx = pendingDisputes.findIndex((req: any) => String(req.id) === String(pendingData.__linkedDisputeRequestId));
+                                if (linkedIdx !== -1) {
+                                    isPendingMatch = true;
+                                }
+                            }
+                        }
+
+                        // 2. Fallback matching by rate
+                        if (linkedIdx === -1) {
+                            const rateToMatch = pendingData.disputeBaseRate || o.disputeBaseRate || o.finalPrice || o.finalBaseRate || 0;
+                            linkedIdx = approvedDisputes.findIndex((d: any) => Number(d.disputeBaseRate) === Number(rateToMatch));
+                            if (linkedIdx === -1) {
+                                linkedIdx = pendingDisputes.findIndex((req: any) => Number(req.data?.disputeBaseRate) === Number(rateToMatch));
+                                if (linkedIdx !== -1) {
+                                    isPendingMatch = true;
+                                }
+                            }
+                        }
+
+                        // 3. Fallback: single dispute
+                        if (linkedIdx === -1 && (approvedDisputes.length + pendingDisputes.length === 1)) {
+                            if (approvedDisputes.length === 1) {
+                                linkedIdx = 0;
+                            } else {
+                                linkedIdx = 0;
+                                isPendingMatch = true;
+                            }
+                        }
+
+                        if (linkedIdx !== -1) {
+                            const displayNum = isPendingMatch ? (approvedDisputes.length + linkedIdx + 1) : (linkedIdx + 1);
+                            targetLabel = `(Dispute ${displayNum})`;
                         } else if (pendingData.__linkedDisputeLabel) {
-                            linkLabel = ` (Linked to ${pendingData.__linkedDisputeLabel})`;
-                        } else if (o.disputeBaseRate) {
-                            linkLabel = ` (Linked to Dispute Rate)`;
+                            targetLabel = `(${pendingData.__linkedDisputeLabel})`;
+                        } else {
+                            targetLabel = '(Dispute)';
                         }
                     }
-                    rowLabel = `Revised HM/LF for ${target}${linkLabel} (Pending)`;
+                    rowLabel = `Revised HM/LF ${targetLabel} (Pending)`;
                 }
 
                 // Rate values
@@ -2200,19 +2242,39 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     rowLabel = `Dispute ${disputeCount}`;
                 } else if (isRevision) {
                     revisionCount++;
-                    const target = v.revisedRateOption === 'dispute' ? 'Dispute' : 'Final Rate';
-                    let linkLabel = '';
+                    let targetLabel = '(Final)';
                     if (v.revisedRateOption === 'dispute') {
-                        if (v.linkedDisputeRequestId) {
-                            const linkedIdx = disputeVersions.filter((d: any) => d.type === 'dispute' || d.disputeBaseRate).findIndex((d: any) => d.id === v.linkedDisputeRequestId);
-                            linkLabel = ` (Linked to Dispute ${linkedIdx !== -1 ? linkedIdx + 1 : ''})`;
-                        } else if (v.linkedDisputeLabel) {
-                            linkLabel = ` (Linked to ${v.linkedDisputeLabel})`;
+                        let displayDisputeRate = 0;
+                        const linked = v.linkedDisputeRequestId
+                            ? disputeVersions.find((d: any) => String(d.id) === String(v.linkedDisputeRequestId))
+                            : null;
+                        if (linked) {
+                            displayDisputeRate = linked.disputeBaseRate;
                         } else {
-                            linkLabel = ` (Linked to Dispute Rate)`;
+                            displayDisputeRate = o.disputeBaseRate || o.finalPrice || o.finalBaseRate || 0;
+                        }
+
+                        const disputes = disputeVersions.filter((d: any) => d.type === 'dispute' || d.disputeBaseRate);
+                        let linkedIdx = -1;
+                        if (v.linkedDisputeRequestId) {
+                            linkedIdx = disputes.findIndex((d: any) => String(d.id) === String(v.linkedDisputeRequestId));
+                        }
+                        if (linkedIdx === -1) {
+                            linkedIdx = disputes.findIndex((d: any) => Number(d.disputeBaseRate) === Number(displayDisputeRate));
+                        }
+                        if (linkedIdx === -1 && disputes.length === 1) {
+                            linkedIdx = 0;
+                        }
+
+                        if (linkedIdx !== -1) {
+                            targetLabel = `(Dispute ${linkedIdx + 1})`;
+                        } else if (v.linkedDisputeLabel) {
+                            targetLabel = `(${v.linkedDisputeLabel})`;
+                        } else {
+                            targetLabel = '(Dispute)';
                         }
                     }
-                    rowLabel = `Revised HM/LF ${revisionCount} for ${target}${linkLabel}`;
+                    rowLabel = `Revised HM/LF ${revisionCount} ${targetLabel}`;
                 } else {
                     rowLabel = 'Approved Request';
                 }
@@ -2244,13 +2306,29 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     }
                 }
 
-                const hamaliVal = v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== '' ? v.revisedHamali : o.hamali;
-                const hasHamali = v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== '';
-                const hamaliUnitVal = v.hamaliUnit || o.hamaliUnit || 'per_bag';
+                const linkedRev = (isDispute && v.linkedRevisionId)
+                    ? disputeVersions.find((d: any) => d.type === 'revision' && d.id === v.linkedRevisionId)
+                    : null;
 
-                const lfVal = v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== '' ? v.revisedLf : o.lf;
-                const hasLf = v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== '';
-                const lfUnitVal = v.lfUnit || o.lfUnit || 'per_bag';
+                const hamaliVal = isDispute
+                    ? (linkedRev && linkedRev.revisedHamali !== undefined && linkedRev.revisedHamali !== null && linkedRev.revisedHamali !== '' ? linkedRev.revisedHamali : o.hamali)
+                    : (v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== '' ? v.revisedHamali : o.hamali);
+                const hasHamali = isDispute
+                    ? (linkedRev && linkedRev.revisedHamali !== undefined && linkedRev.revisedHamali !== null && linkedRev.revisedHamali !== '')
+                    : (v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== '');
+                const hamaliUnitVal = isDispute
+                    ? (linkedRev?.hamaliUnit || o.hamaliUnit || 'per_bag')
+                    : (v.hamaliUnit || o.hamaliUnit || 'per_bag');
+
+                const lfVal = isDispute
+                    ? (linkedRev && linkedRev.revisedLf !== undefined && linkedRev.revisedLf !== null && linkedRev.revisedLf !== '' ? linkedRev.revisedLf : o.lf)
+                    : (v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== '' ? v.revisedLf : o.lf);
+                const hasLf = isDispute
+                    ? (linkedRev && linkedRev.revisedLf !== undefined && linkedRev.revisedLf !== null && linkedRev.revisedLf !== '')
+                    : (v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== '');
+                const lfUnitVal = isDispute
+                    ? (linkedRev?.lfUnit || o.lfUnit || 'per_bag')
+                    : (v.lfUnit || o.lfUnit || 'per_bag');
 
                 rows.push([
                     <span style={{ color: '#16a34a', fontWeight: 700 }}>{rowLabel}</span>,
@@ -2275,7 +2353,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     // HAMALI
                     hasHamali ? (
                         <span style={{ color: '#16a34a', fontWeight: 600 }}>
-                            {formatFlexibleValue(v.revisedHamali)} / {formatToggleUnitLabel(hamaliUnitVal)}
+                            {formatFlexibleValue(hamaliVal)} / {formatToggleUnitLabel(hamaliUnitVal)}
                         </span>
                     ) : (
                         o.hamali ? `${formatFlexibleValue(o.hamali)} / ${formatToggleUnitLabel(o.hamaliUnit || 'per_bag')}` : '-'
@@ -2285,7 +2363,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     // LF
                     hasLf ? (
                         <span style={{ color: '#16a34a', fontWeight: 600 }}>
-                            {formatFlexibleValue(v.revisedLf)} / {formatToggleUnitLabel(lfUnitVal)}
+                            {formatFlexibleValue(lfVal)} / {formatToggleUnitLabel(lfUnitVal)}
                         </span>
                     ) : (
                         o.lf ? `${formatFlexibleValue(o.lf)} / ${formatToggleUnitLabel(o.lfUnit || 'per_bag')}` : '-'
@@ -2362,10 +2440,10 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             if (hasApprovedRevision && !hasApprovedDispute) {
                 const disputeReporter = getCollectorWithRole(o.updatedByFullName || o.createdByFullName || o.updatedBy || o.createdBy);
                 const disputeDate = formatShortDateTime((o as any).updatedAt || (o as any).createdAt) || '-';
-                const target = o.revisedRateOption === 'dispute' ? 'Dispute' : 'Final Rate';
+                const targetLabel = o.revisedRateOption === 'dispute' ? '(Dispute)' : '(Final)';
 
                 rows.push([
-                    <span style={{ color: '#16a34a', fontWeight: 700 }}>Revised HM/LF for {target}</span>,
+                    <span style={{ color: '#16a34a', fontWeight: 700 }}>Revised HM/LF {targetLabel}</span>,
                     disputeReporter,
                     disputeDate,
                     // RATE

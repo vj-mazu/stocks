@@ -50,6 +50,30 @@ const Tab = styled.button<{ active: boolean }>`
   }
 `;
 
+const SubTabContainer = styled.div`
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid #e5e7eb;
+`;
+
+const SubTabButton = styled.button<{ $active: boolean }>`
+  padding: 0.6rem 1.2rem;
+  border: none;
+  background: ${props => props.$active ? 'linear-gradient(135deg, #10b981, #059669)' : 'transparent'};
+  color: ${props => props.$active ? 'white' : '#6b7280'};
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 6px 6px 0 0;
+  transition: all 0.3s ease;
+  font-size: 0.85rem;
+  
+  &:hover {
+    background: ${props => props.$active ? 'linear-gradient(135deg, #10b981, #059669)' : '#f3f4f6'};
+    color: ${props => props.$active ? 'white' : '#374151'};
+  }
+`;
+
 const SectionContainer = styled.div`
   background: white;
   border-radius: 12px;
@@ -318,7 +342,12 @@ const ButtonRow = styled.div`
   margin-top: 2rem;
 `;
 
-const Locations: React.FC = () => {
+interface LocationsProps {
+  defaultTab?: 'warehouse' | 'kunchinittu' | 'variety' | 'riceVariety' | 'production' | 'packaging' | 'riceStockLocation' | 'hamali' | 'riceHamali' | 'broker';
+  hideTabs?: boolean;
+}
+
+const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) => {
   const { user } = useAuth();
   const { warehouses, kunchinittus, varieties, riceVarieties, fetchWarehouses, fetchKunchinittus, fetchVarieties, fetchRiceVarieties } = useLocationContext();
   const [searchParams] = useSearchParams();
@@ -326,6 +355,7 @@ const Locations: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   
   const [activeTab, setActiveTab] = useState<'warehouse' | 'kunchinittu' | 'variety' | 'riceVariety' | 'production' | 'packaging' | 'riceStockLocation' | 'hamali' | 'riceHamali' | 'broker'>(() => {
+    if (defaultTab) return defaultTab;
     const validTabs = ['warehouse', 'kunchinittu', 'variety', 'riceVariety', 'production', 'packaging', 'riceStockLocation', 'hamali', 'riceHamali', 'broker'];
     if (tabParam && validTabs.includes(tabParam)) {
       return tabParam as any;
@@ -334,15 +364,22 @@ const Locations: React.FC = () => {
   });
 
   useEffect(() => {
-    const validTabs = ['warehouse', 'kunchinittu', 'variety', 'riceVariety', 'production', 'packaging', 'riceStockLocation', 'hamali', 'riceHamali', 'broker'];
-    if (tabParam && validTabs.includes(tabParam)) {
-      setActiveTab(tabParam as any);
+    if (defaultTab) {
+      setActiveTab(defaultTab);
+    } else {
+      const validTabs = ['warehouse', 'kunchinittu', 'variety', 'riceVariety', 'production', 'packaging', 'riceStockLocation', 'hamali', 'riceHamali', 'broker'];
+      if (tabParam && validTabs.includes(tabParam)) {
+        setActiveTab(tabParam as any);
+      }
     }
-  }, [tabParam]);
+  }, [tabParam, defaultTab]);
 
   // Warehouse form
   const [warehouseName, setWarehouseName] = useState('');
+  const [warehouseLocation, setWarehouseLocation] = useState('');
+  const [warehouseType, setWarehouseType] = useState<'mill' | 'outside'>('mill');
   const [editingWarehouse, setEditingWarehouse] = useState<any>(null);
+  const [warehouseTabFilter, setWarehouseTabFilter] = useState<'mill' | 'outside'>('mill');
 
   // Kunchinittu form
   const [kunchinintuName, setKunchinintuName] = useState('');
@@ -360,9 +397,12 @@ const Locations: React.FC = () => {
 
   // Broker form
   const [brokerName, setBrokerName] = useState('');
-  const [brokerDescription, setBrokerDescription] = useState('');
+  const [brokerType, setBrokerType] = useState<'paddy' | 'rice' | 'both'>('both');
+  const [brokerIsActive, setBrokerIsActive] = useState<boolean>(true);
   const [brokers, setBrokers] = useState<any[]>([]);
   const [editingBroker, setEditingBroker] = useState<any>(null);
+  const [brokerStatusFilter, setBrokerStatusFilter] = useState<'active' | 'inactive'>('active');
+  const [brokerTypeFilter, setBrokerTypeFilter] = useState<'all' | 'paddy' | 'rice'>('all');
 
   // Production (Outturn) form
   const [outturnCode, setOutturnCode] = useState('');
@@ -552,6 +592,11 @@ const Locations: React.FC = () => {
       return;
     }
 
+    if (warehouseType === 'outside' && !warehouseLocation.trim()) {
+      toast.error('Location is required for outside warehouses');
+      return;
+    }
+
     try {
       const code = warehouseName.substring(0, 10).toUpperCase();
 
@@ -560,6 +605,8 @@ const Locations: React.FC = () => {
         await axios.put(`${API_URL}/locations/warehouses/${editingWarehouse.id}`, {
           name: warehouseName.toUpperCase(),
           code: editingWarehouse.code, // Keep existing code
+          location: warehouseType === 'outside' ? warehouseLocation.trim().toUpperCase() : null,
+          type: warehouseType,
           isActive: true
         });
         toast.success('Warehouse updated successfully!');
@@ -569,16 +616,20 @@ const Locations: React.FC = () => {
         await axios.post(`${API_URL}/locations/warehouses`, {
           name: warehouseName.toUpperCase(),
           code,
+          location: warehouseType === 'outside' ? warehouseLocation.trim().toUpperCase() : null,
+          type: warehouseType,
           isActive: true
         });
         toast.success('Warehouse created successfully!');
       }
 
       setWarehouseName('');
+      setWarehouseLocation('');
+      setWarehouseType('mill');
       fetchWarehouses();
       setShowModal(false);
-    } catch (error) {
-      toast.error(editingWarehouse ? 'Failed to update warehouse' : 'Failed to create warehouse');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || (editingWarehouse ? 'Failed to update warehouse' : 'Failed to create warehouse'));
     }
   };
 
@@ -719,6 +770,8 @@ const Locations: React.FC = () => {
     if (type === 'warehouse') {
       setEditingWarehouse(item);
       setWarehouseName(item.name);
+      setWarehouseLocation(item.location || '');
+      setWarehouseType(item.type || 'mill');
     } else if (type === 'variety') {
       setEditingVariety(item);
       setVarietyName(item.name);
@@ -738,6 +791,8 @@ const Locations: React.FC = () => {
     setEditingVariety(null);
     setEditingKunchinittu(null);
     setWarehouseName('');
+    setWarehouseLocation('');
+    setWarehouseType('mill');
     setVarietyName('');
     setKunchinintuName('');
     setRiceVarietyName('');
@@ -752,7 +807,8 @@ const Locations: React.FC = () => {
     setRiceStockLocationName('');
     setEditingBroker(null);
     setBrokerName('');
-    setBrokerDescription('');
+    setBrokerType('both');
+    setBrokerIsActive(true);
   };
 
   // Packaging functions
@@ -992,7 +1048,7 @@ const Locations: React.FC = () => {
       const token = localStorage.getItem('token');
       const response = await axios.get<{ brokers: any[] }>(`${API_URL}/locations/brokers`, {
         headers: { Authorization: `Bearer ${token}` },
-        params: { t: Date.now() }
+        params: { includeInactive: 'true', t: Date.now() }
       });
       setBrokers(response.data.brokers || []);
     } catch (error) {
@@ -1014,10 +1070,14 @@ const Locations: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const payload = {
+      const payload: any = {
         name: brokerName.trim().toUpperCase(),
-        description: brokerDescription.trim() || null
+        type: brokerType
       };
+
+      if (editingBroker) {
+        payload.isActive = brokerIsActive;
+      }
 
       if (editingBroker) {
         await axios.put(`${API_URL}/locations/brokers/${editingBroker.id}`, payload, {
@@ -1032,7 +1092,8 @@ const Locations: React.FC = () => {
       }
 
       setBrokerName('');
-      setBrokerDescription('');
+      setBrokerType('both');
+      setBrokerIsActive(true);
       setEditingBroker(null);
       fetchBrokers();
       notifyLocationsUpdated();
@@ -1065,95 +1126,163 @@ const Locations: React.FC = () => {
     }
   };
 
+  const handleToggleBrokerStatus = async (broker: any) => {
+    if (!canEdit) {
+      toast.error('You do not have permission to perform this action');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(`${API_URL}/locations/brokers/${broker.id}`, {
+        isActive: broker.isActive === false
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success(`Broker ${broker.isActive === false ? 'activated' : 'deactivated'} successfully!`);
+      fetchBrokers();
+      notifyLocationsUpdated();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to update status');
+    }
+  };
+
   const handleEditBroker = (broker: any) => {
     setEditingBroker(broker);
     setBrokerName(broker.name);
-    setBrokerDescription(broker.description || '');
+    setBrokerType(broker.type || 'both');
+    setBrokerIsActive(broker.isActive !== false);
+  };
+
+  const getPageTitle = () => {
+    if (!hideTabs) return '📍 Location Management';
+    switch (activeTab) {
+      case 'broker': return '👥 Broker Management';
+      case 'variety': return '🌾 Variety Management';
+      case 'warehouse': return '🏢 Warehouse Management';
+      case 'kunchinittu': return '📦 KanchiNittu Management';
+      case 'packaging': return '🛍️ Brand Management';
+      case 'hamali': return '👷 Paddy Hamali Rates';
+      case 'riceHamali': return '👷 Rice Hamali Rates';
+      default: return '📍 Master Management';
+    }
   };
 
   return (
     <Container>
-      <Title>📍 Location Management</Title>
+      <Title>{getPageTitle()}</Title>
 
-      <TabContainer>
-        <Tab active={activeTab === 'warehouse'} onClick={() => setActiveTab('warehouse')}>
-          Warehouse
-        </Tab>
-        <Tab active={activeTab === 'variety'} onClick={() => setActiveTab('variety')}>
-          Variety
-        </Tab>
-        <Tab active={activeTab === 'kunchinittu'} onClick={() => setActiveTab('kunchinittu')}>
-          KanchiNittu
-        </Tab>
-        <Tab active={activeTab === 'production'} onClick={() => setActiveTab('production')}>
-          Production
-        </Tab>
-        <Tab active={activeTab === 'packaging'} onClick={() => setActiveTab('packaging')}>
-          Packaging
-        </Tab>
-        <Tab active={activeTab === 'riceStockLocation'} onClick={() => setActiveTab('riceStockLocation')}>
-          Rice Stock Locations
-        </Tab>
-        <Tab active={activeTab === 'riceVariety'} onClick={() => setActiveTab('riceVariety')}>
-          Rice Varieties
-        </Tab>
-        <Tab active={activeTab === 'broker'} onClick={() => setActiveTab('broker')}>
-          Brokers
-        </Tab>
-        <Tab active={activeTab === 'hamali'} onClick={() => setActiveTab('hamali')}>
-          Paddy Hamali
-        </Tab>
-        <Tab active={activeTab === 'riceHamali'} onClick={() => setActiveTab('riceHamali')}>
-          Rice Hamali
-        </Tab>
-      </TabContainer>
+      {!hideTabs && (
+        <TabContainer>
+          <Tab active={activeTab === 'warehouse'} onClick={() => setActiveTab('warehouse')}>
+            Warehouse
+          </Tab>
+          <Tab active={activeTab === 'variety'} onClick={() => setActiveTab('variety')}>
+            Variety
+          </Tab>
+          <Tab active={activeTab === 'kunchinittu'} onClick={() => setActiveTab('kunchinittu')}>
+            KanchiNittu
+          </Tab>
+          <Tab active={activeTab === 'production'} onClick={() => setActiveTab('production')}>
+            Production
+          </Tab>
+          <Tab active={activeTab === 'packaging'} onClick={() => setActiveTab('packaging')}>
+            Packaging
+          </Tab>
+          <Tab active={activeTab === 'riceStockLocation'} onClick={() => setActiveTab('riceStockLocation')}>
+            Rice Stock Locations
+          </Tab>
+          <Tab active={activeTab === 'riceVariety'} onClick={() => setActiveTab('riceVariety')}>
+            Rice Varieties
+          </Tab>
+          <Tab active={activeTab === 'broker'} onClick={() => setActiveTab('broker')}>
+            Brokers
+          </Tab>
+          <Tab active={activeTab === 'hamali'} onClick={() => setActiveTab('hamali')}>
+            Paddy Hamali
+          </Tab>
+          <Tab active={activeTab === 'riceHamali'} onClick={() => setActiveTab('riceHamali')}>
+            Rice Hamali
+          </Tab>
+        </TabContainer>
+      )}
 
       <SectionContainer>
+        {defaultTab === 'variety' && (
+          <SubTabContainer>
+            <SubTabButton $active={activeTab === 'variety'} onClick={() => setActiveTab('variety')}>
+              Paddy Variety
+            </SubTabButton>
+            <SubTabButton $active={activeTab === 'riceVariety'} onClick={() => setActiveTab('riceVariety')}>
+              Rice Variety
+            </SubTabButton>
+          </SubTabContainer>
+        )}
         {activeTab === 'warehouse' && (
           <>
             <SectionHeader>
               <SectionTitle>Warehouses</SectionTitle>
               {canEdit && (
-                <AddButton onClick={() => { handleCancelEdit(); setShowModal(true); }}>
-                  ➕ Add Warehouse
+                <AddButton onClick={() => { handleCancelEdit(); setWarehouseType(warehouseTabFilter); setShowModal(true); }}>
+                  ➕ Add {warehouseTabFilter === 'mill' ? 'Mill' : 'Outside'} Warehouse
                 </AddButton>
               )}
             </SectionHeader>
 
+            <SubTabContainer>
+              <SubTabButton $active={warehouseTabFilter === 'mill'} onClick={() => setWarehouseTabFilter('mill')}>
+                Mill Warehouse
+              </SubTabButton>
+              <SubTabButton $active={warehouseTabFilter === 'outside'} onClick={() => setWarehouseTabFilter('outside')}>
+                Outside Warehouse
+              </SubTabButton>
+            </SubTabContainer>
+
             <div>
-              {warehouses.length === 0 ? (
-                <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
-                  No warehouses created yet
-                </p>
-              ) : (
-                <Table>
-                  <thead>
-                    <tr>
-                      <Th>Warehouse Name</Th>
-                      {canEdit && <Th style={{ width: '120px' }}>Actions</Th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {warehouses.map((warehouse) => (
-                      <tr key={warehouse.id}>
-                        <Td>{warehouse.name}</Td>
-                        {canEdit && (
-                          <Td>
-                            <ActionButtons>
-                              <IconButton className="edit" onClick={() => { handleEdit('warehouse', warehouse); setShowModal(true); }}>
-                                ✏️
-                              </IconButton>
-                              <IconButton className="delete" onClick={() => handleDelete('warehouse', warehouse.id)}>
-                                🗑️
-                              </IconButton>
-                            </ActionButtons>
-                          </Td>
-                        )}
+              {(() => {
+                const filteredWarehouses = warehouses.filter((w: any) => {
+                  const type = w.type || 'mill';
+                  return type === warehouseTabFilter;
+                });
+
+                return filteredWarehouses.length === 0 ? (
+                  <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
+                    No {warehouseTabFilter === 'mill' ? 'mill' : 'outside'} warehouses created yet
+                  </p>
+                ) : (
+                  <Table>
+                    <thead>
+                      <tr>
+                        <Th style={{ width: '60px' }}>S.No</Th>
+                        <Th>Warehouse Name</Th>
+                        {warehouseTabFilter === 'outside' && <Th>Location</Th>}
+                        {canEdit && <Th style={{ width: '120px' }}>Actions</Th>}
                       </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              )}
+                    </thead>
+                    <tbody>
+                      {filteredWarehouses.map((warehouse, index) => (
+                        <tr key={warehouse.id}>
+                          <Td>{index + 1}</Td>
+                          <Td>{warehouse.name}</Td>
+                          {warehouseTabFilter === 'outside' && <Td>{warehouse.location || '-'}</Td>}
+                          {canEdit && (
+                            <Td>
+                              <ActionButtons>
+                                <IconButton className="edit" onClick={() => { handleEdit('warehouse', warehouse); setShowModal(true); }}>
+                                  ✏️
+                                </IconButton>
+                                <IconButton className="delete" onClick={() => handleDelete('warehouse', warehouse.id)}>
+                                  🗑️
+                                </IconButton>
+                              </ActionButtons>
+                            </Td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                );
+              })()}
             </div>
           </>
         )}
@@ -1178,22 +1307,21 @@ const Locations: React.FC = () => {
                 <Table>
                   <thead>
                     <tr>
+                      <Th style={{ width: '60px' }}>S.No</Th>
                       <Th>Variety Name</Th>
-                      {canEdit && <Th style={{ width: '120px' }}>Actions</Th>}
+                      {canEdit && <Th style={{ width: '80px' }}>Actions</Th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {varieties.map((variety) => (
+                    {varieties.map((variety, index) => (
                       <tr key={variety.id}>
+                        <Td>{index + 1}</Td>
                         <Td>{toTitleCase(variety.name)}</Td>
                         {canEdit && (
                           <Td>
                             <ActionButtons>
                               <IconButton className="edit" onClick={() => { handleEdit('variety', variety); setShowModal(true); }}>
-                                ✏️
-                              </IconButton>
-                              <IconButton className="delete" onClick={() => handleDelete('variety', variety.id)}>
-                                🗑️
+                                ✏️ Edit
                               </IconButton>
                             </ActionButtons>
                           </Td>
@@ -1227,6 +1355,7 @@ const Locations: React.FC = () => {
                 <Table>
                   <thead>
                     <tr>
+                      <Th style={{ width: '60px' }}>S.No</Th>
                       <Th>KanchiNittu</Th>
                       <Th>Alloted Warehouse</Th>
                       <Th>Alloted Variety</Th>
@@ -1234,8 +1363,9 @@ const Locations: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {kunchinittus.map((kn) => (
+                    {kunchinittus.map((kn, index) => (
                       <tr key={kn.id}>
+                        <Td>{index + 1}</Td>
                         <Td>{kn.name}</Td>
                         <Td>{kn.warehouse?.name || '-'}</Td>
                         <Td>{kn.variety?.name || '-'}</Td>
@@ -1280,24 +1410,23 @@ const Locations: React.FC = () => {
                 <Table>
                   <thead>
                     <tr>
+                      <Th style={{ width: '60px' }}>S.No</Th>
                       <Th>Name</Th>
                       <Th>Code</Th>
-                      {canEdit && <Th style={{ width: '120px' }}>Actions</Th>}
+                      {canEdit && <Th style={{ width: '80px' }}>Actions</Th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {riceVarieties.map((v: any) => (
+                    {riceVarieties.map((v: any, index) => (
                       <tr key={v.id}>
+                        <Td>{index + 1}</Td>
                         <Td style={{ fontWeight: '600' }}>{v.name}</Td>
                         <Td>{v.code}</Td>
                         {canEdit && (
                           <Td>
                             <ActionButtons>
                               <IconButton className="edit" onClick={() => { handleEdit('riceVariety', v); setShowModal(true); }}>
-                                ✏️
-                              </IconButton>
-                              <IconButton className="delete" onClick={() => handleDelete('riceVariety', v.id)}>
-                                🗑️
+                                ✏️ Edit
                               </IconButton>
                             </ActionButtons>
                           </Td>
@@ -1330,6 +1459,7 @@ const Locations: React.FC = () => {
                 <Table>
                   <thead>
                     <tr>
+                      <Th style={{ width: '60px' }}>S.No</Th>
                       <Th>Code</Th>
                       <Th>Allotted Variety</Th>
                       <Th>Type</Th>
@@ -1337,8 +1467,9 @@ const Locations: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {outturns.map((outturn: any) => (
+                    {outturns.map((outturn: any, index) => (
                       <tr key={outturn.id}>
+                        <Td>{index + 1}</Td>
                         <Td>{outturn.code}</Td>
                         <Td>{outturn.allottedVariety}</Td>
                         <Td>{outturn.type || 'Raw'}</Td>
@@ -1364,10 +1495,10 @@ const Locations: React.FC = () => {
         {activeTab === 'packaging' && (
           <>
             <SectionHeader>
-              <SectionTitle>Packaging / Brand Management</SectionTitle>
+              <SectionTitle>Brand Management</SectionTitle>
               {canEdit && (
                 <AddButton onClick={() => { handleCancelEdit(); setShowModal(true); }}>
-                  ➕ Add Packaging
+                  ➕ Add Brand
                 </AddButton>
               )}
             </SectionHeader>
@@ -1381,14 +1512,16 @@ const Locations: React.FC = () => {
                 <Table>
                   <thead>
                     <tr>
+                      <Th style={{ width: '60px' }}>S.No</Th>
                       <Th>Brand Name</Th>
                       <Th>KG/Bag</Th>
                       {canEdit && <Th style={{ width: '120px' }}>Actions</Th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {packagings.map((pkg: any) => (
+                    {packagings.map((pkg: any, index) => (
                       <tr key={pkg.id}>
+                        <Td>{index + 1}</Td>
                         <Td style={{ fontWeight: '600' }}>{pkg.brandName}</Td>
                         <Td>{pkg.allottedKg} KG</Td>
                         {canEdit && (
@@ -1432,6 +1565,7 @@ const Locations: React.FC = () => {
                 <Table>
                   <thead>
                     <tr>
+                      <Th style={{ width: '60px' }}>S.No</Th>
                       <Th>Code</Th>
                       <Th>Description</Th>
                       <Th>Status</Th>
@@ -1439,8 +1573,9 @@ const Locations: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {riceStockLocations.map((location: any) => (
+                    {riceStockLocations.map((location: any, index) => (
                       <tr key={location.id}>
+                        <Td>{index + 1}</Td>
                         <Td style={{ fontWeight: '600' }}>{location.code}</Td>
                         <Td>{location.name || '-'}</Td>
                         <Td>
@@ -1491,42 +1626,147 @@ const Locations: React.FC = () => {
               )}
             </SectionHeader>
 
+            <SubTabContainer>
+              <SubTabButton $active={brokerStatusFilter === 'active'} onClick={() => setBrokerStatusFilter('active')}>
+                Active Brokers
+              </SubTabButton>
+              <SubTabButton $active={brokerStatusFilter === 'inactive'} onClick={() => setBrokerStatusFilter('inactive')}>
+                Inactive Brokers
+              </SubTabButton>
+            </SubTabContainer>
+
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.9rem', fontWeight: '600', color: '#4b5563' }}>Filter by Type:</span>
+              <button
+                onClick={() => setBrokerTypeFilter('all')}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '15px',
+                  border: '1px solid #d1d5db',
+                  fontSize: '0.8rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  backgroundColor: brokerTypeFilter === 'all' ? '#3b82f6' : '#fff',
+                  color: brokerTypeFilter === 'all' ? '#fff' : '#374151'
+                }}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setBrokerTypeFilter('paddy')}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '15px',
+                  border: '1px solid #d1d5db',
+                  fontSize: '0.8rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  backgroundColor: brokerTypeFilter === 'paddy' ? '#10b981' : '#fff',
+                  color: brokerTypeFilter === 'paddy' ? '#fff' : '#374151'
+                }}
+              >
+                Paddy Brokers
+              </button>
+              <button
+                onClick={() => setBrokerTypeFilter('rice')}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '15px',
+                  border: '1px solid #d1d5db',
+                  fontSize: '0.8rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  backgroundColor: brokerTypeFilter === 'rice' ? '#8b5cf6' : '#fff',
+                  color: brokerTypeFilter === 'rice' ? '#fff' : '#374151'
+                }}
+              >
+                Rice Brokers
+              </button>
+            </div>
+
             <div>
-              {brokers.length === 0 ? (
-                <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
-                  No brokers created yet
-                </p>
-              ) : (
-                <Table>
-                  <thead>
-                    <tr>
-                      <Th>Broker Name</Th>
-                      <Th>Description</Th>
-                      {canEdit && <Th style={{ width: '120px' }}>Actions</Th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {brokers.map((broker) => (
-                      <tr key={broker.id}>
-                        <Td>{toTitleCase(broker.name)}</Td>
-                        <Td>{broker.description || '-'}</Td>
-                        {canEdit && (
-                          <Td>
-                            <ActionButtons>
-                              <IconButton className="edit" onClick={() => { handleEditBroker(broker); setShowModal(true); }}>
-                                ✏️
-                              </IconButton>
-                              <IconButton className="delete" onClick={() => handleDeleteBroker(broker.id)}>
-                                🗑️
-                              </IconButton>
-                            </ActionButtons>
-                          </Td>
-                        )}
+              {(() => {
+                const filteredBrokers = brokers.filter(broker => {
+                  const matchesStatus = brokerStatusFilter === 'active' ? (broker.isActive !== false) : (broker.isActive === false);
+                  if (!matchesStatus) return false;
+
+                  if (brokerTypeFilter === 'all') return true;
+                  if (brokerTypeFilter === 'paddy') {
+                    return broker.type === 'paddy' || broker.type === 'both';
+                  }
+                  if (brokerTypeFilter === 'rice') {
+                    return broker.type === 'rice' || broker.type === 'both';
+                  }
+                  return true;
+                });
+
+                return filteredBrokers.length === 0 ? (
+                  <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
+                    No {brokerStatusFilter === 'active' ? 'active' : 'inactive'} brokers found matching the filter
+                  </p>
+                ) : (
+                  <Table>
+                    <thead>
+                      <tr>
+                        <Th style={{ width: '60px' }}>S.No</Th>
+                        <Th>Broker Name</Th>
+                        <Th>Broker Type</Th>
+                        <Th>Status</Th>
+                        {canEdit && <Th style={{ width: '150px' }}>Actions</Th>}
                       </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              )}
+                    </thead>
+                    <tbody>
+                      {filteredBrokers.map((broker, index) => (
+                        <tr key={broker.id}>
+                          <Td>{index + 1}</Td>
+                          <Td>{toTitleCase(broker.name)}</Td>
+                          <Td>
+                            <span style={{
+                              textTransform: 'capitalize',
+                              fontWeight: '600',
+                              color: broker.type === 'paddy' ? '#10b981' : broker.type === 'rice' ? '#8b5cf6' : '#3b82f6'
+                            }}>
+                              {broker.type || 'both'}
+                            </span>
+                          </Td>
+                          <Td>
+                            <span style={{
+                              fontSize: '0.8rem',
+                              fontWeight: '700',
+                              padding: '3px 8px',
+                              borderRadius: '10px',
+                              backgroundColor: broker.isActive !== false ? '#dcfce7' : '#fee2e2',
+                              color: broker.isActive !== false ? '#15803d' : '#b91c1c'
+                            }}>
+                              {broker.isActive !== false ? 'Active' : 'Inactive'}
+                            </span>
+                          </Td>
+                          {canEdit && (
+                            <Td>
+                              <ActionButtons>
+                                <IconButton className="edit" onClick={() => { handleEditBroker(broker); setShowModal(true); }}>
+                                  ✏️
+                                </IconButton>
+                                <IconButton 
+                                  className="toggle" 
+                                  style={{ backgroundColor: broker.isActive !== false ? '#fef3c7' : '#d1fae5', color: broker.isActive !== false ? '#d97706' : '#059669' }} 
+                                  onClick={() => handleToggleBrokerStatus(broker)}
+                                  title={broker.isActive !== false ? 'Deactivate Broker' : 'Activate Broker'}
+                                >
+                                  {broker.isActive !== false ? '🔒' : '🔓'}
+                                </IconButton>
+                                <IconButton className="delete" onClick={() => handleDeleteBroker(broker.id)}>
+                                  🗑️
+                                </IconButton>
+                              </ActionButtons>
+                            </Td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                );
+              })()}
             </div>
           </>
         )}
@@ -1563,13 +1803,34 @@ const Locations: React.FC = () => {
             {activeTab === 'warehouse' && (
               <form onSubmit={(e) => { e.preventDefault(); handleCreateWarehouse(); }}>
                 <FormGroup>
-                  <Label>Warehouse Name</Label>
+                  <Label>Warehouse Name *</Label>
                   <Input
                     type="text"
                     value={warehouseName}
                     onChange={(e) => setWarehouseName(e.target.value)}
                     placeholder="Enter warehouse name"
                     required
+                  />
+                </FormGroup>
+                <FormGroup style={{ marginTop: '1rem' }}>
+                  <Label>Warehouse Type *</Label>
+                  <Select
+                    value={warehouseType}
+                    onChange={(e: any) => setWarehouseType(e.target.value)}
+                    required
+                  >
+                    <option value="mill">Mill Warehouse</option>
+                    <option value="outside">Outside Warehouse</option>
+                  </Select>
+                </FormGroup>
+                <FormGroup style={{ marginTop: '1rem' }}>
+                  <Label>Location {warehouseType === 'outside' ? '*' : '(Optional)'}</Label>
+                  <Input
+                    type="text"
+                    value={warehouseLocation}
+                    onChange={(e) => setWarehouseLocation(e.target.value)}
+                    placeholder="Enter location description"
+                    required={warehouseType === 'outside'}
                   />
                 </FormGroup>
                 <ButtonRow>
@@ -1626,9 +1887,20 @@ const Locations: React.FC = () => {
                     required
                   >
                     <option value="">-- Select Warehouse --</option>
-                    {warehouses.map((w) => (
-                      <option key={w.id} value={w.id}>{w.name}</option>
-                    ))}
+                    {[...warehouses]
+                      .sort((a, b) => {
+                        const typeA = a.type || 'mill';
+                        const typeB = b.type || 'mill';
+                        if (typeA === 'mill' && typeB === 'outside') return -1;
+                        if (typeA === 'outside' && typeB === 'mill') return 1;
+                        return a.name.localeCompare(b.name);
+                      })
+                      .map((w) => (
+                        <option key={w.id} value={w.id}>
+                          {w.name} ({w.type === 'outside' ? 'Outside' : 'Mill'})
+                        </option>
+                      ))
+                    }
                   </Select>
                 </FormGroup>
                 <FormGroup>
@@ -1759,7 +2031,7 @@ const Locations: React.FC = () => {
                     Cancel
                   </Button>
                   <Button type="submit" className="primary" disabled={!canEdit}>
-                    {editingPackaging ? 'Update Packaging' : 'Create Packaging'}
+                    {editingPackaging ? 'Update Brand' : 'Create Brand'}
                   </Button>
                 </ButtonRow>
               </form>
@@ -1812,14 +2084,48 @@ const Locations: React.FC = () => {
                   />
                 </FormGroup>
                 <FormGroup>
-                  <Label>Description (Optional)</Label>
-                  <Input
-                    type="text"
-                    value={brokerDescription}
-                    onChange={(e) => setBrokerDescription(e.target.value)}
-                    placeholder="Enter description"
-                  />
+                  <Label>Broker Type *</Label>
+                  <select
+                    value={brokerType}
+                    onChange={(e: any) => setBrokerType(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem 1rem',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: '8px',
+                      fontSize: '1rem',
+                      background: 'white',
+                      cursor: 'pointer'
+                    }}
+                    required
+                  >
+                    <option value="both">Both (Paddy & Rice)</option>
+                    <option value="paddy">Paddy Broker</option>
+                    <option value="rice">Rice Broker</option>
+                  </select>
                 </FormGroup>
+                {editingBroker && (
+                  <FormGroup>
+                    <Label>Status *</Label>
+                    <select
+                      value={brokerIsActive ? 'active' : 'inactive'}
+                      onChange={(e) => setBrokerIsActive(e.target.value === 'active')}
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem 1rem',
+                        border: '2px solid #e5e7eb',
+                        borderRadius: '8px',
+                        fontSize: '1rem',
+                        background: 'white',
+                        cursor: 'pointer'
+                      }}
+                      required
+                    >
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </FormGroup>
+                )}
                 <ButtonRow>
                   <Button type="button" className="secondary" onClick={() => { setShowModal(false); handleCancelEdit(); }}>
                     Cancel

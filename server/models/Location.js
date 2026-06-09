@@ -25,6 +25,11 @@ const Warehouse = sequelize.define('Warehouse', {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: true
   },
+  type: {
+    type: DataTypes.ENUM('mill', 'outside'),
+    allowNull: false,
+    defaultValue: 'mill'
+  },
   isActive: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
