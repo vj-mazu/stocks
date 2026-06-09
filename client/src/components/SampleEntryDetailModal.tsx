@@ -2992,11 +2992,13 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             const isLorryNotAdded = !insp.lorryNumber || 
                                                 ['LOT_AVG', 'BALANCED_LOT'].includes(insp.lorryNumber.toUpperCase().trim()) ||
                                                 insp.lorryNumber.toLowerCase().includes('next loading lorry');
+                                            const stages = insp.samplingStages || {};
+                                            const bagsLoaded = stages.full_avg?.actualBags || insp.bags || '-';
                                             const title = isLorryNotAdded
                                                 ? <span style={{ color: 'white', fontWeight: 'bold' }}>Next Loading Lorry Sampling: Lot Avg Sampling or Balance Lot Sampling</span>
                                                 : tripIdx === 0
-                                                    ? `Load 1 - Loading Sample Details : ${insp.lorryNumber?.toUpperCase() || 'Lorry'}`
-                                                    : `Load ${tripIdx + 1} - Lorry Number: ${insp.lorryNumber?.toUpperCase() || 'Lorry'}`;
+                                                    ? `Load 1 - Loading Sample Details : ${insp.lorryNumber?.toUpperCase() || 'Lorry'} | Bags Loaded: ${bagsLoaded}`
+                                                    : `Load ${tripIdx + 1} - Lorry Number: ${insp.lorryNumber?.toUpperCase() || 'Lorry'} | Bags Loaded: ${bagsLoaded}`;
                                             return renderHorizontalTable(
                                                 title,
                                                 '🚚',
