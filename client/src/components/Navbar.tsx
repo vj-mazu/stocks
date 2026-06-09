@@ -497,34 +497,6 @@ const Navbar: React.FC = () => {
             </>
           )}
 
-          {/* Master Creation Dropdown - for Manager and Admin */}
-          {(user?.role === 'manager' || user?.role === 'admin') && (
-            <DropdownWrapper ref={masterRef}>
-              <DropdownTrigger
-                $active={isMasterActive}
-                onClick={() => {
-                  setMasterDropdownOpen(!masterDropdownOpen);
-                  setLedgersDropdownOpen(false);
-                  setWorkflowDropdownOpen(false);
-                }}
-              >Master Creation ▾</DropdownTrigger>
-              {masterDropdownOpen && (
-                <DropdownMenu>
-                  {user?.role === 'admin' && (
-                    <DropdownLink to="/admin/users" $active={isActive('/admin/users')}>User Management</DropdownLink>
-                  )}
-                  <DropdownLink to="/locations?tab=broker" $active={isActive('/locations') && new URLSearchParams(location.search).get('tab') === 'broker'}>Broker</DropdownLink>
-                  <DropdownLink to="/locations?tab=variety" $active={isActive('/locations') && new URLSearchParams(location.search).get('tab') === 'variety'}>Variety</DropdownLink>
-                  <DropdownLink to="/locations?tab=warehouse" $active={isActive('/locations') && (new URLSearchParams(location.search).get('tab') === 'warehouse' || !new URLSearchParams(location.search).get('tab'))}>Warehouse</DropdownLink>
-                  <DropdownLink to="/locations?tab=kunchinittu" $active={isActive('/locations') && new URLSearchParams(location.search).get('tab') === 'kunchinittu'}>Kunchinintu</DropdownLink>
-                  <DropdownLink to="/locations?tab=packaging" $active={isActive('/locations') && new URLSearchParams(location.search).get('tab') === 'packaging'}>Packaging</DropdownLink>
-                  <DropdownLink to="/locations?tab=hamali" $active={isActive('/locations') && new URLSearchParams(location.search).get('tab') === 'hamali'}>Paddy Hamali</DropdownLink>
-                  <DropdownLink to="/locations?tab=riceHamali" $active={isActive('/locations') && new URLSearchParams(location.search).get('tab') === 'riceHamali'}>Rice Hamali</DropdownLink>
-                </DropdownMenu>
-              )}
-            </DropdownWrapper>
-          )}
-
           {/* Ledgers Dropdown - for Manager and Admin */}
           {(user?.role === 'manager' || user?.role === 'admin') && (
             <DropdownWrapper ref={ledgersRef}>
@@ -556,6 +528,34 @@ const Navbar: React.FC = () => {
             </>
           )}
           <NavLink to="/hamali" $active={isActive('/hamali')}>Hamali</NavLink>
+
+          {/* Master Creation Dropdown - for Manager and Admin */}
+          {(user?.role === 'manager' || user?.role === 'admin') && (
+            <DropdownWrapper ref={masterRef}>
+              <DropdownTrigger
+                $active={isMasterActive}
+                onClick={() => {
+                  setMasterDropdownOpen(!masterDropdownOpen);
+                  setLedgersDropdownOpen(false);
+                  setWorkflowDropdownOpen(false);
+                }}
+              >Master Creation ▾</DropdownTrigger>
+              {masterDropdownOpen && (
+                <DropdownMenu>
+                  {user?.role === 'admin' && (
+                    <DropdownLink to="/admin/users" $active={isActive('/admin/users')}>User Management</DropdownLink>
+                  )}
+                  <DropdownLink to="/locations?tab=broker" $active={isActive('/locations') && new URLSearchParams(location.search).get('tab') === 'broker'}>Broker</DropdownLink>
+                  <DropdownLink to="/locations?tab=variety" $active={isActive('/locations') && new URLSearchParams(location.search).get('tab') === 'variety'}>Variety</DropdownLink>
+                  <DropdownLink to="/locations?tab=warehouse" $active={isActive('/locations') && (new URLSearchParams(location.search).get('tab') === 'warehouse' || !new URLSearchParams(location.search).get('tab'))}>Warehouse</DropdownLink>
+                  <DropdownLink to="/locations?tab=kunchinittu" $active={isActive('/locations') && new URLSearchParams(location.search).get('tab') === 'kunchinittu'}>Kunchinintu</DropdownLink>
+                  <DropdownLink to="/locations?tab=packaging" $active={isActive('/locations') && new URLSearchParams(location.search).get('tab') === 'packaging'}>Packaging</DropdownLink>
+                  <DropdownLink to="/locations?tab=hamali" $active={isActive('/locations') && new URLSearchParams(location.search).get('tab') === 'hamali'}>Paddy Hamali</DropdownLink>
+                  <DropdownLink to="/locations?tab=riceHamali" $active={isActive('/locations') && new URLSearchParams(location.search).get('tab') === 'riceHamali'}>Rice Hamali</DropdownLink>
+                </DropdownMenu>
+              )}
+            </DropdownWrapper>
+          )}
 
           {/* Workflow Dropdown */}
           {user && user.role !== 'admin' && user.role !== 'manager' && user.role !== 'staff' && (
