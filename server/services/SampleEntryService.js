@@ -1053,7 +1053,7 @@ class SampleEntryService {
       }
 
       // Validate: if revised rate is targeted for dispute, a dispute base rate must exist
-      if (pendingData.revisedRateOption === 'dispute') {
+      if (isRevisionRequest && pendingData.revisedRateOption === 'dispute') {
         const existingDisputeRate = offering.disputeBaseRate;
         const incomingDisputeRate = pendingData.disputeBaseRate;
         if ((existingDisputeRate == null || existingDisputeRate === '') &&
