@@ -692,6 +692,7 @@ const UserManagement: React.FC = () => {
                 <Table>
                     <thead>
                         <tr>
+                            <Th style={{ width: '80px' }}>SL No</Th>
                             <Th>User ID</Th>
                             <Th>Full Name</Th>
                             <Th>Role</Th>
@@ -702,13 +703,14 @@ const UserManagement: React.FC = () => {
                     <tbody>
                         {filteredUsers.length === 0 ? (
                             <Tr>
-                                <Td colSpan={5} style={{ textAlign: 'center', color: '#666', padding: '2rem' }}>
+                                <Td colSpan={6} style={{ textAlign: 'center', color: '#666', padding: '2rem' }}>
                                     No {activeFilterTab} users found.
                                 </Td>
                             </Tr>
                         ) : (
-                            filteredUsers.map(user => (
+                            filteredUsers.map((user, idx) => (
                                 <Tr key={user.id}>
+                                    <Td>{idx + 1}</Td>
                                     <Td>
                                         <strong style={{ textTransform: 'capitalize', color: '#2563eb' }}>{user.username}</strong>
                                     </Td>
