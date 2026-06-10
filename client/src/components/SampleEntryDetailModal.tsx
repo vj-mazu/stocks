@@ -2368,33 +2368,25 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 const hamaliVal = isDispute
                     ? (v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== '' 
                         ? v.revisedHamali 
-                        : (linkedRev && linkedRev.revisedHamali !== undefined && linkedRev.revisedHamali !== null && linkedRev.revisedHamali !== '' ? linkedRev.revisedHamali : o.hamali)
-                      )
+                        : o.hamali)
                     : (v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== '' ? v.revisedHamali : o.hamali);
                 const hasHamali = isDispute
-                    ? (v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== ''
-                        ? true
-                        : (linkedRev && linkedRev.revisedHamali !== undefined && linkedRev.revisedHamali !== null && linkedRev.revisedHamali !== '')
-                      )
+                    ? (v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== '')
                     : (v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== '');
                 const hamaliUnitVal = isDispute
-                    ? (v.hamaliUnit || linkedRev?.hamaliUnit || o.hamaliUnit || 'per_bag')
+                    ? (v.hamaliUnit || o.hamaliUnit || 'per_bag')
                     : (v.hamaliUnit || o.hamaliUnit || 'per_bag');
 
                 const lfVal = isDispute
                     ? (v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== ''
                         ? v.revisedLf
-                        : (linkedRev && linkedRev.revisedLf !== undefined && linkedRev.revisedLf !== null && linkedRev.revisedLf !== '' ? linkedRev.revisedLf : o.lf)
-                      )
+                        : o.lf)
                     : (v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== '' ? v.revisedLf : o.lf);
                 const hasLf = isDispute
-                    ? (v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== ''
-                        ? true
-                        : (linkedRev && linkedRev.revisedLf !== undefined && linkedRev.revisedLf !== null && linkedRev.revisedLf !== '')
-                      )
+                    ? (v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== '')
                     : (v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== '');
                 const lfUnitVal = isDispute
-                    ? (v.lfUnit || linkedRev?.lfUnit || o.lfUnit || 'per_bag')
+                    ? (v.lfUnit || o.lfUnit || 'per_bag')
                     : (v.lfUnit || o.lfUnit || 'per_bag');
 
                 rows.push([
