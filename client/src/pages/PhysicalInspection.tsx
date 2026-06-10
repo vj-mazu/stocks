@@ -738,15 +738,39 @@ const PhysicalInspection: React.FC = () => {
     if (samplingStageData[entryId]?.[stageKey]?.isLocked) {
       return true;
     }
-    const cleanLorry = (inspectionData[entryId]?.lorryNumber || '').trim().toUpperCase();
-    if (!cleanLorry) return false;
     const prevInsps = inspectionProgress[entryId]?.previousInspections || [];
+    const cleanLorry = (inspectionData[entryId]?.lorryNumber || '').trim().toUpperCase();
     if (stageKey === 'lot_avg') {
-      return prevInsps.some(insp => {
+      if (!cleanLorry) {
+        return prevInsps.some(insp => {
+          const l = (insp.lorryNumber || '').trim().toUpperCase();
+          return l === 'LOT_AVG' && !!insp.samplingStages?.lot_avg;
+        });
+      }
+
+      const lockedWithCurrentLorry = prevInsps.some(insp => {
         const lorryMatch = (insp.lorryNumber || '').trim().toUpperCase() === cleanLorry;
         return lorryMatch && insp.samplingStages?.[stageKey];
       });
+      if (lockedWithCurrentLorry) return true;
+
+      if (cleanLorry !== 'LOT_AVG' && cleanLorry !== 'BALANCED_LOT') {
+        const priorRealLorries = prevInsps.filter(insp => {
+          const l = (insp.lorryNumber || '').trim().toUpperCase();
+          return l !== cleanLorry && l !== 'LOT_AVG' && l !== 'BALANCED_LOT';
+        });
+
+        if (priorRealLorries.length === 0) {
+          return prevInsps.some(insp => {
+            const l = (insp.lorryNumber || '').trim().toUpperCase();
+            return l === 'LOT_AVG' && !!insp.samplingStages?.lot_avg;
+          });
+        }
+      }
+
+      return false;
     }
+    if (!cleanLorry) return false;
     if (stageKey === 'balanced_lot') {
       return prevInsps.some(insp => {
         const lorryMatch = (insp.lorryNumber || '').trim().toUpperCase() === cleanLorry;

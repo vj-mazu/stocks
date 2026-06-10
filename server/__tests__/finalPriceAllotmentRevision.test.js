@@ -20,6 +20,10 @@ describe('Final Price Allotment Revision Logic', () => {
       sampleEntryId: 'test-entry-id',
       offerVersions: [{ key: 'offer1', offerBaseRateValue: 2400 }],
       activeOfferKey: 'offer1',
+      finalBaseRate: 2400,
+      finalSute: 1,
+      finalSuteUnit: 'per_ton',
+      moistureValue: 10,
       hamali: 10,
       lf: 40,
       disputeVersions: [],
@@ -85,7 +89,12 @@ describe('Final Price Allotment Revision Logic', () => {
       __requestType: 'dispute',
       // revised values might still be present in payload from default form values
       revisedHamali: 10,
-      revisedLf: 40
+      revisedLf: 40,
+      // final-row values may also be present because the dispute form shares fields
+      finalBaseRate: 2500,
+      finalSute: 1.5,
+      finalSuteUnit: 'per_ton',
+      moistureValue: 12
     };
 
     await SampleEntryService.setFinalPrice('test-entry-id', payload, 1, 'admin');
@@ -97,8 +106,50 @@ describe('Final Price Allotment Revision Logic', () => {
     expect(updatedFields.disputeVersions.length).toBe(1);
     expect(updatedFields.disputeVersions[0].type).toBe('dispute');
     expect(updatedFields.disputeVersions[0].disputeBaseRate).toBe(2500);
+    expect(updatedFields.disputeVersions[0].finalSute).toBe(1.5);
+    expect(updatedFields.disputeVersions[0].moistureValue).toBe(12);
     expect(updatedFields.disputeVersions[0].revisedHamali).toBeNull();
     expect(updatedFields.disputeVersions[0].revisedLf).toBeNull();
+    expect(updatedFields.finalBaseRate).toBeUndefined();
+    expect(updatedFields.finalSute).toBeUndefined();
+    expect(updatedFields.finalSuteUnit).toBeUndefined();
+    expect(updatedFields.moistureValue).toBeUndefined();
+  });
+
+  test('keeps changed HM/LF inside approved dispute row without updating final HM/LF', async () => {
+    jest.spyOn(LotAllotment, 'findOne').mockResolvedValue({ id: 'allot-1' });
+
+    const payload = {
+      disputeBaseRate: 1458,
+      disputeBaseRateType: 'MD_LOOSE',
+      requestId: 'req-dispute-hmlf',
+      __requestType: 'dispute',
+      revisedHamali: 11,
+      hamaliUnit: 'per_bag',
+      revisedLf: 11,
+      lfUnit: 'per_bag',
+      finalSute: 1.5,
+      finalSuteUnit: 'per_ton',
+      moistureValue: 15
+    };
+
+    await SampleEntryService.setFinalPrice('test-entry-id', payload, 1, 'admin');
+
+    expect(mockOffering.update).toHaveBeenCalled();
+    const updatedFields = mockOffering.update.mock.calls[0][0];
+
+    expect(updatedFields.disputeVersions).toBeDefined();
+    expect(updatedFields.disputeVersions.length).toBe(1);
+    expect(updatedFields.disputeVersions[0].type).toBe('dispute');
+    expect(updatedFields.disputeVersions[0].disputeBaseRate).toBe(1458);
+    expect(updatedFields.disputeVersions[0].revisedHamali).toBe(11);
+    expect(updatedFields.disputeVersions[0].revisedLf).toBe(11);
+    expect(updatedFields.disputeVersions[0].finalSute).toBe(1.5);
+    expect(updatedFields.disputeVersions[0].moistureValue).toBe(15);
+    expect(updatedFields.hamali).toBeUndefined();
+    expect(updatedFields.lf).toBeUndefined();
+    expect(updatedFields.finalSute).toBeUndefined();
+    expect(updatedFields.moistureValue).toBeUndefined();
   });
 
   test('adds ONLY a revision version when approving a manager revision request', async () => {

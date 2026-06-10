@@ -1170,18 +1170,26 @@ class SampleEntryService {
       updates.finalReportedAt = new Date();
     }
 
+    const isDisputeRequestPayload = finalData.__requestType === 'dispute'
+      || (
+        finalData.__requestType !== 'revision'
+        && finalData.disputeBaseRate !== undefined
+        && finalData.disputeBaseRate !== null
+        && finalData.disputeBaseRate !== ''
+      );
+
     if (userRole === 'admin' || userRole === 'owner') {
       if (finalData.hamaliEnabled !== undefined) updates.hamaliEnabled = finalData.hamaliEnabled;
       if (finalData.brokerageEnabled !== undefined) updates.brokerageEnabled = finalData.brokerageEnabled;
       if (finalData.lfEnabled !== undefined) updates.lfEnabled = finalData.lfEnabled;
       if (finalData.suteEnabled !== undefined) updates.suteEnabled = finalData.suteEnabled;
       if (finalData.moistureEnabled !== undefined) updates.moistureEnabled = finalData.moistureEnabled;
-      if (finalData.finalPrice !== undefined) updates.finalPrice = finalData.finalPrice;
-      if (finalData.finalBaseRate !== undefined) updates.finalBaseRate = finalData.finalBaseRate;
+      if (!isDisputeRequestPayload && finalData.finalPrice !== undefined) updates.finalPrice = finalData.finalPrice;
+      if (!isDisputeRequestPayload && finalData.finalBaseRate !== undefined) updates.finalBaseRate = finalData.finalBaseRate;
       if (finalData.baseRateType !== undefined) updates.baseRateType = String(finalData.baseRateType || 'PD_WB').trim().toUpperCase();
       if (finalData.baseRateUnit !== undefined) updates.baseRateUnit = finalData.baseRateUnit;
-      if (finalData.finalSute !== undefined) updates.finalSute = finalData.finalSute;
-      if (finalData.finalSuteUnit !== undefined) updates.finalSuteUnit = finalData.finalSuteUnit;
+      if (!isDisputeRequestPayload && finalData.finalSute !== undefined) updates.finalSute = finalData.finalSute;
+      if (!isDisputeRequestPayload && finalData.finalSuteUnit !== undefined) updates.finalSuteUnit = finalData.finalSuteUnit;
       if (finalData.hamali !== undefined) updates.hamali = finalData.hamali;
       if (finalData.hamaliUnit !== undefined) updates.hamaliUnit = finalData.hamaliUnit;
       if (finalData.brokerage !== undefined) updates.brokerage = finalData.brokerage;
@@ -1191,7 +1199,7 @@ class SampleEntryService {
       if (finalData.hamali !== undefined || finalData.hamaliUnit !== undefined) updates.hamaliBy = userRole;
       if (finalData.brokerage !== undefined || finalData.brokerageUnit !== undefined) updates.brokerageBy = userRole;
       if (finalData.lf !== undefined || finalData.lfUnit !== undefined) updates.lfBy = userRole;
-      if (finalData.moistureValue !== undefined) updates.moistureValue = finalData.moistureValue;
+      if (!isDisputeRequestPayload && finalData.moistureValue !== undefined) updates.moistureValue = finalData.moistureValue;
       if (finalData.egbValue !== undefined) updates.egbValue = finalData.egbValue;
       if (finalData.egbType !== undefined) updates.egbType = finalData.egbType;
       if (finalData.customDivisor !== undefined) updates.customDivisor = finalData.customDivisor;
@@ -1211,11 +1219,11 @@ class SampleEntryService {
       const allotment = await LotAllotment.findOne({ where: { sampleEntryId: id } });
       const isAllotted = !!allotment;
 
-      if (hasOfferVersions || isAllotted) {
+      if (!isDisputeRequestPayload && (hasOfferVersions || isAllotted)) {
         if (finalData.revisedHamali !== undefined) updates.revisedHamali = finalData.revisedHamali;
         if (finalData.revisedLf !== undefined) updates.revisedLf = finalData.revisedLf;
         if (finalData.revisedRateOption !== undefined) updates.revisedRateOption = finalData.revisedRateOption;
-      } else {
+      } else if (!isDisputeRequestPayload) {
         updates.revisedHamali = null;
         updates.revisedLf = null;
         updates.revisedRateOption = null;
@@ -1253,6 +1261,14 @@ class SampleEntryService {
 
         if (isDispute) {
           const disputeId = finalData.requestId || `disp-${Date.now()}-d-${Math.random().toString(36).slice(2, 6)}`;
+          const hasRevisedHamaliForDispute = finalData.revisedHamali !== undefined
+            && finalData.revisedHamali !== null
+            && finalData.revisedHamali !== ''
+            && Number(finalData.revisedHamali) !== Number(offering.hamali);
+          const hasRevisedLfForDispute = finalData.revisedLf !== undefined
+            && finalData.revisedLf !== null
+            && finalData.revisedLf !== ''
+            && Number(finalData.revisedLf) !== Number(offering.lf);
           
           // Keep the revision's original target unchanged when a later dispute references it.
           // Dispute record itself stores the linkedRevisionId.
@@ -1263,9 +1279,9 @@ class SampleEntryService {
             disputeBaseRate: finalData.disputeBaseRate,
             disputeBaseRateType: finalData.disputeBaseRateType || null,
             disputeReason: finalData.disputeReason || null,
-            revisedHamali: finalData.revisedHamali !== undefined ? finalData.revisedHamali : null,
-            revisedLf: finalData.revisedLf !== undefined ? finalData.revisedLf : null,
-            revisedRateOption: finalData.revisedRateOption || null,
+            revisedHamali: hasRevisedHamaliForDispute ? finalData.revisedHamali : null,
+            revisedLf: hasRevisedLfForDispute ? finalData.revisedLf : null,
+            revisedRateOption: (hasRevisedHamaliForDispute || hasRevisedLfForDispute) ? (finalData.revisedRateOption || 'dispute') : null,
             hamaliUnit: finalData.hamaliUnit || offering.hamaliUnit || 'per_bag',
             lfUnit: finalData.lfUnit || offering.lfUnit || 'per_bag',
             finalSute: finalData.finalSute !== undefined ? finalData.finalSute : (offering.finalSute ?? null),
