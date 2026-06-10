@@ -1588,7 +1588,7 @@ const AllottedSupervisors: React.FC = () => {
                     const approvedDisputes = Array.isArray(offering.disputeVersions)
                       ? offering.disputeVersions.filter((v: any) => v.type === 'dispute' || (!v.type && v.disputeBaseRate !== undefined && v.disputeBaseRate !== null && v.disputeBaseRate !== ''))
                       : [];
-                    const hasLegacyApproved = (offering.disputeBaseRate !== undefined && offering.disputeBaseRate !== null && offering.disputeBaseRate !== '') && !approvedDisputes.some((d: any) => d.id === 'legacy-approved');
+                    const hasLegacyApproved = approvedDisputes.length === 0 && (offering.disputeBaseRate !== undefined && offering.disputeBaseRate !== null && offering.disputeBaseRate !== '');
                     const legacyApprovedDisputes = hasLegacyApproved
                       ? [{ id: 'legacy-approved', disputeBaseRate: offering.disputeBaseRate, disputeBaseRateType: offering.disputeBaseRateType || 'PD/WB' }]
                       : [];
