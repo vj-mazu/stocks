@@ -2174,6 +2174,16 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         if (linkedDispute) {
                             displayDisputeRate = linkedDispute.disputeBaseRate;
                             displayDisputeType = linkedDispute.disputeBaseRateType || o.baseRateType || 'PD/WB';
+                        } else if (pendingData.__linkedDisputeLabel) {
+                            // Extract rate from label like "Dispute 2000 (PD/WB)"
+                            const labelMatch = String(pendingData.__linkedDisputeLabel).match(/(\d+(?:\.\d+)?)/);
+                            if (labelMatch) {
+                                displayDisputeRate = Number(labelMatch[1]);
+                            } else {
+                                displayDisputeRate = o.disputeBaseRate || o.finalPrice || o.finalBaseRate || 0;
+                            }
+                            const typeMatch = String(pendingData.__linkedDisputeLabel).match(/\(([^)]+)\)/);
+                            displayDisputeType = (typeMatch ? typeMatch[1] : o.disputeBaseRateType || o.baseRateType || 'PD/WB');
                         } else {
                             displayDisputeRate = o.disputeBaseRate || o.finalPrice || o.finalBaseRate || 0;
                             displayDisputeType = o.disputeBaseRateType || o.baseRateType || 'PD/WB';
