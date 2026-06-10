@@ -533,6 +533,35 @@ const Arrivals: React.FC = () => {
     // For more than 2 locations, user will choose from the available options
   }, [stockLocations, movementType, shiftingType]);
 
+  // Automatically select Warehouse when Kunchinittu is selected
+  useEffect(() => {
+    if (toKunchinintuId) {
+      const k = kunchinittus.find(item => String(item.id) === String(toKunchinintuId));
+      if (k && k.warehouseId && toWarehouseId !== String(k.warehouseId)) {
+        setToWarehouseId(String(k.warehouseId));
+      }
+    }
+  }, [toKunchinintuId, kunchinittus]);
+
+  useEffect(() => {
+    if (fromKunchinintuId) {
+      const k = kunchinittus.find(item => String(item.id) === String(fromKunchinintuId));
+      if (k && k.warehouseId && fromWarehouseId !== String(k.warehouseId)) {
+        setFromWarehouseId(String(k.warehouseId));
+      }
+    }
+  }, [fromKunchinintuId, kunchinittus]);
+
+  useEffect(() => {
+    if (toKunchinintuId && movementType === 'shifting') {
+      const k = kunchinittus.find(item => String(item.id) === String(toKunchinintuId));
+      if (k && k.warehouseId && toWarehouseShiftId !== String(k.warehouseId)) {
+        setToWarehouseShiftId(String(k.warehouseId));
+      }
+    }
+  }, [toKunchinintuId, movementType, kunchinittus]);
+
+
   const selectedToKunchinittu = useMemo(() => {
     if (!toKunchinintuId) return undefined;
     return kunchinittus.find(k => String(k.id) === toKunchinintuId);
@@ -864,14 +893,21 @@ const Arrivals: React.FC = () => {
 
                         <FormGroup>
                           <Label>Variety *</Label>
-                          <Input
-                            type="text"
+                          <Select
                             value={variety}
-                            onChange={(e) => setVariety(e.target.value.toUpperCase())}
+                            onChange={(e) => setVariety(e.target.value)}
                             required
-                            placeholder="Enter variety name"
-                            style={{ textTransform: 'uppercase' }}
-                          />
+                          >
+                            <option value="">-- Select Variety --</option>
+                            {[...varieties]
+                              .sort((a, b) => a.name.localeCompare(b.name))
+                              .map((v) => (
+                                <option key={v.id} value={v.name}>
+                                  {v.name}
+                                </option>
+                              ))
+                            }
+                          </Select>
                         </FormGroup>
 
                         <FormGroup>
@@ -920,7 +956,7 @@ const Arrivals: React.FC = () => {
                               // Show all kunchinittus if no variety selected
                               activeKunchinittus.map((k) => (
                                 <option key={k.id} value={k.id}>
-                                  {k.code}
+                                  {k.code} - {k.warehouse?.name || 'No Warehouse'}
                                 </option>
                               ))
                             )}
@@ -966,14 +1002,21 @@ const Arrivals: React.FC = () => {
 
                         <FormGroup>
                           <Label>Variety *</Label>
-                          <Input
-                            type="text"
+                          <Select
                             value={variety}
-                            onChange={(e) => setVariety(e.target.value.toUpperCase())}
+                            onChange={(e) => setVariety(e.target.value)}
                             required
-                            placeholder="Enter variety name"
-                            style={{ textTransform: 'uppercase' }}
-                          />
+                          >
+                            <option value="">-- Select Variety --</option>
+                            {[...varieties]
+                              .sort((a, b) => a.name.localeCompare(b.name))
+                              .map((v) => (
+                                <option key={v.id} value={v.name}>
+                                  {v.name}
+                                </option>
+                              ))
+                            }
+                          </Select>
                         </FormGroup>
 
                         <FormGroup>
@@ -1092,14 +1135,21 @@ const Arrivals: React.FC = () => {
                       <FormRow>
                         <FormGroup>
                           <Label>Variety *</Label>
-                          <Input
-                            type="text"
+                          <Select
                             value={variety}
-                            onChange={(e) => setVariety(e.target.value.toUpperCase())}
-                            placeholder="Enter variety name"
-                            style={{ textTransform: 'uppercase' }}
+                            onChange={(e) => setVariety(e.target.value)}
                             required
-                          />
+                          >
+                            <option value="">-- Select Variety --</option>
+                            {[...varieties]
+                              .sort((a, b) => a.name.localeCompare(b.name))
+                              .map((v) => (
+                                <option key={v.id} value={v.name}>
+                                  {v.name}
+                                </option>
+                              ))
+                            }
+                          </Select>
                           {loadingStockLocations && (
                             <InfoText style={{ color: '#667eea' }}>
                               🔍 Checking stock locations...
@@ -1289,7 +1339,7 @@ const Arrivals: React.FC = () => {
                                 <option value="">Select Kunchinittu</option>
                                 {activeKunchinittus.map((k) => (
                                   <option key={k.id} value={k.id}>
-                                    {k.code}
+                                    {k.code} - {k.warehouse?.name || 'No Warehouse'}
                                   </option>
                                 ))}
                               </Select>
@@ -1330,7 +1380,7 @@ const Arrivals: React.FC = () => {
                                 <option value="">Select Kunchinittu</option>
                                 {activeKunchinittus.map((k) => (
                                   <option key={k.id} value={k.id}>
-                                    {k.code}
+                                    {k.code} - {k.warehouse?.name || 'No Warehouse'}
                                   </option>
                                 ))}
                               </Select>
@@ -1367,14 +1417,21 @@ const Arrivals: React.FC = () => {
                       <FormRow>
                         <FormGroup>
                           <Label>Variety *</Label>
-                          <Input
-                            type="text"
+                          <Select
                             value={variety}
-                            onChange={(e) => setVariety(e.target.value.toUpperCase())}
-                            placeholder="Enter variety name"
-                            style={{ textTransform: 'uppercase' }}
+                            onChange={(e) => setVariety(e.target.value)}
                             required
-                          />
+                          >
+                            <option value="">-- Select Variety --</option>
+                            {[...varieties]
+                              .sort((a, b) => a.name.localeCompare(b.name))
+                              .map((v) => (
+                                <option key={v.id} value={v.name}>
+                                  {v.name}
+                                </option>
+                              ))
+                            }
+                          </Select>
                           {loadingStockLocations && (
                             <InfoText style={{ color: '#667eea' }}>
                               🔍 Checking stock locations...
