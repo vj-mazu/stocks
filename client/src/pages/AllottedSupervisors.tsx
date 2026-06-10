@@ -727,7 +727,13 @@ const AllottedSupervisors: React.FC = () => {
             setIsSavingValues(false);
             return;
           }
-          if (pendingDisputeRequests.length > 0 && !String(editValuesData.linkedDisputeRequestId || '').trim()) {
+          const approvedDisputes = Array.isArray(o.disputeVersions)
+            ? o.disputeVersions.filter((v: any) => v.type === 'dispute' || (!v.type && v.disputeBaseRate !== undefined && v.disputeBaseRate !== null && v.disputeBaseRate !== ''))
+            : [];
+          const hasLegacyApproved = approvedDisputes.length === 0 && (o.disputeBaseRate !== undefined && o.disputeBaseRate !== null && o.disputeBaseRate !== '');
+          const totalDisputes = approvedDisputes.length + pendingDisputeRequests.length + (hasLegacyApproved ? 1 : 0);
+
+          if (totalDisputes > 1 && !String(editValuesData.linkedDisputeRequestId || '').trim()) {
             showNotification('Please select which dispute this HM/LF revision belongs to.', 'error');
             setIsSavingValues(false);
             return;

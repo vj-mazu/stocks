@@ -1106,7 +1106,7 @@ class SampleEntryService {
         if (linkedDisputeRequestId) {
           const linkedPending = queueDisputeRequests.find((request) => request.id === linkedDisputeRequestId);
           const approvedDisputes = Array.isArray(offering.disputeVersions)
-            ? offering.disputeVersions.filter((v) => v.type === 'dispute' || (v.disputeBaseRate !== undefined && v.disputeBaseRate !== null && v.disputeBaseRate !== ''))
+            ? offering.disputeVersions.filter((v) => v.type === 'dispute' || (!v.type && v.disputeBaseRate !== undefined && v.disputeBaseRate !== null && v.disputeBaseRate !== ''))
             : [];
           const linkedApproved = approvedDisputes.find((v) => v.id === linkedDisputeRequestId);
 
@@ -1124,7 +1124,7 @@ class SampleEntryService {
           }
         } else {
           const approvedDisputes = Array.isArray(offering.disputeVersions)
-            ? offering.disputeVersions.filter((v) => v.type === 'dispute' || (v.disputeBaseRate !== undefined && v.disputeBaseRate !== null && v.disputeBaseRate !== ''))
+            ? offering.disputeVersions.filter((v) => v.type === 'dispute' || (!v.type && v.disputeBaseRate !== undefined && v.disputeBaseRate !== null && v.disputeBaseRate !== ''))
             : [];
           const hasLegacyApproved = (approvedDisputes.length === 0 && offering.disputeBaseRate != null && offering.disputeBaseRate !== '');
           const totalDisputes = approvedDisputes.length + queueDisputeRequests.length + (hasLegacyApproved ? 1 : 0);
@@ -1305,8 +1305,8 @@ class SampleEntryService {
             approvedBy: userId,
             approvedByName: updatedByFullName,
             approvedAt: new Date(),
-            linkedDisputeRequestId: finalData.linkedDisputeRequestId || null,
-            linkedDisputeLabel: finalData.linkedDisputeLabel || null
+            linkedDisputeRequestId: finalData.linkedDisputeRequestId || finalData.__linkedDisputeRequestId || null,
+            linkedDisputeLabel: finalData.linkedDisputeLabel || finalData.__linkedDisputeLabel || null
           });
           hasChanges = true;
         }
