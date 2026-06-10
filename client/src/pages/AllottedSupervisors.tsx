@@ -1473,7 +1473,7 @@ const AllottedSupervisors: React.FC = () => {
                     });
                     
                     const approvedRevisions = Array.isArray(offering.disputeVersions)
-                      ? offering.disputeVersions.filter((v: any) => v.type === 'revision' || ((v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== '') || (v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== '')))
+                      ? offering.disputeVersions.filter((v: any) => v.type === 'revision' || (!v.type && ((v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== '') || (v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== ''))))
                       : [];
                     const hasLegacyRevision = (approvedRevisions.length === 0 && 
                       ((offering.revisedHamali !== undefined && offering.revisedHamali !== null && offering.revisedHamali !== '') ||
@@ -1586,7 +1586,7 @@ const AllottedSupervisors: React.FC = () => {
                     const pendingDisputes = getPendingDisputeRequests(offering);
                     
                     const approvedDisputes = Array.isArray(offering.disputeVersions)
-                      ? offering.disputeVersions.filter((v: any) => v.type === 'dispute' || (v.disputeBaseRate !== undefined && v.disputeBaseRate !== null && v.disputeBaseRate !== ''))
+                      ? offering.disputeVersions.filter((v: any) => v.type === 'dispute' || (!v.type && v.disputeBaseRate !== undefined && v.disputeBaseRate !== null && v.disputeBaseRate !== ''))
                       : [];
                     const hasLegacyApproved = (offering.disputeBaseRate !== undefined && offering.disputeBaseRate !== null && offering.disputeBaseRate !== '') && !approvedDisputes.some((d: any) => d.id === 'legacy-approved');
                     const legacyApprovedDisputes = hasLegacyApproved
