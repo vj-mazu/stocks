@@ -2210,21 +2210,13 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     isDispute ? (
                         <span style={{ fontWeight: 700, color: '#dc2626' }}>Rs {formatFlexibleValue(displayDisputeRate)}</span>
                     ) : (
-                        o.disputeBaseRate ? (
-                            <span>Rs {formatFlexibleValue(o.disputeBaseRate)}</span>
-                        ) : (
-                            <span>Rs {toNumberText(o.finalPrice || o.finalBaseRate || 0, 0)}</span>
-                        )
+                        <span>Rs {formatFlexibleValue(displayDisputeRate)}</span>
                     ),
                     // RATE TYPE
                     isDispute ? (
                         <span style={{ color: '#dc2626' }}>{`${displayDisputeType.replace(/_/g, '/')} / ${formatRateUnitLabel(o.finalBaseRateUnit || o.baseRateUnit)}`}</span>
                     ) : (
-                        o.disputeBaseRate ? (
-                            <span>{`${(o.disputeBaseRateType || o.baseRateType || 'PD/WB').replace(/_/g, '/')} / ${formatRateUnitLabel(o.finalBaseRateUnit || o.baseRateUnit)}`}</span>
-                        ) : (
-                            <span>{`${(o.finalBaseRateType || o.baseRateType || 'PD/WB').replace(/_/g, '/')} / ${formatRateUnitLabel(o.finalBaseRateUnit || o.baseRateUnit)}`}</span>
-                        )
+                        <span>{`${displayDisputeType.replace(/_/g, '/')} / ${formatRateUnitLabel(o.finalBaseRateUnit || o.baseRateUnit)}`}</span>
                     ),
                     // SUTE
                     <span>{`${toNumberText(pendingData.finalSute !== undefined && pendingData.finalSute !== null ? pendingData.finalSute : (o.finalSute || o.sute || 0), 2)} / ${formatRateUnitLabel(pendingData.finalSuteUnit !== undefined && pendingData.finalSuteUnit !== null ? pendingData.finalSuteUnit : (o.finalSuteUnit || o.suteUnit || 'per_ton'))}`}</span>,
