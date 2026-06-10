@@ -2067,6 +2067,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         // Check for approved or pending dispute rates or revised Hamali/LF as separate entries
         const isPending = String((o as any).pendingManagerValueApprovalStatus || '').toLowerCase() === 'pending';
         const pendingQueue = normalizePendingManagerApprovalQueue(o);
+        const disputeVersions = Array.isArray((o as any).disputeVersions) ? (o as any).disputeVersions : [];
 
         // Track printed disputes and revisions so we don't duplicate approved ones
         let approvedDisputePrinted = false;
@@ -2226,7 +2227,6 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         }
 
         // Add approved disputes and revisions from history (disputeVersions)
-        const disputeVersions = Array.isArray((o as any).disputeVersions) ? (o as any).disputeVersions : [];
         if (disputeVersions.length > 0) {
             let disputeCount = 0;
             let revisionCount = 0;
