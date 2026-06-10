@@ -2148,8 +2148,41 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 }
 
                 // Rate values
-                const displayDisputeRate = isDispute ? pendingData.disputeBaseRate : (o.disputeBaseRate || o.finalPrice || o.finalBaseRate || 0);
-                const displayDisputeType = isDispute ? (pendingData.disputeBaseRateType || o.baseRateType || 'PD/WB') : (o.disputeBaseRateType || o.baseRateType || 'PD/WB');
+                let displayDisputeRate = 0;
+                let displayDisputeType = '';
+
+                if (isDispute) {
+                    displayDisputeRate = pendingData.disputeBaseRate;
+                    displayDisputeType = pendingData.disputeBaseRateType || o.baseRateType || 'PD/WB';
+                } else {
+                    if (pendingData.revisedRateOption === 'dispute') {
+                        let linkedDispute: any = null;
+                        if (pendingData.__linkedDisputeRequestId) {
+                            linkedDispute = disputeVersions.find((d: any) => String(d.id) === String(pendingData.__linkedDisputeRequestId));
+                            if (!linkedDispute) {
+                                const pendingDisputes = pendingQueue.filter((req: any) => {
+                                    const pData = req.data || {};
+                                    return pData.__requestType === 'dispute' || (pData.__requestType === undefined && pData.disputeBaseRate !== undefined && pData.disputeBaseRate !== null && pData.disputeBaseRate !== '');
+                                });
+                                const matchedPending = pendingDisputes.find((req: any) => String(req.id) === String(pendingData.__linkedDisputeRequestId));
+                                if (matchedPending) {
+                                    linkedDispute = matchedPending.data;
+                                }
+                            }
+                        }
+
+                        if (linkedDispute) {
+                            displayDisputeRate = linkedDispute.disputeBaseRate;
+                            displayDisputeType = linkedDispute.disputeBaseRateType || o.baseRateType || 'PD/WB';
+                        } else {
+                            displayDisputeRate = o.disputeBaseRate || o.finalPrice || o.finalBaseRate || 0;
+                            displayDisputeType = o.disputeBaseRateType || o.baseRateType || 'PD/WB';
+                        }
+                    } else {
+                        displayDisputeRate = o.finalPrice || o.finalBaseRate || 0;
+                        displayDisputeType = o.finalBaseRateType || o.baseRateType || 'PD/WB';
+                    }
+                }
 
                 // Hamali values
                 const displayRevisedHamali = pendingData.revisedHamali !== undefined ? pendingData.revisedHamali : o.revisedHamali;
