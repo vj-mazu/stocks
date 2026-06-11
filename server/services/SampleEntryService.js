@@ -1240,14 +1240,14 @@ class SampleEntryService {
         } else {
           // Fallback if __requestType is missing but requestId is present
           isDispute = finalData.disputeBaseRate !== undefined && finalData.disputeBaseRate !== null && finalData.disputeBaseRate !== '';
-          isRevision = isAllotted && (
+          isRevision = !isDispute && isAllotted && (
             (finalData.revisedHamali !== undefined && finalData.revisedHamali !== null && finalData.revisedHamali !== '')
             || (finalData.revisedLf !== undefined && finalData.revisedLf !== null && finalData.revisedLf !== '')
           );
         }
       } else {
         isDispute = finalData.disputeBaseRate !== undefined && finalData.disputeBaseRate !== null && finalData.disputeBaseRate !== '';
-        isRevision = isAllotted && (
+        isRevision = !isDispute && isAllotted && (
           ((finalData.revisedHamali !== undefined && finalData.revisedHamali !== null && finalData.revisedHamali !== '') && 
            (Number(finalData.revisedHamali) !== Number(finalData.hamali ?? offering.hamali)))
           || ((finalData.revisedLf !== undefined && finalData.revisedLf !== null && finalData.revisedLf !== '') && 

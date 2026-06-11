@@ -152,6 +152,66 @@ describe('Final Price Allotment Revision Logic', () => {
     expect(updatedFields.moistureValue).toBeUndefined();
   });
 
+  test('admin direct dispute with revised HM/LF targeted to dispute creates no duplicate revision row', async () => {
+    jest.spyOn(LotAllotment, 'findOne').mockResolvedValue({ id: 'allot-1' });
+
+    const payload = {
+      disputeBaseRate: 1900,
+      disputeBaseRateType: 'PD_WB',
+      revisedHamali: 25,
+      hamaliUnit: 'per_bag',
+      revisedLf: 50,
+      lfUnit: 'per_bag',
+      revisedRateOption: 'dispute',
+      finalSute: 1.5,
+      finalSuteUnit: 'per_bag',
+      moistureValue: 12
+    };
+
+    await SampleEntryService.setFinalPrice('test-entry-id', payload, 1, 'admin');
+
+    expect(mockOffering.update).toHaveBeenCalled();
+    const updatedFields = mockOffering.update.mock.calls[0][0];
+
+    expect(updatedFields.disputeVersions).toBeDefined();
+    expect(updatedFields.disputeVersions).toHaveLength(1);
+    expect(updatedFields.disputeVersions[0].type).toBe('dispute');
+    expect(updatedFields.disputeVersions[0].disputeBaseRate).toBe(1900);
+    expect(updatedFields.disputeVersions[0].revisedHamali).toBe(25);
+    expect(updatedFields.disputeVersions[0].revisedLf).toBe(50);
+    expect(updatedFields.disputeVersions[0].revisedRateOption).toBe('dispute');
+  });
+
+  test('admin direct dispute with revised HM/LF targeted to final creates no duplicate revision row', async () => {
+    jest.spyOn(LotAllotment, 'findOne').mockResolvedValue({ id: 'allot-1' });
+
+    const payload = {
+      disputeBaseRate: 1950,
+      disputeBaseRateType: 'PD_WB',
+      revisedHamali: 25,
+      hamaliUnit: 'per_bag',
+      revisedLf: 50,
+      lfUnit: 'per_bag',
+      revisedRateOption: 'final',
+      finalSute: 1.5,
+      finalSuteUnit: 'per_bag',
+      moistureValue: 12
+    };
+
+    await SampleEntryService.setFinalPrice('test-entry-id', payload, 1, 'admin');
+
+    expect(mockOffering.update).toHaveBeenCalled();
+    const updatedFields = mockOffering.update.mock.calls[0][0];
+
+    expect(updatedFields.disputeVersions).toBeDefined();
+    expect(updatedFields.disputeVersions).toHaveLength(1);
+    expect(updatedFields.disputeVersions[0].type).toBe('dispute');
+    expect(updatedFields.disputeVersions[0].disputeBaseRate).toBe(1950);
+    expect(updatedFields.disputeVersions[0].revisedHamali).toBe(25);
+    expect(updatedFields.disputeVersions[0].revisedLf).toBe(50);
+    expect(updatedFields.disputeVersions[0].revisedRateOption).toBe('final');
+  });
+
   test('adds ONLY a revision version when approving a manager revision request', async () => {
     jest.spyOn(LotAllotment, 'findOne').mockResolvedValue({ id: 'allot-1' });
 
