@@ -102,7 +102,10 @@ class PhysicalInspectionService {
         throw new Error('Invalid sampling stage specified');
       }
 
-      const lorryNumberClean = (inspectionData.lorryNumber || '').trim().toUpperCase();
+      let lorryNumberClean = (inspectionData.lorryNumber || '').trim().toUpperCase();
+      if (!lorryNumberClean && (stage === 'lot_avg' || stage === 'balanced_lot')) {
+        lorryNumberClean = stage === 'lot_avg' ? 'LOT_AVG' : 'BALANCED_LOT';
+      }
       if (!lorryNumberClean) {
         throw new Error('Lorry number is required');
       }
@@ -112,6 +115,7 @@ class PhysicalInspectionService {
       let existingLorryInspection = existingInspections.find(
         i => (i.lorryNumber || '').trim().toUpperCase() === lorryNumberClean
       );
+      let pendingLotAvgInspectionToRename = null;
 
       // If we don't find it under the new lorry number, check if there's a LOT_AVG record that we can rename/resume.
       // This happens when the lorry number wasn't added during the lot_avg stage, but is now being added during the half_lorry stage.
@@ -120,14 +124,83 @@ class PhysicalInspectionService {
           i => (i.lorryNumber || '').trim().toUpperCase() === 'LOT_AVG'
         );
         if (lotAvgInspection) {
-          const PhysicalInspection = require('../models/PhysicalInspection');
-          const dbInspection = await PhysicalInspection.findByPk(lotAvgInspection.id);
-          if (dbInspection) {
-            await dbInspection.update({ lorryNumber: lorryNumberClean });
-            // Update the local object in existingInspections array as well
-            lotAvgInspection.lorryNumber = lorryNumberClean;
-            existingLorryInspection = lotAvgInspection;
+          pendingLotAvgInspectionToRename = lotAvgInspection;
+          existingLorryInspection = lotAvgInspection;
+        }
+      }
+
+      const isLocationSample = entry.entryType === 'LOCATION_SAMPLE';
+      const currentStages = existingLorryInspection?.samplingStages || {};
+      const hasStage = (stages, key) => {
+        if (key === 'nit_avg') {
+          return Object.keys(stages || {}).some(stageKey => stageKey === 'nit_avg' || stageKey.startsWith('nit_avg_'));
+        }
+        return !!stages?.[key];
+      };
+      const isStageApproved = (stages, key) => {
+        if (key === 'nit_avg') {
+          return Object.keys(stages || {}).some(stageKey => {
+            return (stageKey === 'nit_avg' || stageKey.startsWith('nit_avg_')) && stages[stageKey]?.approvalStatus === 'approved';
+          });
+        }
+        return stages?.[key]?.approvalStatus === 'approved';
+      };
+      const isFirstRealTrip = () => {
+        const priorRealLorries = existingInspections.filter(i => {
+          const lorry = (i.lorryNumber || '').trim().toUpperCase();
+          return lorry !== lorryNumberClean && lorry !== 'LOT_AVG' && lorry !== 'BALANCED_LOT';
+        });
+        return priorRealLorries.length === 0;
+      };
+      const isLotAvgRequired = () => {
+        const priorRealLorries = existingInspections.filter(i => {
+          const lorry = (i.lorryNumber || '').trim().toUpperCase();
+          return lorry !== lorryNumberClean && lorry !== 'LOT_AVG' && lorry !== 'BALANCED_LOT';
+        });
+        if (priorRealLorries.length === 0) return true;
+        const sortedPrior = [...priorRealLorries].sort((a, b) => new Date(a.inspectionDate).getTime() - new Date(b.inspectionDate).getTime());
+        const mostRecentPrior = sortedPrior[sortedPrior.length - 1];
+        const mostRecentLorry = (mostRecentPrior.lorryNumber || '').trim().toUpperCase();
+        const hasBalancedOnLastLorry = existingInspections.some(i => {
+          const lorry = (i.lorryNumber || '').trim().toUpperCase();
+          if (lorry === mostRecentLorry && i.samplingStages?.balanced_lot) return true;
+          if (lorry === 'BALANCED_LOT' && i.samplingStages?.balanced_lot) {
+            return new Date(i.inspectionDate).toDateString() === new Date(mostRecentPrior.inspectionDate).toDateString();
           }
+          return false;
+        });
+        return !hasBalancedOnLastLorry;
+      };
+
+      if (stage !== 'lot_avg' && stage !== 'balanced_lot' && (lorryNumberClean === 'LOT_AVG' || lorryNumberClean === 'BALANCED_LOT')) {
+        throw new Error('Please enter a valid lorry number');
+      }
+
+      if (isStageApproved(currentStages, 'full_avg') && ['lot_avg', 'nit_avg', 'half_lorry', 'full_avg'].includes(stage)) {
+        throw new Error('This lorry trip is closed because Full Avg Lorry is already approved.');
+      }
+
+      if (stage === 'lot_avg' && isLocationSample && isFirstRealTrip() && !hasStage(currentStages, 'lot_avg') && (hasStage(currentStages, 'nit_avg') || hasStage(currentStages, 'half_lorry'))) {
+        throw new Error('Lot Avg cannot be added after Nit Avg or Half Lorry has started for this location sample trip.');
+      }
+
+      if (stage !== 'lot_avg' && stage !== 'balanced_lot') {
+        const requiresLotAvgFirst = isLotAvgRequired() && !(isLocationSample && isFirstRealTrip());
+        if (requiresLotAvgFirst && !isStageApproved(currentStages, 'lot_avg')) {
+          throw new Error('This trip must start with approved Lot Avg Sampling first.');
+        }
+      }
+
+      if (stage === 'full_avg' && !isStageApproved(currentStages, 'half_lorry') && !isStageApproved(currentStages, 'nit_avg')) {
+        throw new Error('Cannot add Full Avg Lorry until Half Lorry or Nit Avg is approved by Manager.');
+      }
+
+      if (pendingLotAvgInspectionToRename) {
+        const PhysicalInspection = require('../models/PhysicalInspection');
+        const dbInspection = await PhysicalInspection.findByPk(pendingLotAvgInspectionToRename.id);
+        if (dbInspection) {
+          await dbInspection.update({ lorryNumber: lorryNumberClean });
+          pendingLotAvgInspectionToRename.lorryNumber = lorryNumberClean;
         }
       }
 

@@ -670,7 +670,11 @@ const PhysicalInspection: React.FC = () => {
     // Check if approved with current lorry number
     const approvedWithCurrent = prevInsps.some(insp => {
       const lorryMatch = (insp.lorryNumber || '').trim().toUpperCase() === cleanLorry;
-      return lorryMatch && insp.samplingStages?.[stageKey]?.approvalStatus === 'approved';
+      const stages = insp.samplingStages || {};
+      if (stageKey === 'nit_avg') {
+        return lorryMatch && Object.keys(stages).some(key => key === 'nit_avg' || key.startsWith('nit_avg_') ? stages[key]?.approvalStatus === 'approved' : false);
+      }
+      return lorryMatch && stages?.[stageKey]?.approvalStatus === 'approved';
     });
     if (approvedWithCurrent) return true;
 
@@ -689,6 +693,121 @@ const PhysicalInspection: React.FC = () => {
       }
     }
 
+    return false;
+  };
+
+  const getEntryById = (entryId: string) => entries.find(entry => entry.id === entryId);
+
+  const isLocationSampleEntry = (entryId: string) => getEntryById(entryId)?.entryType === 'LOCATION_SAMPLE';
+
+  const isCurrentTripFullAvgApproved = (entryId: string) => {
+    const cleanLorry = (inspectionData[entryId]?.lorryNumber || '').trim().toUpperCase();
+    if (!cleanLorry) return false;
+    const localFull = samplingStageData[entryId]?.full_avg;
+    if (localFull?.approvalStatus === 'approved') return true;
+    const prevInsps = inspectionProgress[entryId]?.previousInspections || [];
+    return prevInsps.some(insp => {
+      const lorry = (insp.lorryNumber || '').trim().toUpperCase();
+      return lorry === cleanLorry && insp.samplingStages?.full_avg?.approvalStatus === 'approved';
+    });
+  };
+
+  const getCurrentTripStages = (entryId: string) => {
+    const cleanLorry = (inspectionData[entryId]?.lorryNumber || '').trim().toUpperCase();
+    const prevInsps = inspectionProgress[entryId]?.previousInspections || [];
+    const trip = prevInsps.find(insp => (insp.lorryNumber || '').trim().toUpperCase() === cleanLorry);
+    return {
+      ...(trip?.samplingStages || {}),
+      ...(samplingStageData[entryId] || {})
+    };
+  };
+
+  const isFirstRealLorryTrip = (entryId: string, cleanLorry: string) => {
+    const prevInsps = inspectionProgress[entryId]?.previousInspections || [];
+    const priorRealLorries = prevInsps.filter(insp => {
+      const lorry = (insp.lorryNumber || '').trim().toUpperCase();
+      return lorry !== cleanLorry && lorry !== 'LOT_AVG' && lorry !== 'BALANCED_LOT';
+    });
+    return priorRealLorries.length === 0;
+  };
+
+  const isStageApprovedForFirstTripLotAvg = (entryId: string) => {
+    const prevInsps = inspectionProgress[entryId]?.previousInspections || [];
+    const hasPriorRealLorry = prevInsps.some(insp => {
+      const lorry = (insp.lorryNumber || '').trim().toUpperCase();
+      return lorry !== 'LOT_AVG' && lorry !== 'BALANCED_LOT';
+    });
+    if (hasPriorRealLorry) return false;
+    return prevInsps.some(insp => {
+      const lorry = (insp.lorryNumber || '').trim().toUpperCase();
+      return lorry === 'LOT_AVG' && insp.samplingStages?.lot_avg?.approvalStatus === 'approved';
+    });
+  };
+
+  const hasCurrentTripNitOrHalf = (entryId: string) => {
+    const stages = getCurrentTripStages(entryId);
+    return !!stages.half_lorry || Object.keys(stages).some(key => key === 'nit_avg' || key.startsWith('nit_avg_'));
+  };
+
+  const isStageVisibleForEntry = (entryId: string, stageKey: string) => {
+    const cleanLorry = (inspectionData[entryId]?.lorryNumber || '').trim().toUpperCase();
+    if (isCurrentTripFullAvgApproved(entryId) && ['lot_avg', 'nit_avg', 'half_lorry'].includes(stageKey)) {
+      return false;
+    }
+    if (stageKey !== 'lot_avg') {
+      return true;
+    }
+    if (!cleanLorry) {
+      return true;
+    }
+    const lotAvgRequired = isLotAvgRequiredForLorry(entryId, cleanLorry);
+    if (!lotAvgRequired) {
+      return false;
+    }
+    if (isLocationSampleEntry(entryId) && isFirstRealLorryTrip(entryId, cleanLorry)) {
+      const hasLotAvg = isStageLockedForLot(entryId, 'lot_avg') || isStageApprovedForLot(entryId, 'lot_avg');
+      if (!hasLotAvg && hasCurrentTripNitOrHalf(entryId)) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const isStageDisabledForEntry = (entryId: string, stageKey: string) => {
+    const cleanLorry = (inspectionData[entryId]?.lorryNumber || '').trim().toUpperCase();
+    if (isCurrentTripFullAvgApproved(entryId) && ['lot_avg', 'nit_avg', 'half_lorry', 'full_avg'].includes(stageKey)) {
+      return true;
+    }
+    if (stageKey === 'lot_avg') {
+      return isStageLockedForLot(entryId, 'lot_avg') || !isLotAvgRequiredForLorry(entryId, cleanLorry);
+    }
+    if (stageKey === 'nit_avg') {
+      if (isLocationSampleEntry(entryId) && isFirstRealLorryTrip(entryId, cleanLorry)) {
+        return false;
+      }
+      if (!cleanLorry && isStageApprovedForFirstTripLotAvg(entryId)) {
+        return false;
+      }
+      return isLotAvgRequiredForLorry(entryId, cleanLorry) && !isStageApprovedForLot(entryId, 'lot_avg');
+    }
+    if (stageKey === 'half_lorry') {
+      if (isStageLockedForLot(entryId, 'half_lorry')) {
+        return true;
+      }
+      if (isLocationSampleEntry(entryId) && isFirstRealLorryTrip(entryId, cleanLorry)) {
+        return false;
+      }
+      if (!cleanLorry && isStageApprovedForFirstTripLotAvg(entryId)) {
+        return false;
+      }
+      return isLotAvgRequiredForLorry(entryId, cleanLorry) && !isStageApprovedForLot(entryId, 'lot_avg');
+    }
+    if (stageKey === 'full_avg') {
+      return (!isStageApprovedForLot(entryId, 'half_lorry') && !isStageApprovedForLot(entryId, 'nit_avg')) || isStageLockedForLot(entryId, 'full_avg');
+    }
+    if (stageKey === 'balanced_lot') {
+      return isBalancedLotDisabled(entryId);
+    }
     return false;
   };
 
@@ -925,6 +1044,11 @@ const PhysicalInspection: React.FC = () => {
       return;
     }
 
+    if (!isStageVisibleForEntry(entryId, stage) || isStageDisabledForEntry(entryId, stage)) {
+      showNotification('This sampling stage is not available for the current trip', 'error');
+      return;
+    }
+
     if (isStageLockedForLot(entryId, stage)) {
       if (stage !== 'nit_avg' || !isAnyFullAvgSavedOrApproved(entryId)) {
         showNotification('This stage has already been added/saved for this lot', 'error');
@@ -940,7 +1064,7 @@ const PhysicalInspection: React.FC = () => {
       }
     }
 
-    if (stage !== 'lot_avg' && isLotAvgRequiredForLorry(entryId, currentLorry)) {
+    if (stage !== 'lot_avg' && !isLocationSampleEntry(entryId) && isLotAvgRequiredForLorry(entryId, currentLorry)) {
       const hasLotAvg = isStageLockedForLot(entryId, 'lot_avg') || isStageApprovedForLot(entryId, 'lot_avg');
       if (!hasLotAvg) {
         showNotification(`This trip must start with Lot Average (lot_avg) first.`, 'error');
@@ -1958,12 +2082,12 @@ const PhysicalInspection: React.FC = () => {
                                   </label>
                                   {(() => {
                                     const stageItems = [
-                                      { value: 'lot_avg', label: '1. Lot Avg Sampling', disabled: isStageLockedForLot(entry.id, 'lot_avg') || !isLotAvgRequiredForLorry(entry.id, (inspectionData[entry.id]?.lorryNumber || '').trim().toUpperCase()) },
-                                      { value: 'nit_avg', label: '2. Nit Avg Sampling', disabled: isStageLockedForLot(entry.id, 'nit_avg') },
-                                      { value: 'half_lorry', label: '3. Half Lorry Sampling', disabled: isStageLockedForLot(entry.id, 'half_lorry') },
-                                      { value: 'full_avg', label: '4. Full Avg Lorry Sampling', disabled: (!isStageApprovedForLot(entry.id, 'half_lorry') && !isStageApprovedForLot(entry.id, 'nit_avg')) || isStageLockedForLot(entry.id, 'full_avg') },
-                                      { value: 'balanced_lot', label: '5. Balanced Lot Sampling', disabled: isBalancedLotDisabled(entry.id) }
-                                    ];
+                                      { value: 'lot_avg', label: '1. Lot Avg Sampling', disabled: isStageDisabledForEntry(entry.id, 'lot_avg') },
+                                      { value: 'nit_avg', label: '2. Nit Avg Sampling', disabled: isStageDisabledForEntry(entry.id, 'nit_avg') },
+                                      { value: 'half_lorry', label: '3. Half Lorry Sampling', disabled: isStageDisabledForEntry(entry.id, 'half_lorry') },
+                                      { value: 'full_avg', label: '4. Full Avg Lorry Sampling', disabled: isStageDisabledForEntry(entry.id, 'full_avg') },
+                                      { value: 'balanced_lot', label: '5. Balanced Lot Sampling', disabled: isStageDisabledForEntry(entry.id, 'balanced_lot') }
+                                    ].filter(item => isStageVisibleForEntry(entry.id, item.value));
                                     const freezed = isLorryFreezed(entry.id, inspectionData[entry.id]?.lorryNumber);
                                     return (
                                       <>
@@ -2843,6 +2967,9 @@ const PhysicalInspection: React.FC = () => {
         const entry = entries.find(e => e.id === selectedEntry);
         if (!entry) return null;
         const progress = inspectionProgress[entry.id];
+        const currentLorryNumber = inspectionData[entry.id]?.lorryNumber || '';
+        const isCurrentLorryFrozen = isLorryFreezed(entry.id, currentLorryNumber);
+        const isDateReadOnly = isCurrentLorryFrozen || (user?.role !== 'admin' && user?.role !== 'manager' && !isLocationStaffUser && !isLegacyPhysicalSupervisor);
         
         return (
           <div style={{
@@ -2905,7 +3032,7 @@ const PhysicalInspection: React.FC = () => {
                     type="date"
                     value={inspectionData[entry.id]?.inspectionDate || ''}
                     onChange={(e) => handleInputChange(entry.id, 'inspectionDate', e.target.value)}
-                    disabled={user?.role !== 'admin' && user?.role !== 'manager' && !isLocationStaffUser && !isLegacyPhysicalSupervisor}
+                    disabled={isDateReadOnly}
                     style={{
                       width: '100%',
                       padding: '8px',
@@ -2913,10 +3040,12 @@ const PhysicalInspection: React.FC = () => {
                       border: '1px solid #ccc',
                       borderRadius: '4px',
                       color: '#1a1a1a',
-                      backgroundColor: '#f5f5f5'
+                      backgroundColor: isDateReadOnly ? '#f5f5f5' : '#fff'
                     }}
                   />
-                  <span style={{ fontSize: '10px', color: '#c0392b', fontWeight: '600' }}>Freezed</span>
+                  {isCurrentLorryFrozen && (
+                    <span style={{ fontSize: '10px', color: '#c0392b', fontWeight: '600' }}>Freezed</span>
+                  )}
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
@@ -2948,12 +3077,12 @@ const PhysicalInspection: React.FC = () => {
                   </label>
                   {(() => {
                     const stageItems = [
-                      { value: 'lot_avg', label: '1. Lot Avg Sampling', disabled: isStageLockedForLot(entry.id, 'lot_avg') || !isLotAvgRequiredForLorry(entry.id, (inspectionData[entry.id]?.lorryNumber || '').trim().toUpperCase()) },
-                      { value: 'nit_avg', label: '2. Nit Avg Sampling', disabled: isStageLockedForLot(entry.id, 'nit_avg') },
-                      { value: 'half_lorry', label: '3. Half Lorry Sampling', disabled: isStageLockedForLot(entry.id, 'half_lorry') },
-                      { value: 'full_avg', label: '4. Full Avg Lorry Sampling', disabled: (!isStageApprovedForLot(entry.id, 'half_lorry') && !isStageApprovedForLot(entry.id, 'nit_avg')) || isStageLockedForLot(entry.id, 'full_avg') },
-                      { value: 'balanced_lot', label: '5. Balanced Lot Sampling', disabled: isBalancedLotDisabled(entry.id) }
-                    ];
+                      { value: 'lot_avg', label: '1. Lot Avg Sampling', disabled: isStageDisabledForEntry(entry.id, 'lot_avg') },
+                      { value: 'nit_avg', label: '2. Nit Avg Sampling', disabled: isStageDisabledForEntry(entry.id, 'nit_avg') },
+                      { value: 'half_lorry', label: '3. Half Lorry Sampling', disabled: isStageDisabledForEntry(entry.id, 'half_lorry') },
+                      { value: 'full_avg', label: '4. Full Avg Lorry Sampling', disabled: isStageDisabledForEntry(entry.id, 'full_avg') },
+                      { value: 'balanced_lot', label: '5. Balanced Lot Sampling', disabled: isStageDisabledForEntry(entry.id, 'balanced_lot') }
+                    ].filter(item => isStageVisibleForEntry(entry.id, item.value));
                     return (
                       <>
                         <div style={{ border: '1px solid #ddd', borderRadius: '6px', overflow: 'hidden', marginBottom: '8px' }}>
