@@ -132,23 +132,43 @@ class PhysicalInspectionService {
       };
 
       // If we don't find it under the new lorry number, check if there's a LOT_AVG record that we can rename/resume.
-      // This happens when the lorry number wasn't added during the lot_avg stage, but is now being added during the half_lorry stage.
+      // This happens when the lorry number wasn't added during the lot_avg stage, but is now being added during a subsequent stage.
       if (!existingLorryInspection && lorryNumberClean !== 'LOT_AVG') {
         const lotAvgInspection = existingInspections.find(
           i => (i.lorryNumber || '').trim().toUpperCase() === 'LOT_AVG'
         );
-        const firstRealLorry = existingInspections
-          .filter(i => {
+        if (lotAvgInspection) {
+          const priorRealLorries = existingInspections.filter(i => {
             const lorry = (i.lorryNumber || '').trim().toUpperCase();
             return lorry !== 'LOT_AVG' && lorry !== 'BALANCED_LOT';
-          })
-          .sort((a, b) => getInspectionSortTime(a) - getInspectionSortTime(b))[0];
-        const lotAvgCanResumeFirstTrip = lotAvgInspection && (!firstRealLorry || getInspectionSortTime(lotAvgInspection) <= getInspectionSortTime(firstRealLorry));
-        if (lotAvgCanResumeFirstTrip) {
-          pendingLotAvgInspectionToRename = lotAvgInspection;
-          existingLorryInspection = lotAvgInspection;
+          });
+          
+          let canResume = false;
+          if (priorRealLorries.length === 0) {
+            canResume = true;
+          } else {
+            priorRealLorries.sort((a, b) => getInspectionSortTime(a) - getInspectionSortTime(b));
+            const lastLorrySortTime = getInspectionSortTime(priorRealLorries[priorRealLorries.length - 1]);
+            const lotAvgSortTime = getInspectionSortTime(lotAvgInspection);
+            if (lotAvgSortTime >= lastLorrySortTime) {
+              canResume = true;
+            }
+          }
+
+          if (canResume) {
+            pendingLotAvgInspectionToRename = lotAvgInspection;
+            existingLorryInspection = lotAvgInspection;
+          }
         }
       }
+
+      const isFirstRealTrip = () => {
+        const priorRealLorries = existingInspections.filter(i => {
+          const lorry = (i.lorryNumber || '').trim().toUpperCase();
+          return lorry !== lorryNumberClean && lorry !== 'LOT_AVG' && lorry !== 'BALANCED_LOT';
+        });
+        return priorRealLorries.length === 0;
+      };
 
       const isLocationSample = entry.entryType === 'LOCATION_SAMPLE';
       const currentStages = existingLorryInspection?.samplingStages || {};
@@ -166,26 +186,43 @@ class PhysicalInspectionService {
         }
         return stages?.[key]?.approvalStatus === 'approved';
       };
-      const isFirstRealTrip = () => {
-        const priorRealLorries = existingInspections.filter(i => {
-          const lorry = (i.lorryNumber || '').trim().toUpperCase();
-          return lorry !== lorryNumberClean && lorry !== 'LOT_AVG' && lorry !== 'BALANCED_LOT';
-        });
-        return priorRealLorries.length === 0;
-      };
+
+      // If it is the first trip, update the LotAllotment mode if specified
+      if (isFirstRealTrip() && inspectionData.samplingRulesMode) {
+        const cleanMode = String(inspectionData.samplingRulesMode).toLowerCase() === 'new' ? 'new' : 'old';
+        if (lotAllotment.samplingRulesMode !== cleanMode) {
+          await LotAllotmentRepository.update(lotAllotment.id, { samplingRulesMode: cleanMode });
+          lotAllotment.samplingRulesMode = cleanMode;
+        }
+      }
+
+      const activeRulesMode = lotAllotment.samplingRulesMode || 'old';
+      const isNewMode = activeRulesMode === 'new';
+
       const isLotAvgRequired = () => {
         const priorRealLorries = existingInspections.filter(i => {
           const lorry = (i.lorryNumber || '').trim().toUpperCase();
           return lorry !== lorryNumberClean && lorry !== 'LOT_AVG' && lorry !== 'BALANCED_LOT';
         });
-        return priorRealLorries.length === 0;
+
+        if (priorRealLorries.length === 0) {
+          return true;
+        }
+
+        priorRealLorries.sort((a, b) => getInspectionSortTime(a) - getInspectionSortTime(b));
+        const lastLorry = priorRealLorries[priorRealLorries.length - 1];
+
+        const stages = lastLorry?.samplingStages || {};
+        const isPreviousBalanced = stages.balanced_lot?.approvalStatus === 'approved';
+
+        return !isPreviousBalanced;
       };
 
       if (stage !== 'lot_avg' && stage !== 'balanced_lot' && (lorryNumberClean === 'LOT_AVG' || lorryNumberClean === 'BALANCED_LOT')) {
         throw new Error('Please enter a valid lorry number');
       }
 
-      if (stage === 'lot_avg' && lorryNumberClean === 'LOT_AVG' && !isFirstRealTrip()) {
+      if (stage === 'lot_avg' && lorryNumberClean === 'LOT_AVG' && !isLotAvgRequired()) {
         throw new Error('Lot Avg Sampling is allowed only before the first lorry load. Continue the next trip with Nit Avg or Half Lorry, or add Balanced Lot for the previous trip.');
       }
 
@@ -217,16 +254,9 @@ class PhysicalInspectionService {
       const isTruthyFlag = value => value === true || value === 'true' || value === 'Y' || value === 'Yes';
       const isFalseyFlag = value => value === false || value === 'false' || value === 'N' || value === 'No';
 
+      // Required fields for BOTH Old and New mode
       requireValue(inspectionData.moisture, 'Moisture');
-      requireValue(inspectionData.grainsCount, 'Grains');
-      requireValue(inspectionData.cutting1, 'Cutting');
-      requireValue(inspectionData.bend1, 'Bend');
-      requireValue(inspectionData.mix, 'Mix');
-      requireValue(inspectionData.kandu, 'Kandu');
-      requireValue(inspectionData.oil, 'Oil');
-      requireValue(inspectionData.sk, 'SK');
       requireValue(inspectionData.smellHas, 'Smell Yes/No');
-      requireValue(inspectionData.paddyWbEnabled, 'Paddy WB Yes/No');
 
       if (!isTruthyFlag(inspectionData.smellHas) && !isFalseyFlag(inspectionData.smellHas)) {
         throw new Error('Smell Yes/No is invalid');
@@ -237,18 +267,7 @@ class PhysicalInspectionService {
       if (isTruthyFlag(inspectionData.dryMoistureRaw) || (Number(inspectionData.dryMoisture) > 0 && !hasValue(inspectionData.dryMoistureRaw))) {
         requireValue(inspectionData.dryMoisture, 'Dry Moisture value');
       }
-      if (isTruthyFlag(inspectionData.smixEnabled)) {
-        requireValue(inspectionData.mixS, 'S Mix value');
-      }
-      if (isTruthyFlag(inspectionData.lmixEnabled)) {
-        requireValue(inspectionData.mixL, 'L Mix value');
-      }
-      if (!isTruthyFlag(inspectionData.paddyWbEnabled) && !isFalseyFlag(inspectionData.paddyWbEnabled)) {
-        throw new Error('Paddy WB Yes/No is invalid');
-      }
-      if (isTruthyFlag(inspectionData.paddyWbEnabled)) {
-        requireValue(inspectionData.paddyWb, 'Paddy WB value');
-      }
+
       const paddyColorEnabled = inspectionData.paddyColorEnabled ?? false;
       if (!isTruthyFlag(paddyColorEnabled) && !isFalseyFlag(paddyColorEnabled)) {
         throw new Error('Paddy Discolor Yes/No is invalid');
@@ -259,9 +278,35 @@ class PhysicalInspectionService {
           throw new Error('Paddy discolor type is invalid');
         }
       }
-      const kadiga = inspectionData.kadiga ?? 'N';
-      if (!['Y', 'N', 'Yes', 'No', true, false, 'true', 'false'].includes(kadiga)) {
+
+      const kadiga = inspectionData.kadiga || 'N';
+      if (!isTruthyFlag(kadiga) && !isFalseyFlag(kadiga)) {
         throw new Error('Kadiga Yes/No is invalid');
+      }
+
+      // Fields required ONLY in Old mode
+      if (!isNewMode) {
+        requireValue(inspectionData.grainsCount, 'Grains');
+        requireValue(inspectionData.cutting1, 'Cutting');
+        requireValue(inspectionData.bend1, 'Bend');
+        requireValue(inspectionData.mix, 'Mix');
+        requireValue(inspectionData.kandu, 'Kandu');
+        requireValue(inspectionData.oil, 'Oil');
+        requireValue(inspectionData.sk, 'SK');
+        requireValue(inspectionData.paddyWbEnabled, 'Paddy WB Yes/No');
+
+        if (isTruthyFlag(inspectionData.smixEnabled)) {
+          requireValue(inspectionData.mixS, 'S Mix value');
+        }
+        if (isTruthyFlag(inspectionData.lmixEnabled)) {
+          requireValue(inspectionData.mixL, 'L Mix value');
+        }
+        if (!isTruthyFlag(inspectionData.paddyWbEnabled) && !isFalseyFlag(inspectionData.paddyWbEnabled)) {
+          throw new Error('Paddy WB Yes/No is invalid');
+        }
+        if (isTruthyFlag(inspectionData.paddyWbEnabled)) {
+          requireValue(inspectionData.paddyWb, 'Paddy WB value');
+        }
       }
 
       if (pendingLotAvgInspectionToRename) {
@@ -311,7 +356,9 @@ class PhysicalInspectionService {
         reportedBy: inspectionData.reportedBy || 'System',
         reportedAt: new Date().toISOString(),
         imageUrl: null,
-        approvalStatus: 'pending'
+        approvalStatus: (isNewMode && stage !== 'full_avg' && stage !== 'balanced_lot') ? 'approved' : 'pending',
+        approvedBy: (isNewMode && stage !== 'full_avg' && stage !== 'balanced_lot') ? (inspectionData.reportedBy || 'System') : null,
+        approvedAt: (isNewMode && stage !== 'full_avg' && stage !== 'balanced_lot') ? new Date().toISOString() : null
       };
 
       if (!existingLorryInspection) {
@@ -642,7 +689,8 @@ class PhysicalInspectionService {
         inspectedBags,
         remainingBags,
         progressPercentage,
-        previousInspections
+        previousInspections,
+        samplingRulesMode: lotAllotment?.samplingRulesMode || 'old'
       };
 
     } catch (error) {

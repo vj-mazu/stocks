@@ -81,6 +81,13 @@ const LotAllotment = sequelize.define('LotAllotment', {
     allowNull: true,
     field: 'closed_reason',
     comment: 'Reason for closing (e.g. Party only sent 2000 of 4000 bags)'
+  },
+  samplingRulesMode: {
+    type: DataTypes.STRING(20),
+    allowNull: false,
+    defaultValue: 'old',
+    field: 'sampling_rules_mode',
+    comment: 'Selection rule mode chosen on first trip: old or new'
   }
 }, {
   tableName: 'lot_allotments',

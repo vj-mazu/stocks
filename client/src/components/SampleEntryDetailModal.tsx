@@ -1496,12 +1496,12 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     };
 
                     const renderStageReportedBy = (stage: any) => {
-                        const kadigaValue = stage.kadiga === 'Y' || stage.kadiga === 'Yes' || stage.kadiga === true || stage.kadiga === 'true' ? 'Yes' : (stage.kadiga ? 'No' : '');
+                        const isKadiga = stage.kadiga === 'Y' || stage.kadiga === 'Yes' || stage.kadiga === true || stage.kadiga === 'true';
                         return (
                             <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#1e293b' }}>
                                 {getCollectorLabel(stage.reportedBy)}
-                                {kadigaValue && (
-                                    <span style={{ display: 'block', marginTop: '2px', fontSize: '10px', color: '#7c2d12', fontWeight: '800' }}>ಕಡಿಗಾ: {kadigaValue}</span>
+                                {isKadiga && (
+                                    <span style={{ display: 'block', marginTop: '2px', fontSize: '10px', color: '#7c2d12', fontWeight: '800' }}>ಕಡಿಗಾ: Yes</span>
                                 )}
                             </span>
                         );
@@ -1915,12 +1915,12 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             };
 
             const renderStageReportedBy = (stage: any) => {
-                const kadigaValue = stage.kadiga === 'Y' || stage.kadiga === 'Yes' || stage.kadiga === true || stage.kadiga === 'true' ? 'Yes' : (stage.kadiga ? 'No' : '');
+                const isKadiga = stage.kadiga === 'Y' || stage.kadiga === 'Yes' || stage.kadiga === true || stage.kadiga === 'true';
                 return (
                     <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#1e293b' }}>
                         {getCollectorLabel(stage.reportedBy)}
-                        {kadigaValue && (
-                            <span style={{ display: 'block', marginTop: '2px', fontSize: '10px', color: '#7c2d12', fontWeight: '800' }}>ಕಡಿಗಾ: {kadigaValue}</span>
+                        {isKadiga && (
+                            <span style={{ display: 'block', marginTop: '2px', fontSize: '10px', color: '#7c2d12', fontWeight: '800' }}>ಕಡಿಗಾ: Yes</span>
                         )}
                     </span>
                 );
@@ -3074,10 +3074,11 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                 : tripIdx === 0
                                                     ? `Load 1 - Loading Sample Details : ${insp.lorryNumber?.toUpperCase() || 'Lorry'} | Bags Loaded: ${bagsLoaded}`
                                                     : `Load ${tripIdx + 1} - Lorry Number: ${insp.lorryNumber?.toUpperCase() || 'Lorry'} | Bags Loaded: ${bagsLoaded}`;
+                                            const isNewRulesMode = inspectionsProgress?.samplingRulesMode === 'new' || detailEntry?.lotAllotment?.samplingRulesMode === 'new';
                                             return renderHorizontalTable(
                                                 title,
                                                 '🚚',
-                                                '#f97316',
+                                                isNewRulesMode ? '#2563eb' : '#f97316',
                                                 ['STAGE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'ACTIONS'],
                                                 buildTripQualityRows(insp, tripIdx),
                                                 { isQuality: true }
@@ -3557,7 +3558,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
 
                                 const renderRow = (name: string, color: string, bgColor: string, stageObj: any, isFull: boolean) => {
                                     const rowHasSmell = stageObj.smellHas === true || String(stageObj.smellHas).trim().toUpperCase() === 'YES';
-                                    const kadigaValue = stageObj.kadiga === 'Y' || stageObj.kadiga === 'Yes' || stageObj.kadiga === true || stageObj.kadiga === 'true' ? 'Yes' : (stageObj.kadiga ? 'No' : '');
+                                    const isKadiga = stageObj.kadiga === 'Y' || stageObj.kadiga === 'Yes' || stageObj.kadiga === true || stageObj.kadiga === 'true';
                                     const hasPaddyWb = !!stageObj.paddyWbEnabled;
                                     const hasDiscolor = !!stageObj.paddyColorEnabled && !!stageObj.paddyColor;
                                     return (
@@ -3565,7 +3566,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             <td style={{ padding: '8px 10px', fontWeight: '800', color: color }}>{name}</td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>
                                                 <div>{formatField(stageObj.reportedBy)}</div>
-                                                {kadigaValue && <div style={{ marginTop: '2px', color: '#7c2d12', fontWeight: '800' }}>ಕಡಿಗಾ: {kadigaValue}</div>}
+                                                {isKadiga && <div style={{ marginTop: '2px', color: '#7c2d12', fontWeight: '800' }}>ಕಡಿಗಾ: Yes</div>}
                                             </td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>
                                                 {stageObj.reportedAt ? (new Date(stageObj.reportedAt).toLocaleDateString('en-GB') + ', ' + new Date(stageObj.reportedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()) : '-'}
@@ -3573,7 +3574,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatMoisture(stageObj)}</td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600', width: '55px' }}>{formatCutting(stageObj)}</td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600', width: '55px' }}>{formatBend(stageObj)}</td>
-                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '55px' }}>({formatField(stageObj.grainsCountRaw || stageObj.grainsCount)})</td>
+                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '55px' }}>{(() => { const v = stageObj.grainsCountRaw || stageObj.grainsCount; return (v !== null && v !== undefined && v !== '') ? `(${v})` : '-'; })()}</td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.mixRaw || stageObj.mix)}</td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{stageObj.smixEnabled ? formatField(stageObj.mixSRaw || stageObj.mixS) || 'Yes' : '-'}</td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{stageObj.lmixEnabled ? formatField(stageObj.mixLRaw || stageObj.mixL) || 'Yes' : '-'}</td>

@@ -1743,6 +1743,14 @@ const startServer = async () => {
         console.log('Migration 20260609_update_warehouses_type warning:', error.message);
       }
 
+      try {
+        const addSamplingRulesMode = require('./migrations/134_add_sampling_rules_mode_to_lot_allotments');
+        await addSamplingRulesMode.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('Migration 134: sampling_rules_mode added to lot_allotments');
+      } catch (error) {
+        console.log('Migration 134 warning:', error.message);
+      }
+
     // Default warehouses removed - users should create their own warehouses
 
     // Create default users if they don't exist

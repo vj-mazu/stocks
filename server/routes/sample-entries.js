@@ -3414,6 +3414,7 @@ router.post('/:id/physical-inspection', authenticateToken, async (req, res) => {
           kadiga: req.body.kadiga || 'N',
           nit: req.body.nit || null,
           remarks: req.body.remarks || null,
+          samplingRulesMode: req.body.samplingRulesMode || null,
           reportedBy: req.user.username // Username of the supervisor
         };
 
