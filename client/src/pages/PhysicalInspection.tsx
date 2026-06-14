@@ -2301,7 +2301,6 @@ const PhysicalInspection: React.FC = () => {
                     }}
                   />
                 </div>
-                                {isFirstTrip(entry.id) && (
                                   <div>
                                     <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
                                       Rules Selection (Old / New)
@@ -2309,7 +2308,7 @@ const PhysicalInspection: React.FC = () => {
                                     <select
                                       value={getRulesMode(entry.id)}
                                       onChange={(e) => handleInputChange(entry.id, 'samplingRulesMode', e.target.value)}
-                                      disabled={isLorryFreezed(entry.id, inspectionData[entry.id]?.lorryNumber) || isRulesModeCommitted(entry.id)}
+                                      disabled={!isFirstTrip(entry.id) || isLorryFreezed(entry.id, inspectionData[entry.id]?.lorryNumber) || isRulesModeCommitted(entry.id)}
                                       style={{
                                         width: '100%',
                                         padding: '8px',
@@ -2325,7 +2324,6 @@ const PhysicalInspection: React.FC = () => {
                                       <option value="new">New Paddy</option>
                                     </select>
                                   </div>
-                                )}
                                 <div>
                                   <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
                                     Sampling *
@@ -3382,7 +3380,6 @@ const PhysicalInspection: React.FC = () => {
                     }}
                   />
                 </div>
-                {isFirstTrip(entry.id) && (
                   <div>
                     <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
                       Rules Selection (Old / New)
@@ -3390,7 +3387,7 @@ const PhysicalInspection: React.FC = () => {
                     <select
                       value={getRulesMode(entry.id)}
                       onChange={(e) => handleInputChange(entry.id, 'samplingRulesMode', e.target.value)}
-                      disabled={isDateReadOnly || isRulesModeCommitted(entry.id)}
+                      disabled={!isFirstTrip(entry.id) || isDateReadOnly || isRulesModeCommitted(entry.id)}
                       style={{
                         width: '100%',
                         padding: '8px',
@@ -3406,7 +3403,6 @@ const PhysicalInspection: React.FC = () => {
                       <option value="new">New Paddy</option>
                     </select>
                   </div>
-                )}
                 <div>
                   <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
                     Sampling *
