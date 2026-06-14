@@ -2307,7 +2307,7 @@ const PhysicalInspection: React.FC = () => {
                                       Rules Selection (Old / New)
                                     </label>
                                     <select
-                                      value={inspectionData[entry.id]?.samplingRulesMode || 'old'}
+                                      value={getRulesMode(entry.id)}
                                       onChange={(e) => handleInputChange(entry.id, 'samplingRulesMode', e.target.value)}
                                       disabled={isLorryFreezed(entry.id, inspectionData[entry.id]?.lorryNumber) || isRulesModeCommitted(entry.id)}
                                       style={{
@@ -3388,7 +3388,7 @@ const PhysicalInspection: React.FC = () => {
                       Rules Selection (Old / New)
                     </label>
                     <select
-                      value={inspectionData[entry.id]?.samplingRulesMode || 'old'}
+                      value={getRulesMode(entry.id)}
                       onChange={(e) => handleInputChange(entry.id, 'samplingRulesMode', e.target.value)}
                       disabled={isDateReadOnly || isRulesModeCommitted(entry.id)}
                       style={{
