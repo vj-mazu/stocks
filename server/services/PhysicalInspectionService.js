@@ -116,6 +116,20 @@ class PhysicalInspectionService {
         i => (i.lorryNumber || '').trim().toUpperCase() === lorryNumberClean
       );
       let pendingLotAvgInspectionToRename = null;
+      const getInspectionSortTime = (insp) => {
+        const stages = insp.samplingStages || {};
+        let earliest = null;
+        for (const key in stages) {
+          const stageValue = stages[key];
+          if (stageValue && stageValue.reportedAt) {
+            const t = new Date(stageValue.reportedAt).getTime();
+            if (!earliest || t < earliest) {
+              earliest = t;
+            }
+          }
+        }
+        return earliest || (insp.createdAt ? new Date(insp.createdAt).getTime() : null) || (insp.inspectionDate ? new Date(insp.inspectionDate).getTime() : null) || (insp.id * 1000) || 9999999999999;
+      };
 
       // If we don't find it under the new lorry number, check if there's a LOT_AVG record that we can rename/resume.
       // This happens when the lorry number wasn't added during the lot_avg stage, but is now being added during the half_lorry stage.
@@ -123,7 +137,14 @@ class PhysicalInspectionService {
         const lotAvgInspection = existingInspections.find(
           i => (i.lorryNumber || '').trim().toUpperCase() === 'LOT_AVG'
         );
-        if (lotAvgInspection) {
+        const firstRealLorry = existingInspections
+          .filter(i => {
+            const lorry = (i.lorryNumber || '').trim().toUpperCase();
+            return lorry !== 'LOT_AVG' && lorry !== 'BALANCED_LOT';
+          })
+          .sort((a, b) => getInspectionSortTime(a) - getInspectionSortTime(b))[0];
+        const lotAvgCanResumeFirstTrip = lotAvgInspection && (!firstRealLorry || getInspectionSortTime(lotAvgInspection) <= getInspectionSortTime(firstRealLorry));
+        if (lotAvgCanResumeFirstTrip) {
           pendingLotAvgInspectionToRename = lotAvgInspection;
           existingLorryInspection = lotAvgInspection;
         }
@@ -157,23 +178,15 @@ class PhysicalInspectionService {
           const lorry = (i.lorryNumber || '').trim().toUpperCase();
           return lorry !== lorryNumberClean && lorry !== 'LOT_AVG' && lorry !== 'BALANCED_LOT';
         });
-        if (priorRealLorries.length === 0) return true;
-        const sortedPrior = [...priorRealLorries].sort((a, b) => new Date(a.inspectionDate).getTime() - new Date(b.inspectionDate).getTime());
-        const mostRecentPrior = sortedPrior[sortedPrior.length - 1];
-        const mostRecentLorry = (mostRecentPrior.lorryNumber || '').trim().toUpperCase();
-        const hasBalancedOnLastLorry = existingInspections.some(i => {
-          const lorry = (i.lorryNumber || '').trim().toUpperCase();
-          if (lorry === mostRecentLorry && i.samplingStages?.balanced_lot) return true;
-          if (lorry === 'BALANCED_LOT' && i.samplingStages?.balanced_lot) {
-            return new Date(i.inspectionDate).toDateString() === new Date(mostRecentPrior.inspectionDate).toDateString();
-          }
-          return false;
-        });
-        return !hasBalancedOnLastLorry;
+        return priorRealLorries.length === 0;
       };
 
       if (stage !== 'lot_avg' && stage !== 'balanced_lot' && (lorryNumberClean === 'LOT_AVG' || lorryNumberClean === 'BALANCED_LOT')) {
         throw new Error('Please enter a valid lorry number');
+      }
+
+      if (stage === 'lot_avg' && lorryNumberClean === 'LOT_AVG' && !isFirstRealTrip()) {
+        throw new Error('Lot Avg Sampling is allowed only before the first lorry load. Continue the next trip with Nit Avg or Half Lorry, or add Balanced Lot for the previous trip.');
       }
 
       if (isStageApproved(currentStages, 'full_avg') && ['lot_avg', 'nit_avg', 'half_lorry', 'full_avg'].includes(stage)) {
@@ -193,6 +206,62 @@ class PhysicalInspectionService {
 
       if (stage === 'full_avg' && !isStageApproved(currentStages, 'half_lorry') && !isStageApproved(currentStages, 'nit_avg')) {
         throw new Error('Cannot add Full Avg Lorry until Half Lorry or Nit Avg is approved by Manager.');
+      }
+
+      const hasValue = value => value !== undefined && value !== null && String(value).trim() !== '';
+      const requireValue = (value, label) => {
+        if (!hasValue(value)) {
+          throw new Error(`${label} is required`);
+        }
+      };
+      const isTruthyFlag = value => value === true || value === 'true' || value === 'Y' || value === 'Yes';
+      const isFalseyFlag = value => value === false || value === 'false' || value === 'N' || value === 'No';
+
+      requireValue(inspectionData.moisture, 'Moisture');
+      requireValue(inspectionData.grainsCount, 'Grains');
+      requireValue(inspectionData.cutting1, 'Cutting');
+      requireValue(inspectionData.bend1, 'Bend');
+      requireValue(inspectionData.mix, 'Mix');
+      requireValue(inspectionData.kandu, 'Kandu');
+      requireValue(inspectionData.oil, 'Oil');
+      requireValue(inspectionData.sk, 'SK');
+      requireValue(inspectionData.smellHas, 'Smell Yes/No');
+      requireValue(inspectionData.paddyWbEnabled, 'Paddy WB Yes/No');
+
+      if (!isTruthyFlag(inspectionData.smellHas) && !isFalseyFlag(inspectionData.smellHas)) {
+        throw new Error('Smell Yes/No is invalid');
+      }
+      if (isTruthyFlag(inspectionData.smellHas)) {
+        requireValue(inspectionData.smellType, 'Smell type');
+      }
+      if (isTruthyFlag(inspectionData.dryMoistureRaw) || (Number(inspectionData.dryMoisture) > 0 && !hasValue(inspectionData.dryMoistureRaw))) {
+        requireValue(inspectionData.dryMoisture, 'Dry Moisture value');
+      }
+      if (isTruthyFlag(inspectionData.smixEnabled)) {
+        requireValue(inspectionData.mixS, 'S Mix value');
+      }
+      if (isTruthyFlag(inspectionData.lmixEnabled)) {
+        requireValue(inspectionData.mixL, 'L Mix value');
+      }
+      if (!isTruthyFlag(inspectionData.paddyWbEnabled) && !isFalseyFlag(inspectionData.paddyWbEnabled)) {
+        throw new Error('Paddy WB Yes/No is invalid');
+      }
+      if (isTruthyFlag(inspectionData.paddyWbEnabled)) {
+        requireValue(inspectionData.paddyWb, 'Paddy WB value');
+      }
+      const paddyColorEnabled = inspectionData.paddyColorEnabled ?? false;
+      if (!isTruthyFlag(paddyColorEnabled) && !isFalseyFlag(paddyColorEnabled)) {
+        throw new Error('Paddy Discolor Yes/No is invalid');
+      }
+      if (isTruthyFlag(paddyColorEnabled)) {
+        requireValue(inspectionData.paddyColor, 'Paddy discolor type');
+        if (!['Normal Color', 'Light Discolor', 'Medium Discolor', 'Dark Discolor'].includes(inspectionData.paddyColor)) {
+          throw new Error('Paddy discolor type is invalid');
+        }
+      }
+      const kadiga = inspectionData.kadiga ?? 'N';
+      if (!['Y', 'N', 'Yes', 'No', true, false, 'true', 'false'].includes(kadiga)) {
+        throw new Error('Kadiga Yes/No is invalid');
       }
 
       if (pendingLotAvgInspectionToRename) {
@@ -235,6 +304,9 @@ class PhysicalInspectionService {
         paddyWbEnabled: inspectionData.paddyWbEnabled === 'true' || inspectionData.paddyWbEnabled === true,
         paddyWb: inspectionData.paddyWb !== undefined ? Number(inspectionData.paddyWb) : null,
         paddyWbRaw: inspectionData.paddyWbRaw || null,
+        paddyColorEnabled: isTruthyFlag(paddyColorEnabled),
+        paddyColor: isTruthyFlag(paddyColorEnabled) ? (inspectionData.paddyColor || null) : null,
+        kadiga: isTruthyFlag(kadiga) ? 'Y' : 'N',
         nit: inspectionData.nit || null,
         reportedBy: inspectionData.reportedBy || 'System',
         reportedAt: new Date().toISOString(),
@@ -519,42 +591,50 @@ class PhysicalInspectionService {
         createdAt: inspection.createdAt
       }));
 
-      // Merge LOT_AVG trip with actual lorry trip on the fly for legacy data
+      const getInspectionSortTime = (insp) => {
+        const stages = insp.samplingStages || {};
+        let earliest = null;
+        for (const key in stages) {
+          const stage = stages[key];
+          if (stage && stage.reportedAt) {
+            const t = new Date(stage.reportedAt).getTime();
+            if (!earliest || t < earliest) {
+              earliest = t;
+            }
+          }
+        }
+        return earliest || (insp.createdAt ? new Date(insp.createdAt).getTime() : null) || (insp.inspectionDate ? new Date(insp.inspectionDate).getTime() : null) || (insp.id * 1000) || 9999999999999;
+      };
+
+      // Merge only the original first-trip LOT_AVG placeholder. Later LOT_AVG rows must stay separate.
       if (previousInspections.length > 1) {
         const lotAvgIdx = previousInspections.findIndex(i => (i.lorryNumber || '').trim().toUpperCase() === 'LOT_AVG');
         if (lotAvgIdx !== -1) {
-          const realLorryInsp = previousInspections.find(i => (i.lorryNumber || '').trim().toUpperCase() !== 'LOT_AVG');
+          const realLorries = previousInspections
+            .filter(i => {
+              const lorry = (i.lorryNumber || '').trim().toUpperCase();
+              return lorry !== 'LOT_AVG' && lorry !== 'BALANCED_LOT';
+            })
+            .sort((a, b) => getInspectionSortTime(a) - getInspectionSortTime(b));
+          const realLorryInsp = realLorries[0];
           if (realLorryInsp) {
             const lotAvgInsp = previousInspections[lotAvgIdx];
-            if (lotAvgInsp.samplingStages && lotAvgInsp.samplingStages.lot_avg) {
+            const lotAvgHappenedBeforeFirstLoad = getInspectionSortTime(lotAvgInsp) <= getInspectionSortTime(realLorryInsp);
+            if (lotAvgHappenedBeforeFirstLoad && lotAvgInsp.samplingStages && lotAvgInsp.samplingStages.lot_avg) {
               if (!realLorryInsp.samplingStages) realLorryInsp.samplingStages = {};
               if (!realLorryInsp.samplingStages.lot_avg) {
                 realLorryInsp.samplingStages.lot_avg = lotAvgInsp.samplingStages.lot_avg;
               }
+              // Exclude the separate first-trip LOT_AVG placeholder
+              previousInspections = previousInspections.filter((_, idx) => idx !== lotAvgIdx);
             }
-            // Exclude the separate LOT_AVG record
-            previousInspections = previousInspections.filter((_, idx) => idx !== lotAvgIdx);
           }
         }
       }
 
       // Sort progressive trips chronologically by the earliest reported stage timestamp
       previousInspections.sort((a, b) => {
-        const getEarliestTimestamp = (insp) => {
-          const stages = insp.samplingStages || {};
-          let earliest = null;
-          for (const key in stages) {
-            const stage = stages[key];
-            if (stage && stage.reportedAt) {
-              const t = new Date(stage.reportedAt).getTime();
-              if (!earliest || t < earliest) {
-                earliest = t;
-              }
-            }
-          }
-          return earliest || (insp.createdAt ? new Date(insp.createdAt).getTime() : null) || (insp.id * 1000) || 9999999999999;
-        };
-        return getEarliestTimestamp(a) - getEarliestTimestamp(b);
+        return getInspectionSortTime(a) - getInspectionSortTime(b);
       });
 
       return {

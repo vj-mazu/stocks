@@ -3409,6 +3409,9 @@ router.post('/:id/physical-inspection', authenticateToken, async (req, res) => {
           paddyWbEnabled: req.body.paddyWbEnabled,
           paddyWb: (req.body.paddyWb !== undefined && req.body.paddyWb !== null && req.body.paddyWb !== '') ? Number.parseFloat(req.body.paddyWb) : undefined,
           paddyWbRaw: req.body.paddyWbRaw || null,
+          paddyColorEnabled: req.body.paddyColorEnabled,
+          paddyColor: req.body.paddyColor || null,
+          kadiga: req.body.kadiga || 'N',
           nit: req.body.nit || null,
           remarks: req.body.remarks || null,
           reportedBy: req.user.username // Username of the supervisor

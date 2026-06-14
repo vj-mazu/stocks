@@ -1495,9 +1495,33 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         }
                     };
 
+                    const renderStageReportedBy = (stage: any) => {
+                        const kadigaValue = stage.kadiga === 'Y' || stage.kadiga === 'Yes' || stage.kadiga === true || stage.kadiga === 'true' ? 'Yes' : (stage.kadiga ? 'No' : '');
+                        return (
+                            <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#1e293b' }}>
+                                {getCollectorLabel(stage.reportedBy)}
+                                {kadigaValue && (
+                                    <span style={{ display: 'block', marginTop: '2px', fontSize: '10px', color: '#7c2d12', fontWeight: '800' }}>ಕಡಿಗಾ: {kadigaValue}</span>
+                                )}
+                            </span>
+                        );
+                    };
+
+                    const renderStagePaddyWb = (stage: any) => {
+                        const hasPaddyWb = !!stage.paddyWbEnabled;
+                        const hasDiscolor = !!stage.paddyColorEnabled && !!stage.paddyColor;
+                        if (!hasPaddyWb && !hasDiscolor) return '-';
+                        return (
+                            <span style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                {hasPaddyWb && <span>{formatQ(stage.paddyWbRaw, stage.paddyWb)}</span>}
+                                {hasDiscolor && <span style={{ color: '#7c2d12', fontWeight: '800' }}>{stage.paddyColor}</span>}
+                            </span>
+                        );
+                    };
+
                     return [
                         labelElement,
-                        <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#1e293b' }}>{getCollectorLabel(stageObj.reportedBy)}</span>,
+                        renderStageReportedBy(stageObj),
                         renderStageReportedAtStacked(reportedAt),
                         <span style={{ fontSize: '9.5px', fontWeight: '700' }}>{formatStageMoisture(stageObj)}</span>,
                         formatStageCutting(stageObj),
@@ -1513,7 +1537,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         formatQ(stageObj.wbBkRaw, stageObj.wbBk),
                         formatQ(stageObj.wbTRaw, stageObj.wbT),
                         renderBeautifulSmell(stageObj),
-                        stageObj.paddyWbEnabled ? formatQ(stageObj.paddyWbRaw, stageObj.paddyWb) : '-',
+                        renderStagePaddyWb(stageObj),
                         actionsCell
                     ];
                 };
@@ -1890,9 +1914,33 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 }
             };
 
+            const renderStageReportedBy = (stage: any) => {
+                const kadigaValue = stage.kadiga === 'Y' || stage.kadiga === 'Yes' || stage.kadiga === true || stage.kadiga === 'true' ? 'Yes' : (stage.kadiga ? 'No' : '');
+                return (
+                    <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#1e293b' }}>
+                        {getCollectorLabel(stage.reportedBy)}
+                        {kadigaValue && (
+                            <span style={{ display: 'block', marginTop: '2px', fontSize: '10px', color: '#7c2d12', fontWeight: '800' }}>ಕಡಿಗಾ: {kadigaValue}</span>
+                        )}
+                    </span>
+                );
+            };
+
+            const renderStagePaddyWb = (stage: any) => {
+                const hasPaddyWb = !!stage.paddyWbEnabled;
+                const hasDiscolor = !!stage.paddyColorEnabled && !!stage.paddyColor;
+                if (!hasPaddyWb && !hasDiscolor) return '-';
+                return (
+                    <span style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        {hasPaddyWb && <span>{formatQ(stage.paddyWbRaw, stage.paddyWb)}</span>}
+                        {hasDiscolor && <span style={{ color: '#7c2d12', fontWeight: '800' }}>{stage.paddyColor}</span>}
+                    </span>
+                );
+            };
+
             return [
                 labelElement,
-                <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#1e293b' }}>{getCollectorLabel(stageObj.reportedBy)}</span>,
+                renderStageReportedBy(stageObj),
                 renderStageReportedAtStacked(reportedAt),
                 <span style={{ fontSize: '9.5px', fontWeight: '700' }}>{formatStageMoisture(stageObj)}</span>,
                 formatStageCutting(stageObj),
@@ -1908,7 +1956,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 formatQ(stageObj.wbBkRaw, stageObj.wbBk),
                 formatQ(stageObj.wbTRaw, stageObj.wbT),
                 renderBeautifulSmell(stageObj),
-                stageObj.paddyWbEnabled ? formatQ(stageObj.paddyWbRaw, stageObj.paddyWb) : '-',
+                renderStagePaddyWb(stageObj),
                 actionsCell
             ];
         };
@@ -3509,10 +3557,16 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
 
                                 const renderRow = (name: string, color: string, bgColor: string, stageObj: any, isFull: boolean) => {
                                     const rowHasSmell = stageObj.smellHas === true || String(stageObj.smellHas).trim().toUpperCase() === 'YES';
+                                    const kadigaValue = stageObj.kadiga === 'Y' || stageObj.kadiga === 'Yes' || stageObj.kadiga === true || stageObj.kadiga === 'true' ? 'Yes' : (stageObj.kadiga ? 'No' : '');
+                                    const hasPaddyWb = !!stageObj.paddyWbEnabled;
+                                    const hasDiscolor = !!stageObj.paddyColorEnabled && !!stageObj.paddyColor;
                                     return (
                                         <tr key={name} style={{ borderBottom: '1px solid #cbd5e1', backgroundColor: rowHasSmell ? '#ffebee' : bgColor }}>
                                             <td style={{ padding: '8px 10px', fontWeight: '800', color: color }}>{name}</td>
-                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.reportedBy)}</td>
+                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>
+                                                <div>{formatField(stageObj.reportedBy)}</div>
+                                                {kadigaValue && <div style={{ marginTop: '2px', color: '#7c2d12', fontWeight: '800' }}>ಕಡಿಗಾ: {kadigaValue}</div>}
+                                            </td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>
                                                 {stageObj.reportedAt ? (new Date(stageObj.reportedAt).toLocaleDateString('en-GB') + ', ' + new Date(stageObj.reportedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()) : '-'}
                                             </td>
@@ -3527,7 +3581,14 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.oilRaw || stageObj.oil)}</td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', width: '50px' }}>{renderBeautifulSmell(stageObj)}</td>
-                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '50px' }}>{stageObj.paddyWbEnabled ? formatField(stageObj.paddyWbRaw || stageObj.paddyWb) : '-'}</td>
+                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '50px' }}>
+                                                {!hasPaddyWb && !hasDiscolor ? '-' : (
+                                                    <>
+                                                        {hasPaddyWb && <div>{formatField(stageObj.paddyWbRaw || stageObj.paddyWb)}</div>}
+                                                        {hasDiscolor && <div style={{ marginTop: hasPaddyWb ? '2px' : 0, color: '#7c2d12', fontWeight: '800' }}>{formatField(stageObj.paddyColor)}</div>}
+                                                    </>
+                                                )}
+                                            </td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.nit)}</td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{isFull ? formatField(inspection.bags) : '-'}</td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center' }}>
