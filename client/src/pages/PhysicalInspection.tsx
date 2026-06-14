@@ -1196,9 +1196,11 @@ const PhysicalInspection: React.FC = () => {
   };
 
   const getRulesMode = (entryId: string) => {
-    const progress = inspectionProgress[entryId];
-    if (progress && progress.samplingRulesMode) {
-      return progress.samplingRulesMode;
+    if (isRulesModeCommitted(entryId)) {
+      const progress = inspectionProgress[entryId];
+      if (progress && progress.samplingRulesMode) {
+        return progress.samplingRulesMode;
+      }
     }
     return inspectionData[entryId]?.samplingRulesMode || 'old';
   };
