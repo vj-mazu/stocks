@@ -1180,6 +1180,21 @@ const PhysicalInspection: React.FC = () => {
     return priorRealLorries.length === 0;
   };
 
+  // Returns true if any stage has been saved/submitted, meaning the rules mode is committed and should be locked
+  const isRulesModeCommitted = (entryId: string) => {
+    const progress = inspectionProgress[entryId];
+    if (!progress || !progress.previousInspections || progress.previousInspections.length === 0) {
+      return false;
+    }
+    // Check if any inspection trip has at least one stage with reportedBy (meaning it was actually submitted)
+    return progress.previousInspections.some((trip: any) => {
+      const stages = trip.samplingStages || {};
+      return Object.values(stages).some(
+        (stg: any) => stg && stg.reportedBy && (stg.approvalStatus === 'pending' || stg.approvalStatus === 'approved')
+      );
+    });
+  };
+
   const getRulesMode = (entryId: string) => {
     const progress = inspectionProgress[entryId];
     if (progress && progress.samplingRulesMode) {
@@ -2292,7 +2307,7 @@ const PhysicalInspection: React.FC = () => {
                                     <select
                                       value={inspectionData[entry.id]?.samplingRulesMode || 'old'}
                                       onChange={(e) => handleInputChange(entry.id, 'samplingRulesMode', e.target.value)}
-                                      disabled={isLorryFreezed(entry.id, inspectionData[entry.id]?.lorryNumber) || !!(inspectionProgress[entry.id]?.samplingRulesMode)}
+                                      disabled={isLorryFreezed(entry.id, inspectionData[entry.id]?.lorryNumber) || isRulesModeCommitted(entry.id)}
                                       style={{
                                         width: '100%',
                                         padding: '8px',
@@ -3373,7 +3388,7 @@ const PhysicalInspection: React.FC = () => {
                     <select
                       value={inspectionData[entry.id]?.samplingRulesMode || 'old'}
                       onChange={(e) => handleInputChange(entry.id, 'samplingRulesMode', e.target.value)}
-                      disabled={isDateReadOnly || !!(inspectionProgress[entry.id]?.samplingRulesMode)}
+                      disabled={isDateReadOnly || isRulesModeCommitted(entry.id)}
                       style={{
                         width: '100%',
                         padding: '8px',
