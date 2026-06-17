@@ -87,17 +87,21 @@ const canLocationStaffEditQuality = async (sampleEntry, reqUser) => {
     return true;
   }
 
-  let currentUsername = String(reqUser?.username || '').trim().toLowerCase();
-  if (!currentUsername) {
-    const currentUser = await User.findByPk(reqUser.userId, { attributes: ['username'], raw: true });
-    currentUsername = String(currentUser?.username || '').trim().toLowerCase();
-  }
+  const currentUser = await User.findByPk(reqUser.userId, { attributes: ['username', 'fullName'], raw: true });
+  const currentUsername = String(currentUser?.username || reqUser?.username || '').trim().toLowerCase();
+  const currentFullName = String(currentUser?.fullName || '').trim().toLowerCase();
 
   const assignedUsername = String(sampleEntry.sampleCollectedBy || '').trim().toLowerCase();
 
+  const isUserMatchingAssigned = (assigned, username, fullName) => {
+    if (!assigned) return false;
+    const cleanAssigned = assigned.trim().toLowerCase();
+    return cleanAssigned === username || cleanAssigned === fullName;
+  };
+
   // Resample assignment: only the assigned location staff can edit quality (any entry type).
   if (isResampleWorkflowMarker(sampleEntry) && assignedUsername) {
-    return assignedUsername === currentUsername;
+    return isUserMatchingAssigned(assignedUsername, currentUsername, currentFullName);
   }
 
   if (sampleEntry.entryType !== 'LOCATION_SAMPLE') {
@@ -110,8 +114,8 @@ const canLocationStaffEditQuality = async (sampleEntry, reqUser) => {
     return true;
   }
 
-  if (assignedUsername && currentUsername) {
-    return assignedUsername === currentUsername;
+  if (assignedUsername) {
+    return isUserMatchingAssigned(assignedUsername, currentUsername, currentFullName);
   }
 
   return sampleEntry.createdByUserId === reqUser.userId;
@@ -733,14 +737,14 @@ router.post('/:id/send-to-quality', authenticateToken, async (req, res) => {
       && !entry.resampleDecisionAt;
 
     if (isLocationResampleTrigger && !['admin', 'manager', 'owner'].includes(requestRole)) {
-      let currentUsername = String(req.user?.username || '').trim().toLowerCase();
-      if (!currentUsername) {
-        const currentUser = await User.findByPk(req.user.userId, { attributes: ['username'], raw: true });
-        currentUsername = String(currentUser?.username || '').trim().toLowerCase();
-      }
+      const currentUser = await User.findByPk(req.user.userId, { attributes: ['username', 'fullName'], raw: true });
+      const currentUsername = String(currentUser?.username || req.user?.username || '').trim().toLowerCase();
+      const currentFullName = String(currentUser?.fullName || '').trim().toLowerCase();
 
       const assignedUsername = String(entry.sampleCollectedBy || '').trim().toLowerCase();
-      if (!assignedUsername || assignedUsername !== currentUsername) {
+      const isUserMatchingAssigned = assignedUsername && (assignedUsername === currentUsername || assignedUsername === currentFullName);
+
+      if (!isUserMatchingAssigned) {
         return res.status(403).json({ error: 'Only the assigned location sample staff can trigger this resample' });
       }
     }
