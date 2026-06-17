@@ -57,6 +57,45 @@ const { attachLoadingLotsHistories } = require('../utils/historyUtil');
 const { shouldCreateNewQualityAttempt, normalizeQualityEntryIntent } = require('../utils/qualityEntryIntent');
 const { Op, col, where: sqlWhere } = require('sequelize');
 const getWorkflowRole = (user) => user?.effectiveRole || user?.role;
+const isUserMatchingAssigned = (assigned, username, fullName) => {
+  if (!assigned) return false;
+  const cleanAssigned = assigned.trim().toLowerCase();
+  const cleanUsername = String(username || '').trim().toLowerCase();
+  const cleanFullName = String(fullName || '').trim().toLowerCase();
+
+  // 1. Exact match
+  if (cleanAssigned === cleanUsername || cleanAssigned === cleanFullName) {
+    return true;
+  }
+
+  // 2. Prefix/First name match: If assigned name is a single word, check if username or fullName starts with it.
+  // e.g., assigned: "mahesh", fullName: "mahesh patil" -> matches
+  // e.g., assigned: "mahesh", username: "mahesh.l" -> matches
+  const assignedWords = cleanAssigned.split(/\s+/);
+  if (assignedWords.length === 1 && assignedWords[0].length >= 3) {
+    const firstWord = assignedWords[0];
+    if (cleanUsername.startsWith(firstWord) || cleanFullName.startsWith(firstWord)) {
+      return true;
+    }
+  }
+
+  // 3. Reverse prefix match: If username or fullName is a single word, check if assigned starts with it.
+  // e.g., assigned: "mahesh patil", fullName: "mahesh" -> matches
+  const usernameWords = cleanUsername.split(/\s+/);
+  if (usernameWords.length === 1 && usernameWords[0].length >= 3) {
+    if (cleanAssigned.startsWith(usernameWords[0])) {
+      return true;
+    }
+  }
+  const fullNameWords = cleanFullName.split(/\s+/);
+  if (fullNameWords.length === 1 && fullNameWords[0].length >= 3) {
+    if (cleanAssigned.startsWith(fullNameWords[0])) {
+      return true;
+    }
+  }
+
+  return false;
+};
 const hasResampleCollectorTimeline = (entry = {}) => (
   (Array.isArray(entry?.resampleCollectedTimeline) && entry.resampleCollectedTimeline.length > 0)
   || (Array.isArray(entry?.resampleCollectedHistory) && entry.resampleCollectedHistory.length > 0)
@@ -92,12 +131,6 @@ const canLocationStaffEditQuality = async (sampleEntry, reqUser) => {
   const currentFullName = String(currentUser?.fullName || '').trim().toLowerCase();
 
   const assignedUsername = String(sampleEntry.sampleCollectedBy || '').trim().toLowerCase();
-
-  const isUserMatchingAssigned = (assigned, username, fullName) => {
-    if (!assigned) return false;
-    const cleanAssigned = assigned.trim().toLowerCase();
-    return cleanAssigned === username || cleanAssigned === fullName;
-  };
 
   // Resample assignment: only the assigned location staff can edit quality (any entry type).
   if (isResampleWorkflowMarker(sampleEntry) && assignedUsername) {
@@ -742,9 +775,9 @@ router.post('/:id/send-to-quality', authenticateToken, async (req, res) => {
       const currentFullName = String(currentUser?.fullName || '').trim().toLowerCase();
 
       const assignedUsername = String(entry.sampleCollectedBy || '').trim().toLowerCase();
-      const isUserMatchingAssigned = assignedUsername && (assignedUsername === currentUsername || assignedUsername === currentFullName);
+      const userMatched = isUserMatchingAssigned(assignedUsername, currentUsername, currentFullName);
 
-      if (!isUserMatchingAssigned) {
+      if (!userMatched) {
         return res.status(403).json({ error: 'Only the assigned location sample staff can trigger this resample' });
       }
     }
