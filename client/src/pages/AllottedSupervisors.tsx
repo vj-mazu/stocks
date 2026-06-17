@@ -1860,7 +1860,7 @@ const AllottedSupervisors: React.FC = () => {
                       <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
                       <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '50px' }}>{stageObj.smellHas === true || String(stageObj.smellHas).trim().toUpperCase() === 'YES' ? (stageObj.smellType || 'Yes') : '-'}</td>
                       <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '50px' }}>{hasPaddyWb ? formatField(stageObj.paddyWbRaw || stageObj.paddyWb) : '-'}</td>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#7c2d12', fontWeight: '700', width: '50px' }}>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#7c2d12', fontWeight: '700', width: '80px' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
                           <span>{stageObj.paddyColorEnabled && stageObj.paddyColor ? formatField(stageObj.paddyColor) : '-'}</span>
                           <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />
@@ -1911,7 +1911,7 @@ const AllottedSupervisors: React.FC = () => {
                             <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '45px' }}>SK</th>
                             <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '50px' }}>SMELL</th>
                             <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '50px' }}>PADDY WB</th>
-                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '50px' }}>P COLOR</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '80px' }}>P COLOR</th>
                             <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>NIT NO</th>
                             <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>LOADED BAGS</th>
                             <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PHOTO</th>
