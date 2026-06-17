@@ -7,8 +7,8 @@ class PhysicalInspectionRepository {
    * @param {Object} inspectionData - Physical inspection data
    * @returns {Promise<Object>} Created physical inspection
    */
-  async create(inspectionData) {
-    const inspection = await PhysicalInspection.create(inspectionData);
+  async create(inspectionData, options = {}) {
+    const inspection = await PhysicalInspection.create(inspectionData, options);
     return inspection.toJSON();
   }
 
@@ -28,7 +28,8 @@ class PhysicalInspectionRepository {
     
     const inspection = await PhysicalInspection.findOne({
       where: { lotAllotmentId },
-      include
+      include,
+      ...options
     });
     return inspection ? inspection.toJSON() : null;
   }
@@ -36,10 +37,11 @@ class PhysicalInspectionRepository {
   /**
    * Find physical inspection by ID
    * @param {number} id - Physical inspection ID
+   * @param {Object} options - Query options
    * @returns {Promise<Object|null>} Physical inspection or null
    */
-  async findById(id) {
-    const inspection = await PhysicalInspection.findByPk(id);
+  async findById(id, options = {}) {
+    const inspection = await PhysicalInspection.findByPk(id, options);
     return inspection ? inspection.toJSON() : null;
   }
 
@@ -47,16 +49,17 @@ class PhysicalInspectionRepository {
    * Update physical inspection
    * @param {number} id - Physical inspection ID
    * @param {Object} updates - Fields to update
+   * @param {Object} options - Query options
    * @returns {Promise<Object|null>} Updated physical inspection or null
    */
-  async update(id, updates) {
-    const inspection = await PhysicalInspection.findByPk(id);
+  async update(id, updates, options = {}) {
+    const inspection = await PhysicalInspection.findByPk(id, options);
     if (!inspection) return null;
     
     if (updates && updates.samplingStages) {
       inspection.changed('samplingStages', true);
     }
-    await inspection.update(updates);
+    await inspection.update(updates, options);
     return inspection.toJSON();
   }
 

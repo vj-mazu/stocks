@@ -579,6 +579,12 @@ const renderBeautifulSmell = (stageObjOrLabel: any) => {
 
 
 
+const getNitAvgLabel = (nitValue: string) => {
+    if (!nitValue) return 'Nit Avg';
+    const clean = nitValue.trim().replace(/^(nit_avg|nit\s*)/i, '').trim();
+    return `Nit Avg (${clean})`;
+};
+
 export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpdate, showCollectorLoginPair = false, progressiveMode = false }: { detailEntry: SampleEntry, detailMode: 'quick' | 'history' | 'summary' | 'full', onClose: () => void, onUpdate?: (gpsCoordinates?: string) => void | Promise<void>, showCollectorLoginPair?: boolean, progressiveMode?: boolean }) => {
     const { user } = useAuth();
     const buildMapHref = (value: any) => {
@@ -996,6 +1002,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                     } else if (name === 'SMELL' || name === 'PADDY WB') {
                                         thStyle.width = '50px';
                                         thStyle.textAlign = 'center';
+                                    } else if (name === 'P COLOR' || name === '') {
+                                        thStyle.width = '100px';
+                                        thStyle.textAlign = 'center';
                                     } else if (name === 'MOISTURE') {
                                         thStyle.width = '70px';
                                         thStyle.textAlign = 'center';
@@ -1095,6 +1104,10 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                 cellStyle.textAlign = 'center';
                                             } else if (upperCol === 'SMELL' || upperCol === 'PADDY WB') {
                                                 cellStyle.width = '50px';
+                                                cellStyle.textAlign = 'center';
+                                            } else if (upperCol === 'P COLOR' || upperCol === '') {
+                                                cellStyle.width = '100px';
+                                                cellStyle.maxWidth = '100px';
                                                 cellStyle.textAlign = 'center';
                                             } else if (upperCol === 'MOISTURE') {
                                                 cellStyle.width = '70px';
@@ -1243,7 +1256,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 formatQ(attempt.wbBkRaw, attempt.wbBk),
                 formatQ(attempt.wbTRaw, attempt.wbT),
                 renderBeautifulSmell(getQualityAttemptSmellLabel(detailEntry, attempt)),
-                formatQ(attempt.paddyWbRaw, attempt.paddyWb)
+                formatQ(attempt.paddyWbRaw, attempt.paddyWb),
+                '-'
             ];
 
             if (progressiveMode) {
@@ -1496,29 +1510,24 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     };
 
                     const renderStageReportedBy = (stage: any) => {
-                        const isKadiga = stage.kadiga === 'Y' || stage.kadiga === 'Yes' || stage.kadiga === true || stage.kadiga === 'true';
                         return (
                             <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#1e293b' }}>
                                 {getCollectorLabel(stage.reportedBy)}
-                                {isKadiga && (
-                                    <span style={{ display: 'block', marginTop: '2px', fontSize: '10px', color: '#7c2d12', fontWeight: '800' }}>ಕಡಿಗಾ: Yes</span>
-                                )}
                             </span>
                         );
                     };
 
                     const renderStagePaddyWb = (stage: any) => {
                         const hasPaddyWb = !!stage.paddyWbEnabled;
-                        const hasDiscolor = !!stage.paddyColorEnabled && !!stage.paddyColor;
-                        if (!hasPaddyWb && !hasDiscolor) return '-';
+                        if (!hasPaddyWb) return '-';
                         return (
                             <span style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                {hasPaddyWb && <span>{formatQ(stage.paddyWbRaw, stage.paddyWb)}</span>}
-                                {hasDiscolor && <span style={{ color: '#7c2d12', fontWeight: '800' }}>{stage.paddyColor}</span>}
+                                <span>{formatQ(stage.paddyWbRaw, stage.paddyWb)}</span>
                             </span>
                         );
                     };
 
+                    const isKadigaVal = stageObj.kadiga === 'Y' || stageObj.kadiga === 'Yes' || stageObj.kadiga === true || stageObj.kadiga === 'true';
                     return [
                         labelElement,
                         renderStageReportedBy(stageObj),
@@ -1538,29 +1547,38 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         formatQ(stageObj.wbTRaw, stageObj.wbT),
                         renderBeautifulSmell(stageObj),
                         renderStagePaddyWb(stageObj),
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#7c2d12', fontWeight: '800', gap: '2px' }}>
+                            <span>{stageObj.paddyColorEnabled && stageObj.paddyColor ? stageObj.paddyColor : '-'}</span>
+                            <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />
+                            <span>ಕಡಿಗಾ: {stageObj.kadiga ? (isKadigaVal ? 'Yes' : 'No') : '-'}</span>
+                        </div>,
                         actionsCell
                     ];
                 };
 
                 const stageKeys: { key: string; label: string }[] = [];
-                if (stages.lot_avg) stageKeys.push({ key: 'lot_avg', label: 'Lot Avg' });
-                
-                Object.keys(stages)
-                    .filter(k => k.startsWith('nit_avg'))
+                const sortedKeys = Object.keys(stages)
+                    .filter(key => stages[key] && stages[key].reportedBy)
                     .sort((a, b) => {
-                        if (a === 'nit_avg') return -1;
-                        if (b === 'nit_avg') return 1;
-                        const numA = parseInt(a.replace('nit_avg_', '')) || 0;
-                        const numB = parseInt(b.replace('nit_avg_', '')) || 0;
-                        return numA - numB;
-                    })
-                    .forEach((key, index) => {
-                        stageKeys.push({ key, label: index === 0 ? 'Nit Avg' : `Nit Avg ${index + 1}` });
+                        const timeA = new Date(stages[a].reportedAt || stages[a].createdAt || stages[a].updatedAt || 0).getTime();
+                        const timeB = new Date(stages[b].reportedAt || stages[b].createdAt || stages[b].updatedAt || 0).getTime();
+                        return timeA - timeB;
                     });
-                
-                if (stages.half_lorry) stageKeys.push({ key: 'half_lorry', label: 'Half Lorry' });
-                if (stages.full_avg) stageKeys.push({ key: 'full_avg', label: 'Full Avg Lorry' });
-                if (stages.balanced_lot) stageKeys.push({ key: 'balanced_lot', label: 'Balanced Lot' });
+
+                sortedKeys.forEach(key => {
+                    let label = '';
+                    if (key === 'lot_avg') label = 'Lot Avg';
+                    else if (key === 'half_lorry') label = 'Half Lorry';
+                    else if (key === 'full_avg') label = 'Full Avg Lorry';
+                    else if (key === 'balanced_lot') label = 'Balanced Lot';
+                    else if (key.startsWith('nit_avg')) {
+                        const stageObj = stages[key];
+                        label = getNitAvgLabel(stageObj?.nit || '');
+                    } else {
+                        label = key;
+                    }
+                    stageKeys.push({ key, label });
+                });
 
                 stageKeys.forEach(({ key, label }) => {
                     const stageObj = stages[key];
@@ -1578,13 +1596,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 style={{ color: '#000000', textDecoration: 'underline', cursor: 'pointer', fontWeight: 900 }}
                                 title="Click to view side-by-side stage comparison"
                             >
-                                {key.startsWith('nit_avg') && stageObj.nit ? (
-                                    <>
-                                        {label}{' '}
-                                        <span style={{ color: '#ef6c00', fontWeight: '900' }}>
-                                            ({stageObj.nit})
-                                        </span>
-                                    </>
+                                {key.startsWith('nit_avg') ? (
+                                    label
                                 ) : key === 'full_avg' && insp.bags ? (
                                     <>
                                         {label}{' '}
@@ -1915,29 +1928,24 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             };
 
             const renderStageReportedBy = (stage: any) => {
-                const isKadiga = stage.kadiga === 'Y' || stage.kadiga === 'Yes' || stage.kadiga === true || stage.kadiga === 'true';
                 return (
                     <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#1e293b' }}>
                         {getCollectorLabel(stage.reportedBy)}
-                        {isKadiga && (
-                            <span style={{ display: 'block', marginTop: '2px', fontSize: '10px', color: '#7c2d12', fontWeight: '800' }}>ಕಡಿಗಾ: Yes</span>
-                        )}
                     </span>
                 );
             };
 
             const renderStagePaddyWb = (stage: any) => {
                 const hasPaddyWb = !!stage.paddyWbEnabled;
-                const hasDiscolor = !!stage.paddyColorEnabled && !!stage.paddyColor;
-                if (!hasPaddyWb && !hasDiscolor) return '-';
+                if (!hasPaddyWb) return '-';
                 return (
                     <span style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        {hasPaddyWb && <span>{formatQ(stage.paddyWbRaw, stage.paddyWb)}</span>}
-                        {hasDiscolor && <span style={{ color: '#7c2d12', fontWeight: '800' }}>{stage.paddyColor}</span>}
+                        <span>{formatQ(stage.paddyWbRaw, stage.paddyWb)}</span>
                     </span>
                 );
             };
 
+            const isKadigaVal = stageObj.kadiga === 'Y' || stageObj.kadiga === 'Yes' || stageObj.kadiga === true || stageObj.kadiga === 'true';
             return [
                 labelElement,
                 renderStageReportedBy(stageObj),
@@ -1957,29 +1965,38 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 formatQ(stageObj.wbTRaw, stageObj.wbT),
                 renderBeautifulSmell(stageObj),
                 renderStagePaddyWb(stageObj),
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#7c2d12', fontWeight: '800', gap: '2px' }}>
+                    <span>{stageObj.paddyColorEnabled && stageObj.paddyColor ? stageObj.paddyColor : '-'}</span>
+                    <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />
+                    <span>ಕಡಿಗಾ: {stageObj.kadiga ? (isKadigaVal ? 'Yes' : 'No') : '-'}</span>
+                </div>,
                 actionsCell
             ];
         };
 
         const stageKeys: { key: string; label: string }[] = [];
-        if (stages.lot_avg) stageKeys.push({ key: 'lot_avg', label: 'Lot Avg' });
-        
-        Object.keys(stages)
-            .filter(k => k.startsWith('nit_avg'))
+        const sortedKeys = Object.keys(stages)
+            .filter(key => stages[key] && stages[key].reportedBy)
             .sort((a, b) => {
-                if (a === 'nit_avg') return -1;
-                if (b === 'nit_avg') return 1;
-                const numA = parseInt(a.replace('nit_avg_', '')) || 0;
-                const numB = parseInt(b.replace('nit_avg_', '')) || 0;
-                return numA - numB;
-            })
-            .forEach((key, index) => {
-                stageKeys.push({ key, label: index === 0 ? 'Nit Avg' : `Nit Avg ${index + 1}` });
+                const timeA = new Date(stages[a].reportedAt || stages[a].createdAt || stages[a].updatedAt || 0).getTime();
+                const timeB = new Date(stages[b].reportedAt || stages[b].createdAt || stages[b].updatedAt || 0).getTime();
+                return timeA - timeB;
             });
-        
-        if (stages.half_lorry) stageKeys.push({ key: 'half_lorry', label: 'Half Lorry' });
-        if (stages.full_avg) stageKeys.push({ key: 'full_avg', label: 'Full Avg Lorry' });
-        if (stages.balanced_lot) stageKeys.push({ key: 'balanced_lot', label: 'Balanced Lot' });
+
+        sortedKeys.forEach(key => {
+            let label = '';
+            if (key === 'lot_avg') label = 'Lot Avg';
+            else if (key === 'half_lorry') label = 'Half Lorry';
+            else if (key === 'full_avg') label = 'Full Avg Lorry';
+            else if (key === 'balanced_lot') label = 'Balanced Lot';
+            else if (key.startsWith('nit_avg')) {
+                const stageObj = stages[key];
+                label = getNitAvgLabel(stageObj?.nit || '');
+            } else {
+                label = key;
+            }
+            stageKeys.push({ key, label });
+        });
 
         stageKeys.forEach(({ key, label }) => {
             const stageObj = stages[key];
@@ -1997,13 +2014,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         style={{ color: '#000000', textDecoration: 'underline', cursor: 'pointer', fontWeight: 900 }}
                         title="Click to view side-by-side stage comparison"
                     >
-                        {key.startsWith('nit_avg') && stageObj.nit ? (
-                            <>
-                                {label}{' '}
-                                <span style={{ color: '#ef6c00', fontWeight: '900' }}>
-                                    ({stageObj.nit})
-                                </span>
-                            </>
+                        {key.startsWith('nit_avg') ? (
+                            label
                         ) : key === 'full_avg' && insp.bags ? (
                             <>
                                 {label}{' '}
@@ -3055,8 +3067,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         '🔬', 
                                         '#f97316', 
                                         progressiveMode
-                                            ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'ACTIONS']
-                                            : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB'],
+                                            ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', '', 'ACTIONS']
+                                            : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', ''],
                                         buildInitialQualityRows(),
                                         { isQuality: true }
                                     )}
@@ -3079,7 +3091,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                 title,
                                                 '🚚',
                                                 isNewRulesMode ? '#2563eb' : '#f97316',
-                                                ['STAGE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'ACTIONS'],
+                                                ['STAGE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'P COLOR', 'ACTIONS'],
                                                 buildTripQualityRows(insp, tripIdx),
                                                 { isQuality: true }
                                             );
@@ -3566,7 +3578,6 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             <td style={{ padding: '8px 10px', fontWeight: '800', color: color }}>{name}</td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>
                                                 <div>{formatField(stageObj.reportedBy)}</div>
-                                                {isKadiga && <div style={{ marginTop: '2px', color: '#7c2d12', fontWeight: '800' }}>ಕಡಿಗಾ: Yes</div>}
                                             </td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>
                                                 {stageObj.reportedAt ? (new Date(stageObj.reportedAt).toLocaleDateString('en-GB') + ', ' + new Date(stageObj.reportedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()) : '-'}
@@ -3583,12 +3594,14 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', width: '50px' }}>{renderBeautifulSmell(stageObj)}</td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '50px' }}>
-                                                {!hasPaddyWb && !hasDiscolor ? '-' : (
-                                                    <>
-                                                        {hasPaddyWb && <div>{formatField(stageObj.paddyWbRaw || stageObj.paddyWb)}</div>}
-                                                        {hasDiscolor && <div style={{ marginTop: hasPaddyWb ? '2px' : 0, color: '#7c2d12', fontWeight: '800' }}>{formatField(stageObj.paddyColor)}</div>}
-                                                    </>
-                                                )}
+                                                {hasPaddyWb ? formatField(stageObj.paddyWbRaw || stageObj.paddyWb) : '-'}
+                                            </td>
+                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#7c2d12', fontWeight: '700', width: '50px' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                                    <span>{stageObj.paddyColorEnabled && stageObj.paddyColor ? formatField(stageObj.paddyColor) : '-'}</span>
+                                                    <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />
+                                                    <span>ಕಡಿಗಾ: {stageObj.kadiga ? (isKadiga ? 'Yes' : 'No') : '-'}</span>
+                                                </div>
                                             </td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.nit)}</td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{isFull ? formatField(inspection.bags) : '-'}</td>
@@ -3635,17 +3648,56 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                         <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '45px' }}>SK</th>
                                                         <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '50px' }}>SMELL</th>
                                                         <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '50px' }}>PADDY WB</th>
+                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '50px' }}>P COLOR</th>
                                                         <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>NIT NO</th>
                                                         <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>LOADED BAGS</th>
                                                         <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PHOTO</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {lot && lot.reportedBy && renderRow('Lot Avg', '#d05d00', '#fffaf5', lot, false)}
-                                                    {nit && nit.reportedBy && renderRow('Nit Avg', '#c2185b', '#fdf2f8', nit, false)}
-                                                    {half && half.reportedBy && renderRow('Half Lorry', '#b45309', '#fffdfa', half, false)}
-                                                    {full && full.reportedBy && renderRow('Full Avg Lorry', '#15803d', '#fffaf0', full, true)}
-                                                    {balanced && balanced.reportedBy && renderRow('Balanced Lot', '#4a148c', '#faf5ff', balanced, false)}
+                                                    {(() => {
+                                                        const stageKeys = Object.keys(stages)
+                                                            .filter(key => stages[key] && stages[key].reportedBy)
+                                                            .sort((a, b) => {
+                                                                const timeA = new Date(stages[a].reportedAt || stages[a].createdAt || stages[a].updatedAt || 0).getTime();
+                                                                const timeB = new Date(stages[b].reportedAt || stages[b].createdAt || stages[b].updatedAt || 0).getTime();
+                                                                return timeA - timeB;
+                                                            });
+                                                        return stageKeys.map((key) => {
+                                                            const stageObj = stages[key];
+                                                            let name = '';
+                                                            let color = '#333';
+                                                            let bgColor = '#fff';
+                                                            let isFull = false;
+
+                                                            if (key === 'lot_avg') {
+                                                                name = 'Lot Avg';
+                                                                color = '#d05d00';
+                                                                bgColor = '#fffaf5';
+                                                            } else if (key.startsWith('nit_avg')) {
+                                                                name = getNitAvgLabel(stageObj.nit || '');
+                                                                color = '#c2185b';
+                                                                bgColor = '#fdf2f8';
+                                                            } else if (key === 'half_lorry') {
+                                                                name = 'Half Lorry';
+                                                                color = '#b45309';
+                                                                bgColor = '#fffdfa';
+                                                            } else if (key === 'full_avg') {
+                                                                name = 'Full Avg Lorry';
+                                                                color = '#15803d';
+                                                                bgColor = '#fffaf0';
+                                                                isFull = true;
+                                                            } else if (key === 'balanced_lot') {
+                                                                name = 'Balanced Lot';
+                                                                color = '#4a148c';
+                                                                bgColor = '#faf5ff';
+                                                            } else {
+                                                                name = key;
+                                                            }
+
+                                                            return renderRow(name, color, bgColor, stageObj, isFull);
+                                                        });
+                                                    })()}
                                                 </tbody>
                                             </table>
                                         </div>

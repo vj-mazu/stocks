@@ -12,25 +12,36 @@ class PhysicalInspectionService {
    * @returns {Promise<Object>} Created physical inspection
    */
   async createPhysicalInspection(inspectionData, userId, userRole) {
-    try {
+    const { sequelize } = require('../config/database');
+    const LotAllotment = require('../models/LotAllotment');
+
+    return await sequelize.transaction(async (t) => {
       if (!inspectionData.sampleEntryId) {
         throw new Error('Sample entry ID is required');
       }
 
       const SampleEntryRepository = require('../repositories/SampleEntryRepository');
-      const LotAllotmentRepository = require('../repositories/LotAllotmentRepository');
 
       const entry = await SampleEntryRepository.findById(inspectionData.sampleEntryId);
       if (!entry) {
         throw new Error('Sample entry not found');
       }
 
-      const lotAllotment = await LotAllotmentRepository.findBySampleEntryId(inspectionData.sampleEntryId);
-      if (!lotAllotment) {
+      // Lock the lot allotment for this sample entry during transaction execution to prevent race condition
+      const lotAllotmentModel = await LotAllotment.findOne({
+        where: { sampleEntryId: inspectionData.sampleEntryId },
+        transaction: t,
+        lock: t.LOCK.UPDATE
+      });
+      if (!lotAllotmentModel) {
         throw new Error('Lot allotment not found for this entry. Please have manager allot a supervisor first.');
       }
+      const lotAllotment = lotAllotmentModel.toJSON();
 
-      const existingInspections = await PhysicalInspectionRepository.findBySampleEntryId(inspectionData.sampleEntryId);
+      const existingInspections = await PhysicalInspectionRepository.findBySampleEntryId(
+        inspectionData.sampleEntryId,
+        { transaction: t }
+      );
       const totalAllottedBags = (lotAllotment.allottedBags && lotAllotment.allottedBags > 0) ? lotAllotment.allottedBags : (entry.bags || 0);
 
       if (!totalAllottedBags || totalAllottedBags <= 0) {
@@ -72,7 +83,7 @@ class PhysicalInspectionService {
           newInspectionData.isComplete = true;
         }
 
-        const inspection = await PhysicalInspectionRepository.create(newInspectionData);
+        const inspection = await PhysicalInspectionRepository.create(newInspectionData, { transaction: t });
         await AuditService.logCreate(userId, 'physical_inspections', inspection.id, inspection);
 
         const currentStatus = entry.workflowStatus;
@@ -132,7 +143,6 @@ class PhysicalInspectionService {
       };
 
       // If we don't find it under the new lorry number, check if there's a LOT_AVG record that we can rename/resume.
-      // This happens when the lorry number wasn't added during the lot_avg stage, but is now being added during a subsequent stage.
       if (!existingLorryInspection && lorryNumberClean !== 'LOT_AVG') {
         const lotAvgInspection = existingInspections.find(
           i => (i.lorryNumber || '').trim().toUpperCase() === 'LOT_AVG'
@@ -191,7 +201,7 @@ class PhysicalInspectionService {
       if (isFirstRealTrip() && inspectionData.samplingRulesMode) {
         const cleanMode = String(inspectionData.samplingRulesMode).toLowerCase() === 'new' ? 'new' : 'old';
         if (lotAllotment.samplingRulesMode !== cleanMode) {
-          await LotAllotmentRepository.update(lotAllotment.id, { samplingRulesMode: cleanMode });
+          await lotAllotmentModel.update({ samplingRulesMode: cleanMode }, { transaction: t });
           lotAllotment.samplingRulesMode = cleanMode;
         }
       }
@@ -311,9 +321,9 @@ class PhysicalInspectionService {
 
       if (pendingLotAvgInspectionToRename) {
         const PhysicalInspection = require('../models/PhysicalInspection');
-        const dbInspection = await PhysicalInspection.findByPk(pendingLotAvgInspectionToRename.id);
+        const dbInspection = await PhysicalInspection.findByPk(pendingLotAvgInspectionToRename.id, { transaction: t });
         if (dbInspection) {
-          await dbInspection.update({ lorryNumber: lorryNumberClean });
+          await dbInspection.update({ lorryNumber: lorryNumberClean }, { transaction: t });
           pendingLotAvgInspectionToRename.lorryNumber = lorryNumberClean;
         }
       }
@@ -388,7 +398,7 @@ class PhysicalInspectionService {
           }
         };
 
-        inspection = await PhysicalInspectionRepository.create(newInspectionData);
+        inspection = await PhysicalInspectionRepository.create(newInspectionData, { transaction: t });
         await AuditService.logCreate(userId, 'physical_inspections', inspection.id, inspection);
 
         const currentStatus = entry.workflowStatus;
@@ -411,7 +421,7 @@ class PhysicalInspectionService {
         }
       } else {
         // Load existing record
-        const currentInspection = await PhysicalInspectionRepository.findById(existingLorryInspection.id);
+        const currentInspection = await PhysicalInspectionRepository.findById(existingLorryInspection.id, { transaction: t });
         const stages = currentInspection.samplingStages || {};
         
         if (stages[stage] && stage !== 'nit_avg') {
@@ -482,7 +492,7 @@ class PhysicalInspectionService {
         stages[targetStageKey] = stageData;
         updates.samplingStages = JSON.parse(JSON.stringify(stages));
 
-        inspection = await PhysicalInspectionRepository.update(currentInspection.id, updates);
+        inspection = await PhysicalInspectionRepository.update(currentInspection.id, updates, { transaction: t });
         await AuditService.logUpdate(userId, 'physical_inspections', currentInspection.id, currentInspection, inspection);
 
         const currentStatus = entry.workflowStatus;
@@ -498,10 +508,7 @@ class PhysicalInspectionService {
       }
 
       return inspection;
-    } catch (error) {
-      console.error('Error in multi-stage physical inspection creation:', error);
-      throw error;
-    }
+    });
   }
 
   /**

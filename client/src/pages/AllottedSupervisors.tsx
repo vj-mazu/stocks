@@ -1258,7 +1258,25 @@ const AllottedSupervisors: React.FC = () => {
                                         {progress.previousInspections.map((inspection, idx) => {
                                           const stages = inspection.samplingStages || {};
                                           // Find latest available stage
-                                          const latestStage = stages.full_avg?.reportedBy ? stages.full_avg : (stages.half_lorry?.reportedBy ? stages.half_lorry : (stages.lot_avg?.reportedBy ? stages.lot_avg : null));
+                                          const latestStage = stages.balanced_lot?.reportedBy
+                                            ? stages.balanced_lot
+                                            : stages.full_avg?.reportedBy
+                                            ? stages.full_avg
+                                            : stages.half_lorry?.reportedBy
+                                            ? stages.half_lorry
+                                            : (() => {
+                                                const nitKeys = Object.keys(stages)
+                                                  .filter(k => k.startsWith('nit_avg') && stages[k]?.reportedBy)
+                                                  .sort((a, b) => {
+                                                    if (a === 'nit_avg') return -1;
+                                                    if (b === 'nit_avg') return 1;
+                                                    const numA = parseInt(a.replace('nit_avg_', '')) || 0;
+                                                    const numB = parseInt(b.replace('nit_avg_', '')) || 0;
+                                                    return numB - numA;
+                                                  });
+                                                if (nitKeys.length > 0) return stages[nitKeys[0]];
+                                                return stages.lot_avg?.reportedBy ? stages.lot_avg : null;
+                                              })();
                                           
                                           const moistureVal = latestStage ? (latestStage.moistureRaw ? `${latestStage.moistureRaw}%` : (latestStage.moisture !== undefined && latestStage.moisture !== null ? `${latestStage.moisture}%` : '-')) : '-';
                                           const cuttingVal = latestStage ? (latestStage.cutting1 !== undefined && latestStage.cutting1 !== null ? `${latestStage.cutting1}×${latestStage.cutting2 || 0}` : '-') : '-';
@@ -1291,31 +1309,65 @@ const AllottedSupervisors: React.FC = () => {
                                                 fontWeight: '700', 
                                                 color: (() => {
                                                   const stages = inspection.samplingStages || {};
+                                                  if (stages.balanced_lot?.approvalStatus === 'approved') return '#2e7d32'; // Pass
+                                                  if (stages.balanced_lot?.approvalStatus === 'pending') return '#f39c12'; // Pending
                                                   if (stages.full_avg?.approvalStatus === 'approved') return '#2e7d32'; // Pass
                                                   if (stages.full_avg?.approvalStatus === 'pending') return '#f39c12'; // Pending
-                                                  if (stages.nit_avg?.approvalStatus === 'approved') return '#1565c0'; // Approved stage
-                                                  if (stages.nit_avg?.approvalStatus === 'pending') return '#f39c12'; // Pending
                                                   if (stages.half_lorry?.approvalStatus === 'approved') return '#1565c0'; // Approved stage
                                                   if (stages.half_lorry?.approvalStatus === 'pending') return '#f39c12'; // Pending
+                                                  
+                                                  // Check all nit keys
+                                                  const nitKeys = Object.keys(stages)
+                                                    .filter(k => k.startsWith('nit_avg'))
+                                                    .sort((a, b) => {
+                                                      if (a === 'nit_avg') return -1;
+                                                      if (b === 'nit_avg') return 1;
+                                                      const numA = parseInt(a.replace('nit_avg_', '')) || 0;
+                                                      const numB = parseInt(b.replace('nit_avg_', '')) || 0;
+                                                      return numB - numA;
+                                                    });
+                                                  for (const key of nitKeys) {
+                                                    if (stages[key]?.approvalStatus === 'approved') return '#1565c0';
+                                                    if (stages[key]?.approvalStatus === 'pending') return '#f39c12';
+                                                  }
+
                                                   if (stages.lot_avg?.approvalStatus === 'approved') return '#1565c0'; // Approved stage
                                                   if (stages.lot_avg?.approvalStatus === 'pending') return '#f39c12'; // Pending
-                                                  if (stages.balanced_lot?.approvalStatus === 'approved') return '#1565c0'; // Approved stage
-                                                  if (stages.balanced_lot?.approvalStatus === 'pending') return '#f39c12'; // Pending
                                                   return '#64748b';
                                                 })()
                                               }}>
                                                 {(() => {
                                                   const stages = inspection.samplingStages || {};
+                                                  if (stages.balanced_lot?.approvalStatus === 'approved') return 'Pass';
+                                                  if (stages.balanced_lot?.approvalStatus === 'pending') return 'Pending: Balanced Lot';
                                                   if (stages.full_avg?.approvalStatus === 'approved') return 'Pass';
                                                   if (stages.full_avg?.approvalStatus === 'pending') return 'Pending: Full Lorry';
-                                                  if (stages.nit_avg?.approvalStatus === 'approved') return 'Approved: Nit Avg';
-                                                  if (stages.nit_avg?.approvalStatus === 'pending') return 'Pending: Nit Avg';
                                                   if (stages.half_lorry?.approvalStatus === 'approved') return 'Approved: Half Lorry';
                                                   if (stages.half_lorry?.approvalStatus === 'pending') return 'Pending: Half Lorry';
+                                                  
+                                                  // Check all nit keys
+                                                  const nitKeys = Object.keys(stages)
+                                                    .filter(k => k.startsWith('nit_avg'))
+                                                    .sort((a, b) => {
+                                                      if (a === 'nit_avg') return -1;
+                                                      if (b === 'nit_avg') return 1;
+                                                      const numA = parseInt(a.replace('nit_avg_', '')) || 0;
+                                                      const numB = parseInt(b.replace('nit_avg_', '')) || 0;
+                                                      return numA - numB;
+                                                    });
+                                                  for (const key of nitKeys) {
+                                                    if (stages[key]?.approvalStatus === 'approved') {
+                                                      const idx = nitKeys.indexOf(key);
+                                                      return idx === 0 ? 'Approved: Nit Avg' : `Approved: Nit Avg ${idx + 1}`;
+                                                    }
+                                                    if (stages[key]?.approvalStatus === 'pending') {
+                                                      const idx = nitKeys.indexOf(key);
+                                                      return idx === 0 ? 'Pending: Nit Avg' : `Pending: Nit Avg ${idx + 1}`;
+                                                    }
+                                                  }
+
                                                   if (stages.lot_avg?.approvalStatus === 'approved') return 'Approved: Lot Avg';
                                                   if (stages.lot_avg?.approvalStatus === 'pending') return 'Pending: Lot Avg';
-                                                  if (stages.balanced_lot?.approvalStatus === 'approved') return 'Approved: Balanced Lot';
-                                                  if (stages.balanced_lot?.approvalStatus === 'pending') return 'Pending: Balanced Lot';
                                                   return 'Pending';
                                                 })()}
                                               </td>
@@ -1753,12 +1805,9 @@ const AllottedSupervisors: React.FC = () => {
                 ✕
               </button>
             </div>
-            <div style={{ padding: '16px 18px 18px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ padding: '12px 16px', overflowY: 'auto', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {selectedLorryForComparison.previousInspections && selectedLorryForComparison.previousInspections.map((inspection: any, idx: number) => {
                 const stages = inspection.samplingStages || {};
-                const lot = stages.lot_avg || {};
-                const half = stages.half_lorry || {};
-                const full = stages.full_avg || {};
 
                 const formatField = (val: any) => {
                   if (val === null || val === undefined || val === '') return '-';
@@ -1782,33 +1831,45 @@ const AllottedSupervisors: React.FC = () => {
                   return `${stageObj.bend1}x${stageObj.bend2 || 0}`;
                 };
 
+                const getNitAvgLabel = (nitValue: string) => {
+                  if (!nitValue) return 'Nit Avg';
+                  const clean = nitValue.trim().replace(/^(nit_avg|nit\s*)/i, '').trim();
+                  return `Nit Avg (${clean})`;
+                };
+
                 const renderRow = (name: string, color: string, bgColor: string, stageObj: any, isFull: boolean) => {
+                  const rowHasSmell = stageObj.smellHas === true || String(stageObj.smellHas).trim().toUpperCase() === 'YES';
+                  const isKadiga = stageObj.kadiga === 'Y' || stageObj.kadiga === 'Yes' || stageObj.kadiga === true || stageObj.kadiga === 'true';
+                  const hasPaddyWb = !!stageObj.paddyWbEnabled;
                   return (
-                    <tr style={{ borderBottom: '1px solid #000000', backgroundColor: bgColor }}>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', fontWeight: '800', color: color }}>
-                        {name}
-                        {name === 'Nit Avg' && stageObj.nit && (
-                          <span style={{ color: '#ef6c00', marginLeft: '5px' }}>({stageObj.nit})</span>
-                        )}
+                    <tr key={name} style={{ borderBottom: '1px solid #cbd5e1', backgroundColor: rowHasSmell ? '#ffebee' : bgColor }}>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', fontWeight: '800', color: color }}>{name}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.reportedBy)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>
+                        {stageObj.reportedAt ? new Date(stageObj.reportedAt).toLocaleDateString('en-GB') + ', ' + new Date(stageObj.reportedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase() : '-'}
                       </td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.reportedBy)}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>
-                        {stageObj.reportedAt ? new Date(stageObj.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatMoisture(stageObj)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600', width: '55px' }}>{formatCutting(stageObj)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600', width: '55px' }}>{formatBend(stageObj)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '55px' }}>{(() => { const v = stageObj.grainsCountRaw || stageObj.grainsCount; return (v !== null && v !== undefined && v !== '') ? `(${v})` : '-'; })()}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.mixRaw || stageObj.mix)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{stageObj.smixEnabled ? formatField(stageObj.mixSRaw || stageObj.mixS) || 'Yes' : '-'}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{stageObj.lmixEnabled ? formatField(stageObj.mixLRaw || stageObj.mixL) || 'Yes' : '-'}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.kanduRaw || stageObj.kandu)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.oilRaw || stageObj.oil)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '50px' }}>{stageObj.smellHas === true || String(stageObj.smellHas).trim().toUpperCase() === 'YES' ? (stageObj.smellType || 'Yes') : '-'}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '50px' }}>{hasPaddyWb ? formatField(stageObj.paddyWbRaw || stageObj.paddyWb) : '-'}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#7c2d12', fontWeight: '700', width: '50px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                          <span>{stageObj.paddyColorEnabled && stageObj.paddyColor ? formatField(stageObj.paddyColor) : '-'}</span>
+                          <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />
+                          <span>ಕಡಿಗಾ: {stageObj.kadiga ? (isKadiga ? 'Yes' : 'No') : '-'}</span>
+                        </div>
                       </td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatMoisture(stageObj)}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600', width: '55px' }}>{formatCutting(stageObj)}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600', width: '55px' }}>{formatBend(stageObj)}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '55px' }}>({formatField(stageObj.grainsCountRaw || stageObj.grainsCount)})</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.mixRaw || stageObj.mix)}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{stageObj.smixEnabled ? formatField(stageObj.mixSRaw || stageObj.mixS) || 'Yes' : '-'}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{stageObj.lmixEnabled ? formatField(stageObj.mixLRaw || stageObj.mixL) || 'Yes' : '-'}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.kanduRaw || stageObj.kandu)}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.oilRaw || stageObj.oil)}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '50px' }}>{stageObj.smellHas ? 'Yes' : '-'}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '50px' }}>{stageObj.paddyWbEnabled ? formatField(stageObj.paddyWbRaw || stageObj.paddyWb) : '-'}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{isFull ? formatField(stageObj.actualBags || inspection.bags) : '-'}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center' }}>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.nit)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{isFull ? formatField(stageObj.actualBags || inspection.bags) : '-'}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center' }}>
                         {stageObj.imageUrl ? <a href={resolveMediaUrl(stageObj.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
                       </td>
                     </tr>
@@ -1826,38 +1887,80 @@ const AllottedSupervisors: React.FC = () => {
                     : `Load ${idx + 1} - Lorry Number: ${inspection.lorryNumber?.toUpperCase() || ''}`;
 
                 return (
-                  <div key={inspection.id} style={{ border: '1px solid #000000', borderRadius: '8px', overflow: 'hidden' }}>
+                  <div key={inspection.id} style={{ border: '1px solid #f2cfb6', borderRadius: '8px', overflow: 'hidden' }}>
                     <div style={{ background: 'linear-gradient(90deg, #f2711c 0%, #f26202 100%)', padding: '8px 12px', fontWeight: 'bold', fontSize: '12px', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
                       <span>{tripHeaderLabel} | Bags Loaded: {stages.full_avg?.actualBags || inspection.bags || '-'}</span>
                       <span>Reported By: {inspection.reportedBy?.username || 'System'} | Date: {new Date(inspection.inspectionDate).toLocaleDateString()}</span>
                     </div>
                     <div style={{ overflowX: 'auto' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #000000' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #f2cfb6' }}>
                         <thead>
-                          <tr style={{ background: '#f1f5f9', color: '#334155', borderBottom: '2px solid #000000' }}>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'left', border: '1px solid #000000' }}>SAMPLE / STAGE</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>REPORTED BY</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>REPORTED AT</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>MOISTURE</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '55px' }}>CUTTING</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '55px' }}>BEND</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '55px' }}>GRAINS</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '45px' }}>MIX</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '45px' }}>S MIX</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '45px' }}>L MIX</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '45px' }}>KANDU</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '45px' }}>OIL</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '45px' }}>SK</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '50px' }}>SMELL</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '50px' }}>PADDY WB</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>LOADED BAGS</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>PHOTO</th>
+                          <tr style={{ background: '#f1f5f9', color: '#334155', borderBottom: '2px solid #cbd5e1' }}>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'left', border: '1px solid #cbd5e1' }}>SAMPLE / STAGE</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>REPORTED BY</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>REPORTED AT</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>MOISTURE</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '55px' }}>CUTTING</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '55px' }}>BEND</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '55px' }}>GRAINS</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '45px' }}>MIX</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '45px' }}>S MIX</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '45px' }}>L MIX</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '45px' }}>KANDU</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '45px' }}>OIL</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '45px' }}>SK</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '50px' }}>SMELL</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '50px' }}>PADDY WB</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '50px' }}>P COLOR</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>NIT NO</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>LOADED BAGS</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PHOTO</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {lot && lot.reportedBy && renderRow('Lot Avg', '#d05d00', '#fffaf5', lot, false)}
-                          {half && half.reportedBy && renderRow('Half Lorry', '#b45309', '#fffdfa', half, false)}
-                          {full && full.reportedBy && renderRow('Full Avg Lorry', '#15803d', '#fffaf0', full, true)}
+                          {(() => {
+                            const stageKeys = Object.keys(stages)
+                              .filter(key => stages[key] && stages[key].reportedBy)
+                              .sort((a, b) => {
+                                const timeA = new Date(stages[a].reportedAt || stages[a].createdAt || stages[a].updatedAt || 0).getTime();
+                                const timeB = new Date(stages[b].reportedAt || stages[b].createdAt || stages[b].updatedAt || 0).getTime();
+                                return timeA - timeB;
+                              });
+                            return stageKeys.map((key) => {
+                              const stageObj = stages[key];
+                              let name = '';
+                              let color = '#333';
+                              let bgColor = '#fff';
+                              let isFull = false;
+
+                              if (key === 'lot_avg') {
+                                name = 'Lot Avg';
+                                color = '#d05d00';
+                                bgColor = '#fffaf5';
+                              } else if (key.startsWith('nit_avg')) {
+                                name = getNitAvgLabel(stageObj.nit || '');
+                                color = '#c2185b';
+                                bgColor = '#fdf2f8';
+                              } else if (key === 'half_lorry') {
+                                name = 'Half Lorry';
+                                color = '#b45309';
+                                bgColor = '#fffdfa';
+                              } else if (key === 'full_avg') {
+                                name = 'Full Avg Lorry';
+                                color = '#15803d';
+                                bgColor = '#fffaf0';
+                                isFull = true;
+                              } else if (key === 'balanced_lot') {
+                                name = 'Balanced Lot';
+                                color = '#4a148c';
+                                bgColor = '#faf5ff';
+                              } else {
+                                name = key;
+                              }
+
+                              return renderRow(name, color, bgColor, stageObj, isFull);
+                            });
+                          })()}
                         </tbody>
                       </table>
                     </div>
@@ -1866,7 +1969,7 @@ const AllottedSupervisors: React.FC = () => {
               })}
               <button
                 onClick={() => setSelectedLorryForComparison(null)}
-                style={{ marginTop: '16px', width: '100%', padding: '9px', background: '#1565c0', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
+                style={{ marginTop: '8px', width: '100%', padding: '9px', background: '#1565c0', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
               >
                 Close
               </button>

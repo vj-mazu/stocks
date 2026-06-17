@@ -2116,35 +2116,35 @@ const PendingApprovals: React.FC = () => {
                                 ✕
                             </button>
                         </div>
-                        <div style={{ padding: '16px 18px 18px', overflowY: 'auto' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                        <div style={{ padding: '12px 16px', overflowY: 'auto', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <div style={{ overflowX: 'auto' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #cbd5e1' }}>
                                 <thead>
-                                    <tr style={{ background: 'linear-gradient(90deg, #f2711c 0%, #f26202 100%)', color: 'white', borderBottom: '2px solid #cbd5e1' }}>
-                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'left', fontWeight: '800' }}>SAMPLE</th>
-                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'left', fontWeight: '800' }}>REPORTED BY</th>
-                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'left', fontWeight: '800' }}>REPORTED AT</th>
-                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>MOISTURE</th>
-                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>CUTTING</th>
-                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>BEND</th>
-                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>GRAINS COUNT</th>
-                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>MIX</th>
-                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>S MIX</th>
-                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>L MIX</th>
-                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>KANDU</th>
-                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>OIL</th>
-                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>SK</th>
-                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>SMELL</th>
-                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>PADDY WB</th>
-                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>BAGS</th>
-                                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: '800' }}>PHOTO</th>
+                                    <tr style={{ background: '#f1f5f9', color: '#334155', borderBottom: '2px solid #cbd5e1' }}>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'left', fontWeight: '800' }}>SAMPLE / STAGE</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', fontWeight: '800' }}>REPORTED BY</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', fontWeight: '800' }}>REPORTED AT</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', fontWeight: '800' }}>MOISTURE</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', fontWeight: '800', width: '55px' }}>CUTTING</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', fontWeight: '800', width: '55px' }}>BEND</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', fontWeight: '800', width: '55px' }}>GRAINS</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', fontWeight: '800', width: '45px' }}>MIX</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', fontWeight: '800', width: '45px' }}>S MIX</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', fontWeight: '800', width: '45px' }}>L MIX</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', fontWeight: '800', width: '45px' }}>KANDU</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', fontWeight: '800', width: '45px' }}>OIL</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', fontWeight: '800', width: '45px' }}>SK</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', width: '50px' }}>SMELL</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', width: '50px' }}>PADDY WB</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', width: '50px' }}>P COLOR</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center' }}>NIT NO</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center' }}>LOADED BAGS</th>
+                                        <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center' }}>PHOTO</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {(() => {
                                         const stages = selectedLorryForComparison.samplingStages || {};
-                                        const lot = stages.lot_avg || {};
-                                        const half = stages.half_lorry || {};
-                                        const full = stages.full_avg || {};
 
                                         const formatField = (val: any) => {
                                             if (val === null || val === undefined || val === '') return '-';
@@ -2169,51 +2169,104 @@ const PendingApprovals: React.FC = () => {
                                             return `${stageObj.bend1}x${stageObj.bend2 || 0}`;
                                         };
 
+                                        const getNitAvgLabel = (nitValue: string) => {
+                                            if (!nitValue) return 'Nit Avg';
+                                            const clean = nitValue.trim().replace(/^(nit_avg|nit\s*)/i, '').trim();
+                                            return `Nit Avg (${clean})`;
+                                        };
+
                                         const renderRow = (name: string, color: string, bgColor: string, stageObj: any, isFull: boolean) => {
+                                            const rowHasSmell = stageObj.smellHas === true || String(stageObj.smellHas).trim().toUpperCase() === 'YES';
+                                            const isKadiga = stageObj.kadiga === 'Y' || stageObj.kadiga === 'Yes' || stageObj.kadiga === true || stageObj.kadiga === 'true';
+                                            const hasPaddyWb = !!stageObj.paddyWbEnabled;
                                             return (
-                                                <tr style={{ borderBottom: '1px solid #cbd5e1', backgroundColor: bgColor }}>
-                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', fontWeight: '800', color: color }}>{name}</td>
-                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.reportedBy)}</td>
-                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>
-                                                        {stageObj.reportedAt ? new Date(stageObj.reportedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '-'}
+                                                <tr key={name} style={{ borderBottom: '1px solid #cbd5e1', backgroundColor: rowHasSmell ? '#ffebee' : bgColor }}>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', fontWeight: '800', color: color }}>{name}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.reportedBy)}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>
+                                                        {stageObj.reportedAt ? new Date(stageObj.reportedAt).toLocaleDateString('en-GB') + ', ' + new Date(stageObj.reportedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase() : '-'}
                                                     </td>
-                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatMoisture(stageObj)}</td>
-                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatCutting(stageObj)}</td>
-                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatBend(stageObj)}</td>
-                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.grainsCountRaw || stageObj.grainsCount)}</td>
-                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.mixRaw || stageObj.mix)}</td>
-                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.smixEnabled ? formatField(stageObj.mixSRaw || stageObj.mixS) || 'Yes' : '-'}</td>
-                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.lmixEnabled ? formatField(stageObj.mixLRaw || stageObj.mixL) || 'Yes' : '-'}</td>
-                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.kanduRaw || stageObj.kandu)}</td>
-                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.oilRaw || stageObj.oil)}</td>
-                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
-                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.smellHas ? 'Yes' : '-'}</td>
-                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{stageObj.paddyWbEnabled ? formatField(stageObj.paddyWbRaw || stageObj.paddyWb) : '-'}</td>
-                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{isFull ? formatField(selectedLorryForComparison.bags) : '-'}</td>
-                                                    <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatMoisture(stageObj)}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600', width: '55px' }}>{formatCutting(stageObj)}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600', width: '55px' }}>{formatBend(stageObj)}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '55px' }}>{(() => { const v = stageObj.grainsCountRaw || stageObj.grainsCount; return (v !== null && v !== undefined && v !== '') ? `(${v})` : '-'; })()}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.mixRaw || stageObj.mix)}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{stageObj.smixEnabled ? formatField(stageObj.mixSRaw || stageObj.mixS) || 'Yes' : '-'}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{stageObj.lmixEnabled ? formatField(stageObj.mixLRaw || stageObj.mixL) || 'Yes' : '-'}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.kanduRaw || stageObj.kandu)}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.oilRaw || stageObj.oil)}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '50px' }}>{stageObj.smellHas === true || String(stageObj.smellHas).trim().toUpperCase() === 'YES' ? (stageObj.smellType || 'Yes') : '-'}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '50px' }}>{hasPaddyWb ? formatField(stageObj.paddyWbRaw || stageObj.paddyWb) : '-'}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#7c2d12', fontWeight: '700', width: '50px' }}>
+                                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                                            <span>{stageObj.paddyColorEnabled && stageObj.paddyColor ? formatField(stageObj.paddyColor) : '-'}</span>
+                                                            <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />
+                                                            <span>ಕಡಿಗಾ: {stageObj.kadiga ? (isKadiga ? 'Yes' : 'No') : '-'}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.nit)}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{isFull ? formatField(selectedLorryForComparison.bags) : '-'}</td>
+                                                    <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center' }}>
                                                         {stageObj.imageUrl ? <a href={resolveMediaUrl(stageObj.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
                                                     </td>
                                                 </tr>
                                             );
                                         };
 
-                                        return (
-                                            <>
-                                                {renderRow('Lot Avg', '#e05300', '#f0f9ff', lot, false)}
-                                                {renderRow('Half Lorry', '#b45309', '#fffbeb', half, false)}
-                                                {renderRow('Full Lorry', '#15803d', '#f0fdf4', full, true)}
-                                            </>
-                                        );
+                                        const stageKeys = Object.keys(stages)
+                                            .filter(key => stages[key] && stages[key].reportedBy)
+                                            .sort((a, b) => {
+                                                const timeA = new Date(stages[a].reportedAt || stages[a].createdAt || stages[a].updatedAt || 0).getTime();
+                                                const timeB = new Date(stages[b].reportedAt || stages[b].createdAt || stages[b].updatedAt || 0).getTime();
+                                                return timeA - timeB;
+                                            });
+
+                                        return stageKeys.map((key) => {
+                                            const stageObj = stages[key];
+                                            let name = '';
+                                            let color = '#333';
+                                            let bgColor = '#fff';
+                                            let isFull = false;
+
+                                            if (key === 'lot_avg') {
+                                                name = 'Lot Avg';
+                                                color = '#d05d00';
+                                                bgColor = '#fffaf5';
+                                            } else if (key.startsWith('nit_avg')) {
+                                                name = getNitAvgLabel(stageObj.nit || '');
+                                                color = '#c2185b';
+                                                bgColor = '#fdf2f8';
+                                            } else if (key === 'half_lorry') {
+                                                name = 'Half Lorry';
+                                                color = '#b45309';
+                                                bgColor = '#fffdfa';
+                                            } else if (key === 'full_avg') {
+                                                name = 'Full Avg Lorry';
+                                                color = '#15803d';
+                                                bgColor = '#fffaf0';
+                                                isFull = true;
+                                            } else if (key === 'balanced_lot') {
+                                                name = 'Balanced Lot';
+                                                color = '#4a148c';
+                                                bgColor = '#faf5ff';
+                                            } else {
+                                                name = key;
+                                            }
+
+                                            return renderRow(name, color, bgColor, stageObj, isFull);
+                                        });
                                     })()}
                                 </tbody>
                             </table>
-                            <button
-                                onClick={() => setSelectedLorryForComparison(null)}
-                                style={{ marginTop: '16px', width: '100%', padding: '9px', background: '#1565c0', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
-                            >
-                                Close
-                            </button>
-                        </div>
+                                </div>
+                                <button
+                                    onClick={() => setSelectedLorryForComparison(null)}
+                                    style={{ marginTop: '8px', width: '100%', padding: '9px', background: '#1565c0', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
+                                >
+                                    Close
+                                </button>
+                            </div>
                     </div>
                 </div>
             )}

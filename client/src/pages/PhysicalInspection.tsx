@@ -132,6 +132,8 @@ const PhysicalInspection: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'paddy' | 'rice'>('paddy');
   const [selectedLorryForComparison, setSelectedLorryForComparison] = useState<any>(null);
   const [detailModalEntry, setDetailModalEntry] = useState<any>(null);
+  const [isSaving, setIsSaving] = useState<{ [entryId: string]: boolean }>({});
+
 
 
   const [expandedEntries, setExpandedEntries] = useState<{ [key: string]: boolean }>({});
@@ -192,6 +194,7 @@ const PhysicalInspection: React.FC = () => {
       inspectionDate: string;
       lorryNumber: string;
       remarks: string;
+      samplingRulesMode?: string;
     }
   }>({});
 
@@ -694,14 +697,11 @@ const PhysicalInspection: React.FC = () => {
       if (stageVal.smellHas === 'Yes' && !String(stageVal.smellType || '').trim()) {
         return 'Smell type is required';
       }
-      if (stageVal.paddyColorEnabled === undefined || stageVal.paddyColorEnabled === null || String(stageVal.paddyColorEnabled).trim() === '') {
-        return 'Paddy discolor Yes/No is required';
+      if (!String(stageVal.paddyColor || '').trim()) {
+        return 'Paddy discolor is required';
       }
-      if (stageVal.paddyColorEnabled === 'Y' && !String(stageVal.paddyColor || '').trim()) {
-        return 'Paddy discolor type is required';
-      }
-      const kadiga = stageVal.kadiga || 'N';
-      if (!['Y', 'N', 'Yes', 'No'].includes(kadiga)) {
+      const kadiga = stageVal.kadiga;
+      if (!kadiga || !['Y', 'N', 'Yes', 'No'].includes(kadiga)) {
         return 'ಕಡಿಗಾ Yes/No is required';
       }
       if (stage.startsWith('nit_avg') && !String(stageVal.nit || '').trim()) {
@@ -747,12 +747,11 @@ const PhysicalInspection: React.FC = () => {
     if (stageVal.paddyWbEnabled === 'Y' && !String(stageVal.paddyWb || '').trim()) {
       return 'Paddy WB value is required';
     }
-    const paddyColorEnabled = stageVal.paddyColorEnabled || 'N';
-    if (paddyColorEnabled === 'Y' && !String(stageVal.paddyColor || '').trim()) {
-      return 'Paddy discolor type is required';
+    if (!String(stageVal.paddyColor || '').trim()) {
+      return 'Paddy discolor is required';
     }
-    const kadiga = stageVal.kadiga || 'N';
-    if (!['Y', 'N', 'Yes', 'No'].includes(kadiga)) {
+    const kadiga = stageVal.kadiga;
+    if (!kadiga || !['Y', 'N', 'Yes', 'No'].includes(kadiga)) {
       return 'ಕಡಿಗಾ Yes/No is required';
     }
     if (stage.startsWith('nit_avg') && !String(stageVal.nit || '').trim()) {
@@ -1202,10 +1201,15 @@ const PhysicalInspection: React.FC = () => {
         return progress.samplingRulesMode;
       }
     }
-    return inspectionData[entryId]?.samplingRulesMode || 'old';
+    return inspectionData[entryId]?.samplingRulesMode || '';
   };
 
   const handleAddStage = (entryId: string) => {
+    if (!getRulesMode(entryId)) {
+      showNotification('Please select Crop (Old/New Paddy) before opening any sampling stage!', 'error');
+      return;
+    }
+
     let stage = selectedStage[entryId];
     if (!stage) {
       showNotification('Please select a sampling stage from the dropdown', 'error');
@@ -1348,10 +1352,18 @@ const PhysicalInspection: React.FC = () => {
   };
 
   const handleSaveStage = async (entryId: string, stage: string) => {
+    if (isSaving[entryId]) return;
+
     const data = inspectionData[entryId];
     const stageVal = samplingStageData[entryId]?.[stage];
     const progress = inspectionProgress[entryId];
     const isLorryOptional = stage === 'lot_avg' || stage === 'balanced_lot';
+
+    const rulesMode = getRulesMode(entryId);
+    if (!rulesMode) {
+      showNotification('Please select a Crop before saving', 'error');
+      return;
+    }
 
     let lorryNum = (data?.lorryNumber || '').trim().toUpperCase();
     if (!lorryNum && isLorryOptional) {
@@ -1398,6 +1410,7 @@ const PhysicalInspection: React.FC = () => {
     }
 
     try {
+      setIsSaving(prev => ({ ...prev, [entryId]: true }));
       const token = localStorage.getItem('token');
       const formData = new FormData();
       formData.append('inspectionDate', data.inspectionDate);
@@ -1423,9 +1436,9 @@ const PhysicalInspection: React.FC = () => {
       formData.append('smellType', stageVal.smellHas === 'Yes' ? (stageVal.smellType || '') : '');
       formData.append('paddyWbEnabled', stageVal.paddyWbEnabled === 'Y' ? 'true' : 'false');
       formData.append('paddyWb', stageVal.paddyWb || '0');
-      formData.append('paddyColorEnabled', stageVal.paddyColorEnabled === 'Y' ? 'true' : 'false');
-      formData.append('paddyColor', stageVal.paddyColorEnabled === 'Y' ? (stageVal.paddyColor || '') : '');
-      formData.append('kadiga', stageVal.kadiga || 'N');
+      formData.append('paddyColorEnabled', stageVal.paddyColor ? 'true' : 'false');
+      formData.append('paddyColor', stageVal.paddyColor || '');
+      formData.append('kadiga', stageVal.kadiga || '');
       formData.append('remarks', data.remarks || '');
       formData.append('reportedBy', user?.username || 'System');
       formData.append('samplingRulesMode', getRulesMode(entryId));
@@ -1497,6 +1510,8 @@ const PhysicalInspection: React.FC = () => {
       }
     } catch (error: any) {
       showNotification(error.response?.data?.error || `Failed to save ${stage}`, 'error');
+    } finally {
+      setIsSaving(prev => ({ ...prev, [entryId]: false }));
     }
   };
 
@@ -2072,7 +2087,25 @@ const PhysicalInspection: React.FC = () => {
                             <tbody>
                               {progress.previousInspections.map((inspection, idx) => {
                                 const stages = inspection.samplingStages || {};
-                                const latestStage = stages.full_avg?.reportedBy ? stages.full_avg : (stages.half_lorry?.reportedBy ? stages.half_lorry : (stages.lot_avg?.reportedBy ? stages.lot_avg : null));
+                                const latestStage = stages.balanced_lot?.reportedBy
+                                  ? stages.balanced_lot
+                                  : stages.full_avg?.reportedBy
+                                  ? stages.full_avg
+                                  : stages.half_lorry?.reportedBy
+                                  ? stages.half_lorry
+                                  : (() => {
+                                      const nitKeys = Object.keys(stages)
+                                        .filter(k => k.startsWith('nit_avg') && stages[k]?.reportedBy)
+                                        .sort((a, b) => {
+                                          if (a === 'nit_avg') return -1;
+                                          if (b === 'nit_avg') return 1;
+                                          const numA = parseInt(a.replace('nit_avg_', '')) || 0;
+                                          const numB = parseInt(b.replace('nit_avg_', '')) || 0;
+                                          return numB - numA;
+                                        });
+                                      if (nitKeys.length > 0) return stages[nitKeys[0]];
+                                      return stages.lot_avg?.reportedBy ? stages.lot_avg : null;
+                                    })();
                                 
                                 const moistureVal = latestStage ? (latestStage.moistureRaw ? `${latestStage.moistureRaw}%` : (latestStage.moisture !== undefined && latestStage.moisture !== null ? `${latestStage.moisture}%` : '-')) : '-';
                                 const cuttingVal = latestStage ? (latestStage.cutting1 !== undefined && latestStage.cutting1 !== null ? `${latestStage.cutting1}×${latestStage.cutting2 || 0}` : '-') : '-';
@@ -2104,30 +2137,64 @@ const PhysicalInspection: React.FC = () => {
                                       textAlign: 'center', 
                                       fontWeight: '700', 
                                       color: (() => {
+                                        if (stages.balanced_lot?.approvalStatus === 'approved') return '#2e7d32'; // Pass
+                                        if (stages.balanced_lot?.approvalStatus === 'pending') return '#f39c12'; // Pending
                                         if (stages.full_avg?.approvalStatus === 'approved') return '#2e7d32'; // Pass
                                         if (stages.full_avg?.approvalStatus === 'pending') return '#f39c12'; // Pending
-                                        if (stages.nit_avg?.approvalStatus === 'approved') return '#1565c0'; // Approved stage
-                                        if (stages.nit_avg?.approvalStatus === 'pending') return '#f39c12'; // Pending
                                         if (stages.half_lorry?.approvalStatus === 'approved') return '#1565c0'; // Approved stage
                                         if (stages.half_lorry?.approvalStatus === 'pending') return '#f39c12'; // Pending
+                                        
+                                        // Check all nit keys
+                                        const nitKeys = Object.keys(stages)
+                                          .filter(k => k.startsWith('nit_avg'))
+                                          .sort((a, b) => {
+                                            if (a === 'nit_avg') return -1;
+                                            if (b === 'nit_avg') return 1;
+                                            const numA = parseInt(a.replace('nit_avg_', '')) || 0;
+                                            const numB = parseInt(b.replace('nit_avg_', '')) || 0;
+                                            return numB - numA;
+                                          });
+                                        for (const key of nitKeys) {
+                                          if (stages[key]?.approvalStatus === 'approved') return '#1565c0';
+                                          if (stages[key]?.approvalStatus === 'pending') return '#f39c12';
+                                        }
+
                                         if (stages.lot_avg?.approvalStatus === 'approved') return '#1565c0'; // Approved stage
                                         if (stages.lot_avg?.approvalStatus === 'pending') return '#f39c12'; // Pending
-                                        if (stages.balanced_lot?.approvalStatus === 'approved') return '#1565c0'; // Approved stage
-                                        if (stages.balanced_lot?.approvalStatus === 'pending') return '#f39c12'; // Pending
                                         return '#64748b';
                                       })()
                                     }}>
                                       {(() => {
+                                        if (stages.balanced_lot?.approvalStatus === 'approved') return 'Pass';
+                                        if (stages.balanced_lot?.approvalStatus === 'pending') return 'Pending: Balanced Lot';
                                         if (stages.full_avg?.approvalStatus === 'approved') return 'Pass';
                                         if (stages.full_avg?.approvalStatus === 'pending') return 'Pending: Full Lorry';
-                                        if (stages.nit_avg?.approvalStatus === 'approved') return 'Approved: Nit Avg';
-                                        if (stages.nit_avg?.approvalStatus === 'pending') return 'Pending: Nit Avg';
                                         if (stages.half_lorry?.approvalStatus === 'approved') return 'Approved: Half Lorry';
                                         if (stages.half_lorry?.approvalStatus === 'pending') return 'Pending: Half Lorry';
+                                        
+                                        // Check all nit keys
+                                        const nitKeys = Object.keys(stages)
+                                          .filter(k => k.startsWith('nit_avg'))
+                                          .sort((a, b) => {
+                                            if (a === 'nit_avg') return -1;
+                                            if (b === 'nit_avg') return 1;
+                                            const numA = parseInt(a.replace('nit_avg_', '')) || 0;
+                                            const numB = parseInt(b.replace('nit_avg_', '')) || 0;
+                                            return numA - numB;
+                                          });
+                                        for (const key of nitKeys) {
+                                          if (stages[key]?.approvalStatus === 'approved') {
+                                            const idx = nitKeys.indexOf(key);
+                                            return idx === 0 ? 'Approved: Nit Avg' : `Approved: Nit Avg ${idx + 1}`;
+                                          }
+                                          if (stages[key]?.approvalStatus === 'pending') {
+                                            const idx = nitKeys.indexOf(key);
+                                            return idx === 0 ? 'Pending: Nit Avg' : `Pending: Nit Avg ${idx + 1}`;
+                                          }
+                                        }
+
                                         if (stages.lot_avg?.approvalStatus === 'approved') return 'Approved: Lot Avg';
                                         if (stages.lot_avg?.approvalStatus === 'pending') return 'Pending: Lot Avg';
-                                        if (stages.balanced_lot?.approvalStatus === 'approved') return 'Approved: Balanced Lot';
-                                        if (stages.balanced_lot?.approvalStatus === 'pending') return 'Pending: Balanced Lot';
                                         return 'Pending';
                                       })()}
                                     </td>
@@ -2224,6 +2291,24 @@ const PhysicalInspection: React.FC = () => {
                     {selectedEntry === entry.id && (
                       <tr id={`lorry-loading-panel-${entry.id}`}>
                         <td colSpan={11} style={{ padding: '15px', backgroundColor: '#fafafa', border: '1px solid #999' }}>
+                          {!getRulesMode(entry.id) && (
+                            <div style={{
+                              backgroundColor: '#fff3cd',
+                              color: '#856404',
+                              border: '1px solid #ffeeba',
+                              padding: '12px 18px',
+                              borderRadius: '6px',
+                              marginBottom: '15px',
+                              fontWeight: '600',
+                              fontSize: '13px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
+                            }}>
+                              ⚠️ <strong>Warning:</strong> Crop (Old/New Paddy) has not been selected yet for this allotment. Please select it in the left panel before submitting any sampling stages.
+                            </div>
+                          )}
                           <div style={{
                             display: 'flex',
                             gap: '20px',
@@ -2255,75 +2340,74 @@ const PhysicalInspection: React.FC = () => {
                               </div>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                                 <div>
-                                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
-                                    Loaded Date *
-                                  </label>
-                                  <input
-                                    type="date"
-                                    value={inspectionData[entry.id]?.inspectionDate || ''}
-                                    onChange={(e) => handleInputChange(entry.id, 'inspectionDate', e.target.value)}
-                                    disabled={isLorryFreezed(entry.id, inspectionData[entry.id]?.lorryNumber) || (user?.role !== 'admin' && user?.role !== 'manager' && !isLocationStaffUser && !isLegacyPhysicalSupervisor)}
-                                    style={{
-                                      width: '100%',
-                                      padding: '8px',
-                                      fontSize: '12px',
-                                      border: '1px solid #ccc',
-                                      borderRadius: '4px',
-                                      color: '#1a1a1a',
-                                      backgroundColor: '#f5f5f5'
-                                    }}
-                                  />
-                                  {isLorryFreezed(entry.id, inspectionData[entry.id]?.lorryNumber) && (
-                                    <span style={{ fontSize: '10px', color: '#c0392b', fontWeight: '600', display: 'block', marginTop: '2px' }}>Freezed</span>
-                                  )}
-                                </div>
-                                <div>
-                                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
-                                    Lorry number *
-                                  </label>
-                  <input
-                    type="text"
-                    value={inspectionData[entry.id]?.lorryNumber || ''}
-                    onChange={(e) => handleLorryNumberChange(entry.id, e.target.value)}
-                    disabled={!!(inspectionData[entry.id]?.lorryNumber && progress?.previousInspections?.some(trip => trip.lorryNumber === inspectionData[entry.id]?.lorryNumber && trip.lorryNumber !== 'LOT_AVG'))}
-                    placeholder="ENTER LORRY NUMBER"
-                    maxLength={12}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      fontSize: '12px',
-                      border: '1px solid #ccc',
-                      borderRadius: '4px',
-                      color: '#1a1a1a',
-                      fontWeight: '600',
-                      backgroundColor: (inspectionData[entry.id]?.lorryNumber && progress?.previousInspections?.some(trip => trip.lorryNumber === inspectionData[entry.id]?.lorryNumber && trip.lorryNumber !== 'LOT_AVG')) ? '#e0e0e0' : '#fff',
-                      textTransform: 'uppercase'
-                    }}
-                  />
-                </div>
-                                  <div>
-                                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
-                                      Rules Selection (Old / New)
-                                    </label>
-                                    <select
-                                      value={getRulesMode(entry.id)}
-                                      onChange={(e) => handleInputChange(entry.id, 'samplingRulesMode', e.target.value)}
-                                      disabled={!isFirstTrip(entry.id) || isLorryFreezed(entry.id, inspectionData[entry.id]?.lorryNumber) || isRulesModeCommitted(entry.id)}
-                                      style={{
-                                        width: '100%',
-                                        padding: '8px',
-                                        fontSize: '12px',
-                                        border: '1px solid #ccc',
-                                        borderRadius: '4px',
-                                        color: '#1a1a1a',
-                                        backgroundColor: '#fff',
-                                        fontWeight: '600'
-                                      }}
-                                    >
-                                      <option value="old">Old Paddy</option>
-                                      <option value="new">New Paddy</option>
-                                    </select>
-                                  </div>
+                                   <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
+                                     Loaded Date (Freezed)
+                                   </label>
+                                   <input
+                                     type="date"
+                                     value={inspectionData[entry.id]?.inspectionDate || ''}
+                                     onChange={(e) => handleInputChange(entry.id, 'inspectionDate', e.target.value)}
+                                     disabled={true}
+                                     style={{
+                                       width: '100%',
+                                       padding: '8px',
+                                       fontSize: '12px',
+                                       border: '1px solid #ccc',
+                                       borderRadius: '4px',
+                                       color: '#666',
+                                       backgroundColor: '#f5f5f5',
+                                       cursor: 'not-allowed'
+                                     }}
+                                   />
+                                 </div>
+                                 <div>
+                                   <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
+                                     Lorry number *
+                                   </label>
+                                   <input
+                                     type="text"
+                                     value={inspectionData[entry.id]?.lorryNumber || ''}
+                                     onChange={(e) => handleLorryNumberChange(entry.id, e.target.value)}
+                                     disabled={!!(inspectionData[entry.id]?.lorryNumber && progress?.previousInspections?.some(trip => trip.lorryNumber === inspectionData[entry.id]?.lorryNumber && trip.lorryNumber !== 'LOT_AVG'))}
+                                     placeholder="ENTER LORRY NUMBER"
+                                     maxLength={12}
+                                     style={{
+                                       width: '100%',
+                                       padding: '8px',
+                                       fontSize: '12px',
+                                       border: '1px solid #ccc',
+                                       borderRadius: '4px',
+                                       color: '#1a1a1a',
+                                       fontWeight: '600',
+                                       backgroundColor: (inspectionData[entry.id]?.lorryNumber && progress?.previousInspections?.some(trip => trip.lorryNumber === inspectionData[entry.id]?.lorryNumber && trip.lorryNumber !== 'LOT_AVG')) ? '#e0e0e0' : '#fff',
+                                       textTransform: 'uppercase'
+                                     }}
+                                   />
+                                 </div>
+                                 <div>
+                                   <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
+                                     Crop *
+                                   </label>
+                                   <select
+                                     value={getRulesMode(entry.id)}
+                                     onChange={(e) => handleInputChange(entry.id, 'samplingRulesMode', e.target.value)}
+                                     disabled={!isFirstTrip(entry.id) || isLorryFreezed(entry.id, inspectionData[entry.id]?.lorryNumber) || isRulesModeCommitted(entry.id)}
+                                     style={{
+                                       width: '100%',
+                                       padding: '8px',
+                                       fontSize: '12px',
+                                       border: '1px solid #ccc',
+                                       borderRadius: '4px',
+                                       color: '#1a1a1a',
+                                       backgroundColor: (!isFirstTrip(entry.id) || isLorryFreezed(entry.id, inspectionData[entry.id]?.lorryNumber) || isRulesModeCommitted(entry.id)) ? '#e0e0e0' : '#fff',
+                                       fontWeight: '600'
+                                     }}
+                                   >
+                                     <option value="">-- SELECT CROP --</option>
+                                     <option value="old">Old Paddy</option>
+                                     <option value="new">New Paddy</option>
+                                   </select>
+                                 </div>
                                 <div>
                                   <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
                                     Sampling *
@@ -2379,7 +2463,7 @@ const PhysicalInspection: React.FC = () => {
                                                   alignItems: 'center',
                                                   transition: 'background-color 0.15s',
                                                   opacity: isDisabled ? 0.6 : 1,
-                                                  textDecoration: isDisabled ? 'line-through' : 'none'
+                                                  textDecoration: (isDisabled && !item.value.startsWith('nit_avg')) ? 'line-through' : 'none'
                                                 }}
                                               >
                                                 <span>{item.label}</span>
@@ -2829,16 +2913,41 @@ const PhysicalInspection: React.FC = () => {
                                             </div>
                                           </div>
 
-                                          {/* Row 5: Paddy WB */}
-                                          <div style={{ display: 'flex', gap: '8px' }}>
-                                            <div style={{ flex: 1 }}>
+                                          {/* Row 5: Paddy Discolor, Kadiga and Paddy WB */}
+                                          <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                                            <div style={{ flex: 1.2 }}>
+                                              <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Paddy Discolor *</label>
+                                              <select
+                                                disabled={isLocked}
+                                                value={cardData.paddyColor}
+                                                onChange={(e) => {
+                                                  handleStageInputChange(entry.id, stage, 'paddyColor', e.target.value);
+                                                  handleStageInputChange(entry.id, stage, 'paddyColorEnabled', e.target.value ? 'Y' : 'N');
+                                                }}
+                                                style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px', marginTop: '4px' }}
+                                              >
+                                                <option value="">Select discolor</option>
+                                                <option value="Normal Color">Normal Color</option>
+                                                <option value="Light Discolor">Light Discolor</option>
+                                                <option value="Medium Discolor">Medium Discolor</option>
+                                                <option value="Dark Discolor">Dark Discolor</option>
+                                              </select>
+                                            </div>
+                                            <div style={{ flex: 0.8 }}>
+                                              <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>ಕಡಿಗಾ *</label>
+                                              <div style={{ display: 'flex', gap: '6px', marginTop: '8px', marginBottom: '4px' }}>
+                                                <label><input type="radio" disabled={isLocked} checked={cardData.kadiga === 'Y'} onChange={() => handleStageInputChange(entry.id, stage, 'kadiga', 'Y')} /> Yes</label>
+                                                <label><input type="radio" disabled={isLocked} checked={cardData.kadiga === 'N'} onChange={() => handleStageInputChange(entry.id, stage, 'kadiga', 'N')} /> No</label>
+                                              </div>
+                                            </div>
+                                            <div style={{ flex: 0.8 }}>
                                               <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Paddy WB{isNewMode ? '' : ' *'}</label>
-                                              <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                                              <div style={{ display: 'flex', gap: '6px', marginTop: '8px', marginBottom: '4px' }}>
                                                 <label><input type="radio" disabled={isLocked} checked={cardData.paddyWbEnabled === 'Y'} onChange={() => handleStageInputChange(entry.id, stage, 'paddyWbEnabled', 'Y')} /> Y</label>
                                                 <label><input type="radio" disabled={isLocked} checked={cardData.paddyWbEnabled === 'N'} onChange={() => { handleStageInputChange(entry.id, stage, 'paddyWbEnabled', 'N'); handleStageInputChange(entry.id, stage, 'paddyWb', ''); }} /> N</label>
                                               </div>
                                             </div>
-                                            <div style={{ flex: 1 }}>
+                                            <div style={{ flex: 1.2 }}>
                                               {cardData.paddyWbEnabled === 'Y' && (
                                                 <>
                                                   <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Paddy WB Value{isNewMode ? '' : ' *'}</label>
@@ -2852,40 +2961,6 @@ const PhysicalInspection: React.FC = () => {
                                                 </>
                                               )}
                                             </div>
-                                            <div style={{ flex: 1 }}></div>
-                                          </div>
-
-                                          {/* Row 6: Paddy Discolor and Kadiga */}
-                                          <div style={{ display: 'flex', gap: '8px' }}>
-                                            <div style={{ flex: 1 }}>
-                                              <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Paddy Discolor{isNewMode ? ' *' : ''}</label>
-                                              <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
-                                                <label><input type="radio" disabled={isLocked} checked={cardData.paddyColorEnabled === 'Y'} onChange={() => handleStageInputChange(entry.id, stage, 'paddyColorEnabled', 'Y')} /> Yes</label>
-                                                <label><input type="radio" disabled={isLocked} checked={cardData.paddyColorEnabled === 'N'} onChange={() => { handleStageInputChange(entry.id, stage, 'paddyColorEnabled', 'N'); handleStageInputChange(entry.id, stage, 'paddyColor', ''); }} /> No</label>
-                                              </div>
-                                              {cardData.paddyColorEnabled === 'Y' && (
-                                                <select
-                                                  disabled={isLocked}
-                                                  value={cardData.paddyColor}
-                                                  onChange={(e) => handleStageInputChange(entry.id, stage, 'paddyColor', e.target.value)}
-                                                  style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
-                                                >
-                                                  <option value="">Select discolor</option>
-                                                  <option value="Normal Color">Normal Color</option>
-                                                  <option value="Light Discolor">Light Discolor</option>
-                                                  <option value="Medium Discolor">Medium Discolor</option>
-                                                  <option value="Dark Discolor">Dark Discolor</option>
-                                                </select>
-                                              )}
-                                            </div>
-                                            <div style={{ flex: 1 }}>
-                                              <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>ಕಡಿಗಾ *</label>
-                                              <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
-                                                <label><input type="radio" disabled={isLocked} checked={(cardData.kadiga || 'N') === 'Y'} onChange={() => handleStageInputChange(entry.id, stage, 'kadiga', 'Y')} /> Yes</label>
-                                                <label><input type="radio" disabled={isLocked} checked={(cardData.kadiga || 'N') === 'N'} onChange={() => handleStageInputChange(entry.id, stage, 'kadiga', 'N')} /> No</label>
-                                              </div>
-                                            </div>
-                                            <div style={{ flex: 1 }}></div>
                                           </div>
 
                                           {/* Footer: Image and Reported By */}
@@ -2930,20 +3005,21 @@ const PhysicalInspection: React.FC = () => {
                                           {!isLocked && (
                                             <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
                                               <button
+                                                disabled={isSaving[entry.id]}
                                                 onClick={() => handleSaveStage(entry.id, stage)}
                                                 style={{
                                                   flex: 1,
                                                   padding: '6px',
-                                                  backgroundColor: '#27ae60',
+                                                  backgroundColor: isSaving[entry.id] ? '#95a5a6' : '#27ae60',
                                                   color: 'white',
                                                   border: 'none',
                                                   borderRadius: '4px',
                                                   fontWeight: '700',
-                                                  cursor: 'pointer',
+                                                  cursor: isSaving[entry.id] ? 'not-allowed' : 'pointer',
                                                   fontSize: '11px'
                                                 }}
                                               >
-                                                Save
+                                                {isSaving[entry.id] ? 'Saving...' : 'Save'}
                                               </button>
                                               <button
                                                 onClick={() => {
@@ -3068,7 +3144,7 @@ const PhysicalInspection: React.FC = () => {
                 ✕
               </button>
             </div>
-            <div style={{ padding: '16px 18px 18px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ padding: '12px 16px', overflowY: 'auto', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {selectedLorryForComparison.previousInspections && selectedLorryForComparison.previousInspections.map((inspection: any, idx: number) => {
                 const stages = inspection.samplingStages || {};
                 const lot = stages.lot_avg || {};
@@ -3098,57 +3174,58 @@ const PhysicalInspection: React.FC = () => {
                   return `${stageObj.bend1}x${stageObj.bend2 || 0}`;
                 };
 
+                const getNitAvgLabel = (nitValue: string) => {
+                  if (!nitValue) return 'Nit Avg';
+                  const clean = nitValue.trim().toUpperCase();
+                  if (clean.includes('NIT') && (clean.includes('AVG') || clean.includes('AVERAGE'))) {
+                    return nitValue;
+                  }
+                  return `Nit Avg (${nitValue})`;
+                };
+
                 const formatReportedBy = (stageObj: any) => {
-                  const reportedBy = formatField(stageObj.reportedBy);
-                  if (!stageObj.kadiga) return reportedBy;
-                  const kadigaValue = ['Y', 'Yes', true, 'true'].includes(stageObj.kadiga) ? 'Yes' : 'No';
-                  return (
-                    <>
-                      <div>{reportedBy}</div>
-                      <div style={{ marginTop: '3px', color: '#7c2d12', fontWeight: '700' }}>ಕಡಿಗಾ: {kadigaValue}</div>
-                    </>
-                  );
+                  return formatField(stageObj.reportedBy);
                 };
 
                 const formatPaddyWb = (stageObj: any) => {
                   const hasPaddyWb = !!stageObj.paddyWbEnabled;
-                  const hasDiscolor = !!stageObj.paddyColorEnabled;
-                  if (!hasPaddyWb && !hasDiscolor) return '-';
-                  return (
-                    <>
-                      {hasPaddyWb && <div>{formatField(stageObj.paddyWbRaw || stageObj.paddyWb)}</div>}
-                      {hasDiscolor && <div style={{ marginTop: hasPaddyWb ? '3px' : 0, color: '#7c2d12', fontWeight: '700' }}>{formatField(stageObj.paddyColor)}</div>}
-                    </>
-                  );
+                  if (!hasPaddyWb) return '-';
+                  return formatField(stageObj.paddyWbRaw || stageObj.paddyWb);
                 };
 
                 const renderRow = (name: string, color: string, bgColor: string, stageObj: any, isFull: boolean) => {
+                  const rowHasSmell = stageObj.smellHas === true || String(stageObj.smellHas).trim().toUpperCase() === 'YES';
+                  const isKadiga = stageObj.kadiga === 'Y' || stageObj.kadiga === 'Yes' || stageObj.kadiga === true || stageObj.kadiga === 'true';
+                  const hasPaddyWb = !!stageObj.paddyWbEnabled;
                   return (
-                    <tr style={{ borderBottom: '1px solid #000000', backgroundColor: bgColor }}>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', fontWeight: '800', color: color }}>
-                        {name}
-                        {name === 'Nit Avg' && stageObj.nit && (
-                          <span style={{ color: '#ef6c00', marginLeft: '5px' }}>({stageObj.nit})</span>
-                        )}
+                    <tr key={name} style={{ borderBottom: '1px solid #cbd5e1', backgroundColor: rowHasSmell ? '#ffebee' : bgColor }}>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', fontWeight: '800', color: color }}>{name}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatReportedBy(stageObj)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>
+                        {stageObj.reportedAt ? new Date(stageObj.reportedAt).toLocaleDateString('en-GB') + ', ' + new Date(stageObj.reportedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase() : '-'}
                       </td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatReportedBy(stageObj)}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>
-                        {stageObj.reportedAt ? new Date(stageObj.reportedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatMoisture(stageObj)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600', width: '55px' }}>{formatCutting(stageObj)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600', width: '55px' }}>{formatBend(stageObj)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '55px' }}>{(() => { const v = stageObj.grainsCountRaw || stageObj.grainsCount; return (v !== null && v !== undefined && v !== '') ? `(${v})` : '-'; })()}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.mixRaw || stageObj.mix)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{stageObj.smixEnabled ? formatField(stageObj.mixSRaw || stageObj.mixS) || 'Yes' : '-'}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{stageObj.lmixEnabled ? formatField(stageObj.mixLRaw || stageObj.mixL) || 'Yes' : '-'}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.kanduRaw || stageObj.kandu)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.oilRaw || stageObj.oil)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '50px' }}>{stageObj.smellHas === true || String(stageObj.smellHas).trim().toUpperCase() === 'YES' ? (stageObj.smellType || 'Yes') : '-'}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '50px' }}>{formatPaddyWb(stageObj)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#7c2d12', fontWeight: '700', width: '50px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                          <span>{stageObj.paddyColorEnabled && stageObj.paddyColor ? formatField(stageObj.paddyColor) : '-'}</span>
+                          <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />
+                          <span>ಕಡಿಗಾ: {stageObj.kadiga ? (isKadiga ? 'Yes' : 'No') : '-'}</span>
+                        </div>
                       </td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatMoisture(stageObj)}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600', width: '55px' }}>{formatCutting(stageObj)}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600', width: '55px' }}>{formatBend(stageObj)}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '55px' }}>({formatField(stageObj.grainsCountRaw || stageObj.grainsCount)})</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.mixRaw || stageObj.mix)}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{stageObj.smixEnabled ? formatField(stageObj.mixSRaw || stageObj.mixS) || 'Yes' : '-'}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{stageObj.lmixEnabled ? formatField(stageObj.mixLRaw || stageObj.mixL) || 'Yes' : '-'}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.kanduRaw || stageObj.kandu)}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.oilRaw || stageObj.oil)}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '50px' }}>{stageObj.smellHas ? 'Yes' : '-'}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '50px' }}>{formatPaddyWb(stageObj)}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{isFull ? formatField(stageObj.actualBags || inspection.bags) : '-'}</td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 10px', textAlign: 'center' }}>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.nit)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{isFull ? formatField(stageObj.actualBags || inspection.bags) : '-'}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center' }}>
                         {stageObj.imageUrl ? <a href={resolveMediaUrl(stageObj.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
                       </td>
                     </tr>
@@ -3166,7 +3243,7 @@ const PhysicalInspection: React.FC = () => {
                     : `Load ${idx + 1} - Lorry Number: ${inspection.lorryNumber?.toUpperCase() || ''}`;
 
                 return (
-                  <div key={inspection.id} style={{ border: '1px solid #000000', borderRadius: '8px', overflow: 'hidden' }}>
+                  <div key={inspection.id} style={{ border: '1px solid #f2cfb6', borderRadius: '8px', overflow: 'hidden' }}>
                     <div style={{ background: 'linear-gradient(90deg, #f2711c 0%, #f26202 100%)', padding: '8px 12px', fontWeight: 'bold', fontSize: '12px', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span>{tripHeaderLabel} | Bags Loaded: {stages.full_avg?.actualBags || inspection.bags || '-'}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -3205,56 +3282,74 @@ const PhysicalInspection: React.FC = () => {
                       </div>
                     </div>
                     <div style={{ overflowX: 'auto' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #000000' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #f2cfb6' }}>
                         <thead>
-                          <tr style={{ background: '#f1f5f9', color: '#334155', borderBottom: '2px solid #000000' }}>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'left', border: '1px solid #000000' }}>SAMPLE / STAGE</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>REPORTED BY</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>REPORTED AT</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>MOISTURE</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '55px' }}>CUTTING</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '55px' }}>BEND</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '55px' }}>GRAINS</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '45px' }}>MIX</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '45px' }}>S MIX</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '45px' }}>L MIX</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '45px' }}>KANDU</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '45px' }}>OIL</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '45px' }}>SK</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '50px' }}>SMELL</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000', width: '50px' }}>PADDY WB</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>LOADED BAGS</th>
-                            <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #000000' }}>PHOTO</th>
+                          <tr style={{ background: '#f1f5f9', color: '#334155', borderBottom: '2px solid #cbd5e1' }}>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'left', border: '1px solid #cbd5e1' }}>SAMPLE / STAGE</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>REPORTED BY</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>REPORTED AT</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>MOISTURE</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '55px' }}>CUTTING</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '55px' }}>BEND</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '55px' }}>GRAINS</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '45px' }}>MIX</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '45px' }}>S MIX</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '45px' }}>L MIX</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '45px' }}>KANDU</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '45px' }}>OIL</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '45px' }}>SK</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '50px' }}>SMELL</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '50px' }}>PADDY WB</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '50px' }}>P COLOR</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>NIT NO</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>LOADED BAGS</th>
+                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PHOTO</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {lot && lot.reportedBy && renderRow('Lot Avg', '#d05d00', '#fffaf5', lot, false)}
-                          {Object.keys(stages)
-                             .filter(k => k.startsWith('nit_avg'))
-                             .sort((a, b) => {
-                               if (a === 'nit_avg') return -1;
-                               if (b === 'nit_avg') return 1;
-                               const numA = parseInt(a.replace('nit_avg_', '')) || 0;
-                               const numB = parseInt(b.replace('nit_avg_', '')) || 0;
-                               return numA - numB;
-                             })
-                             .map((key, index) => {
-                               const stageObj = stages[key];
-                               if (stageObj && stageObj.reportedBy) {
-                                 return renderRow(
-                                   index === 0 ? 'Nit Avg' : `Nit Avg ${index + 1}`,
-                                   '#6b21a8',
-                                   '#faf5ff',
-                                   stageObj,
-                                   false
-                                 );
-                               }
-                               return null;
-                             })
-                           }
-                          {half && half.reportedBy && renderRow('Half Lorry', '#b45309', '#fffdfa', half, false)}
-                          {full && full.reportedBy && renderRow('Full Avg Lorry', '#15803d', '#fffaf0', full, true)}
-                          {stages.balanced_lot && stages.balanced_lot.reportedBy && renderRow('Balanced Lot', '#d05d00', '#fffaf5', stages.balanced_lot, false)}
+                          {(() => {
+                            const stageKeys = Object.keys(stages)
+                              .filter(key => stages[key] && stages[key].reportedBy)
+                              .sort((a, b) => {
+                                const timeA = new Date(stages[a].reportedAt || stages[a].createdAt || stages[a].updatedAt || 0).getTime();
+                                const timeB = new Date(stages[b].reportedAt || stages[b].createdAt || stages[b].updatedAt || 0).getTime();
+                                return timeA - timeB;
+                              });
+                            return stageKeys.map((key) => {
+                              const stageObj = stages[key];
+                              let name = '';
+                              let color = '#333';
+                              let bgColor = '#fff';
+                              let isFull = false;
+
+                              if (key === 'lot_avg') {
+                                name = 'Lot Avg';
+                                color = '#d05d00';
+                                bgColor = '#fffaf5';
+                              } else if (key.startsWith('nit_avg')) {
+                                name = getNitAvgLabel(stageObj.nit || '');
+                                color = '#c2185b';
+                                bgColor = '#fdf2f8';
+                              } else if (key === 'half_lorry') {
+                                name = 'Half Lorry';
+                                color = '#b45309';
+                                bgColor = '#fffdfa';
+                              } else if (key === 'full_avg') {
+                                name = 'Full Avg Lorry';
+                                color = '#15803d';
+                                bgColor = '#fffaf0';
+                                isFull = true;
+                              } else if (key === 'balanced_lot') {
+                                name = 'Balanced Lot';
+                                color = '#4a148c';
+                                bgColor = '#faf5ff';
+                              } else {
+                                name = key;
+                              }
+
+                              return renderRow(name, color, bgColor, stageObj, isFull);
+                            });
+                          })()}
                         </tbody>
                       </table>
                     </div>
@@ -3335,21 +3430,22 @@ const PhysicalInspection: React.FC = () => {
 
                 <div>
                   <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
-                    Loaded Date *
+                    Loaded Date (Freezed)
                   </label>
                   <input
                     type="date"
                     value={inspectionData[entry.id]?.inspectionDate || ''}
                     onChange={(e) => handleInputChange(entry.id, 'inspectionDate', e.target.value)}
-                    disabled={isDateReadOnly}
+                    disabled={true}
                     style={{
                       width: '100%',
                       padding: '8px',
                       fontSize: '12px',
                       border: '1px solid #ccc',
                       borderRadius: '4px',
-                      color: '#1a1a1a',
-                      backgroundColor: isDateReadOnly ? '#f5f5f5' : '#fff'
+                      color: '#666',
+                      backgroundColor: '#f5f5f5',
+                      cursor: 'not-allowed'
                     }}
                   />
                   {isCurrentLorryFrozen && (
@@ -3382,7 +3478,7 @@ const PhysicalInspection: React.FC = () => {
                 </div>
                   <div>
                     <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
-                      Rules Selection (Old / New)
+                      Crop *
                     </label>
                     <select
                       value={getRulesMode(entry.id)}
@@ -3395,10 +3491,11 @@ const PhysicalInspection: React.FC = () => {
                         border: '1px solid #ccc',
                         borderRadius: '4px',
                         color: '#1a1a1a',
-                        backgroundColor: '#fff',
+                        backgroundColor: (!isFirstTrip(entry.id) || isDateReadOnly || isRulesModeCommitted(entry.id)) ? '#e0e0e0' : '#fff',
                         fontWeight: '600'
                       }}
                     >
+                      <option value="">-- SELECT CROP --</option>
                       <option value="old">Old Paddy</option>
                       <option value="new">New Paddy</option>
                     </select>
@@ -3466,7 +3563,7 @@ const PhysicalInspection: React.FC = () => {
                                   alignItems: 'center',
                                   transition: 'background-color 0.15s',
                                   opacity: isDisabled ? 0.6 : 1,
-                                  textDecoration: isDone ? 'line-through' : 'none'
+                                  textDecoration: (isDone && !item.value.startsWith('nit_avg')) ? 'line-through' : 'none'
                                 }}
                               >
                                 <span>{item.label}</span>
@@ -3908,16 +4005,41 @@ const PhysicalInspection: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Row 5: Paddy WB */}
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <div style={{ flex: 1 }}>
+                      {/* Row 5: Paddy Discolor, Kadiga and Paddy WB */}
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                        <div style={{ flex: 1.2 }}>
+                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Paddy Discolor *</label>
+                          <select
+                            disabled={isLocked}
+                            value={cardData.paddyColor}
+                            onChange={(e) => {
+                              handleStageInputChange(entry.id, stage, 'paddyColor', e.target.value);
+                              handleStageInputChange(entry.id, stage, 'paddyColorEnabled', e.target.value ? 'Y' : 'N');
+                            }}
+                            style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px', marginTop: '4px' }}
+                          >
+                            <option value="">Select discolor</option>
+                            <option value="Normal Color">Normal Color</option>
+                            <option value="Light Discolor">Light Discolor</option>
+                            <option value="Medium Discolor">Medium Discolor</option>
+                            <option value="Dark Discolor">Dark Discolor</option>
+                          </select>
+                        </div>
+                        <div style={{ flex: 0.8 }}>
+                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>ಕಡಿಗಾ *</label>
+                          <div style={{ display: 'flex', gap: '6px', marginTop: '8px', marginBottom: '4px' }}>
+                            <label><input type="radio" disabled={isLocked} checked={cardData.kadiga === 'Y'} onChange={() => handleStageInputChange(entry.id, stage, 'kadiga', 'Y')} /> Yes</label>
+                            <label><input type="radio" disabled={isLocked} checked={cardData.kadiga === 'N'} onChange={() => handleStageInputChange(entry.id, stage, 'kadiga', 'N')} /> No</label>
+                          </div>
+                        </div>
+                        <div style={{ flex: 0.8 }}>
                           <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Paddy WB{isNewMode ? '' : ' *'}</label>
-                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                          <div style={{ display: 'flex', gap: '6px', marginTop: '8px', marginBottom: '4px' }}>
                             <label><input type="radio" disabled={isLocked} checked={cardData.paddyWbEnabled === 'Y'} onChange={() => handleStageInputChange(entry.id, stage, 'paddyWbEnabled', 'Y')} /> Y</label>
                             <label><input type="radio" disabled={isLocked} checked={cardData.paddyWbEnabled === 'N'} onChange={() => { handleStageInputChange(entry.id, stage, 'paddyWbEnabled', 'N'); handleStageInputChange(entry.id, stage, 'paddyWb', ''); }} /> N</label>
                           </div>
                         </div>
-                        <div style={{ flex: 1 }}>
+                        <div style={{ flex: 1.2 }}>
                           {cardData.paddyWbEnabled === 'Y' && (
                             <>
                               <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Paddy WB Value{isNewMode ? '' : ' *'}</label>
@@ -3931,40 +4053,6 @@ const PhysicalInspection: React.FC = () => {
                             </>
                           )}
                         </div>
-                        <div style={{ flex: 1 }}></div>
-                      </div>
-
-                      {/* Row 6: Paddy Discolor and Kadiga */}
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Paddy Discolor{isNewMode ? ' *' : ''}</label>
-                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
-                            <label><input type="radio" disabled={isLocked} checked={cardData.paddyColorEnabled === 'Y'} onChange={() => handleStageInputChange(entry.id, stage, 'paddyColorEnabled', 'Y')} /> Yes</label>
-                            <label><input type="radio" disabled={isLocked} checked={cardData.paddyColorEnabled === 'N'} onChange={() => { handleStageInputChange(entry.id, stage, 'paddyColorEnabled', 'N'); handleStageInputChange(entry.id, stage, 'paddyColor', ''); }} /> No</label>
-                          </div>
-                          {cardData.paddyColorEnabled === 'Y' && (
-                            <select
-                              disabled={isLocked}
-                              value={cardData.paddyColor}
-                              onChange={(e) => handleStageInputChange(entry.id, stage, 'paddyColor', e.target.value)}
-                              style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
-                            >
-                              <option value="">Select discolor</option>
-                              <option value="Normal Color">Normal Color</option>
-                              <option value="Light Discolor">Light Discolor</option>
-                              <option value="Medium Discolor">Medium Discolor</option>
-                              <option value="Dark Discolor">Dark Discolor</option>
-                            </select>
-                          )}
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>ಕಡಿಗಾ *</label>
-                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
-                            <label><input type="radio" disabled={isLocked} checked={(cardData.kadiga || 'N') === 'Y'} onChange={() => handleStageInputChange(entry.id, stage, 'kadiga', 'Y')} /> Yes</label>
-                            <label><input type="radio" disabled={isLocked} checked={(cardData.kadiga || 'N') === 'N'} onChange={() => handleStageInputChange(entry.id, stage, 'kadiga', 'N')} /> No</label>
-                          </div>
-                        </div>
-                        <div style={{ flex: 1 }}></div>
                       </div>
 
                       {/* Footer: Image and Reported By */}
@@ -4009,20 +4097,21 @@ const PhysicalInspection: React.FC = () => {
                       {!isLocked && (
                         <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
                           <button
+                            disabled={isSaving[entry.id]}
                             onClick={() => handleSaveStage(entry.id, stage)}
                             style={{
                               flex: 1,
                               padding: '6px',
-                              backgroundColor: '#27ae60',
+                              backgroundColor: isSaving[entry.id] ? '#95a5a6' : '#27ae60',
                               color: 'white',
                               border: 'none',
                               borderRadius: '4px',
                               fontWeight: '700',
-                              cursor: 'pointer',
+                              cursor: isSaving[entry.id] ? 'not-allowed' : 'pointer',
                               fontSize: '12px'
                             }}
                           >
-                            Save
+                            {isSaving[entry.id] ? 'Saving...' : 'Save'}
                           </button>
                           <button
                             onClick={() => {
