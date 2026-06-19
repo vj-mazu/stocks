@@ -133,6 +133,7 @@ const PhysicalInspection: React.FC = () => {
   const [selectedLorryForComparison, setSelectedLorryForComparison] = useState<any>(null);
   const [detailModalEntry, setDetailModalEntry] = useState<any>(null);
   const [isSaving, setIsSaving] = useState<{ [entryId: string]: boolean }>({});
+  const [activeSkipConfirm, setActiveSkipConfirm] = useState<{ [inspectionId: string]: boolean }>({});
 
 
 
@@ -191,6 +192,7 @@ const PhysicalInspection: React.FC = () => {
   // Inspection form data
   const [inspectionData, setInspectionData] = useState<{
     [key: string]: {
+      tripId?: string;
       inspectionDate: string;
       lorryNumber: string;
       remarks: string;
@@ -657,12 +659,28 @@ const PhysicalInspection: React.FC = () => {
       const nitStage = stages.nit_avg || {};
       const halfStage = stages.half_lorry || {};
       const fullStage = stages.full_avg || {};
-      let nextStage = 'lot_avg';
       
-      if (lotStage.approvalStatus === 'approved') nextStage = 'nit_avg';
-      if (nitStage.approvalStatus === 'approved' || (nitStage.reportedBy && lotStage.approvalStatus === 'approved')) nextStage = 'half_lorry';
-      if (halfStage.approvalStatus === 'approved') nextStage = 'full_avg';
-      if (fullStage.approvalStatus === 'approved') nextStage = 'balanced_lot';
+      const isNewCrop = getRulesMode(entryId) === 'new';
+      let nextStage = 'lot_avg';
+      if (!isLotAvgRequiredForLorry(entryId, cleanLorry)) {
+        nextStage = isNewCrop ? 'half_lorry' : 'nit_avg';
+      }
+      
+      if (isNewCrop) {
+        if ((isStageApprovedForLot(entryId, 'lot_avg') || !isLotAvgRequiredForLorry(entryId, cleanLorry)) && !stages.half_lorry) {
+          nextStage = 'half_lorry';
+        } else if (stages.half_lorry && !stages.full_avg) {
+          nextStage = 'full_avg';
+        } else if (stages.full_avg && !stages.balanced_lot) {
+          nextStage = 'balanced_lot';
+        }
+      } else {
+        const isLotAvgApproved = isStageApprovedForLot(entryId, 'lot_avg');
+        if (isLotAvgApproved) nextStage = 'nit_avg';
+        if (nitStage.approvalStatus === 'approved' || (nitStage.reportedBy && isLotAvgApproved)) nextStage = 'half_lorry';
+        if (halfStage.approvalStatus === 'approved') nextStage = 'full_avg';
+        if (fullStage.approvalStatus === 'approved') nextStage = 'balanced_lot';
+      }
 
       setSelectedStage(prev => ({
         ...prev,
@@ -783,6 +801,24 @@ const PhysicalInspection: React.FC = () => {
       if (approvedWithCurrent) return true;
     }
 
+    if (getRulesMode(entryId) === 'new') {
+      if (stageKey === 'lot_avg') {
+        const cleanLorry = (inspectionData[entryId]?.lorryNumber || '').trim().toUpperCase();
+        const todayStr = new Date().toLocaleDateString('en-GB');
+        return prevInsps.some(insp => {
+          const lorry = (insp.lorryNumber || '').trim().toUpperCase();
+          const isDummy = lorry === 'LOT_AVG' || !lorry;
+          const isMatch = isDummy || lorry === cleanLorry;
+          const isApproved = insp.samplingStages?.lot_avg?.approvalStatus === 'approved';
+          
+          const inspDateStr = insp.inspectionDate ? new Date(insp.inspectionDate).toLocaleDateString('en-GB') : '';
+          const isToday = inspDateStr === todayStr;
+          
+          return isMatch && isApproved && isToday;
+        });
+      }
+    }
+
     // Fallback for lot_avg on any real lorry load (first or subsequent)
     if (stageKey === 'lot_avg' && cleanLorry !== 'LOT_AVG' && cleanLorry !== 'BALANCED_LOT') {
       const lotAvgInsps = prevInsps.filter(insp => (insp.lorryNumber || '').trim().toUpperCase() === 'LOT_AVG');
@@ -881,12 +917,49 @@ const PhysicalInspection: React.FC = () => {
     return !!stages.half_lorry || Object.keys(stages).some(key => key === 'nit_avg' || key.startsWith('nit_avg_'));
   };
 
+  const isStagePendingForLot = (entryId: string, stageKey: string) => {
+    if (samplingStageData[entryId]?.[stageKey] && samplingStageData[entryId]?.[stageKey]?.approvalStatus === 'pending') {
+      return true;
+    }
+    const prevInsps = inspectionProgress[entryId]?.previousInspections || [];
+    return prevInsps.some(insp => {
+      const stages = insp.samplingStages || {};
+      if (stageKey === 'nit_avg') {
+        return Object.keys(stages).some(key => (key === 'nit_avg' || key.startsWith('nit_avg_')) && stages[key]?.approvalStatus === 'pending');
+      }
+      return stages[stageKey]?.approvalStatus === 'pending';
+    });
+  };
+
+  const isStageSubmittedForLot = (entryId: string, stageKey: string) => {
+    if (samplingStageData[entryId]?.[stageKey]) {
+      return true;
+    }
+    const prevInsps = inspectionProgress[entryId]?.previousInspections || [];
+    return prevInsps.some(insp => {
+      const stages = insp.samplingStages || {};
+      return !!stages[stageKey];
+    });
+  };
+
   const isStageVisibleForEntry = (entryId: string, stageKey: string) => {
+    const isNewCrop = getRulesMode(entryId) === 'new';
+    if (isNewCrop && stageKey === 'nit_avg') {
+      return false;
+    }
+
     const cleanLorry = (inspectionData[entryId]?.lorryNumber || '').trim().toUpperCase();
     if (isCurrentTripFullAvgApproved(entryId) && ['lot_avg', 'nit_avg', 'half_lorry'].includes(stageKey)) {
       return false;
     }
     if (stageKey !== 'lot_avg') {
+      return true;
+    }
+    if (isNewCrop) {
+      // Always show lot_avg in New Crop before half_lorry or full_avg is submitted
+      if (isStageLockedForLot(entryId, 'half_lorry') || isStageLockedForLot(entryId, 'full_avg')) {
+        return false;
+      }
       return true;
     }
     if (!cleanLorry) {
@@ -910,6 +983,43 @@ const PhysicalInspection: React.FC = () => {
     if (isCurrentTripFullAvgApproved(entryId) && ['lot_avg', 'nit_avg', 'half_lorry', 'full_avg'].includes(stageKey)) {
       return true;
     }
+
+    const isNewCrop = getRulesMode(entryId) === 'new';
+    if (isNewCrop) {
+      if (stageKey === 'nit_avg') return true;
+
+      // Pending Lot Avg or Balanced Lot blocks everything else
+      if (stageKey !== 'lot_avg' && isStagePendingForLot(entryId, 'lot_avg')) {
+        return true;
+      }
+      if (stageKey !== 'balanced_lot' && isStagePendingForLot(entryId, 'balanced_lot')) {
+        return true;
+      }
+
+      if (stageKey === 'lot_avg') {
+        if (isStageLockedForLot(entryId, 'half_lorry') || isStageLockedForLot(entryId, 'full_avg')) {
+          return true;
+        }
+        return isStageLockedForLot(entryId, 'lot_avg');
+      }
+      if (stageKey === 'half_lorry') {
+        if (isLotAvgRequiredForLorry(entryId, cleanLorry) && !isStageApprovedForLot(entryId, 'lot_avg')) {
+          return true;
+        }
+        return isStageLockedForLot(entryId, 'half_lorry');
+      }
+      if (stageKey === 'full_avg') {
+        if (isLotAvgRequiredForLorry(entryId, cleanLorry) && !isStageApprovedForLot(entryId, 'lot_avg')) {
+          return true;
+        }
+        return isStageLockedForLot(entryId, 'full_avg');
+      }
+      if (stageKey === 'balanced_lot') {
+        return isBalancedLotDisabled(entryId);
+      }
+      return false;
+    }
+
     if (stageKey === 'lot_avg') {
       return isStageLockedForLot(entryId, 'lot_avg') || !isLotAvgRequiredForLorry(entryId, cleanLorry);
     }
@@ -963,6 +1073,10 @@ const PhysicalInspection: React.FC = () => {
     if (!isAnyFullAvgSavedOrApproved(entryId)) {
       return true;
     }
+    const isNewCrop = getRulesMode(entryId) === 'new';
+    if (isNewCrop) {
+      return false;
+    }
     const cleanLorry = (inspectionData[entryId]?.lorryNumber || '').trim().toUpperCase();
     if (cleanLorry) {
       const progress = inspectionProgress[entryId];
@@ -992,6 +1106,19 @@ const PhysicalInspection: React.FC = () => {
     const prevInsps = inspectionProgress[entryId]?.previousInspections || [];
     const cleanLorry = (inspectionData[entryId]?.lorryNumber || '').trim().toUpperCase();
     if (stageKey === 'lot_avg') {
+      const isNewCrop = getRulesMode(entryId) === 'new';
+      if (isNewCrop) {
+        if (cleanLorry) {
+          return prevInsps.some(insp => {
+            const lorryMatch = (insp.lorryNumber || '').trim().toUpperCase() === cleanLorry;
+            return lorryMatch && !!insp.samplingStages?.lot_avg;
+          });
+        }
+        return prevInsps.some(insp => {
+          const lorry = (insp.lorryNumber || '').trim().toUpperCase();
+          return lorry === 'LOT_AVG' && !!insp.samplingStages?.lot_avg;
+        });
+      }
       const lotAvgInsps = prevInsps.filter(insp => (insp.lorryNumber || '').trim().toUpperCase() === 'LOT_AVG');
       if (lotAvgInsps.length > 0) {
         const priorRealLorries = prevInsps.filter(insp => {
@@ -1099,15 +1226,22 @@ const PhysicalInspection: React.FC = () => {
     );
   };
 
-  const isTripMissingBalancedLotRestrictive = (trip: any) => {
+  const isTripMissingBalancedLotRestrictive = (trip: any, rulesMode: string) => {
     const lorry = (trip.lorryNumber || '').trim().toUpperCase();
     if (lorry === 'LOT_AVG' || lorry === 'BALANCED_LOT') return false;
     
     const stages = trip.samplingStages || {};
-    const hasFullAvg = stages.full_avg && stages.full_avg.approvalStatus === 'approved';
-    const hasBalancedLot = stages.balanced_lot && (stages.balanced_lot.approvalStatus === 'approved' || stages.balanced_lot.approvalStatus === 'pending');
+    const isNewCrop = rulesMode === 'new';
+    const hasFullAvg = isNewCrop
+      ? !!stages.full_avg
+      : (stages.full_avg && stages.full_avg.approvalStatus === 'approved');
+      
+    const hasBalancedLot = stages.balanced_lot && (stages.balanced_lot.approvalStatus === 'approved' || stages.balanced_lot.approvalStatus === 'pending' || stages.balanced_lot.isSkipped);
     
     if (hasFullAvg && !hasBalancedLot) {
+      if (isNewCrop) {
+        return true;
+      }
       if (trip.inspectionDate) {
         const now = new Date();
         const todayStr = now.toISOString().split('T')[0];
@@ -1127,6 +1261,15 @@ const PhysicalInspection: React.FC = () => {
     const progress = inspectionProgress[entryId];
     if (!progress || !progress.previousInspections || progress.previousInspections.length === 0) {
       return true;
+    }
+    
+    if (getRulesMode(entryId) !== 'new') {
+      const hasApprovedLotAvg = progress.previousInspections.some(insp => 
+        (insp.lorryNumber || '').trim().toUpperCase() === 'LOT_AVG' && insp.samplingStages?.lot_avg?.approvalStatus === 'approved'
+      );
+      if (hasApprovedLotAvg) {
+        return false;
+      }
     }
     
     // Filter out inspections for the current lorry and dummy trips
@@ -1158,6 +1301,17 @@ const PhysicalInspection: React.FC = () => {
 
     const sortedLorries = [...priorRealLorries].sort((a, b) => getInspectionSortTime(a) - getInspectionSortTime(b));
     const lastLorry = sortedLorries[sortedLorries.length - 1];
+
+    if (getRulesMode(entryId) === 'new') {
+      const todayStr = new Date().toLocaleDateString('en-GB');
+      if (lastLorry && lastLorry.inspectionDate) {
+        const lastLorryDateStr = new Date(lastLorry.inspectionDate).toLocaleDateString('en-GB');
+        if (todayStr !== lastLorryDateStr) {
+          return true;
+        }
+      }
+      return false;
+    }
 
     const stages = lastLorry?.samplingStages || {};
     const isPreviousBalanced = stages.balanced_lot?.approvalStatus === 'approved';
@@ -1303,11 +1457,14 @@ const PhysicalInspection: React.FC = () => {
       }
     }
     if (stage === 'full_avg') {
-      const halfApproved = isStageApprovedForLot(entryId, 'half_lorry');
-      const nitApproved = isStageApprovedForLot(entryId, 'nit_avg');
-      if (!halfApproved && !nitApproved) {
-        showNotification('Cannot add Full Avg stage until Half Lorry or Nit Avg is approved by Manager', 'error');
-        return;
+      const isNewCrop = getRulesMode(entryId) === 'new';
+      if (!isNewCrop) {
+        const halfApproved = isStageApprovedForLot(entryId, 'half_lorry');
+        const nitApproved = isStageApprovedForLot(entryId, 'nit_avg');
+        if (!halfApproved && !nitApproved) {
+          showNotification('Cannot add Full Avg stage until Half Lorry or Nit Avg is approved by Manager', 'error');
+          return;
+        }
       }
     }
 
@@ -1488,8 +1645,9 @@ const PhysicalInspection: React.FC = () => {
 
       await loadEntries();
 
-      // Reset form states if Full Avg Lorry is saved (trip is completed)
-      if (stage === 'full_avg') {
+      // Reset form states if Full Avg Lorry or Balanced Lot is saved (trip is completed)
+      const isFinalStage = stage === 'balanced_lot' || stage === 'full_avg';
+      if (isFinalStage) {
         setSelectedEntry(null);
         setActiveCards(prev => ({
           ...prev,
@@ -1515,12 +1673,50 @@ const PhysicalInspection: React.FC = () => {
     }
   };
 
+  const handleSkipBalancedLot = async (entryId: string, inspectionId: string) => {
+    try {
+      const progress = inspectionProgress[entryId];
+      const trip = progress?.previousInspections?.find(t => t.id === inspectionId);
+      const lorryNumber = trip ? trip.lorryNumber : '';
+
+      const token = localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('inspectionDate', new Date().toISOString().split('T')[0]);
+      formData.append('stage', 'balanced_lot');
+      formData.append('isSkipped', 'true');
+      formData.append('reportedBy', user?.username || 'System');
+      formData.append('samplingRulesMode', 'new');
+      if (lorryNumber) {
+        formData.append('lorryNumber', lorryNumber);
+      }
+
+      await axios.post(
+        `${API_URL}/sample-entries/${entryId}/physical-inspection`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+
+      showNotification('Balanced Lot skipped successfully', 'success');
+      setSelectedEntry(null);
+      setActiveSkipConfirm(prev => ({ ...prev, [inspectionId]: false })); // Reset confirm state
+      await loadEntries();
+    } catch (error: any) {
+      showNotification(error.response?.data?.error || 'Failed to skip Balanced Lot', 'error');
+    }
+  };
+
   const initializeInspectionData = (entryId: string) => {
     // Check if there is an incomplete trip to resume
     const progress = inspectionProgress[entryId];
     let incompleteTrip = null;
     let nextStage = 'lot_avg';
     
+    const isNewCrop = getRulesMode(entryId) === 'new';
     if (progress && progress.previousInspections && progress.previousInspections.length > 0) {
       incompleteTrip = progress.previousInspections.find(trip => {
         const lorry = (trip.lorryNumber || '').trim().toUpperCase();
@@ -1528,8 +1724,23 @@ const PhysicalInspection: React.FC = () => {
         
         const stages = trip.samplingStages || {};
         const hasApprovedFullAvg = stages.full_avg && stages.full_avg.approvalStatus === 'approved';
-        const hasPending = Object.values(stages).some((stg: any) => stg.approvalStatus === 'pending');
-        const isMissingBalanced = isTripMissingBalancedLotRestrictive(trip);
+        
+        // In New Crop, only pending lot_avg or balanced_lot blocks user progress.
+        const hasPending = Object.keys(stages).some(k => {
+          if (isNewCrop) {
+            return ['lot_avg', 'balanced_lot'].includes(k) && stages[k]?.approvalStatus === 'pending';
+          }
+          return stages[k]?.approvalStatus === 'pending';
+        });
+        
+        const isMissingBalanced = isTripMissingBalancedLotRestrictive(trip, getRulesMode(entryId));
+        
+        if (isNewCrop) {
+          // In New Crop, a trip is incomplete only if it has NOT submitted full_avg, OR it has pending stages.
+          // We do NOT resume the trip if it is only missing Balanced Lot (we handle that via the trip list actions instead).
+          const hasSubmittedFullAvg = !!stages.full_avg;
+          return !hasSubmittedFullAvg || hasPending;
+        }
         
         return !hasApprovedFullAvg || hasPending || isMissingBalanced;
       });
@@ -1541,16 +1752,32 @@ const PhysicalInspection: React.FC = () => {
         const halfStage = stages.half_lorry || {};
         const fullStage = stages.full_avg || {};
         
-        const pendingStageKey = Object.keys(stages).find(k => stages[k]?.approvalStatus === 'pending');
+        // Filter pendingStageKey for New Crop: ignore pending half_lorry/full_avg
+        const pendingStageKey = Object.keys(stages).find(k => {
+          if (isNewCrop) {
+            return ['lot_avg', 'balanced_lot'].includes(k) && stages[k]?.approvalStatus === 'pending';
+          }
+          return stages[k]?.approvalStatus === 'pending';
+        });
         
         if (pendingStageKey) {
           nextStage = pendingStageKey;
         } else {
           // Determine logical next stage based on what's missing or pending
-          if (lotStage.approvalStatus === 'approved') nextStage = 'nit_avg';
-          if (nitStage.approvalStatus === 'approved' || (nitStage.reportedBy && lotStage.approvalStatus === 'approved')) nextStage = 'half_lorry';
-          if (halfStage.approvalStatus === 'approved') nextStage = 'full_avg';
-          if (fullStage.approvalStatus === 'approved') nextStage = 'balanced_lot';
+          if (isNewCrop) {
+            if (lotStage.approvalStatus === 'approved' && !stages.half_lorry) {
+              nextStage = 'half_lorry';
+            } else if (stages.half_lorry && !stages.full_avg) {
+              nextStage = 'full_avg';
+            } else if (stages.full_avg && !stages.balanced_lot) {
+              nextStage = 'balanced_lot';
+            }
+          } else {
+            if (lotStage.approvalStatus === 'approved') nextStage = 'nit_avg';
+            if (nitStage.approvalStatus === 'approved' || (nitStage.reportedBy && lotStage.approvalStatus === 'approved')) nextStage = 'half_lorry';
+            if (halfStage.approvalStatus === 'approved') nextStage = 'full_avg';
+            if (fullStage.approvalStatus === 'approved') nextStage = 'balanced_lot';
+          }
         }
       }
     }
@@ -1559,6 +1786,7 @@ const PhysicalInspection: React.FC = () => {
       setInspectionData(prev => ({
         ...prev,
         [entryId]: {
+          tripId: incompleteTrip.id,
           inspectionDate: incompleteTrip.inspectionDate || new Date().toISOString().split('T')[0],
           lorryNumber: incompleteTrip.lorryNumber || '',
           remarks: ''
@@ -1624,40 +1852,11 @@ const PhysicalInspection: React.FC = () => {
         }
       }));
       
-      // Select logical default next stage instead of hardcoded 'lot_avg'
+      // Select logical default next stage
       let defaultStage = 'lot_avg';
-      if (progress && progress.previousInspections && progress.previousInspections.length > 0) {
-        const hasAnyLotAvg = progress.previousInspections.some(insp => 
-          insp.samplingStages?.lot_avg || (insp.lorryNumber || '').trim().toUpperCase() === 'LOT_AVG'
-        );
-        if (hasAnyLotAvg) {
-          defaultStage = 'half_lorry';
-        }
-        const realPrior = progress.previousInspections.filter(i => {
-          const lorry = (i.lorryNumber || '').trim().toUpperCase();
-          return lorry !== 'LOT_AVG' && lorry !== 'BALANCED_LOT';
-        });
-        if (realPrior.length > 0) {
-          const sorted = [...realPrior].sort((a, b) => 
-            new Date(a.inspectionDate).getTime() - new Date(b.inspectionDate).getTime()
-          );
-          const mostRecent = sorted[sorted.length - 1];
-          const hasBalancedOnMostRecent = progress.previousInspections.some(insp => {
-            const lorry = (insp.lorryNumber || '').trim().toUpperCase();
-            if (lorry === mostRecent.lorryNumber.trim().toUpperCase() && insp.samplingStages?.balanced_lot) {
-              return true;
-            }
-            if (lorry === 'BALANCED_LOT' && insp.samplingStages?.balanced_lot) {
-              const inspDate = new Date(insp.inspectionDate).toDateString();
-              const lastLorryDate = new Date(mostRecent.inspectionDate).toDateString();
-              if (inspDate === lastLorryDate) return true;
-            }
-            return false;
-          });
-          if (hasBalancedOnMostRecent) {
-            defaultStage = 'half_lorry';
-          }
-        }
+      if (!isLotAvgRequiredForLorry(entryId, '')) {
+        const isNewCrop = getRulesMode(entryId) === 'new';
+        defaultStage = isNewCrop ? 'half_lorry' : 'nit_avg';
       }
       
       setSelectedStage(prev => ({
@@ -1775,19 +1974,35 @@ const PhysicalInspection: React.FC = () => {
     const nitStage = stages.nit_avg || {};
     const halfStage = stages.half_lorry || {};
     const fullStage = stages.full_avg || {};
-    let nextStage = 'lot_avg';
     
-    if (lotStage.approvalStatus === 'approved') {
-      nextStage = 'nit_avg';
+    const isNewCrop = getRulesMode(entryId) === 'new';
+    let nextStage = 'lot_avg';
+    if (!isLotAvgRequiredForLorry(entryId, cleanLorry)) {
+      nextStage = isNewCrop ? 'half_lorry' : 'nit_avg';
     }
-    if (nitStage.approvalStatus === 'approved' || (nitStage.reportedBy && lotStage.approvalStatus === 'approved')) {
-      nextStage = 'half_lorry';
-    }
-    if (halfStage.approvalStatus === 'approved') {
-      nextStage = 'full_avg';
-    }
-    if (fullStage.approvalStatus === 'approved') {
-      nextStage = 'balanced_lot';
+    
+    if (isNewCrop) {
+      if ((isStageApprovedForLot(entryId, 'lot_avg') || !isLotAvgRequiredForLorry(entryId, cleanLorry)) && !stages.half_lorry) {
+        nextStage = 'half_lorry';
+      } else if (stages.half_lorry && !stages.full_avg) {
+        nextStage = 'full_avg';
+      } else if (stages.full_avg && !stages.balanced_lot) {
+        nextStage = 'balanced_lot';
+      }
+    } else {
+      const isLotAvgApproved = isStageApprovedForLot(entryId, 'lot_avg');
+      if (isLotAvgApproved) {
+        nextStage = 'nit_avg';
+      }
+      if (nitStage.approvalStatus === 'approved' || (nitStage.reportedBy && isLotAvgApproved)) {
+        nextStage = 'half_lorry';
+      }
+      if (halfStage.approvalStatus === 'approved') {
+        nextStage = 'full_avg';
+      }
+      if (fullStage.approvalStatus === 'approved') {
+        nextStage = 'balanced_lot';
+      }
     }
 
     setSelectedStage(prev => ({
@@ -1919,9 +2134,17 @@ const PhysicalInspection: React.FC = () => {
 
                 const hasPendingStage = (() => {
                   if (!progress || !progress.previousInspections) return false;
+                  const isNewCrop = getRulesMode(entry.id) === 'new';
                   return progress.previousInspections.some(trip => {
                     const stages = trip.samplingStages || {};
-                    return Object.values(stages).some((stg: any) => stg && stg.approvalStatus === 'pending');
+                    return Object.keys(stages).some(key => {
+                      const stg = stages[key];
+                      if (!stg) return false;
+                      if (isNewCrop) {
+                        return ['lot_avg', 'balanced_lot'].includes(key) && stg.approvalStatus === 'pending';
+                      }
+                      return stg.approvalStatus === 'pending';
+                    });
                   });
                 })();
 
@@ -2014,53 +2237,66 @@ const PhysicalInspection: React.FC = () => {
                         </div>
                       </td>
                       <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '6px', textAlign: 'left' }}>
-                        <button
-                          onClick={() => initializeInspectionData(entry.id)}
-                          disabled={progressPercentage >= 100 || !!entry.lotAllotment?.closedAt || hasPendingStage}
-                          style={{
-                            fontSize: '12px',
-                            padding: '6px 12px',
-                            fontWeight: '700',
-                            backgroundColor: (progressPercentage >= 100 || entry.lotAllotment?.closedAt || hasPendingStage) ? '#ccc' : (selectedEntry === entry.id ? '#FF9800' : '#4CAF50'),
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '3px',
-                            cursor: (progressPercentage >= 100 || entry.lotAllotment?.closedAt || hasPendingStage) ? 'not-allowed' : 'pointer'
-                          }}
-                        >
-                          {(() => {
-                            if (entry.lotAllotment?.closedAt) return 'Closed';
-                            if (progressPercentage >= 100) return 'Complete';
-                            if (hasPendingStage) return 'Awaiting Approval';
-                            if (selectedEntry === entry.id) return 'Editing...';
-                            
-                            const hasIncompleteTrip = (() => {
-                              const progress = inspectionProgress[entry.id];
-                              if (!progress || !progress.previousInspections) return false;
-                              return progress.previousInspections.some(trip => {
-                                const lorry = (trip.lorryNumber || '').trim().toUpperCase();
-                                if (lorry === 'LOT_AVG' || lorry === 'BALANCED_LOT') return false;
-                                const stages = trip.samplingStages || {};
-                                const hasApprovedFullAvg = stages.full_avg && stages.full_avg.approvalStatus === 'approved';
-                                const hasPending = Object.values(stages).some((stg: any) => stg.approvalStatus === 'pending');
-                                const isMissingBalanced = isTripMissingBalancedLotRestrictive(trip);
-                                return !hasApprovedFullAvg || hasPending || isMissingBalanced;
-                              });
-                            })();
-                            
-                            const hasApprovedLotAvg = (() => {
-                              const progress = inspectionProgress[entry.id];
-                              if (!progress || !progress.previousInspections) return false;
-                              return progress.previousInspections.some(trip => {
-                                const lorry = (trip.lorryNumber || '').trim().toUpperCase();
-                                const stages = trip.samplingStages || {};
-                                return lorry === 'LOT_AVG' && (stages.lot_avg?.approvalStatus === 'approved' || trip.cutting1 !== undefined);
-                              });
-                            })();
-                             
-                            return (hasIncompleteTrip || hasApprovedLotAvg) ? 'Add Sample' : 'Add Lorry Load';
-                          })()}
-                        </button>
+                        {(() => {
+                          const isMissingBalancedAcrossTrips = (() => {
+                            const progress = inspectionProgress[entry.id];
+                            if (!progress || !progress.previousInspections) return false;
+                            return progress.previousInspections.some(trip => 
+                              isTripMissingBalancedLotRestrictive(trip, getRulesMode(entry.id))
+                            );
+                          })();
+                          const isDisabled = progressPercentage >= 100 || !!entry.lotAllotment?.closedAt || hasPendingStage || isMissingBalancedAcrossTrips;
+                          return (
+                            <button
+                              onClick={() => initializeInspectionData(entry.id)}
+                              disabled={isDisabled}
+                              style={{
+                                fontSize: '12px',
+                                padding: '6px 12px',
+                                fontWeight: '700',
+                                backgroundColor: isDisabled ? '#ccc' : (selectedEntry === entry.id ? '#FF9800' : '#4CAF50'),
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '3px',
+                                cursor: isDisabled ? 'not-allowed' : 'pointer'
+                              }}
+                            >
+                              {(() => {
+                                if (entry.lotAllotment?.closedAt) return 'Closed';
+                                if (progressPercentage >= 100) return 'Complete';
+                                if (hasPendingStage) return 'Awaiting Approval';
+                                if (isMissingBalancedAcrossTrips) return 'Pending Balanced Lot';
+                                if (selectedEntry === entry.id) return 'Editing...';
+                                
+                                const hasIncompleteTrip = (() => {
+                                  const progress = inspectionProgress[entry.id];
+                                  if (!progress || !progress.previousInspections) return false;
+                                  return progress.previousInspections.some(trip => {
+                                    const lorry = (trip.lorryNumber || '').trim().toUpperCase();
+                                    if (lorry === 'LOT_AVG' || lorry === 'BALANCED_LOT') return false;
+                                    const stages = trip.samplingStages || {};
+                                    const hasApprovedFullAvg = stages.full_avg && stages.full_avg.approvalStatus === 'approved';
+                                    const hasPending = Object.values(stages).some((stg: any) => stg.approvalStatus === 'pending');
+                                    const isMissingBalanced = isTripMissingBalancedLotRestrictive(trip, getRulesMode(entry.id));
+                                    return !hasApprovedFullAvg || hasPending || isMissingBalanced;
+                                  });
+                                })();
+                                
+                                const hasApprovedLotAvg = (() => {
+                                  const progress = inspectionProgress[entry.id];
+                                  if (!progress || !progress.previousInspections) return false;
+                                  return progress.previousInspections.some(trip => {
+                                    const lorry = (trip.lorryNumber || '').trim().toUpperCase();
+                                    const stages = trip.samplingStages || {};
+                                    return lorry === 'LOT_AVG' && (stages.lot_avg?.approvalStatus === 'approved' || trip.cutting1 !== undefined);
+                                  });
+                                })();
+                                 
+                                return (hasIncompleteTrip || hasApprovedLotAvg) ? 'Add Sample' : 'Add Lorry Load';
+                              })()}
+                            </button>
+                          );
+                        })()}
                       </td>
                     </tr>
                     {expandedEntries[entry.id] && progress?.previousInspections && progress.previousInspections.length > 0 && (
@@ -2209,7 +2445,15 @@ const PhysicalInspection: React.FC = () => {
                                         // If dummy LOT_AVG trip
                                         const isLorryLotAvg = (inspection.lorryNumber || '').trim().toUpperCase() === 'LOT_AVG';
                                         if (isLorryLotAvg) {
-                                          if (stages.lot_avg?.approvalStatus === 'pending') {
+                                          const hasPendingStages = Object.keys(stages).some(key => {
+                                            const stg = stages[key];
+                                            if (!stg) return false;
+                                            if (getRulesMode(entry.id) === 'new') {
+                                              return ['lot_avg', 'balanced_lot'].includes(key) && stg.approvalStatus === 'pending';
+                                            }
+                                            return stg.approvalStatus === 'pending';
+                                          });
+                                          if (hasPendingStages) {
                                             return <span style={{ color: '#d97706', fontWeight: 'bold', fontSize: '11px' }}>Awaiting Approval</span>;
                                           }
                                           if (stages.lot_avg?.approvalStatus === 'approved') {
@@ -2219,61 +2463,114 @@ const PhysicalInspection: React.FC = () => {
 
                                         // If balanced lot is pending or approved
                                         if (hasBalanced) {
+                                          if (stages.balanced_lot?.isSkipped) {
+                                            return <span style={{ color: '#7f8c8d', fontWeight: 'bold', fontSize: '11px' }}>Skipped</span>;
+                                          }
                                           if (stages.balanced_lot.approvalStatus === 'pending') {
                                             return <span style={{ color: '#d97706', fontWeight: 'bold', fontSize: '11px' }}>Balanced Lot: Pending</span>;
                                           }
                                           return <span style={{ color: '#2e7d32', fontWeight: 'bold', fontSize: '11px' }}>Completed</span>;
                                         }
 
+                                        // If full_avg is submitted but balanced is missing
+                                        const isNewCrop = getRulesMode(entry.id) === 'new';
+                                        
+                                        if (hasFull && !hasBalanced) {
+                                          if (isNewCrop) {
+                                            return (
+                                              <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                                <button
+                                                  onClick={() => handleResumeLorry(entry.id, inspection.lorryNumber, inspection.samplingStages, inspection.inspectionDate, true)}
+                                                  style={{
+                                                    backgroundColor: '#e67e22',
+                                                    color: '#ffffff',
+                                                    border: 'none',
+                                                    borderRadius: '3px',
+                                                    padding: '3px 8px',
+                                                    fontSize: '11px',
+                                                    fontWeight: 'bold',
+                                                    cursor: 'pointer'
+                                                  }}
+                                                >
+                                                  Add Balanced
+                                                </button>
+                                                {activeSkipConfirm[inspection.id] ? (
+                                                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                                    <span style={{ fontSize: '10px', color: '#c0392b', fontWeight: 'bold' }}>Confirm Skip?</span>
+                                                    <button
+                                                      onClick={() => handleSkipBalancedLot(entry.id, inspection.id)}
+                                                      style={{ backgroundColor: '#27ae60', color: '#fff', border: 'none', padding: '3px 8px', borderRadius: '3px', cursor: 'pointer', fontSize: '10px', fontWeight: 'bold' }}
+                                                    >
+                                                      Yes
+                                                    </button>
+                                                    <button
+                                                      onClick={() => setActiveSkipConfirm(prev => ({ ...prev, [inspection.id]: false }))}
+                                                      style={{ backgroundColor: '#7f8c8d', color: '#fff', border: 'none', padding: '3px 8px', borderRadius: '3px', cursor: 'pointer', fontSize: '10px', fontWeight: 'bold' }}
+                                                    >
+                                                      No
+                                                    </button>
+                                                  </div>
+                                                ) : (
+                                                  <button
+                                                    onClick={() => setActiveSkipConfirm(prev => ({ ...prev, [inspection.id]: true }))}
+                                                    style={{
+                                                      backgroundColor: '#7f8c8d',
+                                                      color: '#ffffff',
+                                                      border: 'none',
+                                                      borderRadius: '3px',
+                                                      padding: '3px 8px',
+                                                      fontSize: '11px',
+                                                      fontWeight: 'bold',
+                                                      cursor: 'pointer'
+                                                    }}
+                                                  >
+                                                    Skip Balanced
+                                                  </button>
+                                                )}
+                                              </div>
+                                            );
+                                          } else {
+                                            // For Old Crop: Only allow adding Balanced Lot on the same day (before 12 AM)
+                                            const todayStr = new Date().toLocaleDateString('en-CA');
+                                            const isToday = inspection.inspectionDate && inspection.inspectionDate.split('T')[0] === todayStr;
+                                            if (isToday) {
+                                              return (
+                                                <button
+                                                  onClick={() => handleResumeLorry(entry.id, inspection.lorryNumber, stages, inspection.inspectionDate, true)}
+                                                  style={{
+                                                    backgroundColor: '#f2711c',
+                                                    color: '#ffffff',
+                                                    border: 'none',
+                                                    borderRadius: '3px',
+                                                    padding: '3px 8px',
+                                                    fontSize: '11px',
+                                                    fontWeight: 'bold',
+                                                    cursor: 'pointer'
+                                                  }}
+                                                >
+                                                  ⚖️ Balanced Lot
+                                                </button>
+                                              );
+                                            }
+                                          }
+                                        }
+
                                         // Check if incomplete trip to resume
                                         const isTripIncomplete = !hasFull || stages.full_avg.approvalStatus !== 'approved';
                                         if (isTripIncomplete) {
                                           // If it has any pending stages, wait for manager to approve before resuming
-                                          const hasPendingStages = Object.values(stages).some((stg: any) => stg.approvalStatus === 'pending');
+                                          const hasPendingStages = Object.keys(stages).some(key => {
+                                            const stg = stages[key];
+                                            if (!stg) return false;
+                                            if (getRulesMode(entry.id) === 'new') {
+                                              return ['lot_avg', 'balanced_lot'].includes(key) && stg.approvalStatus === 'pending';
+                                            }
+                                            return stg.approvalStatus === 'pending';
+                                          });
                                           if (hasPendingStages) {
                                             return <span style={{ color: '#d97706', fontWeight: 'bold', fontSize: '11px' }}>Awaiting Approval</span>;
                                           }
-
-                                          return (
-                                            <button
-                                              onClick={() => handleResumeLorry(entry.id, inspection.lorryNumber, stages, inspection.inspectionDate, false)}
-                                              style={{
-                                                backgroundColor: '#27ae60',
-                                                color: '#ffffff',
-                                                border: 'none',
-                                                borderRadius: '3px',
-                                                padding: '3px 8px',
-                                                fontSize: '11px',
-                                                fontWeight: 'bold',
-                                                cursor: 'pointer'
-                                              }}
-                                            >
-                                              Resume
-                                            </button>
-                                          );
-                                        }
-
-                                        // If full_avg is approved but not balanced, and it's today
-                                        const todayStr = new Date().toLocaleDateString('en-CA');
-                                        const isToday = inspection.inspectionDate && inspection.inspectionDate.split('T')[0] === todayStr;
-                                        if (isToday && !hasBalanced) {
-                                          return (
-                                            <button
-                                              onClick={() => handleResumeLorry(entry.id, inspection.lorryNumber, stages, inspection.inspectionDate, true)}
-                                              style={{
-                                                backgroundColor: '#f2711c',
-                                                color: '#ffffff',
-                                                border: 'none',
-                                                borderRadius: '3px',
-                                                padding: '3px 8px',
-                                                fontSize: '11px',
-                                                fontWeight: 'bold',
-                                                cursor: 'pointer'
-                                              }}
-                                            >
-                                              ⚖️ Balanced Lot
-                                            </button>
-                                          );
+                                          return <span style={{ color: '#d97706', fontWeight: 'bold', fontSize: '11px' }}>In Progress</span>;
                                         }
 
                                         return <span style={{ color: '#2e7d32', fontWeight: 'bold', fontSize: '11px' }}>Completed</span>;
@@ -2427,17 +2724,20 @@ const PhysicalInspection: React.FC = () => {
                                           {stageItems.map((item) => {
                                             const isDisabled = freezed || item.disabled;
                                             const isSelected = (selectedStage[entry.id] || 'lot_avg') === item.value;
+                                            const isLocked = isStageLockedForLot(entry.id, item.value);
+                                            const isApproved = isStageApprovedForLot(entry.id, item.value);
+                                            const isDone = isLocked || isApproved;
                                             
                                             let statusLabel = '✓ Done';
                                             if (isDisabled && !freezed) {
                                               if (item.value === 'balanced_lot') {
-                                                const isLocked = isStageLockedForLot(entry.id, 'balanced_lot');
-                                                if (!isLocked && isAnyFullAvgSavedOrApproved(entry.id)) {
+                                                const isLockedStg = isStageLockedForLot(entry.id, 'balanced_lot');
+                                                if (!isLockedStg && isAnyFullAvgSavedOrApproved(entry.id)) {
                                                   statusLabel = 'Expired / Not Added';
                                                 }
                                               } else if (item.value === 'lot_avg') {
-                                                const isLocked = isStageLockedForLot(entry.id, 'lot_avg');
-                                                if (!isLocked && !isLotAvgRequiredForLorry(entry.id, (inspectionData[entry.id]?.lorryNumber || '').trim().toUpperCase())) {
+                                                const isLockedStg = isStageLockedForLot(entry.id, 'lot_avg');
+                                                if (!isLockedStg && !isLotAvgRequiredForLorry(entry.id, (inspectionData[entry.id]?.lorryNumber || '').trim().toUpperCase())) {
                                                   statusLabel = 'Not Required';
                                                 }
                                               }
@@ -2463,7 +2763,7 @@ const PhysicalInspection: React.FC = () => {
                                                   alignItems: 'center',
                                                   transition: 'background-color 0.15s',
                                                   opacity: isDisabled ? 0.6 : 1,
-                                                  textDecoration: (isDisabled && !item.value.startsWith('nit_avg')) ? 'line-through' : 'none'
+                                                  textDecoration: (isDone && !item.value.startsWith('nit_avg')) ? 'line-through' : 'none'
                                                 }}
                                               >
                                                 <span>{item.label}</span>
@@ -3247,37 +3547,7 @@ const PhysicalInspection: React.FC = () => {
                     <div style={{ background: 'linear-gradient(90deg, #f2711c 0%, #f26202 100%)', padding: '8px 12px', fontWeight: 'bold', fontSize: '12px', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span>{tripHeaderLabel} | Bags Loaded: {stages.full_avg?.actualBags || inspection.bags || '-'}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        {(() => {
-                          const todayStr = new Date().toISOString().split('T')[0];
-                          const isToday = inspection.inspectionDate && inspection.inspectionDate.split('T')[0] === todayStr;
-                          const stages = inspection.samplingStages || {};
-                          const hasFullAvg = !!stages.full_avg;
-                          const hasBalanced = !!stages.balanced_lot;
-
-                          if (isToday && hasFullAvg && !hasBalanced && selectedLorryForComparison.entryId) {
-                            return (
-                              <button
-                                onClick={() => {
-                                  setSelectedLorryForComparison(null);
-                                  handleResumeLorry(selectedLorryForComparison.entryId, inspection.lorryNumber, inspection.samplingStages || {}, inspection.inspectionDate, true);
-                                }}
-                                style={{
-                                  backgroundColor: '#ffffff',
-                                  color: '#f26202',
-                                  border: 'none',
-                                  borderRadius: '4px',
-                                  padding: '4px 10px',
-                                  fontWeight: 'bold',
-                                  fontSize: '11px',
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                ⚖️ Add Balanced Lot
-                              </button>
-                            );
-                          }
-                          return null;
-                        })()}
+                        {/* Add Balanced Lot button removed as it should be added through Add Sample flow */}
                         <span>Reported By: {inspection.reportedBy?.username || 'System'} | Date: {new Date(inspection.inspectionDate).toLocaleDateString()}</span>
                       </div>
                     </div>
@@ -3613,7 +3883,56 @@ const PhysicalInspection: React.FC = () => {
                             }}
                           >
                             Submit
-                    </button>
+                          </button>
+                          {getRulesMode(entry.id) === 'new' && selectedStage[entry.id] === 'balanced_lot' && (() => {
+                            const tripId = inspectionData[entry.id]?.tripId || progress?.previousInspections?.find(t => {
+                              const lorry = (t.lorryNumber || '').trim().toUpperCase();
+                              return lorry !== 'LOT_AVG' && lorry !== 'BALANCED_LOT' && t.samplingStages?.full_avg && !t.samplingStages?.balanced_lot;
+                            })?.id || '';
+
+                            if (!tripId) return null;
+
+                            if (activeSkipConfirm[tripId]) {
+                              return (
+                                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                  <span style={{ fontSize: '11px', color: '#c0392b', fontWeight: 'bold' }}>Confirm Skip?</span>
+                                  <button
+                                    onClick={() => handleSkipBalancedLot(entry.id, tripId)}
+                                    type="button"
+                                    style={{ backgroundColor: '#27ae60', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}
+                                  >
+                                    Yes
+                                  </button>
+                                  <button
+                                    onClick={() => setActiveSkipConfirm(prev => ({ ...prev, [tripId]: false }))}
+                                    type="button"
+                                    style={{ backgroundColor: '#7f8c8d', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}
+                                  >
+                                    No
+                                  </button>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <button
+                                onClick={() => setActiveSkipConfirm(prev => ({ ...prev, [tripId]: true }))}
+                                type="button"
+                                style={{
+                                  padding: '6px 12px',
+                                  backgroundColor: '#7f8c8d',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  fontWeight: '700',
+                                  cursor: 'pointer',
+                                  fontSize: '12px'
+                                }}
+                              >
+                                Skip
+                              </button>
+                            );
+                          })()}
                   </div>
                       </>
                     );

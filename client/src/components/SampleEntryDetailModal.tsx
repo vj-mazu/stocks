@@ -1366,7 +1366,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     const reportedAt = stageObj.reportedAt;
                     
                     let actionsCell: any = '-';
-                    if (canApprove) {
+                    if (stageObj.isSkipped || stageObj.approvalStatus === 'skipped') {
+                        actionsCell = <span style={{ color: '#7f8c8d', fontWeight: 'bold', fontSize: '11px' }}>Skipped</span>;
+                    } else if (canApprove) {
                         if (pendingStage && pendingStage.key === stageKey) {
                             actionsCell = (
                                 <div style={{ display: 'flex', gap: '10px' }}>
@@ -1547,11 +1549,13 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         formatQ(stageObj.wbTRaw, stageObj.wbT),
                         renderBeautifulSmell(stageObj),
                         renderStagePaddyWb(stageObj),
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#7c2d12', fontWeight: '800', gap: '2px' }}>
-                            <span>{stageObj.paddyColorEnabled && stageObj.paddyColor ? stageObj.paddyColor : '-'}</span>
-                            <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />
-                            <span>ಕಡಿಗಾ: {stageObj.kadiga ? (isKadigaVal ? 'Yes' : 'No') : '-'}</span>
-                        </div>,
+                        stageObj.isSkipped ? '-' : (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#7c2d12', fontWeight: '800', gap: '2px' }}>
+                                <span>{stageObj.paddyColorEnabled && stageObj.paddyColor ? stageObj.paddyColor : '-'}</span>
+                                <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />
+                                <span>ಕಡಿಗಾ: {stageObj.kadiga ? (isKadigaVal ? 'Yes' : 'No') : '-'}</span>
+                            </div>
+                        ),
                         actionsCell
                     ];
                 };
@@ -1784,7 +1788,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             const reportedAt = stageObj.reportedAt;
             
             let actionsCell: any = '-';
-            if (canApprove) {
+            if (stageObj.isSkipped || stageObj.approvalStatus === 'skipped') {
+                actionsCell = <span style={{ color: '#7f8c8d', fontWeight: 'bold', fontSize: '11px' }}>Skipped</span>;
+            } else if (canApprove) {
                 if (pendingStage && pendingStage.key === stageKey) {
                     actionsCell = (
                         <div style={{ display: 'flex', gap: '10px' }}>
@@ -1965,11 +1971,13 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 formatQ(stageObj.wbTRaw, stageObj.wbT),
                 renderBeautifulSmell(stageObj),
                 renderStagePaddyWb(stageObj),
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#7c2d12', fontWeight: '800', gap: '2px' }}>
-                    <span>{stageObj.paddyColorEnabled && stageObj.paddyColor ? stageObj.paddyColor : '-'}</span>
-                    <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />
-                    <span>ಕಡಿಗಾ: {stageObj.kadiga ? (isKadigaVal ? 'Yes' : 'No') : '-'}</span>
-                </div>,
+                stageObj.isSkipped ? '-' : (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#7c2d12', fontWeight: '800', gap: '2px' }}>
+                        <span>{stageObj.paddyColorEnabled && stageObj.paddyColor ? stageObj.paddyColor : '-'}</span>
+                        <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />
+                        <span>ಕಡಿಗಾ: {stageObj.kadiga ? (isKadigaVal ? 'Yes' : 'No') : '-'}</span>
+                    </div>
+                ),
                 actionsCell
             ];
         };

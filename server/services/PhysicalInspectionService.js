@@ -222,11 +222,59 @@ class PhysicalInspectionService {
         priorRealLorries.sort((a, b) => getInspectionSortTime(a) - getInspectionSortTime(b));
         const lastLorry = priorRealLorries[priorRealLorries.length - 1];
 
+        // Midnight check for New Crop
+        if (isNewMode && lastLorry && lastLorry.inspectionDate) {
+          const currentInspectionDate = inspectionData.inspectionDate || new Date().toISOString().split('T')[0];
+          // Compare dates formatted as YYYY-MM-DD
+          const getFormattedDateOnly = (d) => {
+            if (!d) return '';
+            try {
+              const dateObj = new Date(d);
+              if (isNaN(dateObj.getTime())) return '';
+              return dateObj.toISOString().split('T')[0];
+            } catch (e) {
+              return '';
+            }
+          };
+          const currentDateStr = getFormattedDateOnly(currentInspectionDate);
+          const lastLorryDateStr = getFormattedDateOnly(lastLorry.inspectionDate);
+          if (currentDateStr && lastLorryDateStr && currentDateStr !== lastLorryDateStr) {
+            return true;
+          }
+        }
+
+        if (isNewMode) {
+          return false;
+        }
+
         const stages = lastLorry?.samplingStages || {};
         const isPreviousBalanced = stages.balanced_lot?.approvalStatus === 'approved';
 
         return !isPreviousBalanced;
       };
+
+      if (isNewMode && stage === 'nit_avg') {
+        throw new Error('Nit Avg sampling stage is not permitted for New Crop.');
+      }
+
+      if (isNewMode) {
+        // Enforce blockers: If any previous lot_avg or balanced_lot is pending, reject new requests
+        const hasPendingLotAvg = existingInspections.some(insp => {
+          const stages = insp.samplingStages || {};
+          return stages.lot_avg && stages.lot_avg.approvalStatus === 'pending';
+        });
+        const hasPendingBalancedLot = existingInspections.some(insp => {
+          const stages = insp.samplingStages || {};
+          return stages.balanced_lot && stages.balanced_lot.approvalStatus === 'pending';
+        });
+
+        if (stage !== 'lot_avg' && hasPendingLotAvg) {
+          throw new Error('Cannot add new stages/trips while Lot Avg is pending approval.');
+        }
+        if (stage !== 'balanced_lot' && hasPendingBalancedLot) {
+          throw new Error('Cannot add new stages/trips while Balanced Lot is pending approval.');
+        }
+      }
 
       if (stage !== 'lot_avg' && stage !== 'balanced_lot' && (lorryNumberClean === 'LOT_AVG' || lorryNumberClean === 'BALANCED_LOT')) {
         throw new Error('Please enter a valid lorry number');
@@ -245,14 +293,20 @@ class PhysicalInspectionService {
       }
 
       if (stage !== 'lot_avg' && stage !== 'balanced_lot') {
-        const requiresLotAvgFirst = isLotAvgRequired() && !(isLocationSample && isFirstRealTrip());
-        if (requiresLotAvgFirst && !isStageApproved(currentStages, 'lot_avg')) {
-          throw new Error('This trip must start with approved Lot Avg Sampling first.');
+        const requiresLotAvgFirst = isLotAvgRequired() && !(isLocationSample && isFirstRealTrip() && !isNewMode);
+        if (requiresLotAvgFirst) {
+          if (!isStageApproved(currentStages, 'lot_avg')) {
+            throw new Error('This trip must start with approved Lot Avg Sampling first.');
+          }
         }
       }
 
-      if (stage === 'full_avg' && !isStageApproved(currentStages, 'half_lorry') && !isStageApproved(currentStages, 'nit_avg')) {
-        throw new Error('Cannot add Full Avg Lorry until Half Lorry or Nit Avg is approved by Manager.');
+      if (stage === 'full_avg') {
+        if (!isNewMode) {
+          if (!isStageApproved(currentStages, 'half_lorry') && !isStageApproved(currentStages, 'nit_avg')) {
+            throw new Error('Cannot add Full Avg Lorry until Half Lorry or Nit Avg is approved by Manager.');
+          }
+        }
       }
 
       const hasValue = value => value !== undefined && value !== null && String(value).trim() !== '';
@@ -264,58 +318,62 @@ class PhysicalInspectionService {
       const isTruthyFlag = value => value === true || value === 'true' || value === 'Y' || value === 'Yes';
       const isFalseyFlag = value => value === false || value === 'false' || value === 'N' || value === 'No';
 
-      // Required fields for BOTH Old and New mode
-      requireValue(inspectionData.moisture, 'Moisture');
-      requireValue(inspectionData.smellHas, 'Smell Yes/No');
+      const isSkipped = isTruthyFlag(inspectionData.isSkipped);
 
-      if (!isTruthyFlag(inspectionData.smellHas) && !isFalseyFlag(inspectionData.smellHas)) {
-        throw new Error('Smell Yes/No is invalid');
-      }
-      if (isTruthyFlag(inspectionData.smellHas)) {
-        requireValue(inspectionData.smellType, 'Smell type');
-      }
-      if (isTruthyFlag(inspectionData.dryMoistureRaw) || (Number(inspectionData.dryMoisture) > 0 && !hasValue(inspectionData.dryMoistureRaw))) {
-        requireValue(inspectionData.dryMoisture, 'Dry Moisture value');
-      }
+      if (!isSkipped) {
+        // Required fields for BOTH Old and New mode
+        requireValue(inspectionData.moisture, 'Moisture');
+        requireValue(inspectionData.smellHas, 'Smell Yes/No');
 
-      const paddyColorEnabled = inspectionData.paddyColorEnabled ?? false;
-      if (!isTruthyFlag(paddyColorEnabled) && !isFalseyFlag(paddyColorEnabled)) {
-        throw new Error('Paddy Discolor Yes/No is invalid');
-      }
-      if (isTruthyFlag(paddyColorEnabled)) {
-        requireValue(inspectionData.paddyColor, 'Paddy discolor type');
-        if (!['Normal Color', 'Light Discolor', 'Medium Discolor', 'Dark Discolor'].includes(inspectionData.paddyColor)) {
-          throw new Error('Paddy discolor type is invalid');
+        if (!isTruthyFlag(inspectionData.smellHas) && !isFalseyFlag(inspectionData.smellHas)) {
+          throw new Error('Smell Yes/No is invalid');
         }
-      }
-
-      const kadiga = inspectionData.kadiga || 'N';
-      if (!isTruthyFlag(kadiga) && !isFalseyFlag(kadiga)) {
-        throw new Error('Kadiga Yes/No is invalid');
-      }
-
-      // Fields required ONLY in Old mode
-      if (!isNewMode) {
-        requireValue(inspectionData.grainsCount, 'Grains');
-        requireValue(inspectionData.cutting1, 'Cutting');
-        requireValue(inspectionData.bend1, 'Bend');
-        requireValue(inspectionData.mix, 'Mix');
-        requireValue(inspectionData.kandu, 'Kandu');
-        requireValue(inspectionData.oil, 'Oil');
-        requireValue(inspectionData.sk, 'SK');
-        requireValue(inspectionData.paddyWbEnabled, 'Paddy WB Yes/No');
-
-        if (isTruthyFlag(inspectionData.smixEnabled)) {
-          requireValue(inspectionData.mixS, 'S Mix value');
+        if (isTruthyFlag(inspectionData.smellHas)) {
+          requireValue(inspectionData.smellType, 'Smell type');
         }
-        if (isTruthyFlag(inspectionData.lmixEnabled)) {
-          requireValue(inspectionData.mixL, 'L Mix value');
+        if (isTruthyFlag(inspectionData.dryMoistureRaw) || (Number(inspectionData.dryMoisture) > 0 && !hasValue(inspectionData.dryMoistureRaw))) {
+          requireValue(inspectionData.dryMoisture, 'Dry Moisture value');
         }
-        if (!isTruthyFlag(inspectionData.paddyWbEnabled) && !isFalseyFlag(inspectionData.paddyWbEnabled)) {
-          throw new Error('Paddy WB Yes/No is invalid');
+
+        const paddyColorEnabled = inspectionData.paddyColorEnabled ?? false;
+        if (!isTruthyFlag(paddyColorEnabled) && !isFalseyFlag(paddyColorEnabled)) {
+          throw new Error('Paddy Discolor Yes/No is invalid');
         }
-        if (isTruthyFlag(inspectionData.paddyWbEnabled)) {
-          requireValue(inspectionData.paddyWb, 'Paddy WB value');
+        if (isTruthyFlag(paddyColorEnabled)) {
+          requireValue(inspectionData.paddyColor, 'Paddy discolor type');
+          if (!['Normal Color', 'Light Discolor', 'Medium Discolor', 'Dark Discolor'].includes(inspectionData.paddyColor)) {
+            throw new Error('Paddy discolor type is invalid');
+          }
+        }
+
+        const kadiga = inspectionData.kadiga || 'N';
+        if (!isTruthyFlag(kadiga) && !isFalseyFlag(kadiga)) {
+          throw new Error('Kadiga Yes/No is invalid');
+        }
+
+        // Fields required ONLY in Old mode
+        if (!isNewMode) {
+          requireValue(inspectionData.grainsCount, 'Grains');
+          requireValue(inspectionData.cutting1, 'Cutting');
+          requireValue(inspectionData.bend1, 'Bend');
+          requireValue(inspectionData.mix, 'Mix');
+          requireValue(inspectionData.kandu, 'Kandu');
+          requireValue(inspectionData.oil, 'Oil');
+          requireValue(inspectionData.sk, 'SK');
+          requireValue(inspectionData.paddyWbEnabled, 'Paddy WB Yes/No');
+
+          if (isTruthyFlag(inspectionData.smixEnabled)) {
+            requireValue(inspectionData.mixS, 'S Mix value');
+          }
+          if (isTruthyFlag(inspectionData.lmixEnabled)) {
+            requireValue(inspectionData.mixL, 'L Mix value');
+          }
+          if (!isTruthyFlag(inspectionData.paddyWbEnabled) && !isFalseyFlag(inspectionData.paddyWbEnabled)) {
+            throw new Error('Paddy WB Yes/No is invalid');
+          }
+          if (isTruthyFlag(inspectionData.paddyWbEnabled)) {
+            requireValue(inspectionData.paddyWb, 'Paddy WB value');
+          }
         }
       }
 
@@ -330,45 +388,46 @@ class PhysicalInspectionService {
 
       const stageData = {
         inspectionDate: inspectionData.inspectionDate || new Date().toISOString().split('T')[0],
-        moisture: inspectionData.moisture !== undefined ? Number(inspectionData.moisture) : null,
-        moistureRaw: inspectionData.moistureRaw || null,
-        dryMoisture: inspectionData.dryMoisture !== undefined ? Number(inspectionData.dryMoisture) : null,
-        dryMoistureRaw: inspectionData.dryMoistureRaw || null,
-        grainsCount: inspectionData.grainsCount !== undefined ? Number(inspectionData.grainsCount) : null,
-        grainsCountRaw: inspectionData.grainsCountRaw || null,
-        cutting1: inspectionData.cutting1 !== undefined ? Number(inspectionData.cutting1) : null,
-        cutting2: inspectionData.cutting2 !== undefined ? Number(inspectionData.cutting2) : null,
-        bend1: inspectionData.bend1 !== undefined ? Number(inspectionData.bend1) : null,
-        bend2: inspectionData.bend2 !== undefined ? Number(inspectionData.bend2) : null,
-        mix: inspectionData.mix || null,
-        mixRaw: inspectionData.mixRaw || null,
-        smixEnabled: inspectionData.smixEnabled === 'true' || inspectionData.smixEnabled === true,
-        mixS: inspectionData.mixS || null,
-        mixSRaw: inspectionData.mixSRaw || null,
-        lmixEnabled: inspectionData.lmixEnabled === 'true' || inspectionData.lmixEnabled === true,
-        mixL: inspectionData.mixL || null,
-        mixLRaw: inspectionData.mixLRaw || null,
-        sk: inspectionData.sk || null,
-        skRaw: inspectionData.skRaw || null,
-        kandu: inspectionData.kandu || null,
-        kanduRaw: inspectionData.kanduRaw || null,
-        oil: inspectionData.oil || null,
-        oilRaw: inspectionData.oilRaw || null,
-        smellHas: inspectionData.smellHas === 'true' || inspectionData.smellHas === true,
-        smellType: inspectionData.smellType || null,
-        paddyWbEnabled: inspectionData.paddyWbEnabled === 'true' || inspectionData.paddyWbEnabled === true,
-        paddyWb: inspectionData.paddyWb !== undefined ? Number(inspectionData.paddyWb) : null,
-        paddyWbRaw: inspectionData.paddyWbRaw || null,
-        paddyColorEnabled: isTruthyFlag(paddyColorEnabled),
-        paddyColor: isTruthyFlag(paddyColorEnabled) ? (inspectionData.paddyColor || null) : null,
-        kadiga: isTruthyFlag(kadiga) ? 'Y' : 'N',
+        moisture: !isSkipped && inspectionData.moisture !== undefined ? Number(inspectionData.moisture) : null,
+        moistureRaw: !isSkipped ? (inspectionData.moistureRaw || null) : null,
+        dryMoisture: !isSkipped && inspectionData.dryMoisture !== undefined ? Number(inspectionData.dryMoisture) : null,
+        dryMoistureRaw: !isSkipped ? (inspectionData.dryMoistureRaw || null) : null,
+        grainsCount: !isSkipped && inspectionData.grainsCount !== undefined ? Number(inspectionData.grainsCount) : null,
+        grainsCountRaw: !isSkipped ? (inspectionData.grainsCountRaw || null) : null,
+        cutting1: !isSkipped && inspectionData.cutting1 !== undefined ? Number(inspectionData.cutting1) : null,
+        cutting2: !isSkipped && inspectionData.cutting2 !== undefined ? Number(inspectionData.cutting2) : null,
+        bend1: !isSkipped && inspectionData.bend1 !== undefined ? Number(inspectionData.bend1) : null,
+        bend2: !isSkipped && inspectionData.bend2 !== undefined ? Number(inspectionData.bend2) : null,
+        mix: !isSkipped ? (inspectionData.mix || null) : null,
+        mixRaw: !isSkipped ? (inspectionData.mixRaw || null) : null,
+        smixEnabled: !isSkipped && (inspectionData.smixEnabled === 'true' || inspectionData.smixEnabled === true),
+        mixS: !isSkipped ? (inspectionData.mixS || null) : null,
+        mixSRaw: !isSkipped ? (inspectionData.mixSRaw || null) : null,
+        lmixEnabled: !isSkipped && (inspectionData.lmixEnabled === 'true' || inspectionData.lmixEnabled === true),
+        mixL: !isSkipped ? (inspectionData.mixL || null) : null,
+        mixLRaw: !isSkipped ? (inspectionData.mixLRaw || null) : null,
+        sk: !isSkipped ? (inspectionData.sk || null) : null,
+        skRaw: !isSkipped ? (inspectionData.skRaw || null) : null,
+        kandu: !isSkipped ? (inspectionData.kandu || null) : null,
+        kanduRaw: !isSkipped ? (inspectionData.kanduRaw || null) : null,
+        oil: !isSkipped ? (inspectionData.oil || null) : null,
+        oilRaw: !isSkipped ? (inspectionData.oilRaw || null) : null,
+        smellHas: !isSkipped && (inspectionData.smellHas === 'true' || inspectionData.smellHas === true),
+        smellType: !isSkipped ? (inspectionData.smellType || null) : null,
+        paddyWbEnabled: !isSkipped && (inspectionData.paddyWbEnabled === 'true' || inspectionData.paddyWbEnabled === true),
+        paddyWb: !isSkipped && inspectionData.paddyWb !== undefined ? Number(inspectionData.paddyWb) : null,
+        paddyWbRaw: !isSkipped ? (inspectionData.paddyWbRaw || null) : null,
+        paddyColorEnabled: !isSkipped && isTruthyFlag(inspectionData.paddyColorEnabled ?? false),
+        paddyColor: !isSkipped && isTruthyFlag(inspectionData.paddyColorEnabled ?? false) ? (inspectionData.paddyColor || null) : null,
+        kadiga: isSkipped ? null : (isTruthyFlag(inspectionData.kadiga || 'N') ? 'Y' : 'N'),
         nit: inspectionData.nit || null,
+        isSkipped: isSkipped,
         reportedBy: inspectionData.reportedBy || 'System',
         reportedAt: new Date().toISOString(),
         imageUrl: null,
-        approvalStatus: (isNewMode && stage !== 'full_avg' && stage !== 'balanced_lot') ? 'approved' : 'pending',
-        approvedBy: (isNewMode && stage !== 'full_avg' && stage !== 'balanced_lot') ? (inspectionData.reportedBy || 'System') : null,
-        approvedAt: (isNewMode && stage !== 'full_avg' && stage !== 'balanced_lot') ? new Date().toISOString() : null
+        approvalStatus: isSkipped ? 'approved' : 'pending',
+        approvedBy: isSkipped ? (inspectionData.reportedBy || 'System') : null,
+        approvedAt: isSkipped ? new Date().toISOString() : null
       };
 
       if (!existingLorryInspection) {
@@ -448,7 +507,9 @@ class PhysicalInspectionService {
               const fullAvgDay = new Date(fullAvgDate.getFullYear(), fullAvgDate.getMonth(), fullAvgDate.getDate());
               const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
               if (todayDay > fullAvgDay) {
-                throw new Error('Cannot add Balanced Lot. The midnight deadline has expired.');
+                if (!isNewMode) {
+                  throw new Error('Cannot add Balanced Lot. The midnight deadline has expired.');
+                }
               }
             }
             stageData.actualBags = 0;
@@ -473,7 +534,7 @@ class PhysicalInspectionService {
           updates.remarks = inspectionData.remarks || null;
 
           const newTotalInspected = otherTripsBags + (updates.bags || 0);
-          if (newTotalInspected >= totalAllottedBags || stage === 'balanced_lot') {
+          if (newTotalInspected >= totalAllottedBags || (stage === 'balanced_lot' && !isSkipped)) {
             updates.isComplete = true;
           }
         }
@@ -775,14 +836,16 @@ class PhysicalInspectionService {
       if (totalInspected >= totalAllottedBags) {
         updates.isComplete = true;
         
-        // Transition workflow to INVENTORY_ENTRY
-        await WorkflowEngine.transitionTo(
-          sampleEntryId,
-          'INVENTORY_ENTRY',
-          userId,
-          userRole,
-          { reason: 'Physical inspection completed and approved' }
-        );
+        // Transition workflow to INVENTORY_ENTRY only if not already in that status
+        if (entry.workflowStatus !== 'INVENTORY_ENTRY') {
+          await WorkflowEngine.transitionTo(
+            sampleEntryId,
+            'INVENTORY_ENTRY',
+            userId,
+            userRole,
+            { reason: 'Physical inspection completed and approved' }
+          );
+        }
       }
     }
 

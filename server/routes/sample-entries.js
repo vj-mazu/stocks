@@ -3452,6 +3452,7 @@ router.post('/:id/physical-inspection', authenticateToken, async (req, res) => {
           nit: req.body.nit || null,
           remarks: req.body.remarks || null,
           samplingRulesMode: req.body.samplingRulesMode || null,
+          isSkipped: req.body.isSkipped || null,
           reportedBy: req.user.username // Username of the supervisor
         };
 
