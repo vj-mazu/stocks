@@ -84,6 +84,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
   const [processingLorry, setProcessingLorry] = useState(false);
   const [detailModalEntry, setDetailModalEntry] = useState<any | null>(null);
   const [loadingSubTab, setLoadingSubTab] = useState<'paddy' | 'rice'>('paddy');
+  const [holdDropdown, setHoldDropdown] = useState<{ entryId: string; inspectionId: string; stageKey: string } | null>(null);
 
   const currentUser = useMemo(() => {
     try {
@@ -269,6 +270,26 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     } catch (error: any) {
       console.error('Error approving progressive stage:', error);
       toast.error(error.response?.data?.error || 'Failed to approve stage');
+    } finally {
+      setProcessingLorry(false);
+    }
+  };
+
+  const handleHoldProgressiveStage = async (entryId: string, inspectionId: string, stageKey: string, duration: string) => {
+    try {
+      setProcessingLorry(true);
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `${API_URL}/sample-entries/${entryId}/physical-inspection/${inspectionId}/hold-stage`,
+        { stage: stageKey, holdDuration: duration },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success(`Stage put on Hold for ${duration} successfully!`);
+      setHoldDropdown(null);
+      fetchLoadingQuality();
+    } catch (error: any) {
+      console.error('Error holding progressive stage:', error);
+      toast.error(error.response?.data?.error || 'Failed to hold stage');
     } finally {
       setProcessingLorry(false);
     }
@@ -541,41 +562,134 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                               const pendingStage = getPendingStage(activeInsp);
                               if (pendingStage) {
                                 return (
-                                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                    <button
-                                      onClick={() => handleApproveProgressiveStage(entry.id, activeInsp.id, pendingStage.key, pendingStage.label)}
-                                      disabled={processingLorry}
-                                      style={{
-                                        background: '#27ae60',
-                                        border: 'none',
-                                        color: '#fff',
-                                        fontWeight: 'bold',
-                                        cursor: 'pointer',
-                                        padding: '5px 12px',
-                                        fontSize: '11px',
-                                        borderRadius: '4px',
-                                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                                      }}
-                                    >
-                                      Approve
-                                    </button>
-                                    <button
-                                      onClick={() => handleRejectSpecificLorry(entry.id, activeInsp.id, activeInsp.lorryNumber)}
-                                      disabled={processingLorry}
-                                      style={{
-                                        background: '#dc2626',
-                                        border: 'none',
-                                        color: '#fff',
-                                        fontWeight: 'bold',
-                                        cursor: 'pointer',
-                                        padding: '5px 12px',
-                                        fontSize: '11px',
-                                        borderRadius: '4px',
-                                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                                      }}
-                                    >
-                                      Reject
-                                    </button>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                      <button
+                                        onClick={() => handleApproveProgressiveStage(entry.id, activeInsp.id, pendingStage.key, pendingStage.label)}
+                                        disabled={processingLorry}
+                                        style={{
+                                          background: '#27ae60',
+                                          border: 'none',
+                                          color: '#fff',
+                                          fontWeight: 'bold',
+                                          cursor: 'pointer',
+                                          padding: '5px 12px',
+                                          fontSize: '11px',
+                                          borderRadius: '4px',
+                                          boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                                        }}
+                                      >
+                                        Approve
+                                      </button>
+                                      <button
+                                        onClick={() => handleRejectSpecificLorry(entry.id, activeInsp.id, activeInsp.lorryNumber)}
+                                        disabled={processingLorry}
+                                        style={{
+                                          background: '#dc2626',
+                                          border: 'none',
+                                          color: '#fff',
+                                          fontWeight: 'bold',
+                                          cursor: 'pointer',
+                                          padding: '5px 12px',
+                                          fontSize: '11px',
+                                          borderRadius: '4px',
+                                          boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                                        }}
+                                      >
+                                        Reject
+                                      </button>
+                                    </div>
+                                    {entry.lotAllotment?.samplingRulesMode === 'new' && ['lot_avg', 'balanced_lot'].includes(pendingStage.key) && (
+                                       <div style={{ display: 'block', marginTop: '2px' }}>
+                                         {holdDropdown?.entryId === entry.id && holdDropdown?.stageKey === pendingStage.key ? (
+                                           <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                             <input
+                                               type="text"
+                                               placeholder="e.g. 2 Hours"
+                                               id={`hold-input-${entry.id}`}
+                                               onKeyDown={(e) => {
+                                                 if (e.key === 'Enter') {
+                                                   const val = (e.target as HTMLInputElement).value.trim();
+                                                   if (val) {
+                                                     const formatted = /^\d+$/.test(val) ? `${val} Hours` : val;
+                                                     handleHoldProgressiveStage(entry.id, activeInsp.id, pendingStage.key, formatted);
+                                                   }
+                                                 } else if (e.key === 'Escape') {
+                                                   setHoldDropdown(null);
+                                                 }
+                                               }}
+                                               style={{
+                                                 padding: '4px 6px',
+                                                 fontSize: '11px',
+                                                 border: '1px solid #cbd5e1',
+                                                 borderRadius: '4px',
+                                                 width: '90px',
+                                                 boxSizing: 'border-box'
+                                               }}
+                                               autoFocus
+                                             />
+                                             <button
+                                               onClick={() => {
+                                                 const input = document.getElementById(`hold-input-${entry.id}`) as HTMLInputElement;
+                                                 const val = input?.value.trim();
+                                                 if (val) {
+                                                   const formatted = /^\d+$/.test(val) ? `${val} Hours` : val;
+                                                   handleHoldProgressiveStage(entry.id, activeInsp.id, pendingStage.key, formatted);
+                                                 }
+                                               }}
+                                               disabled={processingLorry}
+                                               style={{
+                                                 background: '#d97706',
+                                                 border: 'none',
+                                                 color: '#fff',
+                                                 fontWeight: 'bold',
+                                                 cursor: 'pointer',
+                                                 padding: '4px 8px',
+                                                 fontSize: '11px',
+                                                 borderRadius: '4px'
+                                               }}
+                                             >
+                                               Set
+                                             </button>
+                                             <button
+                                               onClick={() => setHoldDropdown(null)}
+                                               style={{
+                                                 background: '#64748b',
+                                                 border: 'none',
+                                                 color: '#fff',
+                                                 fontWeight: 'bold',
+                                                 cursor: 'pointer',
+                                                 padding: '4px 8px',
+                                                 fontSize: '11px',
+                                                 borderRadius: '4px'
+                                               }}
+                                             >
+                                               ✖
+                                             </button>
+                                           </div>
+                                         ) : (
+                                           <button
+                                             onClick={() => {
+                                               setHoldDropdown({ entryId: entry.id, inspectionId: activeInsp.id, stageKey: pendingStage.key });
+                                             }}
+                                             disabled={processingLorry}
+                                             style={{
+                                               background: '#d97706',
+                                               border: 'none',
+                                               color: '#fff',
+                                               fontWeight: 'bold',
+                                               cursor: 'pointer',
+                                               padding: '4px 12px',
+                                               fontSize: '11px',
+                                               borderRadius: '4px',
+                                               boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                                             }}
+                                           >
+                                             Hold
+                                           </button>
+                                         )}
+                                       </div>
+                                     )}
                                   </div>
                                 );
                               }
@@ -949,6 +1063,10 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                           name = 'Lot Avg';
                           color = '#000000';
                           bgColor = '#ffffff';
+                        } else if (key.startsWith('lot_avg_hold')) {
+                          name = 'Lot Avg (Hold)';
+                          color = '#d97706';
+                          bgColor = '#fffbeb';
                         } else if (key.startsWith('nit_avg')) {
                           name = getNitAvgLabel(stageObj.nit || '');
                           color = '#000000';
@@ -966,6 +1084,10 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                           name = 'Balanced Lot';
                           color = '#000000';
                           bgColor = '#ffffff';
+                        } else if (key.startsWith('balanced_lot_hold')) {
+                          name = 'Balanced Lot (Hold)';
+                          color = '#d97706';
+                          bgColor = '#fffbeb';
                         } else {
                           name = key;
                         }

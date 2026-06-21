@@ -1578,6 +1578,10 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     else if (key.startsWith('nit_avg')) {
                         const stageObj = stages[key];
                         label = getNitAvgLabel(stageObj?.nit || '');
+                    } else if (key.startsWith('lot_avg_hold')) {
+                        label = 'Lot Avg (Hold)';
+                    } else if (key.startsWith('balanced_lot_hold')) {
+                        label = 'Balanced Lot (Hold)';
                     } else {
                         label = key;
                     }
@@ -1876,6 +1880,15 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     );
                 } else if (stageObj.approvalStatus === 'rejected') {
                     actionsCell = <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '10px' }}>Rejected</span>;
+                } else if (stageObj.approvalStatus === 'hold') {
+                    actionsCell = (
+                        <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.1', border: '1px solid rgba(217, 119, 6, 0.3)', backgroundColor: '#fffbeb', padding: '3px 8px', borderRadius: '4px', textAlign: 'center' }}>
+                            <span style={{ color: '#d97706', fontWeight: '700', fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Hold</span>
+                            {stageObj.holdDuration && (
+                                <span style={{ color: '#b45309', fontSize: '11px', fontWeight: '800' }}>{stageObj.holdDuration}</span>
+                            )}
+                        </div>
+                    );
                 } else if (!pendingStage && stageKey === 'full_avg' && !stages.balanced_lot?.reportedBy) {
                     actionsCell = (
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -1911,6 +1924,15 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     );
                 } else if (stageObj.approvalStatus === 'rejected') {
                     actionsCell = <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '10px' }}>Rejected</span>;
+                } else if (stageObj.approvalStatus === 'hold') {
+                    actionsCell = (
+                        <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.1', border: '1px solid rgba(217, 119, 6, 0.3)', backgroundColor: '#fffbeb', padding: '3px 8px', borderRadius: '4px', textAlign: 'center' }}>
+                            <span style={{ color: '#d97706', fontWeight: '700', fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Hold</span>
+                            {stageObj.holdDuration && (
+                                <span style={{ color: '#b45309', fontSize: '11px', fontWeight: '800' }}>{stageObj.holdDuration}</span>
+                            )}
+                        </div>
+                    );
                 } else if (stageObj.approvalStatus === 'pending') {
                     actionsCell = <span style={{ color: '#d97706', fontWeight: 'bold', fontSize: '10px' }}>Pending Approval</span>;
                 }
@@ -2000,6 +2022,10 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             else if (key.startsWith('nit_avg')) {
                 const stageObj = stages[key];
                 label = getNitAvgLabel(stageObj?.nit || '');
+            } else if (key.startsWith('lot_avg_hold')) {
+                label = 'Lot Avg (Hold)';
+            } else if (key.startsWith('balanced_lot_hold')) {
+                label = 'Balanced Lot (Hold)';
             } else {
                 label = key;
             }
@@ -3712,6 +3738,10 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                 name = 'Lot Avg';
                                                                 color = '#000000';
                                                                 bgColor = '#ffffff';
+                                                            } else if (key.startsWith('lot_avg_hold')) {
+                                                                name = 'Lot Avg (Hold)';
+                                                                color = '#d97706';
+                                                                bgColor = '#fffbeb';
                                                             } else if (key.startsWith('nit_avg')) {
                                                                 name = getNitAvgLabel(stageObj.nit || '');
                                                                 color = '#000000';
@@ -3729,6 +3759,10 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                 name = 'Balanced Lot';
                                                                 color = '#000000';
                                                                 bgColor = '#ffffff';
+                                                            } else if (key.startsWith('balanced_lot_hold')) {
+                                                                name = 'Balanced Lot (Hold)';
+                                                                color = '#d97706';
+                                                                bgColor = '#fffbeb';
                                                             } else {
                                                                 name = key;
                                                             }

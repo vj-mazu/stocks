@@ -937,6 +937,56 @@ class PhysicalInspectionService {
 
     return updated;
   }
+
+  async holdPhysicalInspectionStage(sampleEntryId, inspectionId, stageName, holdDuration, userId, userRole) {
+    const PhysicalInspection = require('../models/PhysicalInspection');
+    const SampleEntry = require('../models/SampleEntry');
+    const AuditService = require('./AuditService');
+
+    const inspection = await PhysicalInspection.findByPk(inspectionId);
+    if (!inspection) {
+      throw new Error('Physical inspection record not found');
+    }
+
+    if (inspection.sampleEntryId !== sampleEntryId) {
+      throw new Error('Inspection does not belong to this sample entry');
+    }
+
+    const stages = inspection.samplingStages || {};
+    const cleanStage = stageName.toLowerCase();
+
+    if (!stages[cleanStage]) {
+      throw new Error(`Sampling stage '${stageName}' not found in this inspection`);
+    }
+
+    const User = require('../models/User');
+    const approverUser = await User.findByPk(userId);
+    const approverName = approverUser ? (approverUser.fullName || approverUser.username) : 'System';
+
+    const timestamp = Date.now();
+    const historyKey = `${cleanStage}_hold_${timestamp}`;
+    
+    stages[historyKey] = {
+      ...stages[cleanStage],
+      approvalStatus: 'hold',
+      holdDuration: holdDuration,
+      holdAt: new Date().toISOString(),
+      holdBy: approverName,
+      isLocked: true
+    };
+
+    delete stages[cleanStage];
+
+    const updates = {
+      samplingStages: JSON.parse(JSON.stringify(stages))
+    };
+
+    inspection.changed('samplingStages', true);
+    const updated = await inspection.update(updates);
+    await AuditService.logUpdate(userId, 'physical_inspections', inspection.id, inspection, updated);
+
+    return updated;
+  }
 }
 
 module.exports = new PhysicalInspectionService();

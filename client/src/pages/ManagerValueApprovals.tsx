@@ -780,6 +780,10 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
                           name = 'Lot Avg';
                           color = '#000000';
                           bgColor = '#ffffff';
+                        } else if (key.startsWith('lot_avg_hold')) {
+                          name = 'Lot Avg (Hold)';
+                          color = '#d97706';
+                          bgColor = '#fffbeb';
                         } else if (key.startsWith('nit_avg')) {
                           name = getNitAvgLabel(stageObj.nit || '');
                           color = '#000000';
@@ -797,6 +801,10 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
                           name = 'Balanced Lot';
                           color = '#000000';
                           bgColor = '#ffffff';
+                        } else if (key.startsWith('balanced_lot_hold')) {
+                          name = 'Balanced Lot (Hold)';
+                          color = '#d97706';
+                          bgColor = '#fffbeb';
                         } else {
                           name = key;
                         }

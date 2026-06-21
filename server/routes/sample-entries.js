@@ -2772,6 +2772,39 @@ router.post('/:id/physical-inspection/:inspectionId/approve-stage', authenticate
   }
 });
 
+// Hold a specific progressive stage of physical inspection
+router.post('/:id/physical-inspection/:inspectionId/hold-stage', authenticateToken, async (req, res) => {
+  try {
+    const { id, inspectionId } = req.params;
+    const { stage, holdDuration } = req.body;
+
+    if (!stage) {
+      return res.status(400).json({ error: 'Stage is required' });
+    }
+    if (!holdDuration) {
+      return res.status(400).json({ error: 'Hold duration is required' });
+    }
+
+    const PhysicalInspectionService = require('../services/PhysicalInspectionService');
+
+    const updated = await PhysicalInspectionService.holdPhysicalInspectionStage(
+      id,
+      inspectionId,
+      stage,
+      holdDuration,
+      req.user.userId,
+      getWorkflowRole(req.user)
+    );
+
+    invalidateSampleEntryTabCaches();
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Error holding progressive stage:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
 router.post('/:id/lot-selection', authenticateToken, async (req, res) => {
   try {
     let { decision, remarks } = req.body; // 'PASS_WITHOUT_COOKING', 'PASS_WITH_COOKING', 'FAIL'

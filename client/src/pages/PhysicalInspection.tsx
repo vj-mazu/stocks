@@ -667,7 +667,9 @@ const PhysicalInspection: React.FC = () => {
       }
       
       if (isNewCrop) {
-        if ((isStageApprovedForLot(entryId, 'lot_avg') || !isLotAvgRequiredForLorry(entryId, cleanLorry)) && !stages.half_lorry) {
+        if (hasHoldOnPreviousDay(stages)) {
+          nextStage = 'lot_avg';
+        } else if ((isStageApprovedForLot(entryId, 'lot_avg') || !isLotAvgRequiredForLorry(entryId, cleanLorry)) && !stages.half_lorry) {
           nextStage = 'half_lorry';
         } else if (stages.half_lorry && !stages.full_avg) {
           nextStage = 'full_avg';
@@ -987,6 +989,14 @@ const PhysicalInspection: React.FC = () => {
     const isNewCrop = getRulesMode(entryId) === 'new';
     if (isNewCrop) {
       if (stageKey === 'nit_avg') return true;
+
+      const stagesObj = getLorryStages(entryId, cleanLorry);
+      if (hasHoldOnPreviousDay(stagesObj)) {
+        if (stageKey === 'lot_avg') {
+          return false;
+        }
+        return true;
+      }
 
       // Pending Lot Avg or Balanced Lot blocks everything else
       if (stageKey !== 'lot_avg' && isStagePendingForLot(entryId, 'lot_avg')) {
@@ -1356,6 +1366,37 @@ const PhysicalInspection: React.FC = () => {
       }
     }
     return inspectionData[entryId]?.samplingRulesMode || '';
+  };
+
+  const getLorryStages = (entryId: string, cleanLorry: string) => {
+    const progress = inspectionProgress[entryId];
+    const prevLorryInspection = progress?.previousInspections?.find(
+      (i: any) => (i.lorryNumber || '').trim().toUpperCase() === cleanLorry
+    );
+    return prevLorryInspection?.samplingStages || {};
+  };
+
+  const hasHoldOnPreviousDay = (stages: any) => {
+    if (!stages) return false;
+    let latestHoldDate: Date | null = null;
+    Object.keys(stages).forEach(key => {
+      if (key.includes('_hold_')) {
+        const stageObj = stages[key];
+        const holdTimeStr = stageObj?.holdAt || stageObj?.reportedAt || stageObj?.createdAt;
+        if (holdTimeStr) {
+          const holdDate = new Date(holdTimeStr);
+          if (!latestHoldDate || holdDate > latestHoldDate) {
+            latestHoldDate = holdDate;
+          }
+        }
+      }
+    });
+    if (!latestHoldDate) return false;
+    const today = new Date();
+    const isDifferentDay = (today.getFullYear() > latestHoldDate.getFullYear()) ||
+                           (today.getFullYear() === latestHoldDate.getFullYear() && today.getMonth() > latestHoldDate.getMonth()) ||
+                           (today.getFullYear() === latestHoldDate.getFullYear() && today.getMonth() === latestHoldDate.getMonth() && today.getDate() > latestHoldDate.getDate());
+    return isDifferentDay;
   };
 
   const handleAddStage = (entryId: string) => {
@@ -1982,7 +2023,9 @@ const PhysicalInspection: React.FC = () => {
     }
     
     if (isNewCrop) {
-      if ((isStageApprovedForLot(entryId, 'lot_avg') || !isLotAvgRequiredForLorry(entryId, cleanLorry)) && !stages.half_lorry) {
+      if (hasHoldOnPreviousDay(stages)) {
+        nextStage = 'lot_avg';
+      } else if ((isStageApprovedForLot(entryId, 'lot_avg') || !isLotAvgRequiredForLorry(entryId, cleanLorry)) && !stages.half_lorry) {
         nextStage = 'half_lorry';
       } else if (stages.half_lorry && !stages.full_avg) {
         nextStage = 'full_avg';
@@ -3665,6 +3708,10 @@ const PhysicalInspection: React.FC = () => {
                                 name = 'Lot Avg';
                                 color = '#000000';
                                 bgColor = '#ffffff';
+                              } else if (key.startsWith('lot_avg_hold')) {
+                                name = 'Lot Avg (Hold)';
+                                color = '#d97706';
+                                bgColor = '#fffbeb';
                               } else if (key.startsWith('nit_avg')) {
                                 name = getNitAvgLabel(stageObj.nit || '');
                                 color = '#000000';
@@ -3682,6 +3729,10 @@ const PhysicalInspection: React.FC = () => {
                                 name = 'Balanced Lot';
                                 color = '#000000';
                                 bgColor = '#ffffff';
+                              } else if (key.startsWith('balanced_lot_hold')) {
+                                name = 'Balanced Lot (Hold)';
+                                color = '#d97706';
+                                bgColor = '#fffbeb';
                               } else {
                                 name = key;
                               }
