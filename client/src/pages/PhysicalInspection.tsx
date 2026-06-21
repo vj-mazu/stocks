@@ -1000,7 +1000,7 @@ const PhysicalInspection: React.FC = () => {
         if (isStageLockedForLot(entryId, 'half_lorry') || isStageLockedForLot(entryId, 'full_avg')) {
           return true;
         }
-        return isStageLockedForLot(entryId, 'lot_avg');
+        return isStageLockedForLot(entryId, 'lot_avg') || !isLotAvgRequiredForLorry(entryId, cleanLorry);
       }
       if (stageKey === 'half_lorry') {
         if (isLotAvgRequiredForLorry(entryId, cleanLorry) && !isStageApprovedForLot(entryId, 'lot_avg')) {
@@ -1487,7 +1487,7 @@ const PhysicalInspection: React.FC = () => {
           sk: '',
           kandu: '',
           oil: '',
-          smellHas: 'No',
+          smellHas: getRulesMode(entryId) === 'new' ? 'Yes' : 'No',
           smellType: '',
           paddyWbEnabled: 'N',
           paddyWb: '',
@@ -1945,7 +1945,7 @@ const PhysicalInspection: React.FC = () => {
         sk: '',
         kandu: '',
         oil: '',
-        smellHas: 'No',
+        smellHas: getRulesMode(entryId) === 'new' ? 'Yes' : 'No',
         smellType: '',
         paddyWbEnabled: 'N',
         paddyWb: '',
@@ -2054,6 +2054,16 @@ const PhysicalInspection: React.FC = () => {
     return true;
   });
 
+  const sortedFilteredEntries = [...filteredEntries].sort((a, b) => {
+    const timeA = a.lotAllotment?.allottedAt
+      ? new Date(a.lotAllotment.allottedAt).getTime()
+      : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+    const timeB = b.lotAllotment?.allottedAt
+      ? new Date(b.lotAllotment.allottedAt).getTime()
+      : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+    return timeB - timeA;
+  });
+
   return (
     <div style={{ padding: '0px 20px 20px 20px' }}>
       {/* Sub-tabs */}
@@ -2125,10 +2135,10 @@ const PhysicalInspection: React.FC = () => {
           <tbody>
             {loading ? (
               <tr><td colSpan={11} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>Loading...</td></tr>
-            ) : filteredEntries.length === 0 ? (
+            ) : sortedFilteredEntries.length === 0 ? (
               <tr><td colSpan={11} style={{ textAlign: 'center', padding: '20px', color: '#999' }}>No lots allotted for inspection</td></tr>
             ) : (
-              filteredEntries.map((entry, index) => {
+              sortedFilteredEntries.map((entry, index) => {
                 const progress = inspectionProgress[entry.id];
                 const progressPercentage = progress?.progressPercentage || 0;
 
@@ -2149,7 +2159,7 @@ const PhysicalInspection: React.FC = () => {
                 })();
 
                 // Check if this is a new lot (different from previous)
-                const prevEntry = filteredEntries[index - 1];
+                const prevEntry = sortedFilteredEntries[index - 1];
                 const isNewLot = !prevEntry || prevEntry.id !== entry.id;
 
                 return (
@@ -2159,7 +2169,7 @@ const PhysicalInspection: React.FC = () => {
                         {index + 1}
                       </td>
                       <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '10px 12px', fontSize: '13px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
-                        {new Date(entry.entryDate).toLocaleDateString()}
+                        {new Date(entry.entryDate).toLocaleDateString('en-GB')}
                       </td>
                       <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '10px 12px', fontSize: '13px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{entry.brokerName}</td>
                       <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '10px 12px', fontSize: '13px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
@@ -2314,7 +2324,7 @@ const PhysicalInspection: React.FC = () => {
                                 <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Bags</th>
                                 <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Moisture</th>
                                 <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Cutting</th>
-                                <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Bend</th>
+<th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Bend</th>
                                 <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'left', width: '10%' }}>By</th>
                                 <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Status</th>
                                 <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '9%' }}>Actions</th>
@@ -2322,31 +2332,82 @@ const PhysicalInspection: React.FC = () => {
                             </thead>
                             <tbody>
                               {progress.previousInspections.map((inspection, idx) => {
-                                const stages = inspection.samplingStages || {};
-                                const latestStage = stages.balanced_lot?.reportedBy
-                                  ? stages.balanced_lot
-                                  : stages.full_avg?.reportedBy
-                                  ? stages.full_avg
-                                  : stages.half_lorry?.reportedBy
-                                  ? stages.half_lorry
-                                  : (() => {
-                                      const nitKeys = Object.keys(stages)
-                                        .filter(k => k.startsWith('nit_avg') && stages[k]?.reportedBy)
-                                        .sort((a, b) => {
-                                          if (a === 'nit_avg') return -1;
-                                          if (b === 'nit_avg') return 1;
-                                          const numA = parseInt(a.replace('nit_avg_', '')) || 0;
-                                          const numB = parseInt(b.replace('nit_avg_', '')) || 0;
-                                          return numB - numA;
-                                        });
-                                      if (nitKeys.length > 0) return stages[nitKeys[0]];
-                                      return stages.lot_avg?.reportedBy ? stages.lot_avg : null;
-                                    })();
-                                
-                                const moistureVal = latestStage ? (latestStage.moistureRaw ? `${latestStage.moistureRaw}%` : (latestStage.moisture !== undefined && latestStage.moisture !== null ? `${latestStage.moisture}%` : '-')) : '-';
-                                const cuttingVal = latestStage ? (latestStage.cutting1 !== undefined && latestStage.cutting1 !== null ? `${latestStage.cutting1}×${latestStage.cutting2 || 0}` : '-') : '-';
-                                const bendVal = latestStage ? (latestStage.bend1 !== undefined && latestStage.bend1 !== null ? `${latestStage.bend1}×${latestStage.bend2 || 0}` : '-') : '-';
-                                const o = (entry as any).offering || {};
+                                  const stages = inspection.samplingStages || {};
+                                  const isNewCrop = getRulesMode(entry.id) === 'new';
+                                  
+                                  const getTripValues = (insp: any) => {
+                                    const stgList = insp?.samplingStages || {};
+                                    const stg = stgList.full_avg?.reportedBy
+                                      ? stgList.full_avg
+                                      : stgList.half_lorry?.reportedBy
+                                      ? stgList.half_lorry
+                                      : (() => {
+                                          const nitKeys = Object.keys(stgList)
+                                            .filter(k => k.startsWith('nit_avg') && stgList[k]?.reportedBy)
+                                            .sort((a, b) => {
+                                              if (a === 'nit_avg') return -1;
+                                              if (b === 'nit_avg') return 1;
+                                              const numA = parseInt(a.replace('nit_avg_', '')) || 0;
+                                              const numB = parseInt(b.replace('nit_avg_', '')) || 0;
+                                              return numB - numA;
+                                            });
+                                          if (nitKeys.length > 0) return stgList[nitKeys[0]];
+                                          return stgList.lot_avg?.reportedBy ? stgList.lot_avg : null;
+                                        })();
+                                    if (!stg) return null;
+                                    
+                                    const moisture = stg.moistureRaw ? `${stg.moistureRaw}%` : (stg.moisture !== undefined && stg.moisture !== null ? `${stg.moisture}%` : null);
+                                    const cutting = stg.cutting1 !== undefined && stg.cutting1 !== null ? `${stg.cutting1}×${stg.cutting2 || 0}` : null;
+                                    const bend = stg.bend1 !== undefined && stg.bend1 !== null ? `${stg.bend1}×${stg.bend2 || 0}` : null;
+                                    
+                                    if (!moisture && !cutting && !bend) return null;
+                                    return { moisture, cutting, bend };
+                                  };
+
+                                  let moistureVal = '-';
+                                  let cuttingVal = '-';
+                                  let bendVal = '-';
+
+                                  if (isNewCrop) {
+                                    let vals = getTripValues(inspection);
+                                    if (!vals) {
+                                      for (let i = idx - 1; i >= 0; i--) {
+                                        const prevInsp = progress.previousInspections[i];
+                                        vals = getTripValues(prevInsp);
+                                        if (vals) break;
+                                      }
+                                    }
+                                    if (vals) {
+                                      moistureVal = vals.moisture || '-';
+                                      cuttingVal = vals.cutting || '-';
+                                      bendVal = vals.bend || '-';
+                                    }
+                                  } else {
+                                    const latestStage = stages.balanced_lot?.reportedBy
+                                      ? stages.balanced_lot
+                                      : stages.full_avg?.reportedBy
+                                      ? stages.full_avg
+                                      : stages.half_lorry?.reportedBy
+                                      ? stages.half_lorry
+                                      : (() => {
+                                          const nitKeys = Object.keys(stages)
+                                            .filter(k => k.startsWith('nit_avg') && stages[k]?.reportedBy)
+                                            .sort((a, b) => {
+                                              if (a === 'nit_avg') return -1;
+                                              if (b === 'nit_avg') return 1;
+                                              const numA = parseInt(a.replace('nit_avg_', '')) || 0;
+                                              const numB = parseInt(a.replace('nit_avg_', '')) || 0;
+                                              return numB - numA;
+                                            });
+                                          if (nitKeys.length > 0) return stages[nitKeys[0]];
+                                          return stages.lot_avg?.reportedBy ? stages.lot_avg : null;
+                                        })();
+                                    
+                                    moistureVal = latestStage ? (latestStage.moistureRaw ? `${latestStage.moistureRaw}%` : (latestStage.moisture !== undefined && latestStage.moisture !== null ? `${latestStage.moisture}%` : '-')) : '-';
+                                    cuttingVal = latestStage ? (latestStage.cutting1 !== undefined && latestStage.cutting1 !== null ? `${latestStage.cutting1}×${latestStage.cutting2 || 0}` : '-') : '-';
+                                    bendVal = latestStage ? (latestStage.bend1 !== undefined && latestStage.bend1 !== null ? `${latestStage.bend1}×${latestStage.bend2 || 0}` : '-') : '-';
+                                  }
+                                  const o = (entry as any).offering || {};
 
                                 return (
                                   <tr key={inspection.id} style={{ borderBottom: '1px solid #000' }}>
@@ -2363,7 +2424,7 @@ const PhysicalInspection: React.FC = () => {
                                       </span>
                                     </td>
                                     <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{stages.full_avg?.actualBags || inspection.bags || '-'}</td>
-                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600', color: '#d05d00' }}>{moistureVal}</td>
+                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600', color: '#000000' }}>{moistureVal}</td>
                                     <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{cuttingVal}</td>
                                     <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{bendVal}</td>
                                     <td style={{ border: '1px solid #000', padding: '6px' }}>{inspection.reportedBy?.username || '-'}</td>
@@ -2900,7 +2961,7 @@ const PhysicalInspection: React.FC = () => {
                                       sk: '',
                                       kandu: '',
                                       oil: '',
-                                      smellHas: 'No',
+                                      smellHas: getRulesMode(entry.id) === 'new' ? 'Yes' : 'No',
                                       smellType: '',
                                       paddyWbEnabled: 'N',
                                       paddyWb: '',
@@ -3495,36 +3556,44 @@ const PhysicalInspection: React.FC = () => {
 
                 const renderRow = (name: string, color: string, bgColor: string, stageObj: any, isFull: boolean) => {
                   const rowHasSmell = stageObj.smellHas === true || String(stageObj.smellHas).trim().toUpperCase() === 'YES';
+    const smellTypeNormalized = String(stageObj.smellType || '').trim().toUpperCase();
+    const isDarkSmell = rowHasSmell && smellTypeNormalized === 'DARK';
+    const isMediumSmell = rowHasSmell && smellTypeNormalized === 'MEDIUM';
+    const isLightSmell = rowHasSmell && smellTypeNormalized === 'LIGHT';
+
+    const finalRowBg = isDarkSmell ? '#b91c1c' : (isMediumSmell ? '#fca5a5' : (isLightSmell ? '#fee2e2' : (rowHasSmell ? '#ffebee' : bgColor)));
+    const finalTextColor = isDarkSmell ? '#ffffff' : '#1a1a1a';
+    const finalKadigaColor = isDarkSmell ? '#ffffff' : '#7c2d12';
                   const isKadiga = stageObj.kadiga === 'Y' || stageObj.kadiga === 'Yes' || stageObj.kadiga === true || stageObj.kadiga === 'true';
                   const hasPaddyWb = !!stageObj.paddyWbEnabled;
                   return (
-                    <tr key={name} style={{ borderBottom: '1px solid #cbd5e1', backgroundColor: rowHasSmell ? '#ffebee' : bgColor }}>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', fontWeight: '800', color: color }}>{name}</td>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatReportedBy(stageObj)}</td>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>
+                    <tr key={name} style={{ borderBottom: '1px solid #cbd5e1', backgroundColor: finalRowBg }}>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', fontWeight: '800', color: isDarkSmell ? '#ffffff' : color }}>{name}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500' }}>{formatReportedBy(stageObj)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500' }}>
                         {stageObj.reportedAt ? new Date(stageObj.reportedAt).toLocaleDateString('en-GB') + ', ' + new Date(stageObj.reportedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase() : '-'}
                       </td>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatMoisture(stageObj)}</td>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600', width: '55px' }}>{formatCutting(stageObj)}</td>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600', width: '55px' }}>{formatBend(stageObj)}</td>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '55px' }}>{(() => { const v = stageObj.grainsCountRaw || stageObj.grainsCount; return (v !== null && v !== undefined && v !== '') ? `(${v})` : '-'; })()}</td>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.mixRaw || stageObj.mix)}</td>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{stageObj.smixEnabled ? formatField(stageObj.mixSRaw || stageObj.mixS) || 'Yes' : '-'}</td>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{stageObj.lmixEnabled ? formatField(stageObj.mixLRaw || stageObj.mixL) || 'Yes' : '-'}</td>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.kanduRaw || stageObj.kandu)}</td>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.oilRaw || stageObj.oil)}</td>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '50px' }}>{stageObj.smellHas === true || String(stageObj.smellHas).trim().toUpperCase() === 'YES' ? (stageObj.smellType || 'Yes') : '-'}</td>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '50px' }}>{formatPaddyWb(stageObj)}</td>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#7c2d12', fontWeight: '700', width: '80px' }}>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '600' }}>{formatMoisture(stageObj)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '600', width: '55px' }}>{formatCutting(stageObj)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '600', width: '55px' }}>{formatBend(stageObj)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '55px' }}>{(() => { const v = stageObj.grainsCountRaw || stageObj.grainsCount; return (v !== null && v !== undefined && v !== '') ? `(${v})` : '-'; })()}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '45px' }}>{formatField(stageObj.mixRaw || stageObj.mix)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '45px' }}>{stageObj.smixEnabled ? formatField(stageObj.mixSRaw || stageObj.mixS) || 'Yes' : '-'}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '45px' }}>{stageObj.lmixEnabled ? formatField(stageObj.mixLRaw || stageObj.mixL) || 'Yes' : '-'}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '45px' }}>{formatField(stageObj.kanduRaw || stageObj.kandu)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '45px' }}>{formatField(stageObj.oilRaw || stageObj.oil)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '45px' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '50px' }}>{stageObj.smellHas === true || String(stageObj.smellHas).trim().toUpperCase() === 'YES' ? (stageObj.smellType || 'Yes') : '-'}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '50px' }}>{formatPaddyWb(stageObj)}</td>
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalKadigaColor, fontWeight: '700', width: '80px' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
                           <span>{stageObj.paddyColorEnabled && stageObj.paddyColor ? formatField(stageObj.paddyColor) : '-'}</span>
                           <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />
                           <span>ಕಡಿಗಾ: {stageObj.kadiga ? (isKadiga ? 'Yes' : 'No') : '-'}</span>
                         </div>
                       </td>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.nit)}</td>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{isFull ? formatField(stageObj.actualBags || inspection.bags) : '-'}</td>
+                      
+                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '700' }}>{isFull ? formatField(stageObj.actualBags || inspection.bags) : '-'}</td>
                       <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center' }}>
                         {stageObj.imageUrl ? <a href={resolveMediaUrl(stageObj.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
                       </td>
@@ -3571,7 +3640,7 @@ const PhysicalInspection: React.FC = () => {
                             <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '50px' }}>SMELL</th>
                             <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '50px' }}>PADDY WB</th>
                             <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '80px' }}>P COLOR</th>
-                            <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>NIT NO</th>
+                            
                             <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>LOADED BAGS</th>
                             <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PHOTO</th>
                           </tr>
@@ -3594,25 +3663,25 @@ const PhysicalInspection: React.FC = () => {
 
                               if (key === 'lot_avg') {
                                 name = 'Lot Avg';
-                                color = '#d05d00';
-                                bgColor = '#fffaf5';
+                                color = '#000000';
+                                bgColor = '#ffffff';
                               } else if (key.startsWith('nit_avg')) {
                                 name = getNitAvgLabel(stageObj.nit || '');
-                                color = '#c2185b';
-                                bgColor = '#fdf2f8';
+                                color = '#000000';
+                                bgColor = '#ffffff';
                               } else if (key === 'half_lorry') {
                                 name = 'Half Lorry';
-                                color = '#b45309';
-                                bgColor = '#fffdfa';
+                                color = '#000000';
+                                bgColor = '#ffffff';
                               } else if (key === 'full_avg') {
                                 name = 'Full Avg Lorry';
-                                color = '#15803d';
-                                bgColor = '#fffaf0';
+                                color = '#000000';
+                                bgColor = '#ffffff';
                                 isFull = true;
                               } else if (key === 'balanced_lot') {
                                 name = 'Balanced Lot';
-                                color = '#4a148c';
-                                bgColor = '#faf5ff';
+                                color = '#000000';
+                                bgColor = '#ffffff';
                               } else {
                                 name = key;
                               }
@@ -4009,7 +4078,7 @@ const PhysicalInspection: React.FC = () => {
                   sk: '',
                   kandu: '',
                   oil: '',
-                  smellHas: 'No',
+                  smellHas: getRulesMode(entry.id) === 'new' ? 'Yes' : 'No',
                   smellType: '',
                   paddyWbEnabled: 'N',
                   paddyWb: '',

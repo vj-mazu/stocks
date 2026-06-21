@@ -3453,6 +3453,11 @@ router.post('/:id/physical-inspection', authenticateToken, async (req, res) => {
           remarks: req.body.remarks || null,
           samplingRulesMode: req.body.samplingRulesMode || null,
           isSkipped: req.body.isSkipped || null,
+          totalUnloadedBags: req.body.totalUnloadedBags ? Number.parseInt(req.body.totalUnloadedBags) : null,
+          disputeRows: req.body.disputeRows ? (typeof req.body.disputeRows === 'string' ? JSON.parse(req.body.disputeRows) : req.body.disputeRows) : null,
+          returnBags: req.body.returnBags ? Number.parseInt(req.body.returnBags) : null,
+          vehicleNo: req.body.vehicleNo || null,
+          finalUnloadedBags: req.body.finalUnloadedBags ? Number.parseInt(req.body.finalUnloadedBags) : null,
           reportedBy: req.user.username // Username of the supervisor
         };
 

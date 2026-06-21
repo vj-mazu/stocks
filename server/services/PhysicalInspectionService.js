@@ -109,7 +109,11 @@ class PhysicalInspectionService {
 
       // MULTI-STAGE FLOW
       const stage = inspectionData.stage.toLowerCase();
-      if (!['lot_avg', 'half_lorry', 'nit_avg', 'full_avg', 'balanced_lot'].includes(stage)) {
+      const isReadyLorry = entry.entryType === 'DIRECT_LOADED_VEHICLE';
+      const validStages = isReadyLorry
+        ? ['bag_wise_report', 'full_avg', 'return_bags_report']
+        : ['lot_avg', 'half_lorry', 'nit_avg', 'full_avg', 'balanced_lot'];
+      if (!validStages.includes(stage)) {
         throw new Error('Invalid sampling stage specified');
       }
 
@@ -320,59 +324,84 @@ class PhysicalInspectionService {
 
       const isSkipped = isTruthyFlag(inspectionData.isSkipped);
 
-      if (!isSkipped) {
-        // Required fields for BOTH Old and New mode
-        requireValue(inspectionData.moisture, 'Moisture');
-        requireValue(inspectionData.smellHas, 'Smell Yes/No');
-
-        if (!isTruthyFlag(inspectionData.smellHas) && !isFalseyFlag(inspectionData.smellHas)) {
-          throw new Error('Smell Yes/No is invalid');
-        }
-        if (isTruthyFlag(inspectionData.smellHas)) {
-          requireValue(inspectionData.smellType, 'Smell type');
-        }
-        if (isTruthyFlag(inspectionData.dryMoistureRaw) || (Number(inspectionData.dryMoisture) > 0 && !hasValue(inspectionData.dryMoistureRaw))) {
-          requireValue(inspectionData.dryMoisture, 'Dry Moisture value');
-        }
-
-        const paddyColorEnabled = inspectionData.paddyColorEnabled ?? false;
-        if (!isTruthyFlag(paddyColorEnabled) && !isFalseyFlag(paddyColorEnabled)) {
-          throw new Error('Paddy Discolor Yes/No is invalid');
-        }
-        if (isTruthyFlag(paddyColorEnabled)) {
-          requireValue(inspectionData.paddyColor, 'Paddy discolor type');
-          if (!['Normal Color', 'Light Discolor', 'Medium Discolor', 'Dark Discolor'].includes(inspectionData.paddyColor)) {
-            throw new Error('Paddy discolor type is invalid');
+      if (isReadyLorry) {
+        if (!isSkipped) {
+          if (stage === 'bag_wise_report') {
+            requireValue(inspectionData.totalUnloadedBags, 'Total Unloaded Bags');
+            if (Number(inspectionData.totalUnloadedBags) <= 0) {
+              throw new Error('Total Unloaded Bags must be greater than 0');
+            }
+            if (!inspectionData.disputeRows || !Array.isArray(inspectionData.disputeRows) || inspectionData.disputeRows.length === 0) {
+              throw new Error('Dispute Report rows are required');
+            }
+            const sumBags = inspectionData.disputeRows.reduce((sum, r) => sum + Number(r.bags || 0), 0);
+            if (sumBags !== Number(inspectionData.totalUnloadedBags)) {
+              throw new Error(`Total bags in dispute reports (${sumBags}) must equal Total Unloaded Bags (${inspectionData.totalUnloadedBags})`);
+            }
+          } else if (stage === 'return_bags_report') {
+            requireValue(inspectionData.returnBags, 'Return Bags');
+            requireValue(inspectionData.vehicleNo, 'Vehicle No');
+            if (String(inspectionData.vehicleNo).length !== 10) {
+              throw new Error('Vehicle No must be exactly 10 characters long');
+            }
+            requireValue(inspectionData.finalUnloadedBags, 'Final Unloaded Bags');
           }
         }
+      } else {
+        if (!isSkipped) {
+          // Required fields for BOTH Old and New mode
+          requireValue(inspectionData.moisture, 'Moisture');
+          requireValue(inspectionData.smellHas, 'Smell Yes/No');
 
-        const kadiga = inspectionData.kadiga || 'N';
-        if (!isTruthyFlag(kadiga) && !isFalseyFlag(kadiga)) {
-          throw new Error('Kadiga Yes/No is invalid');
-        }
+          if (!isTruthyFlag(inspectionData.smellHas) && !isFalseyFlag(inspectionData.smellHas)) {
+            throw new Error('Smell Yes/No is invalid');
+          }
+          if (isTruthyFlag(inspectionData.smellHas)) {
+            requireValue(inspectionData.smellType, 'Smell type');
+          }
+          if (isTruthyFlag(inspectionData.dryMoistureRaw) || (Number(inspectionData.dryMoisture) > 0 && !hasValue(inspectionData.dryMoistureRaw))) {
+            requireValue(inspectionData.dryMoisture, 'Dry Moisture value');
+          }
 
-        // Fields required ONLY in Old mode
-        if (!isNewMode) {
-          requireValue(inspectionData.grainsCount, 'Grains');
-          requireValue(inspectionData.cutting1, 'Cutting');
-          requireValue(inspectionData.bend1, 'Bend');
-          requireValue(inspectionData.mix, 'Mix');
-          requireValue(inspectionData.kandu, 'Kandu');
-          requireValue(inspectionData.oil, 'Oil');
-          requireValue(inspectionData.sk, 'SK');
-          requireValue(inspectionData.paddyWbEnabled, 'Paddy WB Yes/No');
+          const paddyColorEnabled = inspectionData.paddyColorEnabled ?? false;
+          if (!isTruthyFlag(paddyColorEnabled) && !isFalseyFlag(paddyColorEnabled)) {
+            throw new Error('Paddy Discolor Yes/No is invalid');
+          }
+          if (isTruthyFlag(paddyColorEnabled)) {
+            requireValue(inspectionData.paddyColor, 'Paddy discolor type');
+            if (!['Normal Color', 'Light Discolor', 'Medium Discolor', 'Dark Discolor'].includes(inspectionData.paddyColor)) {
+              throw new Error('Paddy discolor type is invalid');
+            }
+          }
 
-          if (isTruthyFlag(inspectionData.smixEnabled)) {
-            requireValue(inspectionData.mixS, 'S Mix value');
+          const kadiga = inspectionData.kadiga || 'N';
+          if (!isTruthyFlag(kadiga) && !isFalseyFlag(kadiga)) {
+            throw new Error('Kadiga Yes/No is invalid');
           }
-          if (isTruthyFlag(inspectionData.lmixEnabled)) {
-            requireValue(inspectionData.mixL, 'L Mix value');
-          }
-          if (!isTruthyFlag(inspectionData.paddyWbEnabled) && !isFalseyFlag(inspectionData.paddyWbEnabled)) {
-            throw new Error('Paddy WB Yes/No is invalid');
-          }
-          if (isTruthyFlag(inspectionData.paddyWbEnabled)) {
-            requireValue(inspectionData.paddyWb, 'Paddy WB value');
+
+          // Fields required ONLY in Old mode
+          if (!isNewMode) {
+            requireValue(inspectionData.grainsCount, 'Grains');
+            requireValue(inspectionData.cutting1, 'Cutting');
+            requireValue(inspectionData.bend1, 'Bend');
+            requireValue(inspectionData.mix, 'Mix');
+            requireValue(inspectionData.kandu, 'Kandu');
+            requireValue(inspectionData.oil, 'Oil');
+            requireValue(inspectionData.sk, 'SK');
+            requireValue(inspectionData.paddyWbEnabled, 'Paddy WB Yes/No');
+
+            if (isTruthyFlag(inspectionData.smixEnabled)) {
+              requireValue(inspectionData.mixS, 'S Mix value');
+            }
+            if (isTruthyFlag(inspectionData.lmixEnabled)) {
+              requireValue(inspectionData.mixL, 'L Mix value');
+            }
+            if (!isTruthyFlag(inspectionData.paddyWbEnabled) && !isFalseyFlag(inspectionData.paddyWbEnabled)) {
+              throw new Error('Paddy WB Yes/No is invalid');
+            }
+            if (isTruthyFlag(inspectionData.paddyWbEnabled)) {
+              requireValue(inspectionData.paddyWb, 'Paddy WB value');
+            }
           }
         }
       }
@@ -386,49 +415,70 @@ class PhysicalInspectionService {
         }
       }
 
-      const stageData = {
-        inspectionDate: inspectionData.inspectionDate || new Date().toISOString().split('T')[0],
-        moisture: !isSkipped && inspectionData.moisture !== undefined ? Number(inspectionData.moisture) : null,
-        moistureRaw: !isSkipped ? (inspectionData.moistureRaw || null) : null,
-        dryMoisture: !isSkipped && inspectionData.dryMoisture !== undefined ? Number(inspectionData.dryMoisture) : null,
-        dryMoistureRaw: !isSkipped ? (inspectionData.dryMoistureRaw || null) : null,
-        grainsCount: !isSkipped && inspectionData.grainsCount !== undefined ? Number(inspectionData.grainsCount) : null,
-        grainsCountRaw: !isSkipped ? (inspectionData.grainsCountRaw || null) : null,
-        cutting1: !isSkipped && inspectionData.cutting1 !== undefined ? Number(inspectionData.cutting1) : null,
-        cutting2: !isSkipped && inspectionData.cutting2 !== undefined ? Number(inspectionData.cutting2) : null,
-        bend1: !isSkipped && inspectionData.bend1 !== undefined ? Number(inspectionData.bend1) : null,
-        bend2: !isSkipped && inspectionData.bend2 !== undefined ? Number(inspectionData.bend2) : null,
-        mix: !isSkipped ? (inspectionData.mix || null) : null,
-        mixRaw: !isSkipped ? (inspectionData.mixRaw || null) : null,
-        smixEnabled: !isSkipped && (inspectionData.smixEnabled === 'true' || inspectionData.smixEnabled === true),
-        mixS: !isSkipped ? (inspectionData.mixS || null) : null,
-        mixSRaw: !isSkipped ? (inspectionData.mixSRaw || null) : null,
-        lmixEnabled: !isSkipped && (inspectionData.lmixEnabled === 'true' || inspectionData.lmixEnabled === true),
-        mixL: !isSkipped ? (inspectionData.mixL || null) : null,
-        mixLRaw: !isSkipped ? (inspectionData.mixLRaw || null) : null,
-        sk: !isSkipped ? (inspectionData.sk || null) : null,
-        skRaw: !isSkipped ? (inspectionData.skRaw || null) : null,
-        kandu: !isSkipped ? (inspectionData.kandu || null) : null,
-        kanduRaw: !isSkipped ? (inspectionData.kanduRaw || null) : null,
-        oil: !isSkipped ? (inspectionData.oil || null) : null,
-        oilRaw: !isSkipped ? (inspectionData.oilRaw || null) : null,
-        smellHas: !isSkipped && (inspectionData.smellHas === 'true' || inspectionData.smellHas === true),
-        smellType: !isSkipped ? (inspectionData.smellType || null) : null,
-        paddyWbEnabled: !isSkipped && (inspectionData.paddyWbEnabled === 'true' || inspectionData.paddyWbEnabled === true),
-        paddyWb: !isSkipped && inspectionData.paddyWb !== undefined ? Number(inspectionData.paddyWb) : null,
-        paddyWbRaw: !isSkipped ? (inspectionData.paddyWbRaw || null) : null,
-        paddyColorEnabled: !isSkipped && isTruthyFlag(inspectionData.paddyColorEnabled ?? false),
-        paddyColor: !isSkipped && isTruthyFlag(inspectionData.paddyColorEnabled ?? false) ? (inspectionData.paddyColor || null) : null,
-        kadiga: isSkipped ? null : (isTruthyFlag(inspectionData.kadiga || 'N') ? 'Y' : 'N'),
-        nit: inspectionData.nit || null,
-        isSkipped: isSkipped,
-        reportedBy: inspectionData.reportedBy || 'System',
-        reportedAt: new Date().toISOString(),
-        imageUrl: null,
-        approvalStatus: isSkipped ? 'approved' : 'pending',
-        approvedBy: isSkipped ? (inspectionData.reportedBy || 'System') : null,
-        approvedAt: isSkipped ? new Date().toISOString() : null
-      };
+      let stageData = {};
+      if (isReadyLorry && (stage === 'bag_wise_report' || stage === 'return_bags_report')) {
+        stageData = {
+          inspectionDate: inspectionData.inspectionDate || new Date().toISOString().split('T')[0],
+          reportedBy: inspectionData.reportedBy || 'System',
+          reportedAt: new Date().toISOString(),
+          isSkipped: isSkipped,
+          approvalStatus: isSkipped ? 'approved' : 'pending',
+          approvedBy: isSkipped ? (inspectionData.reportedBy || 'System') : null,
+          approvedAt: isSkipped ? new Date().toISOString() : null
+        };
+        if (stage === 'bag_wise_report') {
+          stageData.totalUnloadedBags = inspectionData.totalUnloadedBags;
+          stageData.disputeRows = inspectionData.disputeRows;
+        } else if (stage === 'return_bags_report') {
+          stageData.returnBags = inspectionData.returnBags;
+          stageData.vehicleNo = inspectionData.vehicleNo;
+          stageData.finalUnloadedBags = inspectionData.finalUnloadedBags;
+        }
+      } else {
+        stageData = {
+          inspectionDate: inspectionData.inspectionDate || new Date().toISOString().split('T')[0],
+          moisture: !isSkipped && inspectionData.moisture !== undefined ? Number(inspectionData.moisture) : null,
+          moistureRaw: !isSkipped ? (inspectionData.moistureRaw || null) : null,
+          dryMoisture: !isSkipped && inspectionData.dryMoisture !== undefined ? Number(inspectionData.dryMoisture) : null,
+          dryMoistureRaw: !isSkipped ? (inspectionData.dryMoistureRaw || null) : null,
+          grainsCount: !isSkipped && inspectionData.grainsCount !== undefined ? Number(inspectionData.grainsCount) : null,
+          grainsCountRaw: !isSkipped ? (inspectionData.grainsCountRaw || null) : null,
+          cutting1: !isSkipped && inspectionData.cutting1 !== undefined ? Number(inspectionData.cutting1) : null,
+          cutting2: !isSkipped && inspectionData.cutting2 !== undefined ? Number(inspectionData.cutting2) : null,
+          bend1: !isSkipped && inspectionData.bend1 !== undefined ? Number(inspectionData.bend1) : null,
+          bend2: !isSkipped && inspectionData.bend2 !== undefined ? Number(inspectionData.bend2) : null,
+          mix: !isSkipped ? (inspectionData.mix || null) : null,
+          mixRaw: !isSkipped ? (inspectionData.mixRaw || null) : null,
+          smixEnabled: !isSkipped && (inspectionData.smixEnabled === 'true' || inspectionData.smixEnabled === true),
+          mixS: !isSkipped ? (inspectionData.mixS || null) : null,
+          mixSRaw: !isSkipped ? (inspectionData.mixSRaw || null) : null,
+          lmixEnabled: !isSkipped && (inspectionData.lmixEnabled === 'true' || inspectionData.lmixEnabled === true),
+          mixL: !isSkipped ? (inspectionData.mixL || null) : null,
+          mixLRaw: !isSkipped ? (inspectionData.mixLRaw || null) : null,
+          sk: !isSkipped ? (inspectionData.sk || null) : null,
+          skRaw: !isSkipped ? (inspectionData.skRaw || null) : null,
+          kandu: !isSkipped ? (inspectionData.kandu || null) : null,
+          kanduRaw: !isSkipped ? (inspectionData.kanduRaw || null) : null,
+          oil: !isSkipped ? (inspectionData.oil || null) : null,
+          oilRaw: !isSkipped ? (inspectionData.oilRaw || null) : null,
+          smellHas: !isSkipped && (inspectionData.smellHas === 'true' || inspectionData.smellHas === true),
+          smellType: !isSkipped ? (inspectionData.smellType || null) : null,
+          paddyWbEnabled: !isSkipped && (inspectionData.paddyWbEnabled === 'true' || inspectionData.paddyWbEnabled === true),
+          paddyWb: !isSkipped && inspectionData.paddyWb !== undefined ? Number(inspectionData.paddyWb) : null,
+          paddyWbRaw: !isSkipped ? (inspectionData.paddyWbRaw || null) : null,
+          paddyColorEnabled: !isSkipped && isTruthyFlag(inspectionData.paddyColorEnabled ?? false),
+          paddyColor: !isSkipped && isTruthyFlag(inspectionData.paddyColorEnabled ?? false) ? (inspectionData.paddyColor || null) : null,
+          kadiga: isSkipped ? null : (isTruthyFlag(inspectionData.kadiga || 'N') ? 'Y' : 'N'),
+          nit: inspectionData.nit || null,
+          isSkipped: isSkipped,
+          reportedBy: inspectionData.reportedBy || 'System',
+          reportedAt: new Date().toISOString(),
+          imageUrl: null,
+          approvalStatus: isSkipped ? 'approved' : 'pending',
+          approvedBy: isSkipped ? (inspectionData.reportedBy || 'System') : null,
+          approvedAt: isSkipped ? new Date().toISOString() : null
+        };
+      }
 
       if (!existingLorryInspection) {
         let bagsVal = null;
@@ -437,6 +487,9 @@ class PhysicalInspectionService {
           throw new Error('Full Avg Lorry must be submitted on the lorry trip before adding Balanced Lot.');
         } else if (stage === 'full_avg') {
           bagsVal = Number.parseInt(inspectionData.actualBags || '0');
+          stageData.actualBags = bagsVal;
+        } else if (isReadyLorry && stage === 'bag_wise_report') {
+          bagsVal = Number.parseInt(inspectionData.totalUnloadedBags || '0');
           stageData.actualBags = bagsVal;
         }
         const newInspectionData = {
@@ -489,7 +542,24 @@ class PhysicalInspectionService {
 
         const updates = {};
 
-        if (stage === 'full_avg' || stage === 'balanced_lot') {
+        if (isReadyLorry) {
+          if (stage === 'full_avg') {
+            let actualBags = Number.parseInt(inspectionData.actualBags || '0');
+            if (!actualBags || actualBags <= 0) {
+              throw new Error('Please enter valid actual bags for Full Avg Lorry');
+            }
+            stageData.actualBags = actualBags;
+            updates.bags = actualBags;
+            updates.cutting1 = stageData.cutting1 || 0;
+            updates.cutting2 = stageData.cutting2 || 0;
+            updates.bend = stageData.bend1 || 0;
+            updates.bend2 = stageData.bend2 || 0;
+          } else if (stage === 'return_bags_report') {
+            updates.bags = Number.parseInt(inspectionData.finalUnloadedBags || '0');
+            updates.isComplete = true; // Mark inspection trip as complete on return bags stage
+          }
+          updates.remarks = inspectionData.remarks || null;
+        } else if (stage === 'full_avg' || stage === 'balanced_lot') {
           const otherTripsBags = existingInspections
             .filter(i => i.id !== currentInspection.id)
             .reduce((sum, i) => sum + (i.bags || 0), 0);
@@ -806,19 +876,31 @@ class PhysicalInspectionService {
       throw new Error('Sample entry not found');
     }
 
-    // If approving full_avg or balanced_lot, copy values to main columns of physical inspection
-    if (cleanStage === 'full_avg' || cleanStage === 'balanced_lot') {
+    // If approving full_avg, balanced_lot, or return_bags_report (for Ready Lorry), copy values to main columns of physical inspection
+    const isReadyLorry = entry.entryType === 'DIRECT_LOADED_VEHICLE';
+    if (cleanStage === 'full_avg' || cleanStage === 'balanced_lot' || (isReadyLorry && cleanStage === 'return_bags_report')) {
       const stageData = stages[cleanStage] || {};
       if (cleanStage === 'balanced_lot') {
         const fullAvgBags = Number(stages.full_avg?.actualBags || 0);
         updates.bags = fullAvgBags;
+      } else if (isReadyLorry && cleanStage === 'return_bags_report') {
+        updates.bags = stageData.finalUnloadedBags !== undefined ? Number(stageData.finalUnloadedBags) : inspection.bags;
       } else {
         updates.bags = stageData.actualBags !== undefined ? Number(stageData.actualBags) : inspection.bags;
       }
-      updates.cutting1 = stageData.cutting1 || 0;
-      updates.cutting2 = stageData.cutting2 || 0;
-      updates.bend = stageData.bend1 || 0;
-      updates.bend2 = stageData.bend2 || 0;
+
+      if (isReadyLorry && cleanStage === 'return_bags_report') {
+        const fullAvgStage = stages.full_avg || {};
+        updates.cutting1 = fullAvgStage.cutting1 || 0;
+        updates.cutting2 = fullAvgStage.cutting2 || 0;
+        updates.bend = fullAvgStage.bend1 || 0;
+        updates.bend2 = fullAvgStage.bend2 || 0;
+      } else {
+        updates.cutting1 = stageData.cutting1 || 0;
+        updates.cutting2 = stageData.cutting2 || 0;
+        updates.bend = stageData.bend1 || 0;
+        updates.bend2 = stageData.bend2 || 0;
+      }
       
       // Calculate total inspected bags
       const existingInspections = await PhysicalInspection.findAll({
@@ -833,7 +915,7 @@ class PhysicalInspectionService {
       });
       const totalAllottedBags = lotAllotment?.allottedBags || entry.bags || 0;
 
-      if (totalInspected >= totalAllottedBags) {
+      if (totalInspected >= totalAllottedBags || (isReadyLorry && cleanStage === 'return_bags_report')) {
         updates.isComplete = true;
         
         // Transition workflow to INVENTORY_ENTRY only if not already in that status

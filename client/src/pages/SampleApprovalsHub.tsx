@@ -44,13 +44,13 @@ const getStatusBadgeStyle = (status: string) => {
     return { ...baseStyle, backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }; // Light Blue
   }
   if (s.includes('half')) {
-    return { ...baseStyle, backgroundColor: '#fffbeb', color: '#b45309', border: '1px solid #fde68a' }; // Amber/Orange
+    return { ...baseStyle, backgroundColor: '#fffbeb', color: '#000000', border: '1px solid #fde68a' }; // Amber/Orange
   }
   if (s.includes('full')) {
     return { ...baseStyle, backgroundColor: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0' }; // Green
   }
   if (s.includes('nit')) {
-    return { ...baseStyle, backgroundColor: '#faf5ff', color: '#6b21a8', border: '1px solid #e9d5ff' }; // Purple
+    return { ...baseStyle, backgroundColor: '#ffffff', color: '#6b21a8', border: '1px solid #e9d5ff' }; // Purple
   }
   if (s.includes('pending') || s.includes('no sample')) {
     return { ...baseStyle, backgroundColor: '#fef2f2', color: '#991b1b', border: '1px solid #fca5a5' }; // Red
@@ -833,7 +833,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                       <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '50px' }}>SMELL</th>
                       <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '50px' }}>PADDY WB</th>
                       <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '80px' }}>P COLOR</th>
-                      <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>NIT NO</th>
+                      
                       <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>LOADED BAGS</th>
                       <th style={{ padding: '5px 8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PHOTO</th>
                     </tr>
@@ -886,35 +886,43 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
 
                       const renderRow = (name: string, color: string, bgColor: string, stageObj: any, isFull: boolean) => {
                         const rowHasSmell = stageObj.smellHas === true || String(stageObj.smellHas).trim().toUpperCase() === 'YES';
+    const smellTypeNormalized = String(stageObj.smellType || '').trim().toUpperCase();
+    const isDarkSmell = rowHasSmell && smellTypeNormalized === 'DARK';
+    const isMediumSmell = rowHasSmell && smellTypeNormalized === 'MEDIUM';
+    const isLightSmell = rowHasSmell && smellTypeNormalized === 'LIGHT';
+
+    const finalRowBg = isDarkSmell ? '#b91c1c' : (isMediumSmell ? '#fca5a5' : (isLightSmell ? '#fee2e2' : (rowHasSmell ? '#ffebee' : bgColor)));
+    const finalTextColor = isDarkSmell ? '#ffffff' : '#1a1a1a';
+    const finalKadigaColor = isDarkSmell ? '#ffffff' : '#7c2d12';
                         const isKadiga = stageObj.kadiga === 'Y' || stageObj.kadiga === 'Yes' || stageObj.kadiga === true || stageObj.kadiga === 'true';
                         return (
-                          <tr key={name} style={{ borderBottom: '1px solid #cbd5e1', backgroundColor: rowHasSmell ? '#ffebee' : bgColor }}>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', fontWeight: '800', color: color }}>{name}</td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatReportedBy(stageObj)}</td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>
+                          <tr key={name} style={{ borderBottom: '1px solid #cbd5e1', backgroundColor: finalRowBg }}>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', fontWeight: '800', color: isDarkSmell ? '#ffffff' : color }}>{name}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500' }}>{formatReportedBy(stageObj)}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500' }}>
                               {stageObj.reportedAt ? new Date(stageObj.reportedAt).toLocaleDateString('en-GB') + ', ' + new Date(stageObj.reportedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase() : '-'}
                             </td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600' }}>{formatMoisture(stageObj)}</td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600', width: '55px' }}>{formatCutting(stageObj)}</td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '600', width: '55px' }}>{formatBend(stageObj)}</td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '55px' }}>{(() => { const v = stageObj.grainsCountRaw || stageObj.grainsCount; return (v !== null && v !== undefined && v !== '') ? `(${v})` : '-'; })()}</td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.mixRaw || stageObj.mix)}</td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{stageObj.smixEnabled ? formatField(stageObj.mixSRaw || stageObj.mixS) || 'Yes' : '-'}</td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{stageObj.lmixEnabled ? formatField(stageObj.mixLRaw || stageObj.mixL) || 'Yes' : '-'}</td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.kanduRaw || stageObj.kandu)}</td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.oilRaw || stageObj.oil)}</td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '45px' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '50px' }}>{stageObj.smellHas === true || String(stageObj.smellHas).trim().toUpperCase() === 'YES' ? (stageObj.smellType || 'Yes') : '-'}</td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500', width: '50px' }}>{formatPaddyWb(stageObj)}</td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#7c2d12', fontWeight: '700', width: '80px' }}>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '600' }}>{formatMoisture(stageObj)}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '600', width: '55px' }}>{formatCutting(stageObj)}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '600', width: '55px' }}>{formatBend(stageObj)}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '55px' }}>{(() => { const v = stageObj.grainsCountRaw || stageObj.grainsCount; return (v !== null && v !== undefined && v !== '') ? `(${v})` : '-'; })()}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '45px' }}>{formatField(stageObj.mixRaw || stageObj.mix)}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '45px' }}>{stageObj.smixEnabled ? formatField(stageObj.mixSRaw || stageObj.mixS) || 'Yes' : '-'}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '45px' }}>{stageObj.lmixEnabled ? formatField(stageObj.mixLRaw || stageObj.mixL) || 'Yes' : '-'}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '45px' }}>{formatField(stageObj.kanduRaw || stageObj.kandu)}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '45px' }}>{formatField(stageObj.oilRaw || stageObj.oil)}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '45px' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '50px' }}>{stageObj.smellHas === true || String(stageObj.smellHas).trim().toUpperCase() === 'YES' ? (stageObj.smellType || 'Yes') : '-'}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '50px' }}>{formatPaddyWb(stageObj)}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalKadigaColor, fontWeight: '700', width: '80px' }}>
                               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
                                 <span>{stageObj.paddyColorEnabled && stageObj.paddyColor ? formatField(stageObj.paddyColor) : '-'}</span>
                                 <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />
                                 <span>ಕಡಿಗಾ: {stageObj.kadiga ? (isKadiga ? 'Yes' : 'No') : '-'}</span>
                               </div>
                             </td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '500' }}>{formatField(stageObj.nit)}</td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: '#1a1a1a', fontWeight: '700' }}>{isFull ? formatField(selectedLorryForComparison.bags) : '-'}</td>
+                            
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '700' }}>{isFull ? formatField(selectedLorryForComparison.bags) : '-'}</td>
                             <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center' }}>
                               {stageObj.imageUrl ? <a href={resolveMediaUrl(stageObj.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
                             </td>
@@ -939,25 +947,25 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
 
                         if (key === 'lot_avg') {
                           name = 'Lot Avg';
-                          color = '#d05d00';
-                          bgColor = '#fffaf5';
+                          color = '#000000';
+                          bgColor = '#ffffff';
                         } else if (key.startsWith('nit_avg')) {
                           name = getNitAvgLabel(stageObj.nit || '');
-                          color = '#c2185b';
-                          bgColor = '#fdf2f8';
+                          color = '#000000';
+                          bgColor = '#ffffff';
                         } else if (key === 'half_lorry') {
                           name = 'Half Lorry';
-                          color = '#b45309';
-                          bgColor = '#fffdfa';
+                          color = '#000000';
+                          bgColor = '#ffffff';
                         } else if (key === 'full_avg') {
                           name = 'Full Avg Lorry';
-                          color = '#15803d';
-                          bgColor = '#fffaf0';
+                          color = '#000000';
+                          bgColor = '#ffffff';
                           isFull = true;
                         } else if (key === 'balanced_lot') {
                           name = 'Balanced Lot';
-                          color = '#4a148c';
-                          bgColor = '#faf5ff';
+                          color = '#000000';
+                          bgColor = '#ffffff';
                         } else {
                           name = key;
                         }
