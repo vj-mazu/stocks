@@ -2805,6 +2805,89 @@ router.post('/:id/physical-inspection/:inspectionId/hold-stage', authenticateTok
   }
 });
 
+// Update a specific progressive stage of physical inspection
+router.put('/:id/physical-inspection/:inspectionId/stage/:stageKey', authenticateToken, async (req, res) => {
+  try {
+    const upload = FileUploadService.getUploadMiddleware();
+
+    upload.fields([
+      { name: 'stageImage', maxCount: 1 }
+    ])(req, res, async (err) => {
+      if (err) {
+        return res.status(400).json({ error: err.message });
+      }
+
+      try {
+        const { id, inspectionId, stageKey } = req.params;
+
+        const isTruthyFlag = value => value === true || value === 'true' || value === 'Y' || value === 'Yes';
+
+        const stageData = {
+          moisture: (req.body.moisture !== undefined && req.body.moisture !== null && req.body.moisture !== '') ? Number.parseFloat(req.body.moisture) : undefined,
+          moistureRaw: req.body.moistureRaw || null,
+          dryMoisture: (req.body.dryMoisture !== undefined && req.body.dryMoisture !== null && req.body.dryMoisture !== '') ? Number.parseFloat(req.body.dryMoisture) : undefined,
+          dryMoistureRaw: req.body.dryMoistureRaw || null,
+          grainsCount: (req.body.grainsCount !== undefined && req.body.grainsCount !== null && req.body.grainsCount !== '') ? Number.parseInt(req.body.grainsCount) : undefined,
+          grainsCountRaw: req.body.grainsCountRaw || null,
+          cutting1: (req.body.cutting1 !== undefined && req.body.cutting1 !== null && req.body.cutting1 !== '') ? Number.parseFloat(req.body.cutting1) : undefined,
+          cutting2: (req.body.cutting2 !== undefined && req.body.cutting2 !== null && req.body.cutting2 !== '') ? Number.parseFloat(req.body.cutting2) : undefined,
+          bend1: (req.body.bend1 !== undefined && req.body.bend1 !== null && req.body.bend1 !== '') ? Number.parseFloat(req.body.bend1) : undefined,
+          bend2: (req.body.bend2 !== undefined && req.body.bend2 !== null && req.body.bend2 !== '') ? Number.parseFloat(req.body.bend2) : undefined,
+          mix: req.body.mix || null,
+          mixRaw: req.body.mixRaw || null,
+          smixEnabled: isTruthyFlag(req.body.smixEnabled) ? 'Y' : 'N',
+          mixS: isTruthyFlag(req.body.smixEnabled) ? req.body.mixS || null : null,
+          lmixEnabled: isTruthyFlag(req.body.lmixEnabled) ? 'Y' : 'N',
+          mixL: isTruthyFlag(req.body.lmixEnabled) ? req.body.mixL || null : null,
+          sk: req.body.sk || null,
+          kandu: req.body.kandu || null,
+          oil: req.body.oil || null,
+          smellHas: isTruthyFlag(req.body.smellHas) ? 'Yes' : 'No',
+          smellType: isTruthyFlag(req.body.smellHas) ? req.body.smellType || null : null,
+          paddyWbEnabled: isTruthyFlag(req.body.paddyWbEnabled) ? 'Y' : 'N',
+          paddyWb: isTruthyFlag(req.body.paddyWbEnabled) ? (req.body.paddyWb ? Number.parseFloat(req.body.paddyWb) : undefined) : undefined,
+          paddyColorEnabled: isTruthyFlag(req.body.paddyColorEnabled) || (req.body.paddyColor ? true : false),
+          paddyColor: req.body.paddyColor || null,
+          kadiga: req.body.kadiga || 'N',
+          nit: req.body.nit || null,
+          remarks: req.body.remarks || null
+        };
+
+        if (stageKey === 'full_avg' && req.body.actualBags !== undefined) {
+          stageData.bags = Number.parseInt(req.body.actualBags) || 0;
+        }
+
+        if (req.files && req.files.stageImage) {
+          const fileToUpload = req.files.stageImage[0] || req.files.stageImage;
+          const uploadResult = await FileUploadService.uploadFile(fileToUpload, { compress: true });
+          stageData.imageUrl = uploadResult.fileUrl;
+        }
+
+        const PhysicalInspectionService = require('../services/PhysicalInspectionService');
+
+        const updated = await PhysicalInspectionService.updatePhysicalInspectionStage(
+          id,
+          inspectionId,
+          stageKey,
+          stageData,
+          req.user.userId,
+          getWorkflowRole(req.user)
+        );
+
+        invalidateSampleEntryTabCaches();
+
+        res.json(updated);
+      } catch (error) {
+        console.error('Error updating progressive stage:', error);
+        res.status(400).json({ error: error.message });
+      }
+    });
+  } catch (error) {
+    console.error('Error in update progressive stage route:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
 router.post('/:id/lot-selection', authenticateToken, async (req, res) => {
   try {
     let { decision, remarks } = req.body; // 'PASS_WITHOUT_COOKING', 'PASS_WITH_COOKING', 'FAIL'

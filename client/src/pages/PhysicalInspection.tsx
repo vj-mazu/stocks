@@ -123,6 +123,28 @@ interface InspectionProgress {
 }
 
 const PhysicalInspection: React.FC = () => {
+  const zeroToEmpty = (val: any) => {
+    if (val === null || val === undefined) return '';
+    const str = String(val).trim();
+    return (str === '0' || str === '0.0' || str === '00') ? '' : str;
+  };
+
+  const formatCuttingForUI = (c1: any, c2: any) => {
+    const v1 = parseFloat(c1);
+    const v2 = parseFloat(c2);
+    if (isNaN(v1) || v1 === 0) return '';
+    if (isNaN(v2) || v2 === 0) return `${v1}`;
+    return `${v1}×${v2}`;
+  };
+
+  const formatBendForUI = (b1: any, b2: any) => {
+    const v1 = parseFloat(b1);
+    const v2 = parseFloat(b2);
+    if (isNaN(v1) || v1 === 0) return '';
+    if (isNaN(v2) || v2 === 0) return `${v1}`;
+    return `${v1}×${v2}`;
+  };
+
   const { user } = useAuth();
   const { showNotification } = useNotification();
   const [entries, setEntries] = useState<SampleEntry[]>([]);
@@ -134,9 +156,7 @@ const PhysicalInspection: React.FC = () => {
   const [detailModalEntry, setDetailModalEntry] = useState<any>(null);
   const [isSaving, setIsSaving] = useState<{ [entryId: string]: boolean }>({});
   const [activeSkipConfirm, setActiveSkipConfirm] = useState<{ [inspectionId: string]: boolean }>({});
-
-
-
+  const [editingStage, setEditingStage] = useState<{ [entryId: string]: string | null }>({});
   const [expandedEntries, setExpandedEntries] = useState<{ [key: string]: boolean }>({});
   const toggleExpand = (entryId: string) => {
     setExpandedEntries(prev => ({
@@ -268,24 +288,24 @@ const PhysicalInspection: React.FC = () => {
       stageKeys.forEach(key => {
         const dbStage = stages[key] || {};
         newStageData[key] = {
-          moisture: dbStage.moisture !== null && dbStage.moisture !== undefined ? dbStage.moisture.toString() : '',
+          moisture: zeroToEmpty(dbStage.moisture),
           dryMoisture: dbStage.dryMoisture ? 'Y' : 'N',
           dryMoistureValue: dbStage.dryMoistureRaw || (dbStage.dryMoisture !== null && dbStage.dryMoisture !== undefined ? dbStage.dryMoisture.toString() : ''),
-          grainsCount: dbStage.grainsCount !== null && dbStage.grainsCount !== undefined ? dbStage.grainsCount.toString() : '',
-          cutting: dbStage.cutting1 !== null && dbStage.cutting2 !== undefined ? `${dbStage.cutting1}×${dbStage.cutting2}` : (dbStage.cutting1 !== null ? `${dbStage.cutting1}` : ''),
-          bend: dbStage.bend1 !== null && dbStage.bend2 !== undefined ? `${dbStage.bend1}×${dbStage.bend2}` : (dbStage.bend1 !== null ? `${dbStage.bend1}` : ''),
-          mix: dbStage.mix || '',
+          grainsCount: zeroToEmpty(dbStage.grainsCount),
+          cutting: formatCuttingForUI(dbStage.cutting1, dbStage.cutting2),
+          bend: formatBendForUI(dbStage.bend1, dbStage.bend2),
+          mix: zeroToEmpty(dbStage.mix),
           smixEnabled: dbStage.smixEnabled ? 'Y' : 'N',
-          mixS: dbStage.mixS || dbStage.mix_s || '',
+          mixS: zeroToEmpty(dbStage.mixS || dbStage.mix_s),
           lmixEnabled: dbStage.lmixEnabled ? 'Y' : 'N',
-          mixL: dbStage.mixL || dbStage.mix_l || '',
-          sk: dbStage.sk || '',
-          kandu: dbStage.kandu || '',
-          oil: dbStage.oil || '',
+          mixL: zeroToEmpty(dbStage.mixL || dbStage.mix_l),
+          sk: zeroToEmpty(dbStage.sk),
+          kandu: zeroToEmpty(dbStage.kandu),
+          oil: zeroToEmpty(dbStage.oil),
           smellHas: dbStage.smellHas ? 'Yes' : 'No',
           smellType: dbStage.smellType || '',
           paddyWbEnabled: dbStage.paddyWbEnabled ? 'Y' : 'N',
-          paddyWb: dbStage.paddyWb !== null && dbStage.paddyWb !== undefined ? dbStage.paddyWb.toString() : '',
+          paddyWb: zeroToEmpty(dbStage.paddyWb),
           paddyColorEnabled: dbStage.paddyColorEnabled ? 'Y' : 'N',
           paddyColor: dbStage.paddyColor || '',
           kadiga: dbStage.kadiga || '',
@@ -611,24 +631,24 @@ const PhysicalInspection: React.FC = () => {
       stageKeys.forEach(key => {
         const dbStage = stages[key] || {};
         newStageData[key] = {
-          moisture: dbStage.moisture !== null && dbStage.moisture !== undefined ? dbStage.moisture.toString() : '',
+          moisture: zeroToEmpty(dbStage.moisture),
           dryMoisture: dbStage.dryMoisture ? 'Y' : 'N',
           dryMoistureValue: dbStage.dryMoistureRaw || (dbStage.dryMoisture !== null && dbStage.dryMoisture !== undefined ? dbStage.dryMoisture.toString() : ''),
-          grainsCount: dbStage.grainsCount !== null && dbStage.grainsCount !== undefined ? dbStage.grainsCount.toString() : '',
-          cutting: dbStage.cutting1 !== null && dbStage.cutting1 !== undefined ? `${dbStage.cutting1}${dbStage.cutting2 ? `×${dbStage.cutting2}` : ''}` : '',
-          bend: dbStage.bend1 !== null && dbStage.bend1 !== undefined ? `${dbStage.bend1}${dbStage.bend2 ? `×${dbStage.bend2}` : ''}` : '',
-          mix: dbStage.mix || '',
+          grainsCount: zeroToEmpty(dbStage.grainsCount),
+          cutting: formatCuttingForUI(dbStage.cutting1, dbStage.cutting2),
+          bend: formatBendForUI(dbStage.bend1, dbStage.bend2),
+          mix: zeroToEmpty(dbStage.mix),
           smixEnabled: dbStage.smixEnabled ? 'Y' : 'N',
-          mixS: dbStage.mixS || dbStage.mix_s || '',
+          mixS: zeroToEmpty(dbStage.mixS || dbStage.mix_s),
           lmixEnabled: dbStage.lmixEnabled ? 'Y' : 'N',
-          mixL: dbStage.mixL || dbStage.mix_l || '',
-          sk: dbStage.sk || '',
-          kandu: dbStage.kandu || '',
-          oil: dbStage.oil || '',
+          mixL: zeroToEmpty(dbStage.mixL || dbStage.mix_l),
+          sk: zeroToEmpty(dbStage.sk),
+          kandu: zeroToEmpty(dbStage.kandu),
+          oil: zeroToEmpty(dbStage.oil),
           smellHas: dbStage.smellHas ? 'Yes' : 'No',
           smellType: dbStage.smellType || '',
           paddyWbEnabled: dbStage.paddyWbEnabled ? 'Y' : 'N',
-          paddyWb: dbStage.paddyWb !== null && dbStage.paddyWb !== undefined ? dbStage.paddyWb.toString() : '',
+          paddyWb: zeroToEmpty(dbStage.paddyWb),
           paddyColorEnabled: dbStage.paddyColorEnabled ? 'Y' : 'N',
           paddyColor: dbStage.paddyColor || '',
           kadiga: dbStage.kadiga || '',
@@ -1714,6 +1734,208 @@ const PhysicalInspection: React.FC = () => {
     }
   };
 
+  const handleUpdateStage = async (entryId: string, stage: string) => {
+    if (isSaving[entryId]) return;
+
+    const progress = inspectionProgress[entryId];
+    if (!progress) {
+      showNotification('Inspection progress not found', 'error');
+      return;
+    }
+
+    const trip = progress.previousInspections?.find(t => {
+      const stagesObj = t.samplingStages || {};
+      return !!stagesObj[stage];
+    });
+
+    if (!trip || !trip.id) {
+      showNotification('Inspection trip record not found for editing', 'error');
+      return;
+    }
+
+    const data = inspectionData[entryId];
+    const stageVal = samplingStageData[entryId]?.[stage];
+    if (!stageVal) return;
+
+    const validationError = validateStageBeforeSave(stage, stageVal, entryId);
+    if (validationError) {
+      showNotification(validationError, 'error');
+      return;
+    }
+
+    const cuttingParts = (stageVal.cutting || '').split(/[xX×]/);
+    const cutting1 = parseFloat(cuttingParts[0]?.trim()) || 0;
+    const cutting2 = cuttingParts.length > 1 ? (parseFloat(cuttingParts[1]?.trim()) || 0) : 0;
+
+    const bendParts = (stageVal.bend || '').split(/[xX×]/);
+    const bend1 = parseFloat(bendParts[0]?.trim()) || 0;
+    const bend2 = bendParts.length > 1 ? (parseFloat(bendParts[1]?.trim()) || 0) : 0;
+
+    try {
+      setIsSaving(prev => ({ ...prev, [entryId]: true }));
+      const token = localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('inspectionDate', data?.inspectionDate || trip.inspectionDate || new Date().toISOString().split('T')[0]);
+      formData.append('lorryNumber', (data?.lorryNumber || '').trim().toUpperCase() || trip.lorryNumber);
+      formData.append('moisture', stageVal.moisture || '0');
+      formData.append('dryMoisture', stageVal.dryMoisture === 'Y' ? (stageVal.dryMoistureValue || '1') : '0');
+      formData.append('dryMoistureRaw', stageVal.dryMoisture === 'Y' ? (stageVal.dryMoistureValue || 'Y') : 'N');
+      formData.append('grainsCount', stageVal.grainsCount || '0');
+      formData.append('cutting1', cutting1.toString());
+      formData.append('cutting2', cutting2.toString());
+      formData.append('bend1', bend1.toString());
+      formData.append('bend2', bend2.toString());
+      formData.append('mix', stageVal.mix || '0');
+      formData.append('smixEnabled', stageVal.smixEnabled === 'Y' ? 'true' : 'false');
+      formData.append('mixS', stageVal.smixEnabled === 'Y' ? stageVal.mixS || '' : '');
+      formData.append('lmixEnabled', stageVal.lmixEnabled === 'Y' ? 'true' : 'false');
+      formData.append('mixL', stageVal.lmixEnabled === 'Y' ? stageVal.mixL || '' : '');
+      formData.append('sk', stageVal.sk || '0');
+      formData.append('kandu', stageVal.kandu || '0');
+      formData.append('oil', stageVal.oil || '0');
+      formData.append('smellHas', stageVal.smellHas === 'Yes' ? 'true' : 'false');
+      formData.append('smellType', stageVal.smellHas === 'Yes' ? (stageVal.smellType || '') : '');
+      formData.append('paddyWbEnabled', stageVal.paddyWbEnabled === 'Y' ? 'true' : 'false');
+      formData.append('paddyWb', stageVal.paddyWb || '0');
+      formData.append('paddyColorEnabled', stageVal.paddyColor ? 'true' : 'false');
+      formData.append('paddyColor', stageVal.paddyColor || '');
+      formData.append('kadiga', stageVal.kadiga || '');
+      formData.append('remarks', data?.remarks || '');
+
+      if (stage === 'full_avg') {
+        formData.append('actualBags', stageVal.actualBags || '0');
+      }
+
+      if (stage.startsWith('nit_avg')) {
+        formData.append('nit', stageVal.nit || '');
+      }
+
+      if (stageVal.stageImage instanceof File) {
+        formData.append('stageImage', stageVal.stageImage);
+      }
+
+      await axios.put(
+        `${API_URL}/sample-entries/${entryId}/physical-inspection/${trip.id}/stage/${stage}`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+
+      showNotification(`${stage.toUpperCase().replace('_', ' ')} updated successfully`, 'success');
+
+      setEditingStage(prev => ({ ...prev, [entryId]: null }));
+
+      setSamplingStageData(prev => ({
+        ...prev,
+        [entryId]: {
+          ...prev[entryId],
+          [stage]: {
+            ...prev[entryId]?.[stage],
+            isLocked: true
+          }
+        }
+      }));
+
+      setSelectedEntry(null);
+      setActiveCards(prev => ({
+        ...prev,
+        [entryId]: []
+      }));
+
+      await loadEntries();
+    } catch (error: any) {
+      showNotification(error.response?.data?.error || `Failed to update ${stage}`, 'error');
+    } finally {
+      setIsSaving(prev => ({ ...prev, [entryId]: false }));
+    }
+  };
+
+  const handleEditStageFromDetail = (entryId: string, lorryNumber: string, stageKey: string) => {
+    setDetailModalEntry(null);
+
+    const progress = inspectionProgress[entryId];
+    if (!progress || !progress.previousInspections) return;
+
+    const trip = progress.previousInspections.find(
+      t => (t.lorryNumber || '').trim().toUpperCase() === lorryNumber.trim().toUpperCase()
+    );
+    if (!trip) return;
+
+    setInspectionData(prev => ({
+      ...prev,
+      [entryId]: {
+        tripId: trip.id,
+        inspectionDate: trip.inspectionDate || new Date().toISOString().split('T')[0],
+        lorryNumber: trip.lorryNumber || '',
+        remarks: ''
+      }
+    }));
+
+    setSelectedStage(prev => ({
+      ...prev,
+      [entryId]: stageKey
+    }));
+
+    const stages = trip.samplingStages || {};
+    const newStageData: any = {};
+    Object.keys(stages).forEach(key => {
+      const dbStage = stages[key] || {};
+      newStageData[key] = {
+        moisture: zeroToEmpty(dbStage.moisture),
+        dryMoisture: dbStage.dryMoisture ? 'Y' : 'N',
+        dryMoistureValue: dbStage.dryMoistureRaw || (dbStage.dryMoisture !== null && dbStage.dryMoisture !== undefined ? dbStage.dryMoisture.toString() : ''),
+        grainsCount: zeroToEmpty(dbStage.grainsCount),
+        cutting: formatCuttingForUI(dbStage.cutting1, dbStage.cutting2),
+        bend: formatBendForUI(dbStage.bend1, dbStage.bend2),
+        mix: zeroToEmpty(dbStage.mix),
+        smixEnabled: dbStage.smixEnabled ? 'Y' : 'N',
+        mixS: zeroToEmpty(dbStage.mixS || dbStage.mix_s),
+        lmixEnabled: dbStage.lmixEnabled ? 'Y' : 'N',
+        mixL: zeroToEmpty(dbStage.mixL || dbStage.mix_l),
+        sk: zeroToEmpty(dbStage.sk),
+        kandu: zeroToEmpty(dbStage.kandu),
+        oil: zeroToEmpty(dbStage.oil),
+        smellHas: dbStage.smellHas ? 'Yes' : 'No',
+        smellType: dbStage.smellType || '',
+        paddyWbEnabled: dbStage.paddyWbEnabled ? 'Y' : 'N',
+        paddyWb: zeroToEmpty(dbStage.paddyWb),
+        paddyColorEnabled: dbStage.paddyColorEnabled ? 'Y' : 'N',
+        paddyColor: dbStage.paddyColor || '',
+        kadiga: dbStage.kadiga || '',
+        actualBags: dbStage.bags !== null && dbStage.bags !== undefined ? dbStage.bags.toString() : '',
+        nit: dbStage.nit !== null && dbStage.nit !== undefined ? dbStage.nit.toString() : '',
+        imageUrl: dbStage.imageUrl || null,
+        reportedBy: dbStage.reportedBy || 'System',
+        approvalStatus: dbStage.approvalStatus || 'approved',
+        isLocked: true
+      };
+    });
+
+    setSamplingStageData(prev => ({
+      ...prev,
+      [entryId]: {
+        ...prev[entryId],
+        ...newStageData
+      }
+    }));
+
+    setActiveCards(prev => ({
+      ...prev,
+      [entryId]: [stageKey]
+    }));
+
+    setSelectedEntry(entryId);
+
+    setEditingStage(prev => ({
+      ...prev,
+      [entryId]: stageKey
+    }));
+  };
+
   const handleSkipBalancedLot = async (entryId: string, inspectionId: string) => {
     try {
       const progress = inspectionProgress[entryId];
@@ -1849,24 +2071,24 @@ const PhysicalInspection: React.FC = () => {
       stageKeys.forEach(key => {
         const dbStage = stages[key] || {};
         newStageData[key] = {
-          moisture: dbStage.moisture !== null && dbStage.moisture !== undefined ? dbStage.moisture.toString() : '',
+          moisture: zeroToEmpty(dbStage.moisture),
           dryMoisture: dbStage.dryMoisture ? 'Y' : 'N',
           dryMoistureValue: dbStage.dryMoistureRaw || (dbStage.dryMoisture !== null && dbStage.dryMoisture !== undefined ? dbStage.dryMoisture.toString() : ''),
-          grainsCount: dbStage.grainsCount !== null && dbStage.grainsCount !== undefined ? dbStage.grainsCount.toString() : '',
-          cutting: dbStage.cutting1 !== null && dbStage.cutting1 !== undefined ? `${dbStage.cutting1}${dbStage.cutting2 ? `×${dbStage.cutting2}` : ''}` : '',
-          bend: dbStage.bend1 !== null && dbStage.bend1 !== undefined ? `${dbStage.bend1}${dbStage.bend2 ? `×${dbStage.bend2}` : ''}` : '',
-          mix: dbStage.mix || '',
+          grainsCount: zeroToEmpty(dbStage.grainsCount),
+          cutting: formatCuttingForUI(dbStage.cutting1, dbStage.cutting2),
+          bend: formatBendForUI(dbStage.bend1, dbStage.bend2),
+          mix: zeroToEmpty(dbStage.mix),
           smixEnabled: dbStage.smixEnabled ? 'Y' : 'N',
-          mixS: dbStage.mixS || dbStage.mix_s || '',
+          mixS: zeroToEmpty(dbStage.mixS || dbStage.mix_s),
           lmixEnabled: dbStage.lmixEnabled ? 'Y' : 'N',
-          mixL: dbStage.mixL || dbStage.mix_l || '',
-          sk: dbStage.sk || '',
-          kandu: dbStage.kandu || '',
-          oil: dbStage.oil || '',
+          mixL: zeroToEmpty(dbStage.mixL || dbStage.mix_l),
+          sk: zeroToEmpty(dbStage.sk),
+          kandu: zeroToEmpty(dbStage.kandu),
+          oil: zeroToEmpty(dbStage.oil),
           smellHas: dbStage.smellHas ? 'Yes' : 'No',
           smellType: dbStage.smellType || '',
           paddyWbEnabled: dbStage.paddyWbEnabled ? 'Y' : 'N',
-          paddyWb: dbStage.paddyWb !== null && dbStage.paddyWb !== undefined ? dbStage.paddyWb.toString() : '',
+          paddyWb: zeroToEmpty(dbStage.paddyWb),
           paddyColorEnabled: dbStage.paddyColorEnabled ? 'Y' : 'N',
           paddyColor: dbStage.paddyColor || '',
           kadiga: dbStage.kadiga || '',
@@ -1938,24 +2160,24 @@ const PhysicalInspection: React.FC = () => {
     stageKeys.forEach(key => {
       const dbStage = stages[key] || {};
       newStageData[key] = {
-        moisture: dbStage.moisture !== null && dbStage.moisture !== undefined ? dbStage.moisture.toString() : '',
+        moisture: zeroToEmpty(dbStage.moisture),
         dryMoisture: dbStage.dryMoisture ? 'Y' : 'N',
         dryMoistureValue: dbStage.dryMoistureRaw || (dbStage.dryMoisture !== null && dbStage.dryMoisture !== undefined ? dbStage.dryMoisture.toString() : ''),
-        grainsCount: dbStage.grainsCount !== null && dbStage.grainsCount !== undefined ? dbStage.grainsCount.toString() : '',
-        cutting: dbStage.cutting1 !== null && dbStage.cutting1 !== undefined ? `${dbStage.cutting1}${dbStage.cutting2 ? `×${dbStage.cutting2}` : ''}` : '',
-        bend: dbStage.bend1 !== null && dbStage.bend1 !== undefined ? `${dbStage.bend1}${dbStage.bend2 ? `×${dbStage.bend2}` : ''}` : '',
-        mix: dbStage.mix || '',
+        grainsCount: zeroToEmpty(dbStage.grainsCount),
+        cutting: formatCuttingForUI(dbStage.cutting1, dbStage.cutting2),
+        bend: formatBendForUI(dbStage.bend1, dbStage.bend2),
+        mix: zeroToEmpty(dbStage.mix),
         smixEnabled: dbStage.smixEnabled ? 'Y' : 'N',
-        mixS: dbStage.mixS || dbStage.mix_s || '',
+        mixS: zeroToEmpty(dbStage.mixS || dbStage.mix_s),
         lmixEnabled: dbStage.lmixEnabled ? 'Y' : 'N',
-        mixL: dbStage.mixL || dbStage.mix_l || '',
-        sk: dbStage.sk || '',
-        kandu: dbStage.kandu || '',
-        oil: dbStage.oil || '',
+        mixL: zeroToEmpty(dbStage.mixL || dbStage.mix_l),
+        sk: zeroToEmpty(dbStage.sk),
+        kandu: zeroToEmpty(dbStage.kandu),
+        oil: zeroToEmpty(dbStage.oil),
         smellHas: dbStage.smellHas ? 'Yes' : 'No',
         smellType: dbStage.smellType || '',
         paddyWbEnabled: dbStage.paddyWbEnabled ? 'Y' : 'N',
-        paddyWb: dbStage.paddyWb !== null && dbStage.paddyWb !== undefined ? dbStage.paddyWb.toString() : '',
+        paddyWb: zeroToEmpty(dbStage.paddyWb),
         paddyColorEnabled: dbStage.paddyColorEnabled ? 'Y' : 'N',
         paddyColor: dbStage.paddyColor || '',
         kadiga: dbStage.kadiga || '',
@@ -3015,7 +3237,7 @@ const PhysicalInspection: React.FC = () => {
                                       reportedBy: user?.username || 'System',
                                       isLocked: false
                                     };
-                                    const isLocked = !!cardData.isLocked;
+                                    const isLocked = !!cardData.isLocked && editingStage[entry.id] !== stage;
                                     const isNewMode = getRulesMode(entry.id) === 'new';
                                     const getCardHeader = () => {
                                       if (stage === 'lot_avg') return { title: 'Lot Avg Sampling', color: '#e67e22', border: '2px solid #e67e22' };
@@ -3410,7 +3632,7 @@ const PhysicalInspection: React.FC = () => {
                                             <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
                                               <button
                                                 disabled={isSaving[entry.id]}
-                                                onClick={() => handleSaveStage(entry.id, stage)}
+                                                onClick={() => editingStage[entry.id] === stage ? handleUpdateStage(entry.id, stage) : handleSaveStage(entry.id, stage)}
                                                 style={{
                                                   flex: 1,
                                                   padding: '6px',
@@ -3423,10 +3645,13 @@ const PhysicalInspection: React.FC = () => {
                                                   fontSize: '11px'
                                                 }}
                                               >
-                                                {isSaving[entry.id] ? 'Saving...' : 'Save'}
+                                                {isSaving[entry.id] ? (editingStage[entry.id] === stage ? 'Updating...' : 'Saving...') : (editingStage[entry.id] === stage ? 'Update' : 'Save')}
                                               </button>
                                               <button
                                                 onClick={() => {
+                                                  if (editingStage[entry.id] === stage) {
+                                                    setEditingStage(prev => ({ ...prev, [entry.id]: null }));
+                                                  }
                                                   setActiveCards(prev => ({
                                                     ...prev,
                                                     [entry.id]: (prev[entry.id] || []).filter(k => k !== stage)
@@ -3449,6 +3674,24 @@ const PhysicalInspection: React.FC = () => {
 
                                           {isLocked && (
                                             <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                                              <button
+                                                onClick={() => {
+                                                  setEditingStage(prev => ({ ...prev, [entry.id]: stage }));
+                                                }}
+                                                style={{
+                                                  flex: 1,
+                                                  padding: '8px',
+                                                  backgroundColor: '#e67e22',
+                                                  color: 'white',
+                                                  border: 'none',
+                                                  borderRadius: '4px',
+                                                  fontWeight: '700',
+                                                  cursor: 'pointer',
+                                                  fontSize: '11px'
+                                                }}
+                                              >
+                                                Edit Stage
+                                              </button>
                                               <button
                                                 onClick={() => {
                                                   setActiveCards(prev => ({
@@ -4140,7 +4383,7 @@ const PhysicalInspection: React.FC = () => {
                   reportedBy: user?.username || 'System',
                   isLocked: false
                 };
-                const isLocked = !!cardData.isLocked;
+                const isLocked = !!cardData.isLocked && editingStage[entry.id] !== stage;
                  const isNewMode = getRulesMode(entry.id) === 'new';
                  const getCardHeader = () => {
                   if (stage === 'lot_avg') return { title: 'Lot Avg Sampling', color: '#e67e22', border: '2px solid #e67e22' };
@@ -4537,7 +4780,7 @@ const PhysicalInspection: React.FC = () => {
                         <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
                           <button
                             disabled={isSaving[entry.id]}
-                            onClick={() => handleSaveStage(entry.id, stage)}
+                            onClick={() => editingStage[entry.id] === stage ? handleUpdateStage(entry.id, stage) : handleSaveStage(entry.id, stage)}
                             style={{
                               flex: 1,
                               padding: '6px',
@@ -4550,10 +4793,13 @@ const PhysicalInspection: React.FC = () => {
                               fontSize: '12px'
                             }}
                           >
-                            {isSaving[entry.id] ? 'Saving...' : 'Save'}
+                            {isSaving[entry.id] ? (editingStage[entry.id] === stage ? 'Updating...' : 'Saving...') : (editingStage[entry.id] === stage ? 'Update' : 'Save')}
                           </button>
                           <button
                             onClick={() => {
+                              if (editingStage[entry.id] === stage) {
+                                setEditingStage(prev => ({ ...prev, [entry.id]: null }));
+                              }
                               setActiveCards(prev => ({
                                 ...prev,
                                 [entry.id]: (prev[entry.id] || []).filter(k => k !== stage)
@@ -4578,6 +4824,24 @@ const PhysicalInspection: React.FC = () => {
 
                       {isLocked && (
                         <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                          <button
+                            onClick={() => {
+                              setEditingStage(prev => ({ ...prev, [entry.id]: stage }));
+                            }}
+                            style={{
+                              flex: 1,
+                              padding: '8px',
+                              backgroundColor: '#e67e22',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              fontWeight: '700',
+                              cursor: 'pointer',
+                              fontSize: '12px'
+                            }}
+                          >
+                            Edit Stage
+                          </button>
                           <button
                             onClick={() => {
                               setActiveCards(prev => ({
@@ -4621,6 +4885,7 @@ const PhysicalInspection: React.FC = () => {
           }}
           showCollectorLoginPair={false}
           onUpdate={() => loadEntries(true)}
+          onEditStage={(lorryNumber, stageKey) => handleEditStageFromDetail(detailModalEntry.id, lorryNumber, stageKey)}
         />
       )}
     </div>

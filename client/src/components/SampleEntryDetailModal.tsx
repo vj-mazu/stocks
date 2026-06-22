@@ -585,7 +585,7 @@ const getNitAvgLabel = (nitValue: string) => {
     return `Nit Avg (${clean})`;
 };
 
-export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpdate, showCollectorLoginPair = false, progressiveMode = false }: { detailEntry: SampleEntry, detailMode: 'quick' | 'history' | 'summary' | 'full', onClose: () => void, onUpdate?: (gpsCoordinates?: string) => void | Promise<void>, showCollectorLoginPair?: boolean, progressiveMode?: boolean }) => {
+export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpdate, showCollectorLoginPair = false, progressiveMode = false, onEditStage }: { detailEntry: SampleEntry, detailMode: 'quick' | 'history' | 'summary' | 'full', onClose: () => void, onUpdate?: (gpsCoordinates?: string) => void | Promise<void>, showCollectorLoginPair?: boolean, progressiveMode?: boolean, onEditStage?: (lorryNumber: string, stageKey: string) => void }) => {
     const { user } = useAuth();
     const buildMapHref = (value: any) => {
         const raw = typeof value === 'object' && value !== null
@@ -1494,6 +1494,37 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         }
                     }
 
+                    if (onEditStage && !stageObj.isSkipped && stageObj.approvalStatus !== 'skipped') {
+                        const editBtn = (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onEditStage(insp.lorryNumber, stageKey);
+                                }}
+                                style={{
+                                    background: '#e67e22',
+                                    border: 'none',
+                                    color: '#fff',
+                                    fontWeight: 'bold',
+                                    cursor: 'pointer',
+                                    fontSize: '9.5px',
+                                    padding: '2.5px 7px',
+                                    borderRadius: '3px',
+                                    marginTop: '4px',
+                                    display: 'block'
+                                }}
+                            >
+                                ✏️ Edit
+                            </button>
+                        );
+                        actionsCell = (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                <div>{actionsCell}</div>
+                                {editBtn}
+                            </div>
+                        );
+                    }
+
                     const renderStageReportedAtStacked = (dtStr: any) => {
                         if (!dtStr) return '-';
                         try {
@@ -1605,15 +1636,24 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 title="Click to view side-by-side stage comparison"
                             >
                                 {key.startsWith('nit_avg') ? (
-                                    label
+                                    <>
+                                        {label}
+                                        {stageObj?.isEdited && <span style={{ color: '#d97706', fontSize: '9.5px', fontWeight: '900' }}> (Edited)</span>}
+                                    </>
                                 ) : key === 'full_avg' && insp.bags ? (
                                     <>
                                         {label}{' '}
                                         <span style={{ color: '#1565c0', fontWeight: '900' }}>
                                             ({insp.bags})
                                         </span>
+                                        {stageObj?.isEdited && <span style={{ color: '#d97706', fontSize: '9.5px', fontWeight: '900' }}> (Edited)</span>}
                                     </>
-                                ) : label}
+                                ) : (
+                                    <>
+                                        {label}
+                                        {stageObj?.isEdited && <span style={{ color: '#d97706', fontSize: '9.5px', fontWeight: '900' }}> (Edited)</span>}
+                                    </>
+                                )}
                             </span>
                         );
                         const stageRow = makeRow(labelElement, stageObj, key);
@@ -1938,6 +1978,37 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 }
             }
 
+            if (onEditStage && !stageObj.isSkipped && stageObj.approvalStatus !== 'skipped') {
+                const editBtn = (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onEditStage(insp.lorryNumber, stageKey);
+                        }}
+                        style={{
+                            background: '#e67e22',
+                            border: 'none',
+                            color: '#fff',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            fontSize: '9.5px',
+                            padding: '2.5px 7px',
+                            borderRadius: '3px',
+                            marginTop: '4px',
+                            display: 'block'
+                        }}
+                    >
+                        ✏️ Edit
+                    </button>
+                );
+                actionsCell = (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                        <div>{actionsCell}</div>
+                        {editBtn}
+                    </div>
+                );
+            }
+
             const renderStageReportedAtStacked = (dtStr: any) => {
                 if (!dtStr) return '-';
                 try {
@@ -2049,15 +2120,24 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         title="Click to view side-by-side stage comparison"
                     >
                         {key.startsWith('nit_avg') ? (
-                            label
+                            <>
+                                {label}
+                                {stageObj?.isEdited && <span style={{ color: '#d97706', fontSize: '9.5px', fontWeight: '900' }}> (Edited)</span>}
+                            </>
                         ) : key === 'full_avg' && insp.bags ? (
                             <>
                                 {label}{' '}
                                 <span style={{ color: '#1565c0', fontWeight: '900' }}>
                                     ({insp.bags})
                                 </span>
+                                {stageObj?.isEdited && <span style={{ color: '#d97706', fontSize: '9.5px', fontWeight: '900' }}> (Edited)</span>}
                             </>
-                        ) : label}
+                        ) : (
+                            <>
+                                {label}
+                                {stageObj?.isEdited && <span style={{ color: '#d97706', fontSize: '9.5px', fontWeight: '900' }}> (Edited)</span>}
+                            </>
+                        )}
                     </span>
                 );
                 const stageRow = makeRow(labelElement, stageObj, key);
@@ -3639,7 +3719,10 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                     const hasDiscolor = !!stageObj.paddyColorEnabled && !!stageObj.paddyColor;
                                     return (
                                         <tr key={name} style={{ borderBottom: '1px solid #cbd5e1', backgroundColor: finalRowBg }}>
-                                            <td style={{ padding: '8px 10px', fontWeight: '800', color: isDarkSmell ? '#ffffff' : color }}>{name}</td>
+                                            <td style={{ padding: '8px 10px', fontWeight: '800', color: isDarkSmell ? '#ffffff' : color }}>
+                                                 {name}
+                                                 {stageObj?.isEdited && <span style={{ color: '#d97706', fontSize: '9.5px', fontWeight: '900' }}> (Edited)</span>}
+                                             </td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: finalTextColor, fontWeight: '500' }}>
                                                 <div>{formatField(stageObj.reportedBy)}</div>
                                             </td>

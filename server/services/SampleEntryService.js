@@ -852,6 +852,14 @@ class SampleEntryService {
 
       const updatedEntry = await SampleEntryRepository.update(id, updates);
 
+      if (updates.bags !== undefined && updates.bags !== null) {
+        const LotAllotment = require('../models/LotAllotment');
+        await LotAllotment.update(
+          { allottedBags: Number(updates.bags) },
+          { where: { sampleEntryId: id } }
+        );
+      }
+
       await AuditService.logUpdate(
         userId,
         'sample_entries',
