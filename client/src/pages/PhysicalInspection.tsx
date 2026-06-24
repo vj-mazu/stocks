@@ -151,7 +151,10 @@ const PhysicalInspection: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<string | null>(null);
   const [inspectionProgress, setInspectionProgress] = useState<{ [key: string]: InspectionProgress }>({});
-  const [activeTab, setActiveTab] = useState<'paddy' | 'rice'>('paddy');
+  const [activeTab, setActiveTab] = useState<'paddy' | 'rice'>(() => {
+    const saved = localStorage.getItem('physical_inspection_active_tab');
+    return (saved === 'paddy' || saved === 'rice') ? saved : 'paddy';
+  });
   const [selectedLorryForComparison, setSelectedLorryForComparison] = useState<any>(null);
   const [detailModalEntry, setDetailModalEntry] = useState<any>(null);
   const [isSaving, setIsSaving] = useState<{ [entryId: string]: boolean }>({});
@@ -263,6 +266,10 @@ const PhysicalInspection: React.FC = () => {
   }, [selectedEntry]);
 
   useEffect(() => {
+    localStorage.setItem('physical_inspection_active_tab', activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
     inspectionDataRef.current = inspectionData;
   }, [inspectionData]);
 
@@ -309,7 +316,7 @@ const PhysicalInspection: React.FC = () => {
           paddyColorEnabled: dbStage.paddyColorEnabled ? 'Y' : 'N',
           paddyColor: dbStage.paddyColor || '',
           kadiga: dbStage.kadiga || '',
-          actualBags: dbStage.bags !== null && dbStage.bags !== undefined ? dbStage.bags.toString() : '',
+          actualBags: dbStage.actualBags !== undefined && dbStage.actualBags !== null ? dbStage.actualBags.toString() : (dbStage.bags !== null && dbStage.bags !== undefined ? dbStage.bags.toString() : ''),
           imageUrl: dbStage.imageUrl || null,
           reportedBy: dbStage.reportedBy || 'System',
           approvalStatus: dbStage.approvalStatus || 'approved',
@@ -401,7 +408,8 @@ const PhysicalInspection: React.FC = () => {
         const inspections = entry.lotAllotment?.physicalInspections || [];
         const inspectedBags = inspections.reduce((sum, inspection) => sum + (inspection.bags || 0), 0);
         const remainingBags = entry.lotAllotment?.closedAt ? 0 : Math.max(0, totalBags - inspectedBags);
-        const progressPercentage = entry.lotAllotment?.closedAt ? 100 : (totalBags > 0 ? (inspectedBags / totalBags) * 100 : 0);
+        const rawProgressPercentage = entry.lotAllotment?.closedAt ? 100 : (totalBags > 0 ? (inspectedBags / totalBags) * 100 : 0);
+        const progressPercentage = Math.min(100, rawProgressPercentage);
         
         progressCache[entry.id] = {
           totalBags,
@@ -499,6 +507,9 @@ const PhysicalInspection: React.FC = () => {
       });
       
       const data = response.data;
+      if (data) {
+        data.progressPercentage = Math.min(100, data.progressPercentage || 0);
+      }
       if (data && data.previousInspections) {
         data.previousInspections.sort((a: any, b: any) => {
           const getEarliestTimestamp = (insp: any) => {
@@ -613,13 +624,21 @@ const PhysicalInspection: React.FC = () => {
   };
 
   const handleLorryNumberChange = (entryId: string, lorryNo: string) => {
-    handleInputChange(entryId, 'lorryNumber', lorryNo.toUpperCase());
-
     const cleanLorry = lorryNo.trim().toUpperCase();
     const progress = inspectionProgress[entryId];
     const prevLorryInspection = progress?.previousInspections?.find(
       i => (i.lorryNumber || '').trim().toUpperCase() === cleanLorry
     );
+    const tripId = prevLorryInspection ? prevLorryInspection.id : '';
+
+    setInspectionData(prev => ({
+      ...prev,
+      [entryId]: {
+        ...prev[entryId],
+        lorryNumber: cleanLorry,
+        tripId: tripId
+      }
+    }));
 
     if (prevLorryInspection && prevLorryInspection.samplingStages) {
       // Check if date has changed (not today) - disabled restriction to allow resuming/editing past trips
@@ -652,7 +671,7 @@ const PhysicalInspection: React.FC = () => {
           paddyColorEnabled: dbStage.paddyColorEnabled ? 'Y' : 'N',
           paddyColor: dbStage.paddyColor || '',
           kadiga: dbStage.kadiga || '',
-          actualBags: dbStage.bags !== null && dbStage.bags !== undefined ? dbStage.bags.toString() : '',
+          actualBags: dbStage.actualBags !== undefined && dbStage.actualBags !== null ? dbStage.actualBags.toString() : (dbStage.bags !== null && dbStage.bags !== undefined ? dbStage.bags.toString() : ''),
           nit: dbStage.nit !== null && dbStage.nit !== undefined ? dbStage.nit.toString() : '',
           imageUrl: dbStage.imageUrl || null,
           reportedBy: dbStage.reportedBy || 'System',
@@ -1615,16 +1634,9 @@ const PhysicalInspection: React.FC = () => {
     const bend2 = bendParts.length > 1 ? (parseFloat(bendParts[1]?.trim()) || 0) : 0;
 
     if (stage === 'full_avg' && progress) {
+      // Allow adding extra bags without restriction
       const actualBags = Number(stageVal.actualBags);
-      const totalInspected = progress.previousInspections
-        .filter(i => (i.lorryNumber || '').trim().toUpperCase() !== lorryNum)
-        .reduce((sum, i) => sum + (i.bags || 0), 0);
-      const remainingBags = progress.totalBags - totalInspected;
-
-      if (actualBags > remainingBags) {
-        showNotification(`Cannot inspect ${actualBags} bags. Only ${remainingBags} bags remaining.`, 'error');
-        return;
-      }
+      stageVal.actualBags = actualBags;
     }
 
     try {
@@ -1743,10 +1755,15 @@ const PhysicalInspection: React.FC = () => {
       return;
     }
 
-    const trip = progress.previousInspections?.find(t => {
-      const stagesObj = t.samplingStages || {};
-      return !!stagesObj[stage];
-    });
+    const targetTripId = inspectionData[entryId]?.tripId;
+    let trip = targetTripId ? progress.previousInspections?.find(t => t.id === targetTripId) : null;
+
+    if (!trip) {
+      trip = progress.previousInspections?.find(t => {
+        const stagesObj = t.samplingStages || {};
+        return !!stagesObj[stage];
+      });
+    }
 
     if (!trip || !trip.id) {
       showNotification('Inspection trip record not found for editing', 'error');
@@ -1906,7 +1923,7 @@ const PhysicalInspection: React.FC = () => {
         paddyColorEnabled: dbStage.paddyColorEnabled ? 'Y' : 'N',
         paddyColor: dbStage.paddyColor || '',
         kadiga: dbStage.kadiga || '',
-        actualBags: dbStage.bags !== null && dbStage.bags !== undefined ? dbStage.bags.toString() : '',
+        actualBags: dbStage.actualBags !== undefined && dbStage.actualBags !== null ? dbStage.actualBags.toString() : (dbStage.bags !== null && dbStage.bags !== undefined ? dbStage.bags.toString() : ''),
         nit: dbStage.nit !== null && dbStage.nit !== undefined ? dbStage.nit.toString() : '',
         imageUrl: dbStage.imageUrl || null,
         reportedBy: dbStage.reportedBy || 'System',
@@ -2092,7 +2109,7 @@ const PhysicalInspection: React.FC = () => {
           paddyColorEnabled: dbStage.paddyColorEnabled ? 'Y' : 'N',
           paddyColor: dbStage.paddyColor || '',
           kadiga: dbStage.kadiga || '',
-          actualBags: dbStage.bags !== null && dbStage.bags !== undefined ? dbStage.bags.toString() : '',
+          actualBags: dbStage.actualBags !== undefined && dbStage.actualBags !== null ? dbStage.actualBags.toString() : (dbStage.bags !== null && dbStage.bags !== undefined ? dbStage.bags.toString() : ''),
           nit: dbStage.nit !== null && dbStage.nit !== undefined ? dbStage.nit.toString() : '',
           imageUrl: dbStage.imageUrl || null,
           reportedBy: dbStage.reportedBy || 'System',
@@ -2141,6 +2158,11 @@ const PhysicalInspection: React.FC = () => {
 
   const handleResumeLorry = (entryId: string, lorryNumber: string, stages: any, inspectionDate?: string, onlyBalanced?: boolean) => {
     const cleanLorry = lorryNumber.trim().toUpperCase();
+    const progress = inspectionProgress[entryId];
+    const trip = progress?.previousInspections?.find(
+      t => (t.lorryNumber || '').trim().toUpperCase() === cleanLorry
+    );
+    const tripId = trip ? trip.id : '';
     
     // If date has changed, allow resuming/editing the trip (date check disabled)
     
@@ -2148,6 +2170,7 @@ const PhysicalInspection: React.FC = () => {
     setInspectionData(prev => ({
       ...prev,
       [entryId]: {
+        tripId: tripId,
         inspectionDate: inspectionDate || new Date().toISOString().split('T')[0],
         lorryNumber: cleanLorry,
         remarks: ''
@@ -2181,7 +2204,7 @@ const PhysicalInspection: React.FC = () => {
         paddyColorEnabled: dbStage.paddyColorEnabled ? 'Y' : 'N',
         paddyColor: dbStage.paddyColor || '',
         kadiga: dbStage.kadiga || '',
-        actualBags: dbStage.bags !== null && dbStage.bags !== undefined ? dbStage.bags.toString() : '',
+        actualBags: dbStage.actualBags !== undefined && dbStage.actualBags !== null ? dbStage.actualBags.toString() : (dbStage.bags !== null && dbStage.bags !== undefined ? dbStage.bags.toString() : ''),
         nit: dbStage.nit !== null && dbStage.nit !== undefined ? dbStage.nit.toString() : '',
         imageUrl: dbStage.imageUrl || null,
         reportedBy: dbStage.reportedBy || 'System',
@@ -2480,7 +2503,7 @@ const PhysicalInspection: React.FC = () => {
                             }}>
                               <div style={{
                                 height: '100%',
-                                width: `${entry.lotAllotment?.closedAt ? 100 : progressPercentage}%`,
+                                width: `${entry.lotAllotment?.closedAt ? 100 : Math.min(100, progressPercentage)}%`,
                                 backgroundColor: entry.lotAllotment?.closedAt ? '#7f8c8d' : getProgressColor(progressPercentage),
                                 transition: 'width 0.3s ease'
                               }} />
@@ -2520,7 +2543,7 @@ const PhysicalInspection: React.FC = () => {
                               isTripMissingBalancedLotRestrictive(trip, getRulesMode(entry.id))
                             );
                           })();
-                          const isDisabled = progressPercentage >= 100 || !!entry.lotAllotment?.closedAt || hasPendingStage || isMissingBalancedAcrossTrips;
+                          const isDisabled = !!entry.lotAllotment?.closedAt || hasPendingStage || isMissingBalancedAcrossTrips;
                           return (
                             <button
                               onClick={() => initializeInspectionData(entry.id)}
@@ -2538,7 +2561,6 @@ const PhysicalInspection: React.FC = () => {
                             >
                               {(() => {
                                 if (entry.lotAllotment?.closedAt) return 'Closed';
-                                if (progressPercentage >= 100) return 'Complete';
                                 if (hasPendingStage) return 'Awaiting Approval';
                                 if (isMissingBalancedAcrossTrips) return 'Pending Balanced Lot';
                                 if (selectedEntry === entry.id) return 'Editing...';
@@ -2674,58 +2696,94 @@ const PhysicalInspection: React.FC = () => {
                                   }
                                   const o = (entry as any).offering || {};
 
-                                return (
-                                  <tr key={inspection.id} style={{ borderBottom: '1px solid #000' }}>
-                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{idx + 1}</td>
-                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
-                                      {new Date(inspection.inspectionDate).toLocaleDateString('en-GB')}
-                                    </td>
-                                    <td style={{ border: '1px solid #000', padding: '6px', fontWeight: '700' }}>
-                                      <span
-                                        onClick={() => setSelectedLorryForComparison({ entryId: entry.id, lorryNumber: inspection.lorryNumber, previousInspections: [inspection], lotAllotment: entry.lotAllotment, singleLorryMode: true })}
-                                        style={{ color: '#1565c0', textDecoration: 'underline', cursor: 'pointer' }}
-                                      >
-                                        {inspection.lorryNumber?.toUpperCase()}
-                                      </span>
-                                    </td>
-                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{stages.full_avg?.actualBags || inspection.bags || '-'}</td>
-                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600', color: '#000000' }}>{moistureVal}</td>
-                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{cuttingVal}</td>
-                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{bendVal}</td>
-                                    <td style={{ border: '1px solid #000', padding: '6px' }}>{inspection.reportedBy?.username || '-'}</td>
-                                    <td style={{ 
-                                      border: '1px solid #000', 
-                                      padding: '6px', 
-                                      textAlign: 'center', 
-                                      fontWeight: '700', 
-                                      color: (() => {
-                                        if (stages.balanced_lot?.approvalStatus === 'approved') return '#2e7d32'; // Pass
-                                        if (stages.balanced_lot?.approvalStatus === 'pending') return '#f39c12'; // Pending
-                                        if (stages.full_avg?.approvalStatus === 'approved') return '#2e7d32'; // Pass
-                                        if (stages.full_avg?.approvalStatus === 'pending') return '#f39c12'; // Pending
-                                        if (stages.half_lorry?.approvalStatus === 'approved') return '#1565c0'; // Approved stage
-                                        if (stages.half_lorry?.approvalStatus === 'pending') return '#f39c12'; // Pending
-                                        
-                                        // Check all nit keys
-                                        const nitKeys = Object.keys(stages)
-                                          .filter(k => k.startsWith('nit_avg'))
-                                          .sort((a, b) => {
-                                            if (a === 'nit_avg') return -1;
-                                            if (b === 'nit_avg') return 1;
-                                            const numA = parseInt(a.replace('nit_avg_', '')) || 0;
-                                            const numB = parseInt(b.replace('nit_avg_', '')) || 0;
-                                            return numB - numA;
-                                          });
-                                        for (const key of nitKeys) {
-                                          if (stages[key]?.approvalStatus === 'approved') return '#1565c0';
-                                          if (stages[key]?.approvalStatus === 'pending') return '#f39c12';
-                                        }
+                                   // Calculate trip-level smell highlighting
+                                   const tripStages = Object.values(stages || {});
+                                   let hasTripSmell = false;
+                                   let tripSmellType = '';
+                                   for (const stageObj of tripStages as any[]) {
+                                     if (stageObj && (stageObj.smellHas === true || String(stageObj.smellHas).trim().toUpperCase() === 'YES')) {
+                                       hasTripSmell = true;
+                                       const typeNormalized = String(stageObj.smellType || '').trim().toUpperCase();
+                                       if (typeNormalized === 'DARK') {
+                                         tripSmellType = 'DARK';
+                                       } else if (typeNormalized === 'MEDIUM' && tripSmellType !== 'DARK') {
+                                         tripSmellType = 'MEDIUM';
+                                       } else if (typeNormalized === 'LIGHT' && tripSmellType !== 'DARK' && tripSmellType !== 'MEDIUM') {
+                                         tripSmellType = 'LIGHT';
+                                       }
+                                     }
+                                   }
 
-                                        if (stages.lot_avg?.approvalStatus === 'approved') return '#1565c0'; // Approved stage
-                                        if (stages.lot_avg?.approvalStatus === 'pending') return '#f39c12'; // Pending
-                                        return '#64748b';
-                                      })()
-                                    }}>
+                                   let rowStyle: React.CSSProperties = { borderBottom: '1px solid #000' };
+                                   if (hasTripSmell) {
+                                     if (tripSmellType === 'DARK') {
+                                       rowStyle.backgroundColor = '#b91c1c';
+                                       rowStyle.color = '#ffffff';
+                                     } else if (tripSmellType === 'MEDIUM') {
+                                       rowStyle.backgroundColor = '#fca5a5';
+                                       rowStyle.color = '#1a1a1a';
+                                     } else if (tripSmellType === 'LIGHT') {
+                                       rowStyle.backgroundColor = '#fee2e2';
+                                       rowStyle.color = '#1a1a1a';
+                                     } else {
+                                       rowStyle.backgroundColor = '#fee2e2';
+                                       rowStyle.color = '#1a1a1a';
+                                     }
+                                   }
+
+                                 return (
+                                   <tr key={inspection.id} style={rowStyle}>
+                                     <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{idx + 1}</td>
+                                     <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
+                                       {new Date(inspection.inspectionDate).toLocaleDateString('en-GB')}
+                                     </td>
+                                     <td style={{ border: '1px solid #000', padding: '6px', fontWeight: '700' }}>
+                                       <span
+                                         onClick={() => setSelectedLorryForComparison({ entryId: entry.id, lorryNumber: inspection.lorryNumber, previousInspections: [inspection], lotAllotment: entry.lotAllotment, singleLorryMode: true })}
+                                         style={{ color: tripSmellType === 'DARK' ? '#ffffff' : '#1565c0', textDecoration: 'underline', cursor: 'pointer' }}
+                                       >
+                                         {inspection.lorryNumber?.toUpperCase()}
+                                       </span>
+                                     </td>
+                                     <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{stages.full_avg?.actualBags || inspection.bags || '-'}</td>
+                                     <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600', color: tripSmellType === 'DARK' ? '#ffffff' : '#000000' }}>{moistureVal}</td>
+                                     <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{cuttingVal}</td>
+                                     <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{bendVal}</td>
+                                     <td style={{ border: '1px solid #000', padding: '6px' }}>{inspection.reportedBy?.username || '-'}</td>
+                                     <td style={{ 
+                                       border: '1px solid #000', 
+                                       padding: '6px', 
+                                       textAlign: 'center', 
+                                       fontWeight: '700', 
+                                       color: (() => {
+                                         const isDark = tripSmellType === 'DARK';
+                                         if (stages.balanced_lot?.approvalStatus === 'approved') return isDark ? '#a5d6a7' : '#2e7d32'; // Pass
+                                         if (stages.balanced_lot?.approvalStatus === 'pending') return isDark ? '#ffe082' : '#f39c12'; // Pending
+                                         if (stages.full_avg?.approvalStatus === 'approved') return isDark ? '#a5d6a7' : '#2e7d32'; // Pass
+                                         if (stages.full_avg?.approvalStatus === 'pending') return isDark ? '#ffe082' : '#f39c12'; // Pending
+                                         if (stages.half_lorry?.approvalStatus === 'approved') return isDark ? '#90caf9' : '#1565c0'; // Approved stage
+                                         if (stages.half_lorry?.approvalStatus === 'pending') return isDark ? '#ffe082' : '#f39c12'; // Pending
+                                         
+                                         // Check all nit keys
+                                         const nitKeys = Object.keys(stages)
+                                           .filter(k => k.startsWith('nit_avg'))
+                                           .sort((a, b) => {
+                                             if (a === 'nit_avg') return -1;
+                                             if (b === 'nit_avg') return 1;
+                                             const numA = parseInt(a.replace('nit_avg_', '')) || 0;
+                                             const numB = parseInt(b.replace('nit_avg_', '')) || 0;
+                                             return numB - numA;
+                                           });
+                                         for (const key of nitKeys) {
+                                           if (stages[key]?.approvalStatus === 'approved') return isDark ? '#90caf9' : '#1565c0';
+                                           if (stages[key]?.approvalStatus === 'pending') return isDark ? '#ffe082' : '#f39c12';
+                                         }
+ 
+                                         if (stages.lot_avg?.approvalStatus === 'approved') return isDark ? '#90caf9' : '#1565c0'; // Approved stage
+                                         if (stages.lot_avg?.approvalStatus === 'pending') return isDark ? '#ffe082' : '#f39c12'; // Pending
+                                         return isDark ? '#e0e0e0' : '#64748b';
+                                       })()
+                                     }}>
                                       {(() => {
                                         if (stages.balanced_lot?.approvalStatus === 'approved') return 'Pass';
                                         if (stages.balanced_lot?.approvalStatus === 'pending') return 'Pending: Balanced Lot';
@@ -2983,30 +3041,32 @@ const PhysicalInspection: React.FC = () => {
                                      }}
                                    />
                                  </div>
-                                 <div>
-                                   <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
-                                     Lorry number *
-                                   </label>
-                                   <input
-                                     type="text"
-                                     value={inspectionData[entry.id]?.lorryNumber || ''}
-                                     onChange={(e) => handleLorryNumberChange(entry.id, e.target.value)}
-                                     disabled={!!(inspectionData[entry.id]?.lorryNumber && progress?.previousInspections?.some(trip => trip.lorryNumber === inspectionData[entry.id]?.lorryNumber && trip.lorryNumber !== 'LOT_AVG'))}
-                                     placeholder="ENTER LORRY NUMBER"
-                                     maxLength={12}
-                                     style={{
-                                       width: '100%',
-                                       padding: '8px',
-                                       fontSize: '12px',
-                                       border: '1px solid #ccc',
-                                       borderRadius: '4px',
-                                       color: '#1a1a1a',
-                                       fontWeight: '600',
-                                       backgroundColor: (inspectionData[entry.id]?.lorryNumber && progress?.previousInspections?.some(trip => trip.lorryNumber === inspectionData[entry.id]?.lorryNumber && trip.lorryNumber !== 'LOT_AVG')) ? '#e0e0e0' : '#fff',
-                                       textTransform: 'uppercase'
-                                     }}
-                                   />
-                                 </div>
+                                 {selectedStage[entry.id] !== 'lot_avg' && (
+                                    <div>
+                                      <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
+                                        Lorry number *
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={inspectionData[entry.id]?.lorryNumber || ''}
+                                        onChange={(e) => handleLorryNumberChange(entry.id, e.target.value)}
+                                        disabled={!!(inspectionData[entry.id]?.lorryNumber && progress?.previousInspections?.some(trip => trip.lorryNumber === inspectionData[entry.id]?.lorryNumber && trip.lorryNumber !== 'LOT_AVG'))}
+                                        placeholder="ENTER LORRY NUMBER"
+                                        maxLength={12}
+                                        style={{
+                                          width: '100%',
+                                          padding: '8px',
+                                          fontSize: '12px',
+                                          border: '1px solid #ccc',
+                                          borderRadius: '4px',
+                                          color: '#1a1a1a',
+                                          fontWeight: '600',
+                                          backgroundColor: (inspectionData[entry.id]?.lorryNumber && progress?.previousInspections?.some(trip => trip.lorryNumber === inspectionData[entry.id]?.lorryNumber && trip.lorryNumber !== 'LOT_AVG')) ? '#e0e0e0' : '#fff',
+                                          textTransform: 'uppercase'
+                                        }}
+                                      />
+                                    </div>
+                                  )}
                                  <div>
                                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
                                      Crop *
@@ -3872,11 +3932,18 @@ const PhysicalInspection: React.FC = () => {
                       <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '50px' }}>{stageObj.smellHas === true || String(stageObj.smellHas).trim().toUpperCase() === 'YES' ? (stageObj.smellType || 'Yes') : '-'}</td>
                       <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '50px' }}>{formatPaddyWb(stageObj)}</td>
                       <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalKadigaColor, fontWeight: '700', width: '80px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-                          <span>{stageObj.paddyColorEnabled && stageObj.paddyColor ? formatField(stageObj.paddyColor) : '-'}</span>
-                          <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />
-                          <span>ಕಡಿಗಾ: {stageObj.kadiga ? (isKadiga ? 'Yes' : 'No') : '-'}</span>
-                        </div>
+                        {(() => {
+                          const hasColor = !!stageObj.paddyColorEnabled && !!stageObj.paddyColor;
+                          const hasKadiga = isKadiga;
+                          if (!hasColor && !hasKadiga) return '-';
+                          return (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                              {hasColor && <span>{formatField(stageObj.paddyColor)}</span>}
+                              {hasColor && hasKadiga && <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />}
+                              {hasKadiga && <span>ಕಡಿಗಾ: Yes</span>}
+                            </div>
+                          );
+                        })()}
                       </td>
                       
                       <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '700' }}>{isFull ? formatField(stageObj.actualBags || inspection.bags) : '-'}</td>
@@ -4085,30 +4152,32 @@ const PhysicalInspection: React.FC = () => {
                     <span style={{ fontSize: '10px', color: '#c0392b', fontWeight: '600' }}>Freezed</span>
                   )}
                 </div>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
-                    Lorry number
-                  </label>
-                  <input
-                    type="text"
-                    value={inspectionData[entry.id]?.lorryNumber || ''}
-                    onChange={(e) => handleLorryNumberChange(entry.id, e.target.value)}
-                    disabled={!!(inspectionData[entry.id]?.lorryNumber && progress?.previousInspections?.some(trip => trip.lorryNumber === inspectionData[entry.id]?.lorryNumber && trip.lorryNumber !== 'LOT_AVG'))}
-                    placeholder="ENTER LORRY NUMBER"
-                    maxLength={12}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      fontSize: '12px',
-                      border: '1px solid #ccc',
-                      borderRadius: '4px',
-                      color: '#1a1a1a',
-                      fontWeight: '600',
-                      backgroundColor: (inspectionData[entry.id]?.lorryNumber && progress?.previousInspections?.some(trip => trip.lorryNumber === inspectionData[entry.id]?.lorryNumber && trip.lorryNumber !== 'LOT_AVG')) ? '#e0e0e0' : '#fff',
-                      textTransform: 'uppercase'
-                    }}
-                  />
-                </div>
+                {selectedStage[entry.id] !== 'lot_avg' && (
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
+                      Lorry number
+                    </label>
+                    <input
+                      type="text"
+                      value={inspectionData[entry.id]?.lorryNumber || ''}
+                      onChange={(e) => handleLorryNumberChange(entry.id, e.target.value)}
+                      disabled={!!(inspectionData[entry.id]?.lorryNumber && progress?.previousInspections?.some(trip => trip.lorryNumber === inspectionData[entry.id]?.lorryNumber && trip.lorryNumber !== 'LOT_AVG'))}
+                      placeholder="ENTER LORRY NUMBER"
+                      maxLength={12}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        fontSize: '12px',
+                        border: '1px solid #ccc',
+                        borderRadius: '4px',
+                        color: '#1a1a1a',
+                        fontWeight: '600',
+                        backgroundColor: (inspectionData[entry.id]?.lorryNumber && progress?.previousInspections?.some(trip => trip.lorryNumber === inspectionData[entry.id]?.lorryNumber && trip.lorryNumber !== 'LOT_AVG')) ? '#e0e0e0' : '#fff',
+                        textTransform: 'uppercase'
+                      }}
+                    />
+                  </div>
+                )}
                   <div>
                     <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
                       Crop *
@@ -4432,6 +4501,18 @@ const PhysicalInspection: React.FC = () => {
                               borderRadius: '10px',
                               fontWeight: 'bold'
                             }}>Pending Approval</span>
+                          );
+                        }
+                        if (appStatus === 'rejected') {
+                          return (
+                            <span style={{
+                              fontSize: '9px',
+                              padding: '2px 6px',
+                              backgroundColor: '#e74c3c',
+                              color: 'white',
+                              borderRadius: '10px',
+                              fontWeight: 'bold'
+                            }}>Rejected</span>
                           );
                         }
                         return (

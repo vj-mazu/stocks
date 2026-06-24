@@ -586,12 +586,8 @@ class PhysicalInspectionService {
             updates.bags = currentTripFullAvgBags;
           } else {
             let actualBags = Number.parseInt(inspectionData.actualBags || '0');
-            const remainingBags = totalAllottedBags - otherTripsBags;
             if (!actualBags || actualBags <= 0) {
               throw new Error('Please enter valid actual bags for Full Avg Lorry');
-            }
-            if (actualBags > remainingBags) {
-              throw new Error(`Cannot inspect ${actualBags} bags. Only ${remainingBags} bags remaining.`);
             }
             stageData.actualBags = actualBags;
             updates.bags = actualBags;
@@ -702,8 +698,14 @@ class PhysicalInspectionService {
     const editorUser = await User.findByPk(userId);
     const editorName = editorUser ? (editorUser.fullName || editorUser.username) : 'System';
 
+    const originalStageObj = stages[cleanStage];
+    if (!originalStageObj.beforeEdit) {
+      const { approvalStatus, isEdited, editedAt, editedByUserId, beforeEdit, ...restOriginal } = originalStageObj;
+      originalStageObj.beforeEdit = JSON.parse(JSON.stringify(restOriginal));
+    }
+
     stages[cleanStage] = {
-      ...stages[cleanStage],
+      ...originalStageObj,
       ...stageData,
       approvalStatus: 'pending',
       isEdited: true,
@@ -810,7 +812,8 @@ class PhysicalInspectionService {
       // Calculate total inspected bags
       const inspectedBags = inspections.reduce((sum, inspection) => sum + (inspection.bags || 0), 0);
       const remainingBags = totalBags - inspectedBags;
-      const progressPercentage = totalBags > 0 ? (inspectedBags / totalBags) * 100 : 0;
+      const rawProgressPercentage = totalBags > 0 ? (inspectedBags / totalBags) * 100 : 0;
+      const progressPercentage = Math.min(100, rawProgressPercentage);
 
       let previousInspections = inspections.map(inspection => ({
         id: inspection.id,
@@ -932,12 +935,12 @@ class PhysicalInspectionService {
     if (cleanStage === 'full_avg' || cleanStage === 'balanced_lot' || (isReadyLorry && cleanStage === 'return_bags_report')) {
       const stageData = stages[cleanStage] || {};
       if (cleanStage === 'balanced_lot') {
-        const fullAvgBags = Number(stages.full_avg?.actualBags || 0);
+        const fullAvgBags = Number(stages.full_avg?.actualBags || stages.full_avg?.bags || 0);
         updates.bags = fullAvgBags;
       } else if (isReadyLorry && cleanStage === 'return_bags_report') {
         updates.bags = stageData.finalUnloadedBags !== undefined ? Number(stageData.finalUnloadedBags) : inspection.bags;
       } else {
-        updates.bags = stageData.actualBags !== undefined ? Number(stageData.actualBags) : inspection.bags;
+        updates.bags = stageData.actualBags !== undefined ? Number(stageData.actualBags) : (stageData.bags !== undefined ? Number(stageData.bags) : inspection.bags);
       }
 
       if (isReadyLorry && cleanStage === 'return_bags_report') {
@@ -989,6 +992,59 @@ class PhysicalInspectionService {
     return updated;
   }
 
+  async rejectPhysicalInspectionStage(sampleEntryId, inspectionId, stageName, userId, userRole) {
+    const PhysicalInspection = require('../models/PhysicalInspection');
+    const AuditService = require('./AuditService');
+
+    const inspection = await PhysicalInspection.findByPk(inspectionId);
+    if (!inspection) {
+      throw new Error('Physical inspection record not found');
+    }
+
+    if (inspection.sampleEntryId !== sampleEntryId) {
+      throw new Error('Inspection does not belong to this sample entry');
+    }
+
+    const stages = inspection.samplingStages || {};
+    const cleanStage = stageName.toLowerCase();
+
+    if (!stages[cleanStage]) {
+      throw new Error(`Sampling stage '${stageName}' not found in this inspection`);
+    }
+
+    const User = require('../models/User');
+    const approverUser = await User.findByPk(userId);
+    const approverName = approverUser ? (approverUser.fullName || approverUser.username) : 'System';
+
+    if (stages[cleanStage].beforeEdit) {
+      const beforeVal = stages[cleanStage].beforeEdit;
+      stages[cleanStage] = {
+        ...beforeVal,
+        approvalStatus: beforeVal.approvalStatus || 'approved',
+        isEdited: false,
+        beforeEdit: null
+      };
+      if (cleanStage === 'full_avg' && beforeVal.bags !== undefined) {
+        inspection.bags = beforeVal.bags;
+      }
+    } else {
+      stages[cleanStage].approvalStatus = 'rejected';
+      stages[cleanStage].rejectedBy = approverName;
+      stages[cleanStage].isLocked = true;
+    }
+
+    const updates = {
+      samplingStages: JSON.parse(JSON.stringify(stages)),
+      bags: inspection.bags
+    };
+
+    inspection.changed('samplingStages', true);
+    const updated = await inspection.update(updates);
+    await AuditService.logUpdate(userId, 'physical_inspections', inspection.id, inspection, updated);
+
+    return updated;
+  }
+
   async updatePhysicalInspectionStage(sampleEntryId, inspectionId, stageKey, stageData, userId, userRole) {
     const PhysicalInspection = require('../models/PhysicalInspection');
     const SampleEntry = require('../models/SampleEntry');
@@ -1011,6 +1067,11 @@ class PhysicalInspectionService {
     }
 
     const originalStageObj = stages[cleanStage];
+    if (!originalStageObj.beforeEdit) {
+      const { approvalStatus, isEdited, editedAt, editedByUserId, beforeEdit, ...restOriginal } = originalStageObj;
+      originalStageObj.beforeEdit = JSON.parse(JSON.stringify(restOriginal));
+    }
+
     const updatedFields = {};
     for (const key in stageData) {
       if (stageData[key] !== undefined) {

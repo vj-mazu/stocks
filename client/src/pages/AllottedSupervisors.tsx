@@ -196,6 +196,8 @@ const AllottedSupervisors: React.FC = () => {
   const [expandedEntries, setExpandedEntries] = useState<{ [key: string]: boolean }>({});
   const [closingEntryId, setClosingEntryId] = useState<string | null>(null);
   const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
+  const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
+  const [completingEntryId, setCompletingEntryId] = useState<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [offeringCache, setOfferingCache] = useState<{ [key: string]: any }>({});
   const [editingInspection, setEditingInspection] = useState<{ entryId: string; inspectionId: string; data: any } | null>(null);
@@ -446,7 +448,7 @@ const AllottedSupervisors: React.FC = () => {
         const inspections = entry.lotAllotment?.physicalInspections || [];
         const inspectedBags = inspections.reduce((sum, inspection) => sum + (inspection.bags || 0), 0);
         const remainingBags = entry.lotAllotment?.closedAt ? 0 : Math.max(0, totalBags - inspectedBags);
-        const progressPercentage = entry.lotAllotment?.closedAt ? 100 : (totalBags > 0 ? (inspectedBags / totalBags) * 100 : 0);
+        const progressPercentage = entry.lotAllotment?.closedAt ? 100 : Math.min(100, (totalBags > 0 ? (inspectedBags / totalBags) * 100 : 0));
         
         progressCache[entry.id] = {
           totalBags,
@@ -602,6 +604,30 @@ const AllottedSupervisors: React.FC = () => {
     } catch (error: any) {
       showNotification(error.response?.data?.error || 'Failed to close lot', 'error');
     }
+  };
+
+  const handleCompleteLot = async (entryId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        `${API_URL}/sample-entries/${entryId}/complete-loading`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      showNotification(
+        `Lot completed successfully! It has been moved to inventory entry stage with ${response.data.bags} bags.`,
+        'success'
+      );
+      loadEntries();
+    } catch (error: any) {
+      showNotification(error.response?.data?.error || 'Failed to complete lot', 'error');
+    }
+  };
+
+  const triggerCompleteLot = (entryId: string, partyName: string) => {
+    setCompletingEntryId(entryId);
+    setIsCompleteModalOpen(true);
   };
 
   const toggleExpand = (entryId: string) => {
@@ -1227,6 +1253,25 @@ const AllottedSupervisors: React.FC = () => {
                                         ❌ Close Lot ({progress?.remainingBags || 0} bags left)
                                       </button>
                                     )}
+                                    {['admin', 'manager'].includes(user?.role) && !entry.lotAllotment?.closedAt && (
+                                      <button
+                                        onClick={() => triggerCompleteLot(entry.id, entry.partyName)}
+                                        style={{
+                                          fontSize: '10px',
+                                          padding: '4px 8px',
+                                          backgroundColor: '#2e7d32',
+                                          color: 'white',
+                                          border: 'none',
+                                          borderRadius: '3px',
+                                          cursor: 'pointer',
+                                          width: '100%',
+                                          marginTop: '4px',
+                                          fontWeight: '700'
+                                        }}
+                                      >
+                                        ✔️ Completed
+                                      </button>
+                                    )}
                                   </div>
                                 </td>
                               </tr>
@@ -1283,8 +1328,43 @@ const AllottedSupervisors: React.FC = () => {
                                           const bendVal = latestStage ? (latestStage.bend1 !== undefined && latestStage.bend1 !== null ? `${latestStage.bend1}×${latestStage.bend2 || 0}` : '-') : '-';
                                           const o = offeringCache[entry.id] || {};
 
+                                           // Calculate trip-level smell highlighting
+                                           const tripStages = Object.values(stages || {});
+                                           let hasTripSmell = false;
+                                           let tripSmellType = '';
+                                           for (const stageObj of tripStages as any[]) {
+                                             if (stageObj && (stageObj.smellHas === true || String(stageObj.smellHas).trim().toUpperCase() === 'YES')) {
+                                               hasTripSmell = true;
+                                               const typeNormalized = String(stageObj.smellType || '').trim().toUpperCase();
+                                               if (typeNormalized === 'DARK') {
+                                                 tripSmellType = 'DARK';
+                                               } else if (typeNormalized === 'MEDIUM' && tripSmellType !== 'DARK') {
+                                                 tripSmellType = 'MEDIUM';
+                                               } else if (typeNormalized === 'LIGHT' && tripSmellType !== 'DARK' && tripSmellType !== 'MEDIUM') {
+                                                 tripSmellType = 'LIGHT';
+                                               }
+                                             }
+                                           }
+
+                                           let rowStyle: React.CSSProperties = { borderBottom: '1px solid #000' };
+                                           if (hasTripSmell) {
+                                             if (tripSmellType === 'DARK') {
+                                               rowStyle.backgroundColor = '#b91c1c';
+                                               rowStyle.color = '#ffffff';
+                                             } else if (tripSmellType === 'MEDIUM') {
+                                               rowStyle.backgroundColor = '#fca5a5';
+                                               rowStyle.color = '#1a1a1a';
+                                             } else if (tripSmellType === 'LIGHT') {
+                                               rowStyle.backgroundColor = '#fee2e2';
+                                               rowStyle.color = '#1a1a1a';
+                                             } else {
+                                               rowStyle.backgroundColor = '#fee2e2';
+                                               rowStyle.color = '#1a1a1a';
+                                             }
+                                           }
+
                                           return (
-                                            <tr key={inspection.id} style={{ borderBottom: '1px solid #000' }}>
+                                            <tr key={inspection.id} style={rowStyle}>
                                               <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{idx + 1}</td>
                                               <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
                                                 {new Date(inspection.inspectionDate).toLocaleDateString('en-GB')}
@@ -1292,13 +1372,13 @@ const AllottedSupervisors: React.FC = () => {
                                               <td style={{ border: '1px solid #000', padding: '6px', fontWeight: '700' }}>
                                                 <span
                                                   onClick={() => setSelectedLorryForComparison({ lorryNumber: inspection.lorryNumber, previousInspections: [inspection], lotAllotment: entry.lotAllotment, singleLorryMode: true })}
-                                                  style={{ color: '#1565c0', textDecoration: 'underline', cursor: 'pointer' }}
+                                                  style={{ color: tripSmellType === 'DARK' ? '#ffffff' : '#1565c0', textDecoration: 'underline', cursor: 'pointer' }}
                                                 >
                                                   {inspection.lorryNumber?.toUpperCase()}
                                                 </span>
                                               </td>
                                               <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{stages.full_avg?.actualBags || inspection.bags || '-'}</td>
-                                              <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600', color: '#000000' }}>{moistureVal}</td>
+                                              <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600', color: tripSmellType === 'DARK' ? '#ffffff' : '#000000' }}>{moistureVal}</td>
                                               <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{cuttingVal}</td>
                                               <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{bendVal}</td>
                                               <td style={{ border: '1px solid #000', padding: '6px' }}>{inspection.reportedBy?.username || '-'}</td>
@@ -1309,12 +1389,13 @@ const AllottedSupervisors: React.FC = () => {
                                                 fontWeight: '700', 
                                                 color: (() => {
                                                   const stages = inspection.samplingStages || {};
-                                                  if (stages.balanced_lot?.approvalStatus === 'approved') return '#2e7d32'; // Pass
-                                                  if (stages.balanced_lot?.approvalStatus === 'pending') return '#f39c12'; // Pending
-                                                  if (stages.full_avg?.approvalStatus === 'approved') return '#2e7d32'; // Pass
-                                                  if (stages.full_avg?.approvalStatus === 'pending') return '#f39c12'; // Pending
-                                                  if (stages.half_lorry?.approvalStatus === 'approved') return '#1565c0'; // Approved stage
-                                                  if (stages.half_lorry?.approvalStatus === 'pending') return '#f39c12'; // Pending
+                                                  const isDark = tripSmellType === 'DARK';
+                                                  if (stages.balanced_lot?.approvalStatus === 'approved') return isDark ? '#a5d6a7' : '#2e7d32'; // Pass
+                                                  if (stages.balanced_lot?.approvalStatus === 'pending') return isDark ? '#ffe082' : '#f39c12'; // Pending
+                                                  if (stages.full_avg?.approvalStatus === 'approved') return isDark ? '#a5d6a7' : '#2e7d32'; // Pass
+                                                  if (stages.full_avg?.approvalStatus === 'pending') return isDark ? '#ffe082' : '#f39c12'; // Pending
+                                                  if (stages.half_lorry?.approvalStatus === 'approved') return isDark ? '#90caf9' : '#1565c0'; // Approved stage
+                                                  if (stages.half_lorry?.approvalStatus === 'pending') return isDark ? '#ffe082' : '#f39c12'; // Pending
                                                   
                                                   // Check all nit keys
                                                   const nitKeys = Object.keys(stages)
@@ -1733,6 +1814,26 @@ const AllottedSupervisors: React.FC = () => {
           }}
         />
       )}
+      {completingEntryId && (
+        <ConfirmationModal
+          isOpen={isCompleteModalOpen}
+          title="Complete Lot Manually"
+          message={`Are you sure you want to mark this lot as COMPLETED?\n\nParty: ${entries.find(e => e.id === completingEntryId)?.partyName || 'Unknown'}\nInspected: ${inspectionProgress[completingEntryId]?.inspectedBags || 0} bags\n\nThe lot will be finalized at the current inspected bags count and proceed to the inventory stage.`}
+          type="confirm"
+          showInput={false}
+          confirmText="Complete Lot"
+          cancelText="Cancel"
+          onConfirm={() => {
+            handleCompleteLot(completingEntryId);
+            setIsCompleteModalOpen(false);
+            setCompletingEntryId(null);
+          }}
+          onCancel={() => {
+            setIsCompleteModalOpen(false);
+            setCompletingEntryId(null);
+          }}
+        />
+      )}
       {detailModalEntry && (
         <SampleEntryDetailModal
           detailEntry={detailModalEntry as any}
@@ -1869,11 +1970,18 @@ const AllottedSupervisors: React.FC = () => {
                       <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '50px' }}>{stageObj.smellHas === true || String(stageObj.smellHas).trim().toUpperCase() === 'YES' ? (stageObj.smellType || 'Yes') : '-'}</td>
                       <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '50px' }}>{hasPaddyWb ? formatField(stageObj.paddyWbRaw || stageObj.paddyWb) : '-'}</td>
                       <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalKadigaColor, fontWeight: '700', width: '80px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-                          <span>{stageObj.paddyColorEnabled && stageObj.paddyColor ? formatField(stageObj.paddyColor) : '-'}</span>
-                          <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />
-                          <span>ಕಡಿಗಾ: {stageObj.kadiga ? (isKadiga ? 'Yes' : 'No') : '-'}</span>
-                        </div>
+                        {(() => {
+                          const hasColor = !!stageObj.paddyColorEnabled && !!stageObj.paddyColor;
+                          const hasKadiga = isKadiga;
+                          if (!hasColor && !hasKadiga) return '-';
+                          return (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                              {hasColor && <span>{formatField(stageObj.paddyColor)}</span>}
+                              {hasColor && hasKadiga && <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />}
+                              {hasKadiga && <span>ಕಡಿಗಾ: Yes</span>}
+                            </div>
+                          );
+                        })()}
                       </td>
                       
                       <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '700' }}>{isFull ? formatField(stageObj.actualBags || inspection.bags) : '-'}</td>

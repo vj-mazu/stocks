@@ -656,6 +656,26 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         }
     };
 
+    const handleRejectProgressiveStage = async (entryId: string, inspectionId: string, stageKey: string, stageLabel: string) => {
+        try {
+            setProcessingAction(true);
+            const token = localStorage.getItem('token');
+            await axios.post(
+                `${API_URL}/sample-entries/${entryId}/physical-inspection/${inspectionId}/reject-stage`,
+                { stage: stageKey },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            toast.success(`Stage "${stageLabel}" rejected successfully.`);
+            await refreshProgressData();
+        } catch (error: any) {
+            console.error('Error rejecting progressive stage:', error);
+            toast.error(error.response?.data?.error || 'Failed to reject stage');
+        } finally {
+            setProcessingAction(false);
+        }
+    };
+
+
     const executeRejectSpecificLorry = async (entryId: string, inspectionId: string, lorryNumber: string) => {
         try {
             setProcessingAction(true);
@@ -1389,7 +1409,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         Approve
                                     </button>
                                     <button
-                                        onClick={() => handleRejectSpecificLorry(detailEntry.id, insp.id, insp.lorryNumber)}
+                                        onClick={() => handleRejectProgressiveStage(detailEntry.id, insp.id, stageKey, pendingStage.label)}
                                         disabled={processingAction}
                                         style={{
                                             background: '#dc2626',
@@ -1580,13 +1600,18 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         formatQ(stageObj.wbTRaw, stageObj.wbT),
                         renderBeautifulSmell(stageObj),
                         renderStagePaddyWb(stageObj),
-                        stageObj.isSkipped ? '-' : (
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#7c2d12', fontWeight: '800', gap: '2px' }}>
-                                <span>{stageObj.paddyColorEnabled && stageObj.paddyColor ? stageObj.paddyColor : '-'}</span>
-                                <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />
-                                <span>ಕಡಿಗಾ: {stageObj.kadiga ? (isKadigaVal ? 'Yes' : 'No') : '-'}</span>
-                            </div>
-                        ),
+                        stageObj.isSkipped ? '-' : (() => {
+                            const hasColor = !!stageObj.paddyColorEnabled && !!stageObj.paddyColor;
+                            const hasKadiga = isKadigaVal;
+                            if (!hasColor && !hasKadiga) return '-';
+                            return (
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#7c2d12', fontWeight: '800', gap: '2px' }}>
+                                    {hasColor && <span>{stageObj.paddyColor}</span>}
+                                    {hasColor && hasKadiga && <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />}
+                                    {hasKadiga && <span>ಕಡಿಗಾ: Yes</span>}
+                                </div>
+                            );
+                        })(),
                         actionsCell
                     ];
                 };
@@ -1831,6 +1856,45 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             if (!stageObj || !stageObj.reportedBy) return null;
             const reportedAt = stageObj.reportedAt;
             
+            const renderStageCompareCell = (
+                currentStage: any,
+                getValueFn: (obj: any) => any,
+                isElement = false
+            ) => {
+                const currentVal = getValueFn(currentStage);
+                if (!currentStage.beforeEdit || currentStage.approvalStatus !== 'pending') {
+                    return currentVal;
+                }
+                
+                const beforeVal = getValueFn(currentStage.beforeEdit);
+                if (beforeVal === currentVal) {
+                    return currentVal;
+                }
+                
+                if (isElement) {
+                    return (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
+                            <span style={{ textDecoration: 'line-through', color: '#dc2626', fontSize: '9px', opacity: 0.8 }}>{beforeVal}</span>
+                            <span style={{ color: '#16a34a', fontWeight: 'bold' }}>{currentVal}</span>
+                        </div>
+                    );
+                }
+                
+                const formattedBefore = beforeVal === undefined || beforeVal === null || beforeVal === '' ? '-' : String(beforeVal);
+                const formattedCurrent = currentVal === undefined || currentVal === null || currentVal === '' ? '-' : String(currentVal);
+                
+                if (formattedBefore === formattedCurrent) {
+                    return currentVal;
+                }
+                
+                return (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ textDecoration: 'line-through', color: '#dc2626', fontSize: '9px', opacity: 0.8 }}>{formattedBefore}</span>
+                        <span style={{ color: '#16a34a', fontWeight: 'bold' }}>{formattedCurrent}</span>
+                    </div>
+                );
+            };
+            
             let actionsCell: any = '-';
             if (stageObj.isSkipped || stageObj.approvalStatus === 'skipped') {
                 actionsCell = <span style={{ color: '#7f8c8d', fontWeight: 'bold', fontSize: '11px' }}>Skipped</span>;
@@ -1855,7 +1919,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 Approve
                             </button>
                             <button
-                                onClick={() => handleRejectSpecificLorry(detailEntry.id, insp.id, insp.lorryNumber)}
+                                onClick={() => handleRejectProgressiveStage(detailEntry.id, insp.id, stageKey, pendingStage.label)}
                                 disabled={processingAction}
                                 style={{
                                     background: '#dc2626',
@@ -1872,7 +1936,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                             </button>
                         </div>
                     );
-                } else if (!pendingStage && detailEntry.status === 'PHYSICAL_INSPECTION' && (insp.isComplete || stages.balanced_lot?.approvalStatus === 'approved') && stageKey === 'balanced_lot' && (inspectionsProgress?.inspectedBags >= inspectionsProgress?.totalBags)) {
+                } else if (!pendingStage && detailEntry.status === 'PHYSICAL_INSPECTION' && (stageKey === 'balanced_lot' || stageKey === 'full_avg') && (stages.full_avg?.approvalStatus === 'approved' || stages.balanced_lot?.approvalStatus === 'approved')) {
                     actionsCell = (
                         <div style={{ display: 'flex', gap: '10px' }}>
                             <button
@@ -2034,43 +2098,58 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 );
             };
 
-            const renderStagePaddyWb = (stage: any) => {
-                const hasPaddyWb = !!stage.paddyWbEnabled;
-                if (!hasPaddyWb) return '-';
-                return (
-                    <span style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <span>{formatQ(stage.paddyWbRaw, stage.paddyWb)}</span>
-                    </span>
-                );
-            };
+            const currentSmell = renderBeautifulSmell(stageObj);
+            const beforeSmell = stageObj.beforeEdit ? renderBeautifulSmell(stageObj.beforeEdit) : null;
+            const hasSmellDiff = stageObj.approvalStatus === 'pending' && beforeSmell !== null && (
+                stageObj.smellHas !== stageObj.beforeEdit.smellHas ||
+                stageObj.smellType !== stageObj.beforeEdit.smellType
+            );
+            const smellCell = hasSmellDiff ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                    <span style={{ textDecoration: 'line-through', color: '#dc2626', fontSize: '9px', opacity: 0.8 }}>{beforeSmell}</span>
+                    <span>{currentSmell}</span>
+                </div>
+            ) : currentSmell;
 
             const isKadigaVal = stageObj.kadiga === 'Y' || stageObj.kadiga === 'Yes' || stageObj.kadiga === true || stageObj.kadiga === 'true';
             return [
                 labelElement,
                 renderStageReportedBy(stageObj),
                 renderStageReportedAtStacked(reportedAt),
-                <span style={{ fontSize: '9.5px', fontWeight: '700' }}>{formatStageMoisture(stageObj)}</span>,
-                formatStageCutting(stageObj),
-                formatStageBend(stageObj),
-                <span style={{ fontSize: '9.5px', fontWeight: '700', color: '#475569' }}>{formatStageGrains(stageObj)}</span>,
-                formatQ(stageObj.mixRaw, stageObj.mix),
-                stageObj.smixEnabled ? formatQ(stageObj.mixSRaw, stageObj.mixS) || 'Yes' : '-',
-                stageObj.lmixEnabled ? formatQ(stageObj.mixLRaw, stageObj.mixL) || 'Yes' : '-',
-                formatQ(stageObj.kanduRaw, stageObj.kandu),
-                formatQ(stageObj.oilRaw, stageObj.oil),
-                formatQ(stageObj.skRaw, stageObj.sk),
-                formatQ(stageObj.wbRRaw, stageObj.wbR),
-                formatQ(stageObj.wbBkRaw, stageObj.wbBk),
-                formatQ(stageObj.wbTRaw, stageObj.wbT),
-                renderBeautifulSmell(stageObj),
-                renderStagePaddyWb(stageObj),
-                stageObj.isSkipped ? '-' : (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#7c2d12', fontWeight: '800', gap: '2px' }}>
-                        <span>{stageObj.paddyColorEnabled && stageObj.paddyColor ? stageObj.paddyColor : '-'}</span>
-                        <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />
-                        <span>ಕಡಿಗಾ: {stageObj.kadiga ? (isKadigaVal ? 'Yes' : 'No') : '-'}</span>
-                    </div>
-                ),
+                <span style={{ fontSize: '9.5px', fontWeight: '700' }}>{renderStageCompareCell(stageObj, formatStageMoisture)}</span>,
+                renderStageCompareCell(stageObj, formatStageCutting),
+                renderStageCompareCell(stageObj, formatStageBend),
+                <span style={{ fontSize: '9.5px', fontWeight: '700', color: '#475569' }}>{renderStageCompareCell(stageObj, formatStageGrains)}</span>,
+                renderStageCompareCell(stageObj, (obj) => formatQ(obj.mixRaw, obj.mix)),
+                renderStageCompareCell(stageObj, (obj) => obj.smixEnabled ? formatQ(obj.mixSRaw, obj.mixS) || 'Yes' : '-'),
+                renderStageCompareCell(stageObj, (obj) => obj.lmixEnabled ? formatQ(obj.mixLRaw, obj.mixL) || 'Yes' : '-'),
+                renderStageCompareCell(stageObj, (obj) => formatQ(obj.kanduRaw, obj.kandu)),
+                renderStageCompareCell(stageObj, (obj) => formatQ(obj.oilRaw, obj.oil)),
+                renderStageCompareCell(stageObj, (obj) => formatQ(obj.skRaw, obj.sk)),
+                renderStageCompareCell(stageObj, (obj) => formatQ(obj.wbRRaw, obj.wbR)),
+                renderStageCompareCell(stageObj, (obj) => formatQ(obj.wbBkRaw, obj.wbBk)),
+                renderStageCompareCell(stageObj, (obj) => formatQ(obj.wbTRaw, obj.wbT)),
+                smellCell,
+                renderStageCompareCell(stageObj, (obj) => {
+                    const hasPaddyWb = !!obj.paddyWbEnabled;
+                    if (!hasPaddyWb) return '-';
+                    return formatQ(obj.paddyWbRaw, obj.paddyWb);
+                }),
+                stageObj.isSkipped ? '-' : (() => {
+                    const hasColor = !!stageObj.paddyColorEnabled && !!stageObj.paddyColor;
+                    const hasKadiga = isKadigaVal || (stageObj.beforeEdit && (stageObj.beforeEdit.kadiga === 'Y' || stageObj.beforeEdit.kadiga === 'Yes' || stageObj.beforeEdit.kadiga === true || stageObj.beforeEdit.kadiga === 'true'));
+                    if (!hasColor && !hasKadiga) return '-';
+                    return (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#7c2d12', fontWeight: '800', gap: '2px' }}>
+                            {hasColor && <span>{renderStageCompareCell(stageObj, (obj) => obj.paddyColorEnabled && obj.paddyColor ? obj.paddyColor : '-')}</span>}
+                            {hasColor && hasKadiga && <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />}
+                            {hasKadiga && <span>ಕಡಿಗಾ: {renderStageCompareCell(stageObj, (obj) => {
+                                const isK = obj.kadiga === 'Y' || obj.kadiga === 'Yes' || obj.kadiga === true || obj.kadiga === 'true';
+                                return obj.kadiga ? (isK ? 'Yes' : 'No') : '-';
+                            })}</span>}
+                        </div>
+                    );
+                })(),
                 actionsCell
             ];
         };
@@ -2124,11 +2203,26 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 {label}
                                 {stageObj?.isEdited && <span style={{ color: '#d97706', fontSize: '9.5px', fontWeight: '900' }}> (Edited)</span>}
                             </>
-                        ) : key === 'full_avg' && insp.bags ? (
+                        ) : key === 'full_avg' && (insp.bags || stageObj.actualBags || stageObj.bags) ? (
                             <>
                                 {label}{' '}
                                 <span style={{ color: '#1565c0', fontWeight: '900' }}>
-                                    ({insp.bags})
+                                    ({(() => {
+                                        const currentBags = stageObj.actualBags || stageObj.bags || insp.bags;
+                                        if (stageObj.beforeEdit && stageObj.approvalStatus === 'pending') {
+                                            const beforeBags = stageObj.beforeEdit.actualBags || stageObj.beforeEdit.bags || insp.bags;
+                                            if (beforeBags !== currentBags) {
+                                                return (
+                                                    <>
+                                                        <span style={{ textDecoration: 'line-through', color: '#dc2626', opacity: 0.8 }}>{beforeBags}</span>
+                                                        {' → '}
+                                                        <span style={{ color: '#16a34a', fontWeight: 'bold' }}>{currentBags}</span>
+                                                    </>
+                                                );
+                                            }
+                                        }
+                                        return currentBags;
+                                    })()})
                                 </span>
                                 {stageObj?.isEdited && <span style={{ color: '#d97706', fontSize: '9.5px', fontWeight: '900' }}> (Edited)</span>}
                             </>
@@ -3176,16 +3270,18 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 {/* Standardized Horizontal Tables Section */}
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
                                     {/* Quality Parameters */}
-                                    {renderHorizontalTable(
-                                        'Quality Parameters', 
-                                        '🔬', 
-                                        '#f97316', 
-                                        progressiveMode
-                                            ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', '', 'ACTIONS']
-                                            : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', ''],
-                                        buildInitialQualityRows(),
-                                        { isQuality: true }
-                                    )}
+                                    <div style={{ position: 'sticky', top: '0', zIndex: 20, backgroundColor: '#ffffff', paddingBottom: '10px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+                                        {renderHorizontalTable(
+                                            'Quality Parameters', 
+                                            '🔬', 
+                                            '#f97316', 
+                                            progressiveMode
+                                                ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', '', 'ACTIONS']
+                                                : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', ''],
+                                            buildInitialQualityRows(),
+                                            { isQuality: true }
+                                        )}
+                                    </div>
 
                                     {/* Progressive Loads */}
                                     {progressiveMode && inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections) && (() => {
@@ -3214,22 +3310,13 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             );
                                         };
 
-                                        if (insps.length === 1) {
-                                            return renderTripTable(insps[0], 0);
-                                        }
-
                                         return (
-                                            <div>
-                                                <div style={{ position: 'sticky', top: '0', zIndex: 10, backgroundColor: '#ffffff', paddingBottom: '10px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-                                                    {renderTripTable(insps[0], 0)}
-                                                </div>
-                                                <div style={{ marginTop: '10px' }}>
-                                                    {insps.slice(1).map((insp, idx) => (
-                                                        <div key={idx} style={{ marginBottom: '15px' }}>
-                                                            {renderTripTable(insp, idx + 1)}
-                                                        </div>
-                                                    ))}
-                                                </div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '10px' }}>
+                                                {insps.map((insp, idx) => (
+                                                    <div key={idx}>
+                                                        {renderTripTable(insp, idx)}
+                                                    </div>
+                                                ))}
                                             </div>
                                         );
                                     })()}
@@ -3744,11 +3831,18 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                 {hasPaddyWb ? formatField(stageObj.paddyWbRaw || stageObj.paddyWb) : '-'}
                                             </td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: finalKadigaColor, fontWeight: '700', width: '50px' }}>
-                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-                                                    <span>{stageObj.paddyColorEnabled && stageObj.paddyColor ? formatField(stageObj.paddyColor) : '-'}</span>
-                                                    <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />
-                                                    <span>ಕಡಿಗಾ: {stageObj.kadiga ? (isKadiga ? 'Yes' : 'No') : '-'}</span>
-                                                </div>
+                                                {(() => {
+                                                    const hasColor = !!stageObj.paddyColorEnabled && !!stageObj.paddyColor;
+                                                    const hasKadiga = isKadiga;
+                                                    if (!hasColor && !hasKadiga) return '-';
+                                                    return (
+                                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                                            {hasColor && <span>{formatField(stageObj.paddyColor)}</span>}
+                                                            {hasColor && hasKadiga && <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />}
+                                                            {hasKadiga && <span>ಕಡಿಗಾ: Yes</span>}
+                                                        </div>
+                                                    );
+                                                })()}
                                             </td>
                                             
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: finalTextColor, fontWeight: '700' }}>{isFull ? formatField(inspection.bags) : '-'}</td>

@@ -83,7 +83,10 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
   const [selectedLorryForComparison, setSelectedLorryForComparison] = useState<any>(null);
   const [processingLorry, setProcessingLorry] = useState(false);
   const [detailModalEntry, setDetailModalEntry] = useState<any | null>(null);
-  const [loadingSubTab, setLoadingSubTab] = useState<'paddy' | 'rice'>('paddy');
+  const [loadingSubTab, setLoadingSubTab] = useState<'paddy' | 'rice'>(() => {
+    const saved = localStorage.getItem('sample_approvals_hub_loading_sub_tab');
+    return (saved === 'paddy' || saved === 'rice') ? saved : 'paddy';
+  });
   const [holdDropdown, setHoldDropdown] = useState<{ entryId: string; inspectionId: string; stageKey: string } | null>(null);
 
   const currentUser = useMemo(() => {
@@ -111,7 +114,17 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     return baseTabs;
   }, [canAccessManagerApprovals, canAccessLoadingQuality]);
 
-  const [activeTab, setActiveTab] = useState<ApprovalTabKey>('approval-for-edits');
+  const [activeTab, setActiveTab] = useState<ApprovalTabKey>(() => {
+    const saved = localStorage.getItem('sample_approvals_hub_active_tab');
+    const allowedKeys = ['approval-for-edits'];
+    if (canAccessManagerApprovals) {
+      allowedKeys.push('approval-for-manager', 'lorry-approvals');
+    }
+    if (canAccessLoadingQuality) {
+      allowedKeys.push('loading-quality-approvals');
+    }
+    return (saved && allowedKeys.includes(saved)) ? (saved as ApprovalTabKey) : 'approval-for-edits';
+  });
   const totalPendingCount = editApprovalCount + 
     (canAccessManagerApprovals ? (managerApprovalCount + lorryApprovalCount) : 0) + 
     (canAccessLoadingQuality ? loadingQualityApprovalCount : 0);
@@ -137,6 +150,14 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
       }
     }
   }, [canAccessLoadingQuality]);
+
+  useEffect(() => {
+    localStorage.setItem('sample_approvals_hub_active_tab', activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    localStorage.setItem('sample_approvals_hub_loading_sub_tab', loadingSubTab);
+  }, [loadingSubTab]);
 
   useEffect(() => {
     if (!canAccessManagerApprovals) {
@@ -230,6 +251,65 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     return null;
   };
 
+  const renderEditComparison = (entry: any) => {
+    const inspections = entry.physicalInspections || entry.lotAllotment?.physicalInspections || [];
+    const activeInsp = inspections.find((insp: any) => {
+      const stages = insp.samplingStages || {};
+      return Object.keys(stages).some(key => stages[key]?.approvalStatus === 'pending');
+    });
+    if (!activeInsp) return null;
+    const stages = activeInsp.samplingStages || {};
+    const pendingKey = Object.keys(stages).find(key => stages[key]?.approvalStatus === 'pending');
+    if (!pendingKey) return null;
+    const stageObj = stages[pendingKey];
+    if (!stageObj || !stageObj.isEdited || !stageObj.beforeEdit) return null;
+
+    const before = stageObj.beforeEdit;
+    const after = stageObj;
+
+    const changes: { label: string; before: any; after: any }[] = [];
+    const fields = [
+      { key: 'moisture', label: 'Moisture' },
+      { key: 'actualBags', label: 'Bags' },
+      { key: 'bags', label: 'Bags' },
+      { key: 'mix', label: 'Mix' },
+      { key: 'mixS', label: 'S Mix' },
+      { key: 'mixL', label: 'L Mix' },
+      { key: 'kandu', label: 'Kandu' },
+      { key: 'oil', label: 'Oil' },
+      { key: 'sk', label: 'SK' },
+      { key: 'smellHas', label: 'Smell' },
+      { key: 'smellType', label: 'Smell Type' },
+      { key: 'paddyWb', label: 'Paddy WB' },
+      { key: 'kadiga', label: 'Kadiga' },
+    ];
+
+    fields.forEach(({ key, label }) => {
+      let bVal = before[key];
+      let aVal = after[key];
+      if (key === 'bags' || key === 'actualBags') {
+        bVal = before.actualBags || before.bags;
+        aVal = after.actualBags || after.bags;
+      }
+      if (bVal !== undefined && aVal !== undefined && String(bVal).trim() !== String(aVal).trim() && !changes.some(c => c.label === label)) {
+        changes.push({ label, before: bVal || '-', after: aVal || '-' });
+      }
+    });
+
+    if (changes.length === 0) return null;
+
+    return (
+      <div style={{ marginTop: '6px', padding: '6px 8px', backgroundColor: '#fffbeb', border: '1px dashed #f59e0b', borderRadius: '4px', fontSize: '11px', color: '#b45309' }}>
+        <div style={{ fontWeight: 'bold', marginBottom: '3px' }}>✏️ Edited Stage Values:</div>
+        {changes.map((c, i) => (
+          <div key={i}>
+            <strong>{c.label}</strong>: <span style={{ textDecoration: 'line-through', color: '#dc2626' }}>{c.before}</span> → <span style={{ color: '#16a34a', fontWeight: 'bold' }}>{c.after}</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const getLatestApprovedStageLabel = (insp: any) => {
     const stages = insp.samplingStages || {};
     if (stages.full_avg?.approvalStatus === 'approved') return 'Full Lorry';
@@ -311,6 +391,28 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     } catch (error: any) {
       console.error('Error rejecting specific lorry trip:', error);
       toast.error(error.response?.data?.error || 'Failed to reject lorry trip');
+    } finally {
+      setProcessingLorry(false);
+    }
+  };
+
+  const handleRejectProgressiveStage = async (entryId: string, inspectionId: string, stageKey: string, stageLabel: string) => {
+    if (!window.confirm(`Are you sure you want to reject the progressive stage "${stageLabel}"?`)) {
+      return;
+    }
+    try {
+      setProcessingLorry(true);
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `${API_URL}/sample-entries/${entryId}/physical-inspection/${inspectionId}/reject-stage`,
+        { stage: stageKey },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success(`Stage "${stageLabel}" rejected successfully.`);
+      fetchLoadingQuality();
+    } catch (error: any) {
+      console.error('Error rejecting progressive stage:', error);
+      toast.error(error.response?.data?.error || 'Failed to reject stage');
     } finally {
       setProcessingLorry(false);
     }
@@ -400,20 +502,23 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
 
   const getLorryNumber = (entry: any) => {
     const inspections = entry.physicalInspections || entry.lotAllotment?.physicalInspections || [];
-    if (inspections.length === 0) return entry.lorryNumber?.toUpperCase() || '-';
-    
-    // Sort chronologically ascending
-    const sorted = [...inspections].sort((a: any, b: any) => {
-      const idA = Number(a.id) || 0;
-      const idB = Number(b.id) || 0;
-      if (idA !== idB) return idA - idB;
-      const dateA = new Date(a.createdAt || a.inspectionDate || 0).getTime();
-      const dateB = new Date(b.createdAt || b.inspectionDate || 0).getTime();
-      return dateA - dateB;
-    });
+    let lNo = '';
+    if (inspections.length === 0) {
+      lNo = entry.lorryNumber?.toUpperCase() || '';
+    } else {
+      const sorted = [...inspections].sort((a: any, b: any) => {
+        const idA = Number(a.id) || 0;
+        const idB = Number(b.id) || 0;
+        if (idA !== idB) return idA - idB;
+        const dateA = new Date(a.createdAt || a.inspectionDate || 0).getTime();
+        const dateB = new Date(b.createdAt || b.inspectionDate || 0).getTime();
+        return dateA - dateB;
+      });
 
-    const activeInsp = sorted.find((insp: any) => getPendingStage(insp) !== null) || sorted[sorted.length - 1];
-    return activeInsp?.lorryNumber?.toUpperCase() || entry.lorryNumber?.toUpperCase() || '-';
+      const activeInsp = sorted.find((insp: any) => getPendingStage(insp) !== null) || sorted[sorted.length - 1];
+      lNo = activeInsp?.lorryNumber?.toUpperCase() || entry.lorryNumber?.toUpperCase() || '';
+    }
+    return (lNo.trim() === 'LOT_AVG' || lNo.trim() === '') ? '-' : lNo;
   };
 
   const renderLorryQualityTable = () => {
@@ -506,6 +611,9 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                   <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '110px' }}>Location</th>
                   <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '110px' }}>Variety</th>
                   <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '90px' }}>Pur Bags</th>
+                  {loadingSubTab === 'paddy' && (
+                    <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '130px' }}>Allotted Supervisor</th>
+                  )}
                   <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '150px' }}>Sampling Status</th>
                   <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '120px' }}>Lorry No</th>
                   <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '140px' }}>Actions</th>
@@ -548,6 +656,13 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                         <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>{entry.location ? toTitleCase(entry.location) : '-'}</td>
                         <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>{entry.variety ? toTitleCase(entry.variety) : '-'}</td>
                         <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>{entry.lotAllotment?.allottedBags || entry.bags || 0}</td>
+                        {loadingSubTab === 'paddy' && (
+                          <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>
+                            {entry.lotAllotment?.supervisor
+                              ? toTitleCase(entry.lotAllotment.supervisor.fullName || entry.lotAllotment.supervisor.username)
+                              : '-'}
+                          </td>
+                        )}
                         <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>
                           <span style={getStatusBadgeStyle(getSamplingStatusLabel(entry))}>
                             {getSamplingStatusLabel(entry)}
@@ -582,7 +697,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                                         Approve
                                       </button>
                                       <button
-                                        onClick={() => handleRejectSpecificLorry(entry.id, activeInsp.id, activeInsp.lorryNumber)}
+                                        onClick={() => handleRejectProgressiveStage(entry.id, activeInsp.id, pendingStage.key, pendingStage.label)}
                                         disabled={processingLorry}
                                         style={{
                                           background: '#dc2626',
@@ -700,8 +815,8 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                               const isLotFullyInspected = totalInspected >= allottedBags;
 
                               const stages = activeInsp.samplingStages || {};
-                              const isFinalApproved = stages.balanced_lot?.approvalStatus === 'approved';
-                              if ((activeInsp.isComplete || isFinalApproved) && isLotFullyInspected) {
+                              const hasApprovedFullOrBalanced = stages.full_avg?.approvalStatus === 'approved' || stages.balanced_lot?.approvalStatus === 'approved';
+                              if (hasApprovedFullOrBalanced) {
                                 return (
                                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                     <button
@@ -779,7 +894,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                         </td>
                       </tr>
                       <tr style={{ height: '10px', backgroundColor: 'transparent' }}>
-                        <td colSpan={10} style={{ padding: 0, height: '10px', backgroundColor: 'transparent', border: 'none' }}></td>
+                        <td colSpan={loadingSubTab === 'paddy' ? 11 : 10} style={{ padding: 0, height: '10px', backgroundColor: 'transparent', border: 'none' }}></td>
                       </tr>
                     </React.Fragment>
                   );
@@ -904,7 +1019,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                   Lorry Sampling Stage Comparison
                 </div>
                 <div style={{ fontSize: '12px', opacity: 0.95, marginTop: '4px' }}>
-                  Lorry Number: {selectedLorryForComparison.lorryNumber?.toUpperCase()} | Date: {selectedLorryForComparison.inspectionDate ? new Date(selectedLorryForComparison.inspectionDate).toLocaleDateString() : '-'}
+                  Lorry Number: {selectedLorryForComparison.lorryNumber?.toUpperCase() === 'LOT_AVG' ? '-' : selectedLorryForComparison.lorryNumber?.toUpperCase()} | Date: {selectedLorryForComparison.inspectionDate ? new Date(selectedLorryForComparison.inspectionDate).toLocaleDateString() : '-'}
                   {selectedLorryForComparison.lotAllotment?.manager && ` | Allotted By: ${selectedLorryForComparison.lotAllotment.manager.fullName || selectedLorryForComparison.lotAllotment.manager.username}`}
                   {selectedLorryForComparison.lotAllotment?.supervisor && ` | Supervisor: ${selectedLorryForComparison.lotAllotment.supervisor.fullName || selectedLorryForComparison.lotAllotment.supervisor.username}`}
                 </div>
@@ -961,6 +1076,35 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                         return String(val);
                       };
 
+                      const renderStageCompareCell = (
+                        currentStage: any,
+                        getValueFn: (obj: any) => any
+                      ) => {
+                        const currentVal = getValueFn(currentStage);
+                        if (!currentStage.beforeEdit || currentStage.approvalStatus !== 'pending') {
+                          return currentVal;
+                        }
+                        
+                        const beforeVal = getValueFn(currentStage.beforeEdit);
+                        if (beforeVal === currentVal) {
+                          return currentVal;
+                        }
+                        
+                        const formattedBefore = beforeVal === undefined || beforeVal === null || beforeVal === '' ? '-' : String(beforeVal);
+                        const formattedCurrent = currentVal === undefined || currentVal === null || currentVal === '' ? '-' : String(currentVal);
+                        
+                        if (formattedBefore === formattedCurrent) {
+                          return currentVal;
+                        }
+                        
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                            <span style={{ textDecoration: 'line-through', color: '#dc2626', fontSize: '9px', opacity: 0.8 }}>{formattedBefore}</span>
+                            <span style={{ color: '#16a34a', fontWeight: 'bold' }}>{formattedCurrent}</span>
+                          </div>
+                        );
+                      };
+
                       const formatMoisture = (stageObj: any) => {
                         const raw = stageObj.moistureRaw;
                         const val = stageObj.moisture;
@@ -1009,6 +1153,11 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     const finalTextColor = isDarkSmell ? '#ffffff' : '#1a1a1a';
     const finalKadigaColor = isDarkSmell ? '#ffffff' : '#7c2d12';
                         const isKadiga = stageObj.kadiga === 'Y' || stageObj.kadiga === 'Yes' || stageObj.kadiga === true || stageObj.kadiga === 'true';
+
+                        const getSmellLabel = (obj: any) => {
+                          return obj.smellHas === true || String(obj.smellHas).trim().toUpperCase() === 'YES' ? (obj.smellType || 'Yes') : '-';
+                        };
+
                         return (
                           <tr key={name} style={{ borderBottom: '1px solid #cbd5e1', backgroundColor: finalRowBg }}>
                             <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', fontWeight: '800', color: isDarkSmell ? '#ffffff' : color }}>{name}</td>
@@ -1016,27 +1165,40 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                             <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500' }}>
                               {stageObj.reportedAt ? new Date(stageObj.reportedAt).toLocaleDateString('en-GB') + ', ' + new Date(stageObj.reportedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase() : '-'}
                             </td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '600' }}>{formatMoisture(stageObj)}</td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '600', width: '55px' }}>{formatCutting(stageObj)}</td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '600', width: '55px' }}>{formatBend(stageObj)}</td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '55px' }}>{(() => { const v = stageObj.grainsCountRaw || stageObj.grainsCount; return (v !== null && v !== undefined && v !== '') ? `(${v})` : '-'; })()}</td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '45px' }}>{formatField(stageObj.mixRaw || stageObj.mix)}</td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '45px' }}>{stageObj.smixEnabled ? formatField(stageObj.mixSRaw || stageObj.mixS) || 'Yes' : '-'}</td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '45px' }}>{stageObj.lmixEnabled ? formatField(stageObj.mixLRaw || stageObj.mixL) || 'Yes' : '-'}</td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '45px' }}>{formatField(stageObj.kanduRaw || stageObj.kandu)}</td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '45px' }}>{formatField(stageObj.oilRaw || stageObj.oil)}</td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '45px' }}>{formatField(stageObj.skRaw || stageObj.sk)}</td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '50px' }}>{stageObj.smellHas === true || String(stageObj.smellHas).trim().toUpperCase() === 'YES' ? (stageObj.smellType || 'Yes') : '-'}</td>
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '50px' }}>{formatPaddyWb(stageObj)}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '600' }}>{renderStageCompareCell(stageObj, formatMoisture)}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '600', width: '55px' }}>{renderStageCompareCell(stageObj, formatCutting)}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '600', width: '55px' }}>{renderStageCompareCell(stageObj, formatBend)}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '55px' }}>{renderStageCompareCell(stageObj, (obj) => { const v = obj.grainsCountRaw || obj.grainsCount; return (v !== null && v !== undefined && v !== '') ? `(${v})` : '-'; })}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '45px' }}>{renderStageCompareCell(stageObj, (obj) => obj.mixRaw || obj.mix)}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '45px' }}>{renderStageCompareCell(stageObj, (obj) => obj.smixEnabled ? obj.mixSRaw || obj.mixS || 'Yes' : '-')}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '45px' }}>{renderStageCompareCell(stageObj, (obj) => obj.lmixEnabled ? obj.mixLRaw || obj.mixL || 'Yes' : '-')}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '45px' }}>{renderStageCompareCell(stageObj, (obj) => obj.kanduRaw || obj.kandu)}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '45px' }}>{renderStageCompareCell(stageObj, (obj) => obj.oilRaw || obj.oil)}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '45px' }}>{renderStageCompareCell(stageObj, (obj) => obj.skRaw || obj.sk)}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '50px' }}>{renderStageCompareCell(stageObj, getSmellLabel)}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '500', width: '50px' }}>{renderStageCompareCell(stageObj, formatPaddyWb)}</td>
                             <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalKadigaColor, fontWeight: '700', width: '80px' }}>
-                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-                                <span>{stageObj.paddyColorEnabled && stageObj.paddyColor ? formatField(stageObj.paddyColor) : '-'}</span>
-                                <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />
-                                <span>ಕಡಿಗಾ: {stageObj.kadiga ? (isKadiga ? 'Yes' : 'No') : '-'}</span>
-                              </div>
+                              {(() => {
+                                const hasColor = !!stageObj.paddyColorEnabled && !!stageObj.paddyColor;
+                                const hasKadiga = (stageObj.kadiga === 'Y' || stageObj.kadiga === 'Yes' || stageObj.kadiga === true || stageObj.kadiga === 'true') || 
+                                                  (stageObj.beforeEdit && (stageObj.beforeEdit.kadiga === 'Y' || stageObj.beforeEdit.kadiga === 'Yes' || stageObj.beforeEdit.kadiga === true || stageObj.beforeEdit.kadiga === 'true'));
+                                if (!hasColor && !hasKadiga) return '-';
+                                return (
+                                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                    {hasColor && <span>{renderStageCompareCell(stageObj, (obj) => obj.paddyColorEnabled && obj.paddyColor ? obj.paddyColor : '-')}</span>}
+                                    {hasColor && hasKadiga && <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />}
+                                    {hasKadiga && <span>ಕಡಿಗಾ: {renderStageCompareCell(stageObj, (obj) => {
+                                      const isK = obj.kadiga === 'Y' || obj.kadiga === 'Yes' || obj.kadiga === true || obj.kadiga === 'true';
+                                      return obj.kadiga ? (isK ? 'Yes' : 'No') : '-';
+                                    })}</span>}
+                                  </div>
+                                );
+                              })()}
                             </td>
                             
-                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '700' }}>{isFull ? formatField(selectedLorryForComparison.bags) : '-'}</td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalTextColor, fontWeight: '700' }}>
+                              {isFull ? renderStageCompareCell(stageObj, (obj) => obj.actualBags || obj.bags || selectedLorryForComparison.bags) : '-'}
+                            </td>
                             <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center' }}>
                               {stageObj.imageUrl ? <a href={resolveMediaUrl(stageObj.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
                             </td>

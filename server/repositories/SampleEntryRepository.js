@@ -365,7 +365,13 @@ class SampleEntryRepository {
           [Op.in]: ['QUALITY_CHECK', 'COOKING_REPORT', 'LOT_SELECTION']
         };
       } else {
-        where.workflowStatus = requestedStatus;
+        if (requestedStatus === 'PHYSICAL_INSPECTION') {
+          where.workflowStatus = {
+            [Op.in]: ['PHYSICAL_INSPECTION', 'INVENTORY_ENTRY', 'OWNER_FINANCIAL', 'MANAGER_FINANCIAL', 'FINAL_REVIEW', 'COMPLETED']
+          };
+        } else {
+          where.workflowStatus = requestedStatus;
+        }
         if (requestedStatus === 'QUALITY_CHECK' && filters.entryType !== 'RICE_SAMPLE') {
           where[Op.or] = [
             { lotSelectionDecision: { [Op.ne]: 'FAIL' } },

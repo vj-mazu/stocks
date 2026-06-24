@@ -2805,6 +2805,40 @@ router.post('/:id/physical-inspection/:inspectionId/hold-stage', authenticateTok
   }
 });
 
+// Reject a specific progressive stage of physical inspection (Admin/Manager/Quality Supervisor)
+router.post('/:id/physical-inspection/:inspectionId/reject-stage', authenticateToken, async (req, res) => {
+  try {
+    const { id, inspectionId } = req.params;
+    const { stage } = req.body;
+
+    if (!stage) {
+      return res.status(400).json({ error: 'Stage is required' });
+    }
+
+    const allowedRoles = ['quality_supervisor', 'manager', 'admin', 'owner'];
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ error: 'Only quality supervisor or manager can reject a stage' });
+    }
+
+    const PhysicalInspectionService = require('../services/PhysicalInspectionService');
+
+    const updated = await PhysicalInspectionService.rejectPhysicalInspectionStage(
+      id,
+      inspectionId,
+      stage,
+      req.user.userId,
+      getWorkflowRole(req.user)
+    );
+
+    invalidateSampleEntryTabCaches();
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Error rejecting progressive stage:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // Update a specific progressive stage of physical inspection
 router.put('/:id/physical-inspection/:inspectionId/stage/:stageKey', authenticateToken, async (req, res) => {
   try {
@@ -2855,6 +2889,7 @@ router.put('/:id/physical-inspection/:inspectionId/stage/:stageKey', authenticat
 
         if (stageKey === 'full_avg' && req.body.actualBags !== undefined) {
           stageData.bags = Number.parseInt(req.body.actualBags) || 0;
+          stageData.actualBags = Number.parseInt(req.body.actualBags) || 0;
         }
 
         if (req.files && req.files.stageImage) {
@@ -3398,6 +3433,68 @@ router.put('/:id/lot-allotment', authenticateToken, async (req, res) => {
     res.json(updated);
   } catch (error) {
     console.error('Error updating lot allotment:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Complete loading lot manually (Manager / Admin)
+router.post('/:id/complete-loading', authenticateToken, async (req, res) => {
+  try {
+    const sampleEntryId = req.params.id;
+
+    // Only manager/admin can complete loading
+    if (!['manager', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Only manager or admin can complete loading lots' });
+    }
+
+    const existingAllotment = await LotAllotmentService.getLotAllotmentBySampleEntry(sampleEntryId);
+    if (!existingAllotment) {
+      return res.status(404).json({ error: 'Lot allotment not found for this entry' });
+    }
+
+    const progress = await PhysicalInspectionService.getInspectionProgress(sampleEntryId);
+    const inspectedBags = progress.inspectedBags || 0;
+    const finalBags = inspectedBags > 0 ? inspectedBags : (existingAllotment.allottedBags || 0);
+
+    // Update lot allotment with close/complete info
+    await LotAllotmentService.updateLotAllotment(
+      existingAllotment.id,
+      {
+        closedAt: new Date(),
+        closedByUserId: req.user.userId,
+        closedReason: `Lot marked as completed by ${req.user.role}.`,
+        inspectedBags: finalBags,
+        allottedBags: finalBags
+      },
+      req.user.userId
+    );
+
+    const entry = await SampleEntry.findByPk(sampleEntryId);
+    if (entry) {
+      entry.bags = finalBags;
+      await entry.save();
+    }
+
+    await WorkflowEngine.transitionTo(
+      sampleEntryId,
+      'INVENTORY_ENTRY',
+      req.user.userId,
+      getWorkflowRole(req.user),
+      {
+        completedByManager: true,
+        inspectedBags: finalBags,
+        reason: `Manually completed by ${req.user.role}`
+      }
+    );
+
+    invalidateSampleEntryTabCaches();
+
+    res.json({
+      message: 'Lot completed successfully',
+      bags: finalBags
+    });
+  } catch (error) {
+    console.error('Error completing lot:', error);
     res.status(400).json({ error: error.message });
   }
 });

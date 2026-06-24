@@ -698,6 +698,20 @@ class SampleEntryService {
       const { attachLoadingLotsHistories } = require('../utils/historyUtil');
       result.entries = await attachLoadingLotsHistories(result.entries);
       const requestedStatus = String(filters.status || '').toUpperCase();
+      if (requestedStatus === 'PHYSICAL_INSPECTION') {
+        result.entries = result.entries.filter((entry) => {
+          const wStatus = String(entry.workflowStatus || '').toUpperCase();
+          if (wStatus === 'PHYSICAL_INSPECTION') {
+            return true;
+          }
+          const inspections = entry.physicalInspections || (entry.lotAllotment && entry.lotAllotment.physicalInspections) || [];
+          return inspections.some((insp) => {
+            const stages = insp.samplingStages || {};
+            return Object.values(stages).some((stage) => stage && stage.approvalStatus === 'pending');
+          });
+        });
+        result.total = result.entries.length;
+      }
       if (requestedStatus === 'MILL_SAMPLE' || requestedStatus === 'LOCATION_SAMPLE') {
         result.entries = result.entries.filter((entry) => {
           if (!isResampleWorkflowEntry(entry)) {
