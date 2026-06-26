@@ -706,7 +706,7 @@ const Navbar: React.FC = () => {
           )}
 
           {/* Workflow Dropdown */}
-          {user && user.role !== 'staff' && (
+          {user && user.role !== 'admin' && user.role !== 'manager' && user.role !== 'staff' && (
             <DropdownWrapper ref={workflowRef}>
               <DropdownTrigger
                 $active={isWorkflowActive}
