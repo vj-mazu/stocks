@@ -92,6 +92,8 @@ const RoleBadge = styled.span<{ role: string }>`
                 return 'background: #fee2e2; color: #dc2626;';
             case 'manager':
                 return 'background: #fef3c7; color: #d97706;';
+            case 'ceo':
+                return 'background: #fdf2f8; color: #db2777;';
             case 'quality_supervisor':
                 return 'background: #e0e7ff; color: #4f46e5;';
             case 'physical_supervisor':
@@ -312,9 +314,10 @@ interface User {
     username: string;
     fullName: string;
     customUserId: string;
-    role: 'owner' | 'staff' | 'manager' | 'admin' | 'quality_supervisor' | 'physical_supervisor' | 'inventory_staff' | 'financial_account';
+    role: 'owner' | 'staff' | 'manager' | 'admin' | 'quality_supervisor' | 'physical_supervisor' | 'inventory_staff' | 'financial_account' | 'ceo';
     isActive: boolean;
     staffType?: string;
+    subRole?: string;
     qualityName?: string;
     createdAt: string;
     updatedAt: string;
@@ -335,8 +338,12 @@ const EditModal: React.FC<EditModalProps> = ({ user, mode, onClose, onSave }) =>
     const [password, setPassword] = useState('');
     const [role, setRole] = useState<string>(user?.role || 'staff');
     const [staffType, setStaffType] = useState<'mill' | 'location'>((user?.staffType as any) || 'mill');
+    const [subRole, setSubRole] = useState<string>(user?.subRole || 'staff');
     const [qualityEnabled, setQualityEnabled] = useState(!!user?.qualityName);
     const [loading, setLoading] = useState(false);
+    
+    const isSupervisorEdit = mode === 'edit' && user?.role === 'staff';
+
     const getAuthConfig = () => {
         const token = localStorage.getItem('token');
         return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
@@ -372,6 +379,7 @@ const EditModal: React.FC<EditModalProps> = ({ user, mode, onClose, onSave }) =>
                     role,
                     fullName,
                     ...(role === 'staff' ? { staffType } : {}),
+                    ...((role === 'financial_account' || role === 'inventory_staff') ? { subRole } : {}),
                     ...(role === 'staff' && qualityEnabled ? { qualityName: fullName } : {})
                 }, getAuthConfig());
                 toast.success('User created successfully');
@@ -396,6 +404,9 @@ const EditModal: React.FC<EditModalProps> = ({ user, mode, onClose, onSave }) =>
                     updates.staffType = staffType;
                     updates.qualityName = qualityEnabled ? fullName : '';
                 }
+                if (role === 'financial_account' || role === 'inventory_staff') {
+                    updates.subRole = subRole;
+                }
 
                 await axios.put(`${API_URL}/admin/users/${user?.id}/credentials`, updates, getAuthConfig());
 
@@ -403,7 +414,8 @@ const EditModal: React.FC<EditModalProps> = ({ user, mode, onClose, onSave }) =>
                 if (role !== user?.role) {
                     await axios.put(`${API_URL}/admin/users/${user?.id}/role`, {
                         role,
-                        ...(role === 'staff' ? { staffType } : {})
+                        ...(role === 'staff' ? { staffType } : {}),
+                        ...((role === 'financial_account' || role === 'inventory_staff') ? { subRole } : {})
                     }, getAuthConfig());
                 }
                 toast.success('User updated successfully');
@@ -428,36 +440,42 @@ const EditModal: React.FC<EditModalProps> = ({ user, mode, onClose, onSave }) =>
 
                 {mode === 'edit' && (
                     <InfoBox>
-                        ℹ️ Leave password empty to keep the current password unchanged.
+                        ℹ️ {isSupervisorEdit ? 'For Paddy Supervisors, only password editing is permitted.' : 'Leave password empty to keep the current password unchanged.'}
                     </InfoBox>
                 )}
 
                 <form onSubmit={handleSubmit}>
-                    <FormGroup>
-                        <Label>Full Name</Label>
-                        <Input
-                            type="text"
-                            value={fullName}
-                            onChange={e => {
-                                setFullName(e.target.value);
-                            }}
-                            placeholder="Enter full name"
-                        />
-                    </FormGroup>
+                    {!isSupervisorEdit && (
+                        <FormGroup>
+                            <Label>Full Name</Label>
+                            <Input
+                                type="text"
+                                value={fullName}
+                                onChange={e => {
+                                    setFullName(e.target.value);
+                                }}
+                                placeholder="Enter full name"
+                                disabled={isSupervisorEdit}
+                            />
+                        </FormGroup>
+                    )}
 
-                    <FormGroup>
-                        <Label>User ID *</Label>
-                        <Input
-                            type="text"
-                            value={username}
-                            onChange={e => {
-                                setUsername(e.target.value);
-                            }}
-                            placeholder="Enter unique User ID"
-                            required={mode === 'create'}
-                        />
-                        <HelpText>User IDs are used for login and are case-insensitive</HelpText>
-                    </FormGroup>
+                    {!isSupervisorEdit && (
+                        <FormGroup>
+                            <Label>User ID *</Label>
+                            <Input
+                                type="text"
+                                value={username}
+                                onChange={e => {
+                                    setUsername(e.target.value);
+                                }}
+                                placeholder="Enter unique User ID"
+                                required={mode === 'create'}
+                                disabled={isSupervisorEdit}
+                            />
+                            <HelpText>User IDs are used for login and are case-insensitive</HelpText>
+                        </FormGroup>
+                    )}
 
                     <FormGroup>
                         <Label>{mode === 'create' ? 'Password *' : 'Change Password'}</Label>
@@ -473,20 +491,21 @@ const EditModal: React.FC<EditModalProps> = ({ user, mode, onClose, onSave }) =>
                         <HelpText>{mode === 'create' ? 'Minimum 4 characters' : 'Leave empty if you don\'t want to change password'}</HelpText>
                     </FormGroup>
 
-                    {(mode === 'create' || mode === 'edit') && (
+                    {!isSupervisorEdit && (mode === 'create' || mode === 'edit') && (
                         <FormGroup>
                             <Label>Role *</Label>
-                            <Select value={role} onChange={e => setRole(e.target.value)}>
+                            <Select value={role} onChange={e => setRole(e.target.value)} disabled={isSupervisorEdit}>
                                 <option value="staff">Paddy Supervisor</option>
                                 <option value="manager">Manager</option>
+                                <option value="ceo">CEO</option>
                                 <option value="admin">Admin</option>
-                                <option value="inventory_staff">Inventory Staff</option>
-                                <option value="financial_account">Financial Account</option>
+                                <option value="inventory_staff">Inventory</option>
+                                <option value="financial_account">Finance</option>
                             </Select>
                         </FormGroup>
                     )}
 
-                    {(mode === 'create' || (mode === 'edit' && role === 'staff')) && role === 'staff' && (
+                    {!isSupervisorEdit && (mode === 'create' || (mode === 'edit' && role === 'staff')) && role === 'staff' && (
                         <>
                             <FormGroup>
                                 <Label>Paddy Supervisor Type *</Label>
@@ -499,6 +518,7 @@ const EditModal: React.FC<EditModalProps> = ({ user, mode, onClose, onSave }) =>
                                             checked={staffType === 'mill'}
                                             onChange={() => setStaffType('mill')}
                                             style={{ accentColor: '#2563eb' }}
+                                            disabled={isSupervisorEdit}
                                         />
                                         🏭 Mill Staff
                                     </label>
@@ -510,6 +530,7 @@ const EditModal: React.FC<EditModalProps> = ({ user, mode, onClose, onSave }) =>
                                             checked={staffType === 'location'}
                                             onChange={() => setStaffType('location')}
                                             style={{ accentColor: '#e65100' }}
+                                            disabled={isSupervisorEdit}
                                         />
                                         📍 Location Staff
                                     </label>
@@ -531,6 +552,7 @@ const EditModal: React.FC<EditModalProps> = ({ user, mode, onClose, onSave }) =>
                                             checked={qualityEnabled}
                                             onChange={() => setQualityEnabled(true)}
                                             style={{ accentColor: '#16a34a' }}
+                                            disabled={isSupervisorEdit}
                                         />
                                         Yes
                                     </label>
@@ -541,6 +563,7 @@ const EditModal: React.FC<EditModalProps> = ({ user, mode, onClose, onSave }) =>
                                             checked={!qualityEnabled}
                                             onChange={() => setQualityEnabled(false)}
                                             style={{ accentColor: '#374151' }}
+                                            disabled={isSupervisorEdit}
                                         />
                                         No
                                     </label>
@@ -552,6 +575,36 @@ const EditModal: React.FC<EditModalProps> = ({ user, mode, onClose, onSave }) =>
                                 )}
                             </FormGroup>
                         </>
+                    )}
+
+                    {(role === 'financial_account' || role === 'inventory_staff') && (
+                        <FormGroup>
+                            <Label>{role === 'financial_account' ? 'Finance' : 'Inventory'} Type *</Label>
+                            <div style={{ display: 'flex', gap: '20px', padding: '8px 0' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: subRole === 'head' ? '700' : '400', color: subRole === 'head' ? '#2563eb' : '#374151' }}>
+                                    <input
+                                        type="radio"
+                                        name="subRole"
+                                        value="head"
+                                        checked={subRole === 'head'}
+                                        onChange={() => setSubRole('head')}
+                                        style={{ accentColor: '#2563eb' }}
+                                    />
+                                    👑 {role === 'financial_account' ? 'Finance Head' : 'Inventory Head'}
+                                </label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: subRole === 'staff' ? '700' : '400', color: subRole === 'staff' ? '#e65100' : '#374151' }}>
+                                    <input
+                                        type="radio"
+                                        name="subRole"
+                                        value="staff"
+                                        checked={subRole === 'staff'}
+                                        onChange={() => setSubRole('staff')}
+                                        style={{ accentColor: '#e65100' }}
+                                    />
+                                    {role === 'financial_account' ? '📝 Finance Staff' : '📦 Inventory Staff'}
+                                </label>
+                            </div>
+                        </FormGroup>
                     )}
 
                     <ButtonRow>
@@ -649,8 +702,12 @@ const UserManagement: React.FC = () => {
         }
 
         try {
-            await axios.put(`${API_URL}/admin/users/${user.id}/role`, { role: newRole }, getAuthConfig());
-            toast.success(`Role changed to ${newRole} successfully`);
+            await axios.put(`${API_URL}/admin/users/${user.id}/role`, {
+                role: newRole,
+                staffType: 'mill',
+                subRole: 'staff'
+            }, getAuthConfig());
+            toast.success(`Role changed successfully`);
             fetchUsers();
         } catch (error: any) {
             toast.error(error.response?.data?.error || 'Failed to update role');
@@ -733,19 +790,25 @@ const UserManagement: React.FC = () => {
                                         </div>
                                     </Td>
                                     <Td>
-                                        <Select
-                                            value={user.role}
-                                            onChange={e => handleChangeRole(user, e.target.value)}
-                                            disabled={user.id === currentUser?.id}
-                                            style={{ padding: '0.4rem', borderRadius: '6px', fontSize: '0.85rem' }}
-                                        >
-                                            <option value="owner">Owner</option>
-                                            <option value="staff">Paddy Supervisor</option>
-                                            <option value="manager">Manager</option>
-                                            <option value="admin">Admin</option>
-                                            <option value="inventory_staff">Inventory Staff</option>
-                                            <option value="financial_account">Financial Account</option>
-                                        </Select>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
+                                            <RoleBadge role={user.role}>
+                                                {user.role === 'staff' ? 'Paddy Supervisor' : 
+                                                 user.role === 'inventory_staff' ? 'Inventory' : 
+                                                 user.role === 'financial_account' ? 'Finance' : 
+                                                 user.role === 'ceo' ? 'CEO' : 
+                                                 user.role}
+                                            </RoleBadge>
+                                            {user.role === 'staff' && user.staffType && (
+                                                <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: user.staffType === 'mill' ? '#2563eb' : '#e65100' }}>
+                                                    🏭 {user.staffType === 'mill' ? 'Mill Staff' : 'Location Staff'}
+                                                </span>
+                                            )}
+                                            {(user.role === 'financial_account' || user.role === 'inventory_staff') && user.subRole && (
+                                                <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: user.subRole === 'head' ? '#2563eb' : '#e65100' }}>
+                                                    {user.subRole === 'head' ? '👑 Head' : '📝 Staff'}
+                                                </span>
+                                            )}
+                                        </div>
                                     </Td>
                                     <Td>
                                         <StatusBadge active={user.isActive}>

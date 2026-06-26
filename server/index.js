@@ -1751,6 +1751,22 @@ const startServer = async () => {
         console.log('Migration 134 warning:', error.message);
       }
 
+      try {
+        const addShortcutPhoneCeo = require('./migrations/135_add_shortcut_phone_ceo_role');
+        await addShortcutPhoneCeo.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('Migration 135: shortcut_name, phone_number, and CEO role added');
+      } catch (error) {
+        console.log('Migration 135 warning:', error.message);
+      }
+
+      try {
+        const addUserSubRoles = require('./migrations/136_add_user_sub_roles');
+        await addUserSubRoles.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('Migration 136: sub_role column added to users table');
+      } catch (error) {
+        console.log('Migration 136 warning:', error.message);
+      }
+
     // Default warehouses removed - users should create their own warehouses
 
     // Create default users if they don't exist

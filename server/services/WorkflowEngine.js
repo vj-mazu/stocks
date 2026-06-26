@@ -352,10 +352,11 @@ class WorkflowEngine {
    * Check if a transition is allowed
    */
   canTransition(currentStatus, toStatus, userRole) {
+    const roleToCheck = userRole === 'ceo' ? 'manager' : userRole;
     // SPECIAL CASE: Admins, Managers, and Owners can always initiate a recheck 
     // from any status to QUALITY_CHECK or COOKING_REPORT.
     if ((toStatus === 'QUALITY_CHECK' || toStatus === 'COOKING_REPORT') && 
-        ['admin', 'manager', 'owner', 'owner_financial'].includes(userRole)) {
+        ['admin', 'manager', 'owner', 'owner_financial'].includes(roleToCheck)) {
       return true;
     }
 
@@ -367,15 +368,16 @@ class WorkflowEngine {
       return false;
     }
 
-    return transition.allowedRoles.includes(userRole);
+    return transition.allowedRoles.includes(roleToCheck);
   }
 
   /**
    * Get next allowed statuses for current status and user role
    */
   getNextAllowedStatuses(currentStatus, userRole) {
+    const roleToCheck = userRole === 'ceo' ? 'manager' : userRole;
     return WORKFLOW_TRANSITIONS
-      .filter(t => t.fromStatus === currentStatus && t.allowedRoles.includes(userRole))
+      .filter(t => t.fromStatus === currentStatus && t.allowedRoles.includes(roleToCheck))
       .map(t => t.toStatus);
   }
 

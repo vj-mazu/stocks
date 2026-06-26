@@ -461,9 +461,9 @@ const AssigningSupervisor: React.FC = () => {
                                 {entry.variety}
                               </td>
                               <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left' }}>
-                                {user?.role !== 'manager' ? (
+                                {(user?.role !== 'manager' && user?.role !== 'ceo') ? (
                                   <div style={{ fontSize: '13px', color: '#7f8c8d', fontStyle: 'italic' }}>
-                                    Manager action only
+                                    Manager/CEO action only
                                   </div>
                                 ) : (
                                   <select
@@ -483,12 +483,12 @@ const AssigningSupervisor: React.FC = () => {
                               <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left' }}>
                                 <button
                                   onClick={() => handleAssignClick(entry)}
-                                  disabled={!selectedSupervisors[entry.id] || user?.role !== 'manager' || isSubmitting}
+                                  disabled={!selectedSupervisors[entry.id] || (user?.role !== 'manager' && user?.role !== 'ceo') || isSubmitting}
                                   style={{
                                     fontSize: '13px', padding: '6px 12px', fontWeight: '600',
-                                    backgroundColor: (selectedSupervisors[entry.id] && user?.role === 'manager' && !isSubmitting) ? '#4CAF50' : '#ccc',
+                                    backgroundColor: (selectedSupervisors[entry.id] && (user?.role === 'manager' || user?.role === 'ceo') && !isSubmitting) ? '#4CAF50' : '#ccc',
                                     color: 'white', border: 'none', borderRadius: '3px',
-                                    cursor: (selectedSupervisors[entry.id] && user?.role === 'manager' && !isSubmitting) ? 'pointer' : 'not-allowed'
+                                    cursor: (selectedSupervisors[entry.id] && (user?.role === 'manager' || user?.role === 'ceo') && !isSubmitting) ? 'pointer' : 'not-allowed'
                                   }}
                                 >
                                   {isSubmitting ? '...' : 'Assign'}

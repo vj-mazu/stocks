@@ -173,7 +173,6 @@ const Input = styled.input`
   border-radius: 8px;
   font-size: 1rem;
   transition: all 0.3s ease;
-  text-transform: uppercase;
 
   &:focus {
     outline: none;
@@ -378,6 +377,7 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
   const [warehouseName, setWarehouseName] = useState('');
   const [warehouseLocation, setWarehouseLocation] = useState('');
   const [warehouseType, setWarehouseType] = useState<'mill' | 'outside'>('mill');
+  const [warehouseShortCutName, setWarehouseShortCutName] = useState('');
   const [editingWarehouse, setEditingWarehouse] = useState<any>(null);
   const [warehouseTabFilter, setWarehouseTabFilter] = useState<'mill' | 'outside'>('mill');
 
@@ -398,6 +398,7 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
   // Broker form
   const [brokerName, setBrokerName] = useState('');
   const [brokerType, setBrokerType] = useState<'paddy' | 'rice' | 'both'>('both');
+  const [brokerPhoneNumber, setBrokerPhoneNumber] = useState('');
   const [brokerIsActive, setBrokerIsActive] = useState<boolean>(true);
   const [brokers, setBrokers] = useState<any[]>([]);
   const [editingBroker, setEditingBroker] = useState<any>(null);
@@ -603,10 +604,11 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
       if (editingWarehouse) {
         // Update existing
         await axios.put(`${API_URL}/locations/warehouses/${editingWarehouse.id}`, {
-          name: warehouseName.toUpperCase(),
+          name: warehouseName.trim(),
           code: editingWarehouse.code, // Keep existing code
-          location: warehouseType === 'outside' ? warehouseLocation.trim().toUpperCase() : null,
+          location: warehouseType === 'outside' ? warehouseLocation.trim() : null,
           type: warehouseType,
+          shortCutName: warehouseShortCutName.trim() || null,
           isActive: true
         });
         toast.success('Warehouse updated successfully!');
@@ -614,10 +616,11 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
       } else {
         // Create new
         await axios.post(`${API_URL}/locations/warehouses`, {
-          name: warehouseName.toUpperCase(),
+          name: warehouseName.trim(),
           code,
-          location: warehouseType === 'outside' ? warehouseLocation.trim().toUpperCase() : null,
+          location: warehouseType === 'outside' ? warehouseLocation.trim() : null,
           type: warehouseType,
+          shortCutName: warehouseShortCutName.trim() || null,
           isActive: true
         });
         toast.success('Warehouse created successfully!');
@@ -625,6 +628,7 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
 
       setWarehouseName('');
       setWarehouseLocation('');
+      setWarehouseShortCutName('');
       setWarehouseType('mill');
       fetchWarehouses();
       setShowModal(false);
@@ -645,7 +649,7 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
       if (editingKunchinittu) {
         // Update existing
         await axios.put(`${API_URL}/locations/kunchinittus/${editingKunchinittu.id}`, {
-          name: kunchinintuName.toUpperCase(),
+          name: kunchinintuName.trim(),
           code: editingKunchinittu.code,
           warehouseId: parseInt(selectedWarehouseId),
           varietyId: parseInt(selectedVarietyId),
@@ -656,7 +660,7 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
       } else {
         // Create new
         await axios.post(`${API_URL}/locations/kunchinittus`, {
-          name: kunchinintuName.toUpperCase(),
+          name: kunchinintuName.trim(),
           code,
           warehouseId: parseInt(selectedWarehouseId),
           varietyId: parseInt(selectedVarietyId),
@@ -688,7 +692,7 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
       if (editingVariety) {
         // Update existing
         await axios.put(`${API_URL}/locations/varieties/${editingVariety.id}`, {
-          name: varietyName.toUpperCase(),
+          name: varietyName.trim(),
           code: editingVariety.code,
           isActive: true
         });
@@ -697,7 +701,7 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
       } else {
         // Create new
         await axios.post(`${API_URL}/locations/varieties`, {
-          name: varietyName.toUpperCase(),
+          name: varietyName.trim(),
           code,
           isActive: true
         });
@@ -724,7 +728,7 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
 
       if (editingRiceVariety) {
         await axios.put(`${API_URL}/locations/rice-varieties/${editingRiceVariety.id}`, {
-          name: riceVarietyName.toUpperCase(),
+          name: riceVarietyName.trim(),
           code, // Re-generate or keep? Let's re-generate for simplicity or allow edit code later
           isActive: true
         });
@@ -732,7 +736,7 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
         setEditingRiceVariety(null);
       } else {
         await axios.post(`${API_URL}/locations/rice-varieties`, {
-          name: riceVarietyName.toUpperCase(),
+          name: riceVarietyName.trim(),
           code,
           isActive: true
         });
@@ -772,6 +776,7 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
       setWarehouseName(item.name);
       setWarehouseLocation(item.location || '');
       setWarehouseType(item.type || 'mill');
+      setWarehouseShortCutName(item.shortCutName || '');
     } else if (type === 'variety') {
       setEditingVariety(item);
       setVarietyName(item.name);
@@ -793,6 +798,7 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
     setWarehouseName('');
     setWarehouseLocation('');
     setWarehouseType('mill');
+    setWarehouseShortCutName('');
     setVarietyName('');
     setKunchinintuName('');
     setRiceVarietyName('');
@@ -808,6 +814,7 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
     setEditingBroker(null);
     setBrokerName('');
     setBrokerType('both');
+    setBrokerPhoneNumber('');
     setBrokerIsActive(true);
   };
 
@@ -815,7 +822,7 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
   const fetchPackagings = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get<{ packagings: any[] }>('/packagings', {
+      const response = await axios.get<{ packagings: any[] }>(`${API_URL}/packagings`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setPackagings(response.data.packagings || []);
@@ -1068,11 +1075,18 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
       return;
     }
 
+    const phoneVal = brokerPhoneNumber.trim();
+    if (phoneVal && !/^\d{10}$/.test(phoneVal)) {
+      toast.error('Phone number must be exactly 10 digits');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
       const payload: any = {
-        name: brokerName.trim().toUpperCase(),
-        type: brokerType
+        name: brokerName.trim(),
+        type: brokerType,
+        phoneNumber: phoneVal || null
       };
 
       if (editingBroker) {
@@ -1093,6 +1107,7 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
 
       setBrokerName('');
       setBrokerType('both');
+      setBrokerPhoneNumber('');
       setBrokerIsActive(true);
       setEditingBroker(null);
       fetchBrokers();
@@ -1151,6 +1166,7 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
     setEditingBroker(broker);
     setBrokerName(broker.name);
     setBrokerType(broker.type || 'both');
+    setBrokerPhoneNumber(broker.phoneNumber || '');
     setBrokerIsActive(broker.isActive !== false);
   };
 
@@ -1255,6 +1271,7 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
                       <tr>
                         <Th style={{ width: '60px' }}>S.No</Th>
                         <Th>Warehouse Name</Th>
+                        <Th>Short Cut Name</Th>
                         {warehouseTabFilter === 'outside' && <Th>Location</Th>}
                         {canEdit && <Th style={{ width: '120px' }}>Actions</Th>}
                       </tr>
@@ -1264,6 +1281,7 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
                         <tr key={warehouse.id}>
                           <Td>{index + 1}</Td>
                           <Td>{warehouse.name}</Td>
+                          <Td>{warehouse.shortCutName || '-'}</Td>
                           {warehouseTabFilter === 'outside' && <Td>{warehouse.location || '-'}</Td>}
                           {canEdit && (
                             <Td>
@@ -1271,7 +1289,12 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
                                 <IconButton className="edit" onClick={() => { handleEdit('warehouse', warehouse); setShowModal(true); }}>
                                   ✏️
                                 </IconButton>
-                                <IconButton className="delete" onClick={() => handleDelete('warehouse', warehouse.id)}>
+                                <IconButton 
+                                  className="delete" 
+                                  onClick={() => handleDelete('warehouse', warehouse.id)}
+                                  disabled={warehouse.inUse}
+                                  title={warehouse.inUse ? 'Cannot delete: Warehouse is in use by KanchiNittus' : 'Delete Warehouse'}
+                                >
                                   🗑️
                                 </IconButton>
                               </ActionButtons>
@@ -1309,19 +1332,27 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
                     <tr>
                       <Th style={{ width: '60px' }}>S.No</Th>
                       <Th>Variety Name</Th>
-                      {canEdit && <Th style={{ width: '80px' }}>Actions</Th>}
+                      {canEdit && <Th style={{ width: '120px' }}>Actions</Th>}
                     </tr>
                   </thead>
                   <tbody>
                     {varieties.map((variety, index) => (
                       <tr key={variety.id}>
                         <Td>{index + 1}</Td>
-                        <Td>{toTitleCase(variety.name)}</Td>
+                        <Td>{variety.name}</Td>
                         {canEdit && (
                           <Td>
                             <ActionButtons>
                               <IconButton className="edit" onClick={() => { handleEdit('variety', variety); setShowModal(true); }}>
-                                ✏️ Edit
+                                ✏️
+                              </IconButton>
+                              <IconButton 
+                                className="delete" 
+                                onClick={() => handleDelete('variety', variety.id)}
+                                disabled={variety.inUse}
+                                title={variety.inUse ? 'Cannot delete: Variety is currently in use' : 'Delete Variety'}
+                              >
+                                🗑️
                               </IconButton>
                             </ActionButtons>
                           </Td>
@@ -1375,9 +1406,14 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
                               <IconButton className="edit" onClick={() => { handleEdit('kunchinittu', kn); setShowModal(true); }}>
                                 ✏️
                               </IconButton>
-                              <IconButton className="delete" onClick={() => handleDelete('kunchinittu', kn.id)}>
-                                🗑️
-                              </IconButton>
+                               <IconButton 
+                                 className="delete" 
+                                 onClick={() => handleDelete('kunchinittu', kn.id)}
+                                 disabled={kn.inUse}
+                                 title={kn.inUse ? 'Cannot delete: KanchiNittu is in use in inventory records' : 'Delete KanchiNittu'}
+                               >
+                                 🗑️
+                               </IconButton>
                             </ActionButtons>
                           </Td>
                         )}
@@ -1530,7 +1566,12 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
                               <IconButton className="edit" onClick={() => { handleEditPackaging(pkg); setShowModal(true); }}>
                                 ✏️
                               </IconButton>
-                              <IconButton className="delete" onClick={() => handleDeletePackaging(pkg.id)}>
+                              <IconButton 
+                                className="delete" 
+                                onClick={() => handleDeletePackaging(pkg.id)}
+                                disabled={pkg.inUse}
+                                title={pkg.inUse ? 'Cannot delete: brand is in use' : 'Delete Brand'}
+                              >
                                 🗑️
                               </IconButton>
                             </ActionButtons>
@@ -1728,6 +1769,7 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
                       <tr>
                         <Th style={{ width: '60px' }}>S.No</Th>
                         <Th>Broker Name</Th>
+                        <Th>Phone Number</Th>
                         <Th>Broker Type</Th>
                         <Th>Status</Th>
                         {canEdit && <Th style={{ width: '150px' }}>Actions</Th>}
@@ -1737,7 +1779,8 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
                       {filteredBrokers.map((broker, index) => (
                         <tr key={broker.id}>
                           <Td>{index + 1}</Td>
-                          <Td>{toTitleCase(broker.name)}</Td>
+                          <Td>{broker.name}</Td>
+                          <Td>{broker.phoneNumber || '-'}</Td>
                           <Td>
                             <span style={{
                               textTransform: 'capitalize',
@@ -1773,7 +1816,12 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
                                 >
                                   {broker.isActive !== false ? '🔒' : '🔓'}
                                 </IconButton>
-                                <IconButton className="delete" onClick={() => handleDeleteBroker(broker.id)}>
+                                <IconButton 
+                                  className="delete" 
+                                  onClick={() => handleDeleteBroker(broker.id)}
+                                  disabled={broker.inUse}
+                                  title={broker.inUse ? 'Cannot delete: Broker is currently referenced in sample entries' : 'Delete Broker'}
+                                >
                                   🗑️
                                 </IconButton>
                               </ActionButtons>
@@ -1828,6 +1876,15 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
                     onChange={(e) => setWarehouseName(e.target.value)}
                     placeholder="Enter warehouse name"
                     required
+                  />
+                </FormGroup>
+                <FormGroup style={{ marginTop: '1rem' }}>
+                  <Label>Short Cut Name</Label>
+                  <Input
+                    type="text"
+                    value={warehouseShortCutName}
+                    onChange={(e) => setWarehouseShortCutName(e.target.value)}
+                    placeholder="Enter short cut name"
                   />
                 </FormGroup>
                 <FormGroup style={{ marginTop: '1rem' }}>
@@ -2101,7 +2158,22 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
                     required
                   />
                 </FormGroup>
-                <FormGroup>
+                <FormGroup style={{ marginTop: '1rem' }}>
+                  <Label>Phone Number</Label>
+                  <Input
+                    type="text"
+                    value={brokerPhoneNumber}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      if (val.length <= 10) {
+                        setBrokerPhoneNumber(val);
+                      }
+                    }}
+                    placeholder="Enter phone number"
+                    maxLength={10}
+                  />
+                </FormGroup>
+                <FormGroup style={{ marginTop: '1rem' }}>
                   <Label>Broker Type *</Label>
                   <select
                     value={brokerType}
@@ -2123,7 +2195,7 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
                   </select>
                 </FormGroup>
                 {editingBroker && (
-                  <FormGroup>
+                  <FormGroup style={{ marginTop: '1rem' }}>
                     <Label>Status *</Label>
                     <select
                       value={brokerIsActive ? 'active' : 'inactive'}

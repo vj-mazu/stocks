@@ -225,7 +225,7 @@ const EntryRow: React.FC<{
 const SampleEntryLedger: React.FC = () => {
   const { showNotification } = useNotification();
   const { user } = useAuth();
-  const isAdminOrManager = user?.role === 'admin' || user?.role === 'manager' || (user?.role as string) === 'owner';
+  const isAdminOrManager = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'ceo' || (user?.role as string) === 'owner';
   const [entries, setEntries] = useState<SampleEntryWithDetails[]>([]);
   const [brokers, setBrokers] = useState<Broker[]>([]);
   const [varieties, setVarieties] = useState<Variety[]>([]);

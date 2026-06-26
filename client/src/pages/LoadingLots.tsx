@@ -1140,7 +1140,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     groupedByDateBroker[dt][broker].push(entry);
   });
 
-  const isManagerOrOwner = user?.role === 'manager' || user?.role === 'owner' || user?.role === 'admin';
+  const isManagerOrOwner = user?.role === 'manager' || user?.role === 'ceo' || user?.role === 'owner' || user?.role === 'admin';
   const totalPages = Math.ceil(total / pageSize);
 
   const getCollectorLabel = (value?: string | null) => {
@@ -1171,7 +1171,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
       || hasResampleCollectorHistory
       || resampleOriginDecision === 'PASS_WITH_COOKING'
       || resampleOriginDecision === 'PASS_WITHOUT_COOKING';
-    return ['admin', 'manager', 'owner'].includes(String(user?.role || '').toLowerCase())
+    return ['admin', 'manager', 'owner', 'ceo'].includes(String(user?.role || '').toLowerCase())
       && !hasDisplayableResampleWorkflow
       && !Boolean((entry as any)?.resampleStartAt)
       && !Boolean((entry as any)?.resampleTriggeredAt)
@@ -2153,7 +2153,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                 || hasResampleCollectorHistory
                                 || resampleOriginDecision === 'PASS_WITH_COOKING'
                                 || resampleOriginDecision === 'PASS_WITHOUT_COOKING';
-                              const canTriggerLoadingResample = ['admin', 'manager', 'owner'].includes(String(user?.role || '').toLowerCase())
+                              const canTriggerLoadingResample = ['admin', 'manager', 'owner', 'ceo'].includes(String(user?.role || '').toLowerCase())
                                 && !hasDisplayableResampleWorkflow
                                 && !Boolean((entry as any)?.resampleStartAt)
                                 && !Boolean((entry as any)?.resampleTriggeredAt)

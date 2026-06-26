@@ -416,7 +416,8 @@ SampleEntry.prototype.canTransitionTo = function (newStatus, userRole) {
     return false;
   }
 
-  return allowedTransitions[newStatus].includes(userRole);
+  const roleToCheck = userRole === 'ceo' ? 'manager' : userRole;
+  return allowedTransitions[newStatus].includes(roleToCheck);
 };
 
 module.exports = SampleEntry;

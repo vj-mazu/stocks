@@ -699,7 +699,8 @@ const PhysicalInspection: React.FC = () => {
       const halfStage = stages.half_lorry || {};
       const fullStage = stages.full_avg || {};
       
-      const isNewCrop = getRulesMode(entryId) === 'new';
+      const entry = getEntryById(entryId);
+      const isNewCrop = getRulesMode(entryId) === 'new' && !checkIfWbVariety(entry);
       let nextStage = 'lot_avg';
       if (!isLotAvgRequiredForLorry(entryId, cleanLorry)) {
         nextStage = isNewCrop ? 'half_lorry' : 'nit_avg';
@@ -741,7 +742,8 @@ const PhysicalInspection: React.FC = () => {
   };
 
   const validateStageBeforeSave = (stage: string, stageVal: any, entryId: string) => {
-    const isNewMode = getRulesMode(entryId) === 'new';
+    const entry = getEntryById(entryId);
+    const isNewMode = getRulesMode(entryId) === 'new' && !checkIfWbVariety(entry);
 
     if (isNewMode) {
       if (stageVal.moisture === undefined || stageVal.moisture === null || String(stageVal.moisture).trim() === '') {
@@ -842,7 +844,8 @@ const PhysicalInspection: React.FC = () => {
       if (approvedWithCurrent) return true;
     }
 
-    if (getRulesMode(entryId) === 'new') {
+    const entry = getEntryById(entryId);
+    if (getRulesMode(entryId) === 'new' && !checkIfWbVariety(entry)) {
       if (stageKey === 'lot_avg') {
         const cleanLorry = (inspectionData[entryId]?.lorryNumber || '').trim().toUpperCase();
         const todayStr = new Date().toLocaleDateString('en-GB');
@@ -984,7 +987,8 @@ const PhysicalInspection: React.FC = () => {
   };
 
   const isStageVisibleForEntry = (entryId: string, stageKey: string) => {
-    const isNewCrop = getRulesMode(entryId) === 'new';
+    const entry = getEntryById(entryId);
+    const isNewCrop = getRulesMode(entryId) === 'new' && !checkIfWbVariety(entry);
     if (isNewCrop && stageKey === 'nit_avg') {
       return false;
     }
@@ -1025,7 +1029,8 @@ const PhysicalInspection: React.FC = () => {
       return true;
     }
 
-    const isNewCrop = getRulesMode(entryId) === 'new';
+    const entry = getEntryById(entryId);
+    const isNewCrop = getRulesMode(entryId) === 'new' && !checkIfWbVariety(entry);
     if (isNewCrop) {
       if (stageKey === 'nit_avg') return true;
 
@@ -1122,7 +1127,8 @@ const PhysicalInspection: React.FC = () => {
     if (!isAnyFullAvgSavedOrApproved(entryId)) {
       return true;
     }
-    const isNewCrop = getRulesMode(entryId) === 'new';
+    const entry = getEntryById(entryId);
+    const isNewCrop = getRulesMode(entryId) === 'new' && !checkIfWbVariety(entry);
     if (isNewCrop) {
       return false;
     }
@@ -1155,7 +1161,8 @@ const PhysicalInspection: React.FC = () => {
     const prevInsps = inspectionProgress[entryId]?.previousInspections || [];
     const cleanLorry = (inspectionData[entryId]?.lorryNumber || '').trim().toUpperCase();
     if (stageKey === 'lot_avg') {
-      const isNewCrop = getRulesMode(entryId) === 'new';
+      const entry = getEntryById(entryId);
+      const isNewCrop = getRulesMode(entryId) === 'new' && !checkIfWbVariety(entry);
       if (isNewCrop) {
         if (cleanLorry) {
           return prevInsps.some(insp => {
@@ -1275,12 +1282,12 @@ const PhysicalInspection: React.FC = () => {
     );
   };
 
-  const isTripMissingBalancedLotRestrictive = (trip: any, rulesMode: string) => {
+  const isTripMissingBalancedLotRestrictive = (trip: any, rulesMode: string, entry?: any) => {
     const lorry = (trip.lorryNumber || '').trim().toUpperCase();
     if (lorry === 'LOT_AVG' || lorry === 'BALANCED_LOT') return false;
     
     const stages = trip.samplingStages || {};
-    const isNewCrop = rulesMode === 'new';
+    const isNewCrop = rulesMode === 'new' && !checkIfWbVariety(entry);
     const hasFullAvg = isNewCrop
       ? !!stages.full_avg
       : (stages.full_avg && stages.full_avg.approvalStatus === 'approved');
@@ -1312,11 +1319,14 @@ const PhysicalInspection: React.FC = () => {
       return true;
     }
     
-    if (getRulesMode(entryId) !== 'new') {
-      const hasApprovedLotAvg = progress.previousInspections.some(insp => 
-        (insp.lorryNumber || '').trim().toUpperCase() === 'LOT_AVG' && insp.samplingStages?.lot_avg?.approvalStatus === 'approved'
+    const entry = getEntryById(entryId);
+    const isNewCrop = getRulesMode(entryId) === 'new' && !checkIfWbVariety(entry);
+    
+    if (!isNewCrop) {
+      const hasSubmittedLotAvg = progress.previousInspections.some(insp => 
+        (insp.lorryNumber || '').trim().toUpperCase() === 'LOT_AVG' && insp.samplingStages?.lot_avg
       );
-      if (hasApprovedLotAvg) {
+      if (hasSubmittedLotAvg) {
         return false;
       }
     }
@@ -1351,7 +1361,7 @@ const PhysicalInspection: React.FC = () => {
     const sortedLorries = [...priorRealLorries].sort((a, b) => getInspectionSortTime(a) - getInspectionSortTime(b));
     const lastLorry = sortedLorries[sortedLorries.length - 1];
 
-    if (getRulesMode(entryId) === 'new') {
+    if (isNewCrop) {
       const todayStr = new Date().toLocaleDateString('en-GB');
       if (lastLorry && lastLorry.inspectionDate) {
         const lastLorryDateStr = new Date(lastLorry.inspectionDate).toLocaleDateString('en-GB');
@@ -1397,6 +1407,23 @@ const PhysicalInspection: React.FC = () => {
     });
   };
 
+  const checkIfWbVariety = (entry?: any) => {
+    if (!entry) return false;
+    
+    // Check variety
+    const variety = entry.variety || '';
+    const normalizedVariety = String(variety).replace(/\s+/g, '').toLowerCase();
+    const isWbVariety = normalizedVariety === 'pd/wb' || normalizedVariety === 'pdwb' || normalizedVariety === 'md/wb' || normalizedVariety === 'mdwb';
+    if (isWbVariety) return true;
+
+    // Check offering rate type
+    const baseRateType = entry.offering?.baseRateType || '';
+    const finalBaseRateType = entry.offering?.finalBaseRateType || '';
+    const normalizedRateType = String(finalBaseRateType || baseRateType).replace(/\s+/g, '').replace(/_/g, '/').toLowerCase();
+    
+    return normalizedRateType === 'pd/wb' || normalizedRateType === 'pdwb' || normalizedRateType === 'md/wb' || normalizedRateType === 'mdwb';
+  };
+
   const getRulesMode = (entryId: string) => {
     if (isRulesModeCommitted(entryId)) {
       const progress = inspectionProgress[entryId];
@@ -1439,6 +1466,7 @@ const PhysicalInspection: React.FC = () => {
   };
 
   const handleAddStage = (entryId: string) => {
+    const entry = getEntryById(entryId);
     if (!getRulesMode(entryId)) {
       showNotification('Please select Crop (Old/New Paddy) before opening any sampling stage!', 'error');
       return;
@@ -1537,7 +1565,7 @@ const PhysicalInspection: React.FC = () => {
       }
     }
     if (stage === 'full_avg') {
-      const isNewCrop = getRulesMode(entryId) === 'new';
+      const isNewCrop = getRulesMode(entryId) === 'new' && !checkIfWbVariety(entry);
       if (!isNewCrop) {
         const halfApproved = isStageApprovedForLot(entryId, 'half_lorry');
         const nitApproved = isStageApprovedForLot(entryId, 'nit_avg');
@@ -1567,7 +1595,7 @@ const PhysicalInspection: React.FC = () => {
           sk: '',
           kandu: '',
           oil: '',
-          smellHas: getRulesMode(entryId) === 'new' ? 'Yes' : 'No',
+          smellHas: (getRulesMode(entryId) === 'new' && !checkIfWbVariety(entry)) ? 'Yes' : 'No',
           smellType: '',
           paddyWbEnabled: 'N',
           paddyWb: '',
@@ -1996,7 +2024,8 @@ const PhysicalInspection: React.FC = () => {
     let incompleteTrip = null;
     let nextStage = 'lot_avg';
     
-    const isNewCrop = getRulesMode(entryId) === 'new';
+    const entry = getEntryById(entryId);
+    const isNewCrop = getRulesMode(entryId) === 'new' && !checkIfWbVariety(entry);
     if (progress && progress.previousInspections && progress.previousInspections.length > 0) {
       incompleteTrip = progress.previousInspections.find(trip => {
         const lorry = (trip.lorryNumber || '').trim().toUpperCase();
@@ -2013,7 +2042,7 @@ const PhysicalInspection: React.FC = () => {
           return stages[k]?.approvalStatus === 'pending';
         });
         
-        const isMissingBalanced = isTripMissingBalancedLotRestrictive(trip, getRulesMode(entryId));
+        const isMissingBalanced = isTripMissingBalancedLotRestrictive(trip, getRulesMode(entryId), entry);
         
         if (isNewCrop) {
           // In New Crop, a trip is incomplete only if it has NOT submitted full_avg, OR it has pending stages.
@@ -2135,7 +2164,8 @@ const PhysicalInspection: React.FC = () => {
       // Select logical default next stage
       let defaultStage = 'lot_avg';
       if (!isLotAvgRequiredForLorry(entryId, '')) {
-        const isNewCrop = getRulesMode(entryId) === 'new';
+        const entry = getEntryById(entryId);
+        const isNewCrop = getRulesMode(entryId) === 'new' && !checkIfWbVariety(entry);
         defaultStage = isNewCrop ? 'half_lorry' : 'nit_avg';
       }
       
@@ -2261,7 +2291,8 @@ const PhysicalInspection: React.FC = () => {
     const halfStage = stages.half_lorry || {};
     const fullStage = stages.full_avg || {};
     
-    const isNewCrop = getRulesMode(entryId) === 'new';
+    const entry = getEntryById(entryId);
+    const isNewCrop = getRulesMode(entryId) === 'new' && !checkIfWbVariety(entry);
     let nextStage = 'lot_avg';
     if (!isLotAvgRequiredForLorry(entryId, cleanLorry)) {
       nextStage = isNewCrop ? 'half_lorry' : 'nit_avg';
@@ -2432,7 +2463,7 @@ const PhysicalInspection: React.FC = () => {
 
                 const hasPendingStage = (() => {
                   if (!progress || !progress.previousInspections) return false;
-                  const isNewCrop = getRulesMode(entry.id) === 'new';
+                  const isNewCrop = getRulesMode(entry.id) === 'new' && !checkIfWbVariety(entry);
                   return progress.previousInspections.some(trip => {
                     const stages = trip.samplingStages || {};
                     return Object.keys(stages).some(key => {
@@ -2540,7 +2571,7 @@ const PhysicalInspection: React.FC = () => {
                             const progress = inspectionProgress[entry.id];
                             if (!progress || !progress.previousInspections) return false;
                             return progress.previousInspections.some(trip => 
-                              isTripMissingBalancedLotRestrictive(trip, getRulesMode(entry.id))
+                              isTripMissingBalancedLotRestrictive(trip, getRulesMode(entry.id), entry)
                             );
                           })();
                           const isDisabled = !!entry.lotAllotment?.closedAt || hasPendingStage || isMissingBalancedAcrossTrips;
@@ -2574,7 +2605,7 @@ const PhysicalInspection: React.FC = () => {
                                     const stages = trip.samplingStages || {};
                                     const hasApprovedFullAvg = stages.full_avg && stages.full_avg.approvalStatus === 'approved';
                                     const hasPending = Object.values(stages).some((stg: any) => stg.approvalStatus === 'pending');
-                                    const isMissingBalanced = isTripMissingBalancedLotRestrictive(trip, getRulesMode(entry.id));
+                                    const isMissingBalanced = isTripMissingBalancedLotRestrictive(trip, getRulesMode(entry.id), entry);
                                     return !hasApprovedFullAvg || hasPending || isMissingBalanced;
                                   });
                                 })();
@@ -2620,80 +2651,55 @@ const PhysicalInspection: React.FC = () => {
                             <tbody>
                               {progress.previousInspections.map((inspection, idx) => {
                                   const stages = inspection.samplingStages || {};
-                                  const isNewCrop = getRulesMode(entry.id) === 'new';
-                                  
-                                  const getTripValues = (insp: any) => {
-                                    const stgList = insp?.samplingStages || {};
-                                    const stg = stgList.full_avg?.reportedBy
-                                      ? stgList.full_avg
-                                      : stgList.half_lorry?.reportedBy
-                                      ? stgList.half_lorry
-                                      : (() => {
-                                          const nitKeys = Object.keys(stgList)
-                                            .filter(k => k.startsWith('nit_avg') && stgList[k]?.reportedBy)
-                                            .sort((a, b) => {
-                                              if (a === 'nit_avg') return -1;
-                                              if (b === 'nit_avg') return 1;
-                                              const numA = parseInt(a.replace('nit_avg_', '')) || 0;
-                                              const numB = parseInt(b.replace('nit_avg_', '')) || 0;
-                                              return numB - numA;
-                                            });
-                                          if (nitKeys.length > 0) return stgList[nitKeys[0]];
-                                          return stgList.lot_avg?.reportedBy ? stgList.lot_avg : null;
-                                        })();
-                                    if (!stg) return null;
+                                  const isNewCrop = getRulesMode(entry.id) === 'new' && !checkIfWbVariety(entry);
                                     
-                                    const moisture = stg.moistureRaw ? `${stg.moistureRaw}%` : (stg.moisture !== undefined && stg.moisture !== null ? `${stg.moisture}%` : null);
-                                    const cutting = stg.cutting1 !== undefined && stg.cutting1 !== null ? `${stg.cutting1}×${stg.cutting2 || 0}` : null;
-                                    const bend = stg.bend1 !== undefined && stg.bend1 !== null ? `${stg.bend1}×${stg.bend2 || 0}` : null;
-                                    
-                                    if (!moisture && !cutting && !bend) return null;
-                                    return { moisture, cutting, bend };
-                                  };
+                                  const getValueWithFallback = (field: 'moisture' | 'cutting' | 'bend', currentIdx: number) => {
+                                     for (let i = currentIdx; i >= 0; i--) {
+                                       const insp = progress.previousInspections[i];
+                                       const stgList = insp?.samplingStages || {};
+                                       
+                                       const stagesToCheck: any[] = [];
+                                       if (stgList.full_avg?.reportedBy) stagesToCheck.push(stgList.full_avg);
+                                       if (stgList.half_lorry?.reportedBy) stagesToCheck.push(stgList.half_lorry);
+                                       
+                                       const nitKeys = Object.keys(stgList)
+                                         .filter(k => k.startsWith('nit_avg') && stgList[k]?.reportedBy)
+                                         .sort((a, b) => {
+                                           if (a === 'nit_avg') return -1;
+                                           if (b === 'nit_avg') return 1;
+                                           const numA = parseInt(a.replace('nit_avg_', '')) || 0;
+                                           const numB = parseInt(b.replace('nit_avg_', '')) || 0;
+                                           return numB - numA;
+                                         });
+                                       nitKeys.forEach(k => stagesToCheck.push(stgList[k]));
+                                       
+                                       if (stgList.lot_avg?.reportedBy) stagesToCheck.push(stgList.lot_avg);
+                                       
+                                       for (const stg of stagesToCheck) {
+                                         if (!stg) continue;
+                                         if (field === 'moisture') {
+                                           if (stg.moistureRaw) return `${stg.moistureRaw}%`;
+                                           if (stg.moisture !== undefined && stg.moisture !== null && String(stg.moisture).trim() !== '' && String(stg.moisture).trim() !== '-') {
+                                             return `${stg.moisture}%`;
+                                           }
+                                         } else if (field === 'cutting') {
+                                           if (stg.cutting1 !== undefined && stg.cutting1 !== null && String(stg.cutting1).trim() !== '' && String(stg.cutting1).trim() !== '-') {
+                                             return `${stg.cutting1}×${stg.cutting2 || 0}`;
+                                           }
+                                         } else if (field === 'bend') {
+                                           if (stg.bend1 !== undefined && stg.bend1 !== null && String(stg.bend1).trim() !== '' && String(stg.bend1).trim() !== '-') {
+                                             return `${stg.bend1}×${stg.bend2 || 0}`;
+                                           }
+                                         }
+                                       }
+                                     }
+                                     return '-';
+                                   };
 
-                                  let moistureVal = '-';
-                                  let cuttingVal = '-';
-                                  let bendVal = '-';
+                                   let moistureVal = getValueWithFallback('moisture', idx);
+                                   let cuttingVal = getValueWithFallback('cutting', idx);
+                                   let bendVal = getValueWithFallback('bend', idx);
 
-                                  if (isNewCrop) {
-                                    let vals = getTripValues(inspection);
-                                    if (!vals) {
-                                      for (let i = idx - 1; i >= 0; i--) {
-                                        const prevInsp = progress.previousInspections[i];
-                                        vals = getTripValues(prevInsp);
-                                        if (vals) break;
-                                      }
-                                    }
-                                    if (vals) {
-                                      moistureVal = vals.moisture || '-';
-                                      cuttingVal = vals.cutting || '-';
-                                      bendVal = vals.bend || '-';
-                                    }
-                                  } else {
-                                    const latestStage = stages.balanced_lot?.reportedBy
-                                      ? stages.balanced_lot
-                                      : stages.full_avg?.reportedBy
-                                      ? stages.full_avg
-                                      : stages.half_lorry?.reportedBy
-                                      ? stages.half_lorry
-                                      : (() => {
-                                          const nitKeys = Object.keys(stages)
-                                            .filter(k => k.startsWith('nit_avg') && stages[k]?.reportedBy)
-                                            .sort((a, b) => {
-                                              if (a === 'nit_avg') return -1;
-                                              if (b === 'nit_avg') return 1;
-                                              const numA = parseInt(a.replace('nit_avg_', '')) || 0;
-                                              const numB = parseInt(a.replace('nit_avg_', '')) || 0;
-                                              return numB - numA;
-                                            });
-                                          if (nitKeys.length > 0) return stages[nitKeys[0]];
-                                          return stages.lot_avg?.reportedBy ? stages.lot_avg : null;
-                                        })();
-                                    
-                                    moistureVal = latestStage ? (latestStage.moistureRaw ? `${latestStage.moistureRaw}%` : (latestStage.moisture !== undefined && latestStage.moisture !== null ? `${latestStage.moisture}%` : '-')) : '-';
-                                    cuttingVal = latestStage ? (latestStage.cutting1 !== undefined && latestStage.cutting1 !== null ? `${latestStage.cutting1}×${latestStage.cutting2 || 0}` : '-') : '-';
-                                    bendVal = latestStage ? (latestStage.bend1 !== undefined && latestStage.bend1 !== null ? `${latestStage.bend1}×${latestStage.bend2 || 0}` : '-') : '-';
-                                  }
                                   const o = (entry as any).offering || {};
 
                                    // Calculate trip-level smell highlighting
@@ -2856,8 +2862,7 @@ const PhysicalInspection: React.FC = () => {
                                           return <span style={{ color: '#2e7d32', fontWeight: 'bold', fontSize: '11px' }}>Completed</span>;
                                         }
 
-                                        // If full_avg is submitted but balanced is missing
-                                        const isNewCrop = getRulesMode(entry.id) === 'new';
+                                        const isNewCrop = getRulesMode(entry.id) === 'new' && !checkIfWbVariety(entry);
                                         
                                         if (hasFull && !hasBalanced) {
                                           if (isNewCrop) {
@@ -3286,7 +3291,7 @@ const PhysicalInspection: React.FC = () => {
                                       sk: '',
                                       kandu: '',
                                       oil: '',
-                                      smellHas: getRulesMode(entry.id) === 'new' ? 'Yes' : 'No',
+                                      smellHas: (getRulesMode(entry.id) === 'new' && !checkIfWbVariety(entry)) ? 'Yes' : 'No',
                                       smellType: '',
                                       paddyWbEnabled: 'N',
                                       paddyWb: '',
@@ -3298,7 +3303,7 @@ const PhysicalInspection: React.FC = () => {
                                       isLocked: false
                                     };
                                     const isLocked = !!cardData.isLocked && editingStage[entry.id] !== stage;
-                                    const isNewMode = getRulesMode(entry.id) === 'new';
+                                    const isNewMode = getRulesMode(entry.id) === 'new' && !checkIfWbVariety(entry);
                                     const getCardHeader = () => {
                                       if (stage === 'lot_avg') return { title: 'Lot Avg Sampling', color: '#e67e22', border: '2px solid #e67e22' };
                                       if (stage === 'balanced_lot') return { title: 'Balanced Lot Sampling', color: '#e67e22', border: '2px solid #e67e22' };
@@ -4441,7 +4446,7 @@ const PhysicalInspection: React.FC = () => {
                   sk: '',
                   kandu: '',
                   oil: '',
-                  smellHas: getRulesMode(entry.id) === 'new' ? 'Yes' : 'No',
+                  smellHas: (getRulesMode(entry.id) === 'new' && !checkIfWbVariety(entry)) ? 'Yes' : 'No',
                   smellType: '',
                   paddyWbEnabled: 'N',
                   paddyWb: '',
@@ -4453,7 +4458,7 @@ const PhysicalInspection: React.FC = () => {
                   isLocked: false
                 };
                 const isLocked = !!cardData.isLocked && editingStage[entry.id] !== stage;
-                 const isNewMode = getRulesMode(entry.id) === 'new';
+                 const isNewMode = getRulesMode(entry.id) === 'new' && !checkIfWbVariety(entry);
                  const getCardHeader = () => {
                   if (stage === 'lot_avg') return { title: 'Lot Avg Sampling', color: '#e67e22', border: '2px solid #e67e22' };
                   if (stage === 'balanced_lot') return { title: 'Balanced Lot Sampling', color: '#e67e22', border: '2px solid #e67e22' };

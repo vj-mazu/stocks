@@ -84,12 +84,24 @@ const SampleEntryPage: React.FC<{
   const toTitleCase = (value?: string | null) => {
     const str = typeof value === 'string' ? value.trim() : '';
     if (!str) return '';
-    return str.toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase());
+    return str.replace(/(?:^|\s)\S/g, c => c.toUpperCase());
   };
   const formatInputTitleCase = (value?: string | null) => {
     const str = typeof value === 'string' ? value : '';
     if (!str) return '';
-    return str.toLowerCase().replace(/(^|\s)(\S)/g, (_, prefix, char) => `${prefix}${String(char).toUpperCase()}`);
+    return str.replace(/(^|\s)(\S)/g, (_, prefix, char) => `${prefix}${String(char).toUpperCase()}`);
+  };
+  const getBrokerDisplayName = (name?: string | null) => {
+    const raw = typeof name === 'string' ? name.trim() : '';
+    if (!raw) return '';
+    const match = brokers.find(b => b.trim().toLowerCase() === raw.toLowerCase());
+    return match || toTitleCase(raw);
+  };
+  const getVarietyDisplayName = (name?: string | null) => {
+    const raw = typeof name === 'string' ? name.trim() : '';
+    if (!raw) return '';
+    const match = varieties.find(v => v.trim().toLowerCase() === raw.toLowerCase());
+    return match || toTitleCase(raw);
   };
   const resolveMediaUrl = (value?: string | null) => {
     const url = String(value || '').trim();
@@ -1175,7 +1187,7 @@ const SampleEntryPage: React.FC<{
               const normalizedStaffType = String(u.staffType || '').trim().toLowerCase();
               const isLocationStaff = normalizedRole === 'physical_supervisor'
                 || ((normalizedRole === 'staff' || normalizedRole === 'paddy_supervisor') && normalizedStaffType === 'location');
-              return isLocationStaff || normalizedRole === 'manager';
+              return isLocationStaff || normalizedRole === 'manager' || normalizedRole === 'ceo';
             })
             .map((u: any) => String(u.qualityName || u.fullName || u.username || '').trim())
             .filter((name: string) => name !== '' && name.toLowerCase() !== 'admin')
@@ -1299,10 +1311,10 @@ const SampleEntryPage: React.FC<{
 
       const formDataToSend = new FormData();
       formDataToSend.append('entryDate', formData.entryDate);
-      formDataToSend.append('brokerName', toTitleCase(formData.brokerName));
-      formDataToSend.append('variety', toTitleCase(formData.variety));
-      formDataToSend.append('partyName', toTitleCase(formData.partyName));
-      formDataToSend.append('location', toTitleCase(formData.location));
+      formDataToSend.append('brokerName', formData.brokerName);
+      formDataToSend.append('variety', formData.variety);
+      formDataToSend.append('partyName', formData.partyName);
+      formDataToSend.append('location', formData.location);
       formDataToSend.append('bags', formData.bags);
       if (formData.lorryNumber) formDataToSend.append('lorryNumber', formData.lorryNumber.toUpperCase());
       formDataToSend.append('entryType', selectedEntryType);
@@ -1445,10 +1457,10 @@ const SampleEntryPage: React.FC<{
       setIsSubmitting(true);
       const formDataToSend = new FormData();
       formDataToSend.append('entryDate', formData.entryDate);
-      formDataToSend.append('brokerName', toTitleCase(formData.brokerName));
-      formDataToSend.append('variety', toTitleCase(formData.variety));
-      formDataToSend.append('partyName', toTitleCase(formData.partyName));
-      formDataToSend.append('location', toTitleCase(formData.location));
+      formDataToSend.append('brokerName', formData.brokerName);
+      formDataToSend.append('variety', formData.variety);
+      formDataToSend.append('partyName', formData.partyName);
+      formDataToSend.append('location', formData.location);
       formDataToSend.append('bags', formData.bags);
       if (formData.lorryNumber) formDataToSend.append('lorryNumber', formData.lorryNumber.toUpperCase());
       formDataToSend.append('packaging', formData.packaging);
@@ -2755,7 +2767,7 @@ const SampleEntryPage: React.FC<{
                           alignItems: 'center',
                           gap: '4px'
                         }}>
-                          <span style={{ fontSize: '13.5px', fontWeight: '800' }}>{brokerSeq}.</span> {toTitleCase(brokerName)}
+                          <span style={{ fontSize: '13.5px', fontWeight: '800' }}>{brokerSeq}.</span> {getBrokerDisplayName(brokerName)}
                         </div>
                         <table className={`responsive-table ${filterEntryType === 'RICE_SAMPLE' ? 'no-type-col' : 'has-type-col'}`} style={{ width: '100%', border: '1px solid #000', borderCollapse: 'collapse' }}>
                           <thead>
@@ -2901,13 +2913,13 @@ const SampleEntryPage: React.FC<{
                             const isEntryCreator = (entry as any).creator?.id === user?.id || (entry as any).createdByUserId === user?.id;
                             const isAssignedCollector = !!(entry.sampleCollectedBy && user?.username)
                               && entry.sampleCollectedBy.trim().toLowerCase() === user.username.trim().toLowerCase();
-                            const canManageResampleTrigger = ['admin', 'manager', 'owner'].includes(String(user?.role || '').toLowerCase());
+                            const canManageResampleTrigger = ['admin', 'manager', 'owner', 'ceo'].includes(String(user?.role || '').toLowerCase());
                             
                             // Staff can edit anyone's entry, but Location Samples NOT given to office are restricted to collector
                             const isNotGivenToOffice = (entry as any).sampleGivenToOffice === false;
                             const canEditQuality = !(isLocationStaff && isLocationSample && isNotGivenToOffice) || isAssignedCollector || isEntryCreator;
                             
-                            const canAssignResample = ['admin', 'manager', 'owner'].includes(String(user?.role || '').toLowerCase());
+                            const canAssignResample = ['admin', 'manager', 'owner', 'ceo'].includes(String(user?.role || '').toLowerCase());
                             
                             // Staff one-time edit visibility check (per row entry)
                             const staffCanEditDetails = !isStaffUser || Number((entry as any).staffPartyNameEdits || 0) < Math.max(1, Number((entry as any).staffEntryEditAllowance || 1));
@@ -2924,7 +2936,7 @@ const SampleEntryPage: React.FC<{
                             const resamplePassDecision = String((entry as any).resampleOriginDecision || '').toUpperCase();
                             const isResamplePassFlow = resamplePassDecision === 'PASS_WITH_COOKING' || resamplePassDecision === 'PASS_WITHOUT_COOKING';
                             const isSampleEntryResampleRow = isPaddyResampleEntry || isPaddyResampleWorkflow || isResamplePassFlow;
-                            const canDeleteEntry = ['admin', 'manager'].includes(String(user?.role || '').toLowerCase())
+                            const canDeleteEntry = ['admin', 'manager', 'ceo'].includes(String(user?.role || '').toLowerCase())
                               && isPaddySampleEntryTab
                               && !isCancelledClosedEntry
                               && !isSampleEntryResampleRow;
@@ -3146,7 +3158,7 @@ const SampleEntryPage: React.FC<{
                                   })()}
                                 </td>
                                 <td style={{ padding: '1px 4px', textAlign: 'left', fontSize: '14px', lineHeight: '1.2', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', border: '1px solid #000' }}>
-                                  {toTitleCase(entry.variety)}
+                                  {getVarietyDisplayName(entry.variety)}
                                   {(() => {
                                     if (smellState) {
                                       return <span style={{ marginLeft: '4px', fontSize: '12px', color: smellState.color, fontWeight: '800' }}>{smellState.label}</span>;
@@ -3700,7 +3712,7 @@ const SampleEntryPage: React.FC<{
                   >
                     <option value="">-- Select Broker --</option>
                     {brokerOptions.map((broker, index) => (
-                      <option key={index} value={toTitleCase(broker)}>{toTitleCase(broker)}</option>
+                      <option key={index} value={broker}>{broker}</option>
                     ))}
                   </select>
                 </div>
@@ -3798,7 +3810,7 @@ const SampleEntryPage: React.FC<{
                   >
                     <option value="">-- Select Variety --</option>
                     {varietyOptions.map((variety, index) => (
-                      <option key={index} value={toTitleCase(variety)}>{toTitleCase(variety)}</option>
+                      <option key={index} value={variety}>{variety}</option>
                     ))}
                   </select>
                 </div>
@@ -5076,7 +5088,7 @@ const SampleEntryPage: React.FC<{
                   >
                     <option value="">-- Select Broker --</option>
                     {brokerOptions.map((broker, index) => (
-                      <option key={index} value={broker}>{toTitleCase(broker)}</option>
+                      <option key={index} value={broker}>{broker}</option>
                     ))}
                   </select>
                   {bagsEditLocked && (
@@ -5139,7 +5151,7 @@ const SampleEntryPage: React.FC<{
                   >
                     <option value="">-- Select Variety --</option>
                     {varietyOptions.map((variety, index) => (
-                      <option key={index} value={variety}>{toTitleCase(variety)}</option>
+                      <option key={index} value={variety}>{variety}</option>
                     ))}
                   </select>
                   {bagsEditLocked && (

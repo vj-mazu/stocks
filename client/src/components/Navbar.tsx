@@ -4,6 +4,8 @@ import styled from 'styled-components';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import BulkApprovalModal from './BulkApprovalModal';
+import { API_URL } from '../config/api';
+import { toast } from '../utils/toast';
 
 const Nav = styled.nav`
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
@@ -306,10 +308,146 @@ const LogoutButton = styled.button`
   }
 `;
 
+const ChangePasswordButton = styled.button`
+  background: #f59e0b;
+  color: white;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+  margin-left: 0.5rem;
+
+  &:hover {
+    background: #d97706;
+    transform: translateY(-1px);
+  }
+
+  @media (max-width: 1024px) {
+    margin: 0 0 0.5rem 0;
+    width: 100%;
+    padding: 1rem;
+    font-size: 1.1rem;
+    border-radius: 8px;
+    background: #f59e0b;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+`;
+
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2001;
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+`;
+
+const ModalTitle = styled.h3`
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  color: #1a1a2e;
+`;
+
+const FormGroup = styled.div`
+  margin-bottom: 1rem;
+`;
+
+const Label = styled.label`
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #374151;
+  font-size: 0.9rem;
+`;
+
+const Input = styled.input`
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  &:focus {
+    outline: none;
+    border-color: #10b981;
+  }
+`;
+
+const ButtonRow = styled.div`
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+`;
+
+const ModalButton = styled.button<{ variant?: 'primary' | 'secondary' }>`
+  flex: 1;
+  padding: 0.65rem 1rem;
+  border-radius: 6px;
+  border: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  background: ${props => props.variant === 'primary' ? '#10b981' : '#f3f4f6'};
+  color: ${props => props.variant === 'primary' ? 'white' : '#374151'};
+  &:hover {
+    background: ${props => props.variant === 'primary' ? '#059669' : '#e5e7eb'};
+  }
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
 const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [savingPassword, setSavingPassword] = useState(false);
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.trim().length < 4) {
+      toast.error('Password must be at least 4 characters long');
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      await axios.put(`${API_URL}/admin/users/${user?.id}/credentials`, {
+        password: newPassword
+      }, { headers });
+      
+      toast.success('Password updated successfully!');
+      setShowPasswordModal(false);
+      setNewPassword('');
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.response?.data?.error || 'Failed to change password. Please try again.');
+    } finally {
+      setSavingPassword(false);
+    }
+  };
   const [pendingCount, setPendingCount] = useState(0);
   const [resampleCount, setResampleCount] = useState(0);
   const [editApprovalCount, setEditApprovalCount] = useState(0);
@@ -348,7 +486,7 @@ const Navbar: React.FC = () => {
   }, [location.pathname, location.search]);
 
   useEffect(() => {
-    if (user && (user.role === 'manager' || user.role === 'admin')) {
+    if (user && (user.role === 'manager' || user.role === 'ceo' || user.role === 'admin')) {
       fetchPendingCount();
       fetchResampleCount();
       fetchEditApprovalCount();
@@ -482,7 +620,7 @@ const Navbar: React.FC = () => {
               )}
             </>
           )}
-          {user && user.role === 'manager' && (
+          {user && (user.role === 'manager' || user.role === 'ceo') && (
             <>
               <NavLink to="/paddy-sample-reports" $active={isActive('/paddy-sample-reports') || isActive('/owner-sample-reports')} style={{ whiteSpace: 'normal', textAlign: 'center', lineHeight: 1.1 }}>
                 Paddy Sample<br />Reports
@@ -507,8 +645,8 @@ const Navbar: React.FC = () => {
             </>
           )}
 
-          {/* Ledgers Dropdown - for Manager and Admin */}
-          {(user?.role === 'manager' || user?.role === 'admin') && (
+          {/* Ledgers Dropdown - for Manager, CEO and Admin */}
+          {(user?.role === 'manager' || user?.role === 'ceo' || user?.role === 'admin') && (
             <DropdownWrapper ref={ledgersRef}>
               <DropdownTrigger
                 $active={isLedgersActive}
@@ -539,8 +677,8 @@ const Navbar: React.FC = () => {
           )}
           <NavLink to="/hamali" $active={isActive('/hamali')}>Hamali</NavLink>
 
-          {/* Master Creation Dropdown - for Manager and Admin */}
-          {(user?.role === 'manager' || user?.role === 'admin') && (
+          {/* Master Creation Dropdown - for Manager, CEO and Admin */}
+          {(user?.role === 'manager' || user?.role === 'ceo' || user?.role === 'admin') && (
             <DropdownWrapper ref={masterRef}>
               <DropdownTrigger
                 $active={isMasterActive}
@@ -568,7 +706,7 @@ const Navbar: React.FC = () => {
           )}
 
           {/* Workflow Dropdown */}
-          {user && user.role !== 'admin' && user.role !== 'manager' && user.role !== 'staff' && (
+          {user && user.role !== 'staff' && (
             <DropdownWrapper ref={workflowRef}>
               <DropdownTrigger
                 $active={isWorkflowActive}
@@ -578,14 +716,14 @@ const Navbar: React.FC = () => {
                 }}
               >
                 Workflow ▾
-                {pendingCount > 0 && (user.role === 'manager' || user.role === 'admin') && (
+                {pendingCount > 0 && (user.role === 'manager' || user.role === 'ceo' || user.role === 'admin') && (
                   <NotificationBadge>{pendingCount}</NotificationBadge>
                 )}
               </DropdownTrigger>
               {workflowDropdownOpen && (
                 <DropdownMenu>
                   <DropdownLink to="/sample-entry" $active={isActive('/sample-entry')}>New Paddy Sample</DropdownLink>
-                  {(user.role === 'manager' || user.role === 'admin') && (
+                  {(user.role === 'manager' || user.role === 'ceo' || user.role === 'admin') && (
                     <>
                       <DropdownLink to="/sample-workflow" $active={isActive('/sample-workflow')}>Workflow Board</DropdownLink>
                       <DropdownLink to="/pending-approvals" $active={isActive('/pending-approvals')}>
@@ -603,7 +741,7 @@ const Navbar: React.FC = () => {
                   {user.role === 'admin' && (
                     <DropdownLink to="/owner-financial" $active={isActive('/owner-financial')}>Owner Financial</DropdownLink>
                   )}
-                  {(user.role === 'manager' || user.role === 'admin') && (
+                  {(user.role === 'manager' || user.role === 'ceo' || user.role === 'admin') && (
                     <>
                       <DropdownDivider />
                       {user.role === 'admin' && (
@@ -631,6 +769,7 @@ const Navbar: React.FC = () => {
             <UserBadge>{user?.role === 'staff' ? 'Paddy Supervisor' : user?.role}</UserBadge>
             <span style={{ textTransform: 'capitalize' }}>{user?.username}</span>
           </UserInfo>
+          <ChangePasswordButton onClick={() => setShowPasswordModal(true)}>🔑 Password</ChangePasswordButton>
           <LogoutButton onClick={handleLogout}>Logout</LogoutButton>
         </NavLinks>
       </NavContainer>
@@ -640,6 +779,35 @@ const Navbar: React.FC = () => {
         onClose={handleApprovalModalClose}
         onApprovalComplete={fetchPendingCount}
       />
+
+      {showPasswordModal && (
+        <ModalOverlay onClick={() => setShowPasswordModal(false)}>
+          <ModalContent onClick={e => e.stopPropagation()}>
+            <ModalTitle>✏️ Change Password</ModalTitle>
+            <form onSubmit={handlePasswordChange}>
+              <FormGroup>
+                <Label>New Password</Label>
+                <Input
+                  type="password"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  placeholder="Enter new password"
+                  required
+                  minLength={4}
+                />
+              </FormGroup>
+              <ButtonRow>
+                <ModalButton type="button" variant="secondary" onClick={() => setShowPasswordModal(false)}>
+                  Cancel
+                </ModalButton>
+                <ModalButton type="submit" variant="primary" disabled={savingPassword}>
+                  {savingPassword ? 'Saving...' : 'Save Password'}
+                </ModalButton>
+              </ButtonRow>
+            </form>
+          </ModalContent>
+        </ModalOverlay>
+      )}
     </Nav>
   );
 };

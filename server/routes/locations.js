@@ -5,6 +5,7 @@ const RiceStockLocation = require('../models/RiceStockLocation');
 const RiceVariety = require('../models/RiceVariety');
 const Broker = require('../models/Broker');
 const User = require('../models/User');
+const { sequelize } = require('../config/database');
 
 const router = express.Router();
 
@@ -34,12 +35,9 @@ function invalidateCache(prefix) {
 // Get all warehouses
 router.get('/warehouses', auth, async (req, res) => {
   try {
-    const cached = getCached('warehouses');
-    if (cached) { res.set('Cache-Control', 'public, max-age=300'); return res.json(cached); }
-
     const warehouses = await Warehouse.findAll({
       where: { isActive: true },
-      attributes: ['id', 'name', 'code', 'location', 'type'],
+      attributes: ['id', 'name', 'code', 'location', 'type', 'shortCutName'],
       order: [['name', 'ASC']],
       include: [{
         model: Kunchinittu,
@@ -51,9 +49,17 @@ router.get('/warehouses', auth, async (req, res) => {
       nest: true
     });
 
-    const result = { warehouses };
-    setCache('warehouses', result);
-    res.set('Cache-Control', 'public, max-age=300');
+    const warehousesWithInUse = await Promise.all(warehouses.map(async (w) => {
+      const kCount = await Kunchinittu.count({
+        where: { warehouseId: w.id, isActive: true }
+      });
+      const wJson = w.toJSON();
+      wJson.inUse = kCount > 0;
+      return wJson;
+    }));
+
+    const result = { warehouses: warehousesWithInUse };
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.json(result);
   } catch (error) {
     console.error('Get warehouses error:', error);
@@ -64,7 +70,7 @@ router.get('/warehouses', auth, async (req, res) => {
 // Create warehouse (Manager/Admin only)
 router.post('/warehouses', auth, authorize('manager', 'admin'), async (req, res) => {
   try {
-    const { name, code, location, capacity, type } = req.body;
+    const { name, code, location, capacity, type, shortCutName } = req.body;
 
     if (!name || !code) {
       return res.status(400).json({ error: 'Name and code are required' });
@@ -85,11 +91,12 @@ router.post('/warehouses', auth, authorize('manager', 'admin'), async (req, res)
 
     invalidateCache('warehouses');
     const warehouse = await Warehouse.create({
-      name,
+      name: name.trim(),
       code,
-      location,
+      location: location ? location.trim() : null,
       capacity,
-      type: type || 'mill'
+      type: type || 'mill',
+      shortCutName: shortCutName ? shortCutName.trim() : null
     });
 
     res.status(201).json({
@@ -110,7 +117,7 @@ router.put('/warehouses/:id', auth, authorize('manager', 'admin'), async (req, r
       return res.status(404).json({ error: 'Warehouse not found' });
     }
 
-    const { name, code, location, capacity, type } = req.body;
+    const { name, code, location, capacity, type, shortCutName } = req.body;
 
     if (type === 'outside' && (!location || !location.trim())) {
       return res.status(400).json({ error: 'Location is required for outside warehouses' });
@@ -128,11 +135,12 @@ router.put('/warehouses/:id', auth, authorize('manager', 'admin'), async (req, r
 
     invalidateCache('warehouses');
     await warehouse.update({
-      name,
-      code,
-      location,
+      name: name ? name.trim() : warehouse.name,
+      code: code ? code.trim() : warehouse.code,
+      location: location !== undefined ? (location ? location.trim() : null) : warehouse.location,
       capacity,
-      type: type || warehouse.type
+      type: type || warehouse.type,
+      shortCutName: shortCutName !== undefined ? (shortCutName ? shortCutName.trim() : null) : warehouse.shortCutName
     });
 
     res.json({
@@ -153,9 +161,31 @@ router.delete('/warehouses/:id', auth, authorize('manager', 'admin'), async (req
       return res.status(404).json({ error: 'Warehouse not found' });
     }
 
-    // Soft delete - mark as inactive instead of deleting
+    // Check if referenced/in-use by any active Kunchinittu
+    const kunchinittuCount = await Kunchinittu.count({
+      where: { warehouseId: req.params.id }
+    });
+
+    // Check if referenced/in-use by any Arrival
+    const Arrival = require('../models/Arrival');
+    const { Op } = require('sequelize');
+    const arrivalCount = await Arrival.count({
+      where: {
+        [Op.or]: [
+          { toWarehouseId: req.params.id },
+          { fromWarehouseId: req.params.id },
+          { toWarehouseShiftId: req.params.id }
+        ]
+      }
+    });
+
+    if (kunchinittuCount > 0 || arrivalCount > 0) {
+      return res.status(400).json({ error: 'Cannot delete warehouse because it is in use' });
+    }
+
+    // Hard delete - destroy from database so code/name are freed up
     invalidateCache('warehouses');
-    await warehouse.update({ isActive: false });
+    await warehouse.destroy();
 
     res.json({ message: 'Warehouse deleted successfully' });
   } catch (error) {
@@ -170,9 +200,6 @@ router.delete('/warehouses/:id', auth, authorize('manager', 'admin'), async (req
 router.get('/kunchinittus', auth, async (req, res) => {
   try {
     const { includeClosed } = req.query;
-    const cacheKey = `kunchinittus_${includeClosed || 'false'}`;
-    const cached = getCached(cacheKey);
-    if (cached) { res.set('Cache-Control', 'public, max-age=300'); return res.json(cached); }
 
     const where = { isActive: true };
     if (includeClosed !== 'true') {
@@ -191,10 +218,18 @@ router.get('/kunchinittus', auth, async (req, res) => {
       nest: true
     });
 
-    const result = { kunchinittus };
-    setCache(cacheKey, result);
-    res.set('Cache-Control', 'public, max-age=300');
-    res.json(result);
+    const InventoryData = require('../models/InventoryData');
+    const kunchinittusWithInUse = await Promise.all(kunchinittus.map(async (k) => {
+      const invCount = await InventoryData.count({
+        where: { kunchinittuId: k.id }
+      });
+      const kJson = k.toJSON();
+      kJson.inUse = invCount > 0;
+      return kJson;
+    }));
+
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.json({ kunchinittus: kunchinittusWithInUse });
   } catch (error) {
     console.error('Get kunchinittus error:', error);
     res.status(500).json({ error: 'Failed to fetch kunchinittus' });
@@ -218,7 +253,7 @@ router.post('/kunchinittus', auth, authorize('manager', 'admin'), async (req, re
 
     // Check for duplicate name (must be unique globally)
     const existingName = await Kunchinittu.findOne({
-      where: { name }
+      where: { name: name.trim() }
     });
 
     if (existingName) {
@@ -244,7 +279,7 @@ router.post('/kunchinittus', auth, authorize('manager', 'admin'), async (req, re
     invalidateCache('kunchinittus');
     invalidateCache('warehouses');
     const kunchinittu = await Kunchinittu.create({
-      name,
+      name: name.trim(),
       code,
       warehouseId,
       varietyId: varietyId || null,
@@ -282,10 +317,10 @@ router.put('/kunchinittus/:id', auth, authorize('manager', 'admin'), async (req,
     const { Op } = require('sequelize');
 
     // Check for duplicate name (excluding current kunchinittu)
-    if (name && name !== kunchinittu.name) {
+    if (name && name.trim() !== kunchinittu.name) {
       const existingName = await Kunchinittu.findOne({
         where: {
-          name,
+          name: name.trim(),
           id: { [Op.ne]: req.params.id }
         }
       });
@@ -314,7 +349,13 @@ router.put('/kunchinittus/:id', auth, authorize('manager', 'admin'), async (req,
 
     invalidateCache('kunchinittus');
     invalidateCache('warehouses');
-    await kunchinittu.update({ name, code, warehouseId, varietyId, capacity });
+    await kunchinittu.update({ 
+      name: name ? name.trim() : kunchinittu.name, 
+      code: code ? code.trim() : kunchinittu.code, 
+      warehouseId, 
+      varietyId, 
+      capacity 
+    });
 
     const updatedKunchinittu = await Kunchinittu.findByPk(kunchinittu.id, {
       include: [
@@ -341,10 +382,32 @@ router.delete('/kunchinittus/:id', auth, authorize('manager', 'admin'), async (r
       return res.status(404).json({ error: 'Kunchinittu not found' });
     }
 
-    // Soft delete
+    // Check if referenced/in-use by InventoryData
+    const InventoryData = require('../models/InventoryData');
+    const invCount = await InventoryData.count({
+      where: { kunchinittuId: req.params.id }
+    });
+
+    // Check if referenced/in-use by Arrivals
+    const Arrival = require('../models/Arrival');
+    const { Op } = require('sequelize');
+    const arrivalCount = await Arrival.count({
+      where: {
+        [Op.or]: [
+          { toKunchinintuId: req.params.id },
+          { fromKunchinintuId: req.params.id }
+        ]
+      }
+    });
+
+    if (invCount > 0 || arrivalCount > 0) {
+      return res.status(400).json({ error: 'Cannot delete KanchiNittu because it is in use' });
+    }
+
+    // Hard delete
     invalidateCache('kunchinittus');
     invalidateCache('warehouses');
-    await kunchinittu.update({ isActive: false });
+    await kunchinittu.destroy();
 
     res.json({ message: 'Kunchinittu deleted successfully' });
   } catch (error) {
@@ -358,9 +421,6 @@ router.delete('/kunchinittus/:id', auth, authorize('manager', 'admin'), async (r
 // Get all varieties
 router.get('/varieties', auth, async (req, res) => {
   try {
-    const cached = getCached('varieties');
-    if (cached) { res.set('Cache-Control', 'public, max-age=600'); return res.json(cached); }
-
     const varieties = await Variety.findAll({
       where: { isActive: true },
       attributes: ['id', 'name', 'code'],
@@ -368,10 +428,36 @@ router.get('/varieties', auth, async (req, res) => {
       raw: true
     });
 
-    const result = { varieties };
-    setCache('varieties', result);
-    res.set('Cache-Control', 'public, max-age=600');
-    res.json(result);
+    const Arrival = require('../models/Arrival');
+    const SampleEntry = require('../models/SampleEntry');
+    const InventoryData = require('../models/InventoryData');
+    const Outturn = require('../models/Outturn');
+
+    const varietiesWithInUse = await Promise.all(varieties.map(async (v) => {
+      const lowerName = v.name.trim().toLowerCase();
+      
+      const sCount = await SampleEntry.count({
+        where: sequelize.where(sequelize.fn('LOWER', sequelize.col('variety')), lowerName)
+      });
+      const aCount = await Arrival.count({
+        where: sequelize.where(sequelize.fn('LOWER', sequelize.col('variety')), lowerName)
+      });
+      const iCount = await InventoryData.count({
+        where: sequelize.where(sequelize.fn('LOWER', sequelize.col('variety')), lowerName)
+      });
+      const oCount = await Outturn.count({
+        where: sequelize.where(sequelize.fn('LOWER', sequelize.col('allottedVariety')), lowerName)
+      });
+      const kCount = await Kunchinittu.count({
+        where: { varietyId: v.id, isActive: true }
+      });
+
+      v.inUse = (sCount > 0 || aCount > 0 || iCount > 0 || oCount > 0 || kCount > 0);
+      return v;
+    }));
+
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.json({ varieties: varietiesWithInUse });
   } catch (error) {
     console.error('Get varieties error:', error);
     res.status(500).json({ error: 'Failed to fetch varieties' });
@@ -389,18 +475,18 @@ router.post('/varieties', auth, authorize('manager', 'admin'), async (req, res) 
 
     const { Op } = require('sequelize');
 
-    // Check for duplicate name or code
+    // Check for duplicate name or code (case-insensitive)
     const existing = await Variety.findOne({
       where: {
         [Op.or]: [
-          { code: code.trim().toUpperCase() },
-          { name: name.trim().toUpperCase() }
+          sequelize.where(sequelize.fn('LOWER', sequelize.col('code')), code.trim().toLowerCase()),
+          sequelize.where(sequelize.fn('LOWER', sequelize.col('name')), name.trim().toLowerCase())
         ]
       }
     });
 
     if (existing) {
-      if (existing.name === name.trim().toUpperCase()) {
+      if (existing.name.toLowerCase() === name.trim().toLowerCase()) {
         return res.status(400).json({ error: `Variety name '${name}' already exists` });
       }
       return res.status(400).json({ error: `Variety code '${code}' already exists` });
@@ -408,8 +494,8 @@ router.post('/varieties', auth, authorize('manager', 'admin'), async (req, res) 
 
     invalidateCache('varieties');
     const variety = await Variety.create({
-      name: name.trim().toUpperCase(),
-      code: code.trim().toUpperCase(),
+      name: name.trim(),
+      code: code.trim(),
       description
     });
 
@@ -435,10 +521,13 @@ router.put('/varieties/:id', auth, authorize('manager', 'admin'), async (req, re
     const oldName = variety.name; // Store old name for cascade update
 
     // Check for duplicate code (excluding current variety)
-    if (code && code !== variety.code) {
+    if (code && code.trim() !== variety.code) {
       const { Op } = require('sequelize');
       const existing = await Variety.findOne({
-        where: { code, id: { [Op.ne]: req.params.id } }
+        where: { 
+          code: code.trim(), 
+          id: { [Op.ne]: req.params.id } 
+        }
       });
       if (existing) {
         return res.status(400).json({ error: 'Variety code already exists' });
@@ -446,18 +535,12 @@ router.put('/varieties/:id', auth, authorize('manager', 'admin'), async (req, re
     }
 
     invalidateCache('varieties');
-    const normalizedName = name ? name.trim().toUpperCase() : variety.name;
-    const normalizedCode = code ? code.trim().toUpperCase() : variety.code;
+    const normalizedName = name ? name.trim() : variety.name;
+    const normalizedCode = code ? code.trim() : variety.code;
     await variety.update({ name: normalizedName, code: normalizedCode, description });
 
-    const toTitleCase = (str) => {
-      if (!str) return str;
-      return str.toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase());
-    };
-
     // CASCADE UPDATE: If variety name changed, update all Arrivals, SampleEntries, InventoryData, and Outturns
-    if (normalizedName !== oldName.trim().toUpperCase()) {
-      const titleCaseVariety = toTitleCase(name.trim());
+    if (normalizedName !== oldName) {
       const Arrival = require('../models/Arrival');
       const SampleEntry = require('../models/SampleEntry');
       const InventoryData = require('../models/InventoryData');
@@ -465,7 +548,7 @@ router.put('/varieties/:id', auth, authorize('manager', 'admin'), async (req, re
       const { fn, col, where: sqlWhere } = require('sequelize');
 
       const updatedCount = await Arrival.update(
-        { variety: titleCaseVariety },
+        { variety: normalizedName },
         {
           where: sqlWhere(
             fn('TRIM', fn('LOWER', col('variety'))),
@@ -473,11 +556,11 @@ router.put('/varieties/:id', auth, authorize('manager', 'admin'), async (req, re
           )
         }
       );
-      console.log(`✅ Cascade update: Updated ${updatedCount[0]} arrivals from variety "${oldName}" to "${titleCaseVariety}"`);
+      console.log(`✅ Cascade update: Updated ${updatedCount[0]} arrivals from variety "${oldName}" to "${normalizedName}"`);
 
       // Cascade to SampleEntry (case-insensitive match)
       const entryUpdated = await SampleEntry.update(
-        { variety: titleCaseVariety },
+        { variety: normalizedName },
         {
           where: sqlWhere(
             fn('TRIM', fn('LOWER', col('variety'))),
@@ -485,11 +568,11 @@ router.put('/varieties/:id', auth, authorize('manager', 'admin'), async (req, re
           )
         }
       );
-      console.log(`✅ Cascade update: Updated ${entryUpdated[0]} sample entries from variety "${oldName}" to "${titleCaseVariety}"`);
+      console.log(`✅ Cascade update: Updated ${entryUpdated[0]} sample entries from variety "${oldName}" to "${normalizedName}"`);
 
       // Cascade to InventoryData
       const inventoryUpdated = await InventoryData.update(
-        { variety: titleCaseVariety },
+        { variety: normalizedName },
         {
           where: sqlWhere(
             fn('TRIM', fn('LOWER', col('variety'))),
@@ -497,7 +580,7 @@ router.put('/varieties/:id', auth, authorize('manager', 'admin'), async (req, re
           )
         }
       );
-      console.log(`✅ Cascade update: Updated ${inventoryUpdated[0]} inventory records from variety "${oldName}" to "${titleCaseVariety}"`);
+      console.log(`✅ Cascade update: Updated ${inventoryUpdated[0]} inventory records from variety "${oldName}" to "${normalizedName}"`);
 
       // Cascade to Outturn
       const outturnUpdated = await Outturn.update(
@@ -522,9 +605,49 @@ router.put('/varieties/:id', auth, authorize('manager', 'admin'), async (req, re
   }
 });
 
-// Delete variety (Manager/Admin only) - DISABLED
+// Delete variety (Manager/Admin only)
 router.delete('/varieties/:id', auth, authorize('manager', 'admin'), async (req, res) => {
-  return res.status(400).json({ error: 'Deletion of varieties is not allowed' });
+  try {
+    const variety = await Variety.findByPk(req.params.id);
+    if (!variety) {
+      return res.status(404).json({ error: 'Variety not found' });
+    }
+
+    const lowerName = variety.name.trim().toLowerCase();
+    const Arrival = require('../models/Arrival');
+    const SampleEntry = require('../models/SampleEntry');
+    const InventoryData = require('../models/InventoryData');
+    const Outturn = require('../models/Outturn');
+
+    const sCount = await SampleEntry.count({
+      where: sequelize.where(sequelize.fn('LOWER', sequelize.col('variety')), lowerName)
+    });
+    const aCount = await Arrival.count({
+      where: sequelize.where(sequelize.fn('LOWER', sequelize.col('variety')), lowerName)
+    });
+    const iCount = await InventoryData.count({
+      where: sequelize.where(sequelize.fn('LOWER', sequelize.col('variety')), lowerName)
+    });
+    const oCount = await Outturn.count({
+      where: sequelize.where(sequelize.fn('LOWER', sequelize.col('allottedVariety')), lowerName)
+    });
+    const kCount = await Kunchinittu.count({
+      where: { varietyId: req.params.id, isActive: true }
+    });
+
+    if (sCount > 0 || aCount > 0 || iCount > 0 || oCount > 0 || kCount > 0) {
+      return res.status(400).json({ error: 'Cannot delete variety because it is in use' });
+    }
+
+    // Hard delete variety
+    invalidateCache('varieties');
+    await variety.destroy();
+
+    res.json({ message: 'Variety deleted successfully' });
+  } catch (error) {
+    console.error('Delete variety error:', error);
+    res.status(500).json({ error: 'Failed to delete variety' });
+  }
 });
 
 // ===== RICE STOCK LOCATIONS =====
@@ -700,8 +823,18 @@ router.delete('/rice-stock-locations/:id', auth, authorize('admin'), async (req,
       return res.status(404).json({ error: 'Rice stock location not found' });
     }
 
-    // Soft delete
-    await location.update({ isActive: false });
+    // Check if referenced in RiceProduction
+    const RiceProduction = require('../models/RiceProduction');
+    const rCount = await RiceProduction.count({
+      where: { locationId: req.params.id }
+    });
+
+    if (rCount > 0) {
+      return res.status(400).json({ error: 'Cannot delete location because it is in use in production records' });
+    }
+
+    // Hard delete
+    await location.destroy();
 
     res.json({ message: 'Rice stock location deleted successfully' });
   } catch (error) {
@@ -715,9 +848,6 @@ router.delete('/rice-stock-locations/:id', auth, authorize('admin'), async (req,
 // Get all rice varieties
 router.get('/rice-varieties', auth, async (req, res) => {
   try {
-    const cached = getCached('rice-varieties');
-    if (cached) { res.set('Cache-Control', 'public, max-age=300'); return res.json(cached); }
-
     const varieties = await RiceVariety.findAll({
       where: { isActive: true },
       attributes: ['id', 'name', 'code'],
@@ -725,10 +855,16 @@ router.get('/rice-varieties', auth, async (req, res) => {
       raw: true
     });
 
-    const result = { varieties };
-    setCache('rice-varieties', result);
-    res.set('Cache-Control', 'public, max-age=300');
-    res.json(result);
+    const RiceStockLocation = require('../models/RiceStockLocation');
+    // Check if rice variety is referenced elsewhere (e.g. check if name is in use in rice stock management or similar if models exist)
+    // For now, let's return inUse: false or write a placeholder check if there's a table
+    const varietiesWithInUse = varieties.map(v => {
+      v.inUse = false; // Add specific usage checks if required
+      return v;
+    });
+
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.json({ varieties: varietiesWithInUse });
   } catch (error) {
     console.error('Get rice varieties error:', error);
     res.status(500).json({ error: 'Failed to fetch rice varieties' });
@@ -744,9 +880,9 @@ router.post('/rice-varieties', auth, authorize('manager', 'admin'), async (req, 
       return res.status(400).json({ error: 'Name and code are required' });
     }
 
-    // Check for duplicate
+    // Check for duplicate (case-insensitive)
     const existing = await RiceVariety.findOne({
-      where: { code: code.trim().toUpperCase() }
+      where: sequelize.where(sequelize.fn('LOWER', sequelize.col('code')), code.trim().toLowerCase())
     });
 
     if (existing) {
@@ -754,7 +890,7 @@ router.post('/rice-varieties', auth, authorize('manager', 'admin'), async (req, 
     }
 
     const variety = await RiceVariety.create({
-      name: name.trim().toUpperCase(),
+      name: name.trim(),
       code: code.trim().toUpperCase()
     });
 
@@ -793,7 +929,7 @@ router.put('/rice-varieties/:id', auth, authorize('manager', 'admin'), async (re
     }
 
     await variety.update({
-      name: name ? name.trim().toUpperCase() : variety.name,
+      name: name ? name.trim() : variety.name,
       code: code ? code.trim().toUpperCase() : variety.code,
       isActive: isActive !== undefined ? isActive : variety.isActive
     });
@@ -808,9 +944,31 @@ router.put('/rice-varieties/:id', auth, authorize('manager', 'admin'), async (re
   }
 });
 
-// Delete rice variety (Admin only) - DISABLED
+// Delete rice variety (Admin only)
 router.delete('/rice-varieties/:id', auth, authorize('admin'), async (req, res) => {
-  return res.status(400).json({ error: 'Deletion of rice varieties is not allowed' });
+  try {
+    const variety = await RiceVariety.findByPk(req.params.id);
+    if (!variety) {
+      return res.status(404).json({ error: 'Rice variety not found' });
+    }
+
+    // Check if referenced in RiceProduction
+    const RiceProduction = require('../models/RiceProduction');
+    const rCount = await RiceProduction.count({
+      where: { varietyId: req.params.id }
+    });
+
+    if (rCount > 0) {
+      return res.status(400).json({ error: 'Cannot delete variety because it is in use in production records' });
+    }
+
+    // Hard delete
+    await variety.destroy();
+    res.json({ message: 'Rice variety deleted successfully' });
+  } catch (error) {
+    console.error('Delete rice variety error:', error);
+    res.status(500).json({ error: 'Failed to delete rice variety' });
+  }
 });
 
 // ===== BROKERS =====
@@ -836,13 +994,24 @@ router.get('/brokers', auth, async (req, res) => {
 
     const brokers = await Broker.findAll({
       where,
-      attributes: ['id', 'name', 'type', 'isActive'],
+      attributes: ['id', 'name', 'type', 'isActive', 'phoneNumber'],
       order: [['name', 'ASC']],
       raw: true
     });
 
-    res.set('Cache-Control', 'public, max-age=300');
-    res.json({ brokers });
+    const SampleEntry = require('../models/SampleEntry');
+
+    const brokersWithInUse = await Promise.all(brokers.map(async (b) => {
+      const lowerName = b.name.trim().toLowerCase();
+      const sCount = await SampleEntry.count({
+        where: sequelize.where(sequelize.fn('LOWER', sequelize.col('broker_name')), lowerName)
+      });
+      b.inUse = sCount > 0;
+      return b;
+    }));
+
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.json({ brokers: brokersWithInUse });
   } catch (error) {
     console.error('Get brokers error:', error);
     res.status(500).json({ error: 'Failed to fetch brokers' });
@@ -852,18 +1021,22 @@ router.get('/brokers', auth, async (req, res) => {
 // Create broker (Manager/Admin only)
 router.post('/brokers', auth, authorize('manager', 'admin'), async (req, res) => {
   try {
-    const { name, type } = req.body;
+    const { name, type, phoneNumber } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: 'Broker name is required' });
     }
 
+    if (phoneNumber && !/^\d{10}$/.test(phoneNumber.trim())) {
+      return res.status(400).json({ error: 'Phone number must be exactly 10 digits' });
+    }
+
     const validTypes = ['paddy', 'rice', 'both'];
     const brokerType = validTypes.includes(type) ? type : 'both';
 
-    // Check for duplicate active name. If the same broker was soft-deleted earlier, reactivate it.
+    // Check for duplicate name (case-insensitive)
     const existingName = await Broker.findOne({
-      where: { name: name.trim().toUpperCase() }
+      where: sequelize.where(sequelize.fn('LOWER', sequelize.col('name')), name.trim().toLowerCase())
     });
 
     if (existingName) {
@@ -873,7 +1046,8 @@ router.post('/brokers', auth, authorize('manager', 'admin'), async (req, res) =>
 
       await existingName.update({
         isActive: true,
-        type: brokerType
+        type: brokerType,
+        phoneNumber: phoneNumber ? phoneNumber.trim() : null
       });
 
       return res.status(201).json({
@@ -883,8 +1057,9 @@ router.post('/brokers', auth, authorize('manager', 'admin'), async (req, res) =>
     }
 
     const broker = await Broker.create({
-      name: name.trim().toUpperCase(),
+      name: name.trim(),
       type: brokerType,
+      phoneNumber: phoneNumber ? phoneNumber.trim() : null,
       isActive: true
     });
 
@@ -906,28 +1081,26 @@ router.put('/brokers/:id', auth, authorize('manager', 'admin'), async (req, res)
       return res.status(404).json({ error: 'Broker not found' });
     }
 
-    const { name, type, isActive } = req.body;
+    const { name, type, isActive, phoneNumber } = req.body;
     const { Op } = require('sequelize');
 
-    const normalizedName = name ? name.trim().toUpperCase() : null;
+    const trimmedName = name ? name.trim() : null;
     const oldName = broker.name;
 
     // Check for duplicate name (excluding current broker)
-    if (normalizedName && normalizedName !== broker.name) {
-        const existingName = await Broker.findOne({
-          where: {
-            name: normalizedName,
-            id: { [Op.ne]: req.params.id },
-            isActive: true
-          }
-        });
+    if (trimmedName && trimmedName.toLowerCase() !== broker.name.toLowerCase()) {
+      const existingName = await Broker.findOne({
+        where: sequelize.where(sequelize.fn('LOWER', sequelize.col('name')), trimmedName.toLowerCase()),
+        id: { [Op.ne]: req.params.id },
+        isActive: true
+      });
       if (existingName) {
         return res.status(400).json({ error: 'Broker name already exists' });
       }
     }
 
     const updateData = {};
-    if (normalizedName) updateData.name = normalizedName;
+    if (trimmedName) updateData.name = trimmedName;
     if (type) {
       const validTypes = ['paddy', 'rice', 'both'];
       if (validTypes.includes(type)) {
@@ -935,23 +1108,24 @@ router.put('/brokers/:id', auth, authorize('manager', 'admin'), async (req, res)
       }
     }
     if (isActive !== undefined) updateData.isActive = isActive;
+    if (phoneNumber !== undefined) {
+      const trimmedPhone = phoneNumber ? phoneNumber.trim() : null;
+      if (trimmedPhone && !/^\d{10}$/.test(trimmedPhone)) {
+        return res.status(400).json({ error: 'Phone number must be exactly 10 digits' });
+      }
+      updateData.phoneNumber = trimmedPhone;
+    }
 
     await broker.update(updateData);
 
-    const toTitleCase = (str) => {
-      if (!str) return str;
-      return str.toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase());
-    };
-
     // CASCADE UPDATE: If broker name changed, update all SampleEntries
-    if (normalizedName && normalizedName !== oldName.trim().toUpperCase()) {
-      const titleCaseBroker = toTitleCase(name.trim());
+    if (trimmedName && trimmedName !== oldName) {
       const SampleEntry = require('../models/SampleEntry');
       const { fn, col, where: sqlWhere } = require('sequelize');
 
       // Cascade to SampleEntry (case-insensitive match)
       const entryUpdated = await SampleEntry.update(
-        { brokerName: titleCaseBroker },
+        { brokerName: trimmedName },
         {
           where: sqlWhere(
             fn('TRIM', fn('LOWER', col('broker_name'))),
@@ -959,7 +1133,7 @@ router.put('/brokers/:id', auth, authorize('manager', 'admin'), async (req, res)
           )
         }
       );
-      console.log(`✅ Cascade update: Updated ${entryUpdated[0]} sample entries from broker "${oldName}" to "${titleCaseBroker}"`);
+      console.log(`✅ Cascade update: Updated ${entryUpdated[0]} sample entries from broker "${oldName}" to "${trimmedName}"`);
     }
 
     res.json({
@@ -980,8 +1154,18 @@ router.delete('/brokers/:id', auth, authorize('admin'), async (req, res) => {
       return res.status(404).json({ error: 'Broker not found' });
     }
 
-    // Soft delete
-    await broker.update({ isActive: false });
+    // Check if referenced in SampleEntries
+    const SampleEntry = require('../models/SampleEntry');
+    const sCount = await SampleEntry.count({
+      where: sequelize.where(sequelize.fn('LOWER', sequelize.col('broker_name')), broker.name.trim().toLowerCase())
+    });
+
+    if (sCount > 0) {
+      return res.status(400).json({ error: 'Cannot delete broker because they are referenced in sample entries' });
+    }
+
+    // Hard delete
+    await broker.destroy();
 
     res.json({ message: 'Broker deleted successfully' });
   } catch (error) {

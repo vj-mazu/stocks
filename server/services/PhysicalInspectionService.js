@@ -22,7 +22,7 @@ class PhysicalInspectionService {
 
       const SampleEntryRepository = require('../repositories/SampleEntryRepository');
 
-      const entry = await SampleEntryRepository.findById(inspectionData.sampleEntryId);
+      const entry = await SampleEntryRepository.findById(inspectionData.sampleEntryId, { includeFinancial: true });
       if (!entry) {
         throw new Error('Sample entry not found');
       }
@@ -201,16 +201,25 @@ class PhysicalInspectionService {
         return stages?.[key]?.approvalStatus === 'approved';
       };
 
+      const variety = entry?.variety || '';
+      const baseRateType = entry?.offering?.baseRateType || '';
+      const finalBaseRateType = entry?.offering?.finalBaseRateType || '';
+      const checkWb = (str) => {
+        const cleaned = String(str || '').replace(/[\s_/]+/g, '').toLowerCase();
+        return cleaned === 'pdwb' || cleaned === 'mdwb';
+      };
+      const isWbVariety = checkWb(variety) || checkWb(baseRateType) || checkWb(finalBaseRateType);
+
       // If it is the first trip, update the LotAllotment mode if specified
       if (isFirstRealTrip() && inspectionData.samplingRulesMode) {
-        const cleanMode = String(inspectionData.samplingRulesMode).toLowerCase() === 'new' ? 'new' : 'old';
+        const cleanMode = isWbVariety ? 'old' : (String(inspectionData.samplingRulesMode).toLowerCase() === 'new' ? 'new' : 'old');
         if (lotAllotment.samplingRulesMode !== cleanMode) {
           await lotAllotmentModel.update({ samplingRulesMode: cleanMode }, { transaction: t });
           lotAllotment.samplingRulesMode = cleanMode;
         }
       }
 
-      const activeRulesMode = lotAllotment.samplingRulesMode || 'old';
+      const activeRulesMode = isWbVariety ? 'old' : (lotAllotment.samplingRulesMode || 'old');
       const isNewMode = activeRulesMode === 'new';
 
       const isLotAvgRequired = () => {
@@ -795,7 +804,7 @@ class PhysicalInspectionService {
       const LotAllotmentRepository = require('../repositories/LotAllotmentRepository');
 
       // Get the sample entry to know total bags
-      const entry = await SampleEntryRepository.findById(sampleEntryId);
+      const entry = await SampleEntryRepository.findById(sampleEntryId, { includeFinancial: true });
       if (!entry) {
         throw new Error('Sample entry not found');
       }
@@ -876,13 +885,22 @@ class PhysicalInspectionService {
         return getInspectionSortTime(a) - getInspectionSortTime(b);
       });
 
+      const variety = entry?.variety || '';
+      const baseRateType = entry?.offering?.baseRateType || '';
+      const finalBaseRateType = entry?.offering?.finalBaseRateType || '';
+      const checkWb = (str) => {
+        const cleaned = String(str || '').replace(/[\s_/]+/g, '').toLowerCase();
+        return cleaned === 'pdwb' || cleaned === 'mdwb';
+      };
+      const isWbVariety = checkWb(variety) || checkWb(baseRateType) || checkWb(finalBaseRateType);
+
       return {
         totalBags,
         inspectedBags,
         remainingBags,
         progressPercentage,
         previousInspections,
-        samplingRulesMode: lotAllotment?.samplingRulesMode || 'old'
+        samplingRulesMode: isWbVariety ? 'old' : (lotAllotment?.samplingRulesMode || null)
       };
 
     } catch (error) {

@@ -150,7 +150,7 @@ const hasUserCreatedData = async (userId) => {
 router.get('/users', auth, authorize('admin', 'manager', 'staff'), async (req, res) => {
     try {
         const users = await User.findAll({
-            attributes: ['id', 'username', 'role', 'isActive', 'staffType', 'fullName', 'customUserId', 'qualityName', 'createdAt', 'updatedAt'],
+            attributes: ['id', 'username', 'role', 'isActive', 'staffType', 'subRole', 'fullName', 'customUserId', 'qualityName', 'createdAt', 'updatedAt'],
             order: [['role', 'ASC'], ['username', 'ASC']]
         });
 
@@ -162,6 +162,7 @@ router.get('/users', auth, authorize('admin', 'manager', 'staff'), async (req, r
                 role: user.role,
                 isActive: user.isActive,
                 staffType: user.staffType || null,
+                subRole: user.subRole || null,
                 fullName: user.fullName || null,
                 customUserId: user.customUserId || null,
                 qualityName: user.qualityName || null,
@@ -216,7 +217,7 @@ router.get('/physical-supervisors', auth, authorize('admin', 'manager'), async (
  */
 router.post('/users', auth, authorize('admin'), async (req, res) => {
     try {
-        const { username, password, role, staffType, fullName, customUserId, qualityName } = req.body;
+        const { username, password, role, staffType, subRole, fullName, customUserId, qualityName } = req.body;
         const normalizeName = (value = '') => String(value).trim().replace(/\s+/g, ' ').toLowerCase();
         const normalizedRole = String(role || '').trim().toLowerCase();
         const isSupervisorRole = normalizedRole === 'staff' || normalizedRole === 'paddy_supervisor';
@@ -230,7 +231,7 @@ router.post('/users', auth, authorize('admin'), async (req, res) => {
             return res.status(400).json({ error: 'Full Name is required' });
         }
 
-        const validRoles = ['staff', 'manager', 'admin', 'inventory_staff', 'financial_account', 'paddy_supervisor'];
+        const validRoles = ['staff', 'manager', 'admin', 'inventory_staff', 'financial_account', 'paddy_supervisor', 'ceo'];
         if (!validRoles.includes(normalizedRole)) {
             console.warn(`⚠️ Admin ${req.user.username} tried to create user with invalid role: ${role}`);
             return res.status(400).json({ error: 'Invalid role' });
@@ -295,6 +296,7 @@ router.post('/users', auth, authorize('admin'), async (req, res) => {
             customUserId: customUserId || null,
             isActive: true,
             staffType: isSupervisorRole ? (staffType || 'mill') : null,
+            subRole: (normalizedRole === 'financial_account' || normalizedRole === 'inventory_staff') ? (subRole || 'staff') : null,
             qualityName: isSupervisorRole ? (qualityName || null) : null
         });
 
@@ -311,6 +313,7 @@ router.post('/users', auth, authorize('admin'), async (req, res) => {
                 role: newUser.role,
                 isActive: newUser.isActive,
                 staffType: newUser.staffType,
+                subRole: newUser.subRole,
                 qualityName: newUser.qualityName
             }
         });
@@ -330,11 +333,18 @@ router.post('/users', auth, authorize('admin'), async (req, res) => {
  * Update username and/or password for a user (admin only)
  * Does NOT require last password - admin privilege
  */
-router.put('/users/:id/credentials', auth, authorize('admin'), async (req, res) => {
+router.put('/users/:id/credentials', auth, async (req, res) => {
     try {
         const { id } = req.params;
-        const { username, password, fullName, customUserId, staffType, qualityName } = req.body;
+        const { username, password, fullName, customUserId, staffType, subRole, qualityName } = req.body;
         const normalizeName = (value = '') => String(value).trim().replace(/\s+/g, ' ').toLowerCase();
+
+        const isSelf = String(req.user.userId) === String(id);
+        const isAdmin = req.user.role === 'admin';
+
+        if (!isAdmin && !isSelf) {
+            return res.status(403).json({ error: 'Access denied. You can only update your own password.' });
+        }
 
         // Find user
         const user = await User.findByPk(id);
@@ -345,89 +355,106 @@ router.put('/users/:id/credentials', auth, authorize('admin'), async (req, res) 
         // Prepare update object
         const updates = {};
 
-        // Update username if provided
-        if (username !== undefined && username !== null) {
-            const normalizedUsername = String(username).trim().toLowerCase();
-            const storedUsername = String(username).trim();
-            if (!storedUsername) {
-                return res.status(400).json({ error: 'Username is required' });
-            }
-            if (storedUsername !== String(user.username || '')) {
-                // Check if username already exists (for different user)
-                const existingUser = await User.findOne({
-                    where: {
-                        [Op.and]: [
-                            sqlWhere(
-                                fn('LOWER', col('username')),
-                                normalizedUsername
-                            ),
-                            { id: { [Op.ne]: id } }
-                        ]
-                    }
-                });
-
-                if (existingUser) {
-                    return res.status(400).json({ error: 'User ID already exists' });
+        // Non-admin can only update their own password
+        if (!isAdmin) {
+            if (password && password.trim() !== '') {
+                if (password.length < 4) {
+                    return res.status(400).json({ error: 'Password must be at least 4 characters' });
                 }
-
-                updates.username = storedUsername;
+                const hashedPassword = await bcrypt.hash(password, 10);
+                updates.password = hashedPassword;
+            } else {
+                return res.status(400).json({ error: 'New password is required' });
             }
-        }
+        } else {
+            // Admin can update all fields
+            // Update username if provided
+            if (username !== undefined && username !== null) {
+                const normalizedUsername = String(username).trim().toLowerCase();
+                const storedUsername = String(username).trim();
+                if (!storedUsername) {
+                    return res.status(400).json({ error: 'Username is required' });
+                }
+                if (storedUsername !== String(user.username || '')) {
+                    // Check if username already exists (for different user)
+                    const existingUser = await User.findOne({
+                        where: {
+                            [Op.and]: [
+                                sqlWhere(
+                                    fn('LOWER', col('username')),
+                                    normalizedUsername
+                                ),
+                                { id: { [Op.ne]: id } }
+                            ]
+                        }
+                    });
 
-        // Update password if provided
-        if (password && password.trim() !== '') {
-            if (password.length < 4) {
-                return res.status(400).json({ error: 'Password must be at least 4 characters' });
-            }
-            const hashedPassword = await bcrypt.hash(password, 10);
-            updates.password = hashedPassword;
-        }
-
-        // Update other fields
-        if (fullName !== undefined) {
-            if (!String(fullName).trim()) {
-                return res.status(400).json({ error: 'Full Name is required' });
-            }
-            if (fullName && fullName.trim() !== '' && fullName !== user.fullName) {
-                const normalizedFullName = normalizeName(fullName);
-                const existingFullName = await User.findOne({
-                    where: {
-                        [Op.and]: [
-                            sqlWhere(
-                                fn('LOWER', fn('REGEXP_REPLACE', fn('COALESCE', col('full_name'), ''), '\\s+', ' ', 'g')),
-                                normalizedFullName
-                            ),
-                            { id: { [Op.ne]: id } }
-                        ]
+                    if (existingUser) {
+                        return res.status(400).json({ error: 'User ID already exists' });
                     }
-                });
-                if (existingFullName) {
-                    return res.status(400).json({ error: 'Full name already exists' });
+
+                    updates.username = storedUsername;
                 }
             }
-            updates.fullName = fullName;
+
+            // Update password if provided
+            if (password && password.trim() !== '') {
+                if (password.length < 4) {
+                    return res.status(400).json({ error: 'Password must be at least 4 characters' });
+                }
+                const hashedPassword = await bcrypt.hash(password, 10);
+                updates.password = hashedPassword;
+            }
+
+            // Update other fields
+            if (fullName !== undefined) {
+                if (!String(fullName).trim()) {
+                    return res.status(400).json({ error: 'Full Name is required' });
+                }
+                if (fullName && fullName.trim() !== '' && fullName !== user.fullName) {
+                    const normalizedFullName = normalizeName(fullName);
+                    const existingFullName = await User.findOne({
+                        where: {
+                            [Op.and]: [
+                                sqlWhere(
+                                    fn('LOWER', fn('REGEXP_REPLACE', fn('COALESCE', col('full_name'), ''), '\\s+', ' ', 'g')),
+                                    normalizedFullName
+                                ),
+                                { id: { [Op.ne]: id } }
+                            ]
+                        }
+                    });
+                    if (existingFullName) {
+                        return res.status(400).json({ error: 'Full name already exists' });
+                    }
+                }
+                updates.fullName = fullName;
+            }
+            if (customUserId !== undefined) updates.customUserId = customUserId;
+            if (staffType !== undefined) updates.staffType = staffType;
+            if (subRole !== undefined) updates.subRole = subRole;
+            if (qualityName !== undefined) updates.qualityName = qualityName;
         }
-        if (customUserId !== undefined) updates.customUserId = customUserId;
-        if (staffType !== undefined) updates.staffType = staffType;
-        if (qualityName !== undefined) updates.qualityName = qualityName;
 
         // Apply updates
         if (Object.keys(updates).length > 0) {
             await user.update(updates);
         }
 
-        console.log(`✅ Admin ${req.user.username} updated user: ${user.username} (ID: ${id})`);
+        console.log(`✅ ${isAdmin ? 'Admin' : 'User'} ${req.user.username} updated credentials for user: ${user.username} (ID: ${id})`);
 
         res.json({
             success: true,
-            message: 'User updated successfully',
+            message: 'User credentials updated successfully',
             user: {
                 id: user.id,
                 username: user.username,
                 fullName: user.fullName,
                 customUserId: user.customUserId,
                 role: user.role,
-                isActive: user.isActive
+                isActive: user.isActive,
+                staffType: user.staffType,
+                subRole: user.subRole
             }
         });
     } catch (error) {
@@ -482,7 +509,7 @@ router.put('/users/:id/status', auth, authorize('admin'), async (req, res) => {
 router.put('/users/:id/role', auth, authorize('admin'), async (req, res) => {
     try {
         const { id } = req.params;
-        const { role, staffType } = req.body;
+        const { role, staffType, subRole } = req.body;
         const normalizedRole = String(role || '').trim().toLowerCase();
         const isSupervisorRole = normalizedRole === 'staff' || normalizedRole === 'paddy_supervisor';
 
@@ -491,9 +518,9 @@ router.put('/users/:id/role', auth, authorize('admin'), async (req, res) => {
             return res.status(400).json({ error: 'You cannot change your own role' });
         }
 
-        const validRoles = ['staff', 'manager', 'admin', 'quality_supervisor', 'physical_supervisor', 'inventory_staff', 'financial_account', 'paddy_supervisor'];
+        const validRoles = ['staff', 'manager', 'admin', 'quality_supervisor', 'physical_supervisor', 'inventory_staff', 'financial_account', 'paddy_supervisor', 'ceo'];
         if (!validRoles.includes(normalizedRole)) {
-            return res.status(400).json({ error: 'Invalid role. Must be one of: staff, paddy_supervisor, manager, admin, quality_supervisor, physical_supervisor, inventory_staff, financial_account' });
+            return res.status(400).json({ error: 'Invalid role. Must be one of: staff, paddy_supervisor, manager, admin, quality_supervisor, physical_supervisor, inventory_staff, financial_account, ceo' });
         }
 
         // Limit Admin and Manager roles to maximum of 2 users
@@ -523,9 +550,17 @@ router.put('/users/:id/role', auth, authorize('admin'), async (req, res) => {
             updateData.staffType = null;
             updateData.qualityName = null;
         }
+
+        // Update subRole if role is financial_account or inventory_staff
+        if (normalizedRole === 'financial_account' || normalizedRole === 'inventory_staff') {
+            updateData.subRole = subRole || 'staff';
+        } else {
+            updateData.subRole = null;
+        }
+
         await user.update(updateData);
 
-        console.log(`✅ Admin ${req.user.username} changed role for user: ${user.username} to ${normalizedRole}${staffType ? ` (staffType: ${staffType})` : ''}`);
+        console.log(`✅ Admin ${req.user.username} changed role for user: ${user.username} to ${normalizedRole}${staffType ? ` (staffType: ${staffType})` : ''}${subRole ? ` (subRole: ${subRole})` : ''}`);
 
         res.json({
             success: true,
@@ -535,6 +570,7 @@ router.put('/users/:id/role', auth, authorize('admin'), async (req, res) => {
                 username: user.username,
                 role: user.role,
                 staffType: user.staffType,
+                subRole: user.subRole,
                 isActive: user.isActive
             }
         });

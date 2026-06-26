@@ -14,9 +14,24 @@ router.get('/', auth, async (req, res) => {
       raw: true // Faster
     });
 
-    // Cache headers for 10 minutes
-    res.set('Cache-Control', 'public, max-age=600');
-    res.json({ packagings });
+    const SampleEntry = require('../models/SampleEntry');
+    const RiceProduction = require('../models/RiceProduction');
+
+    const packagingsWithInUse = await Promise.all(packagings.map(async (p) => {
+      // Check sample entries by packaging code/kg string (SampleEntry has packaging field usually string)
+      const sCount = await SampleEntry.count({
+        where: { packaging: p.allottedKg.toString() }
+      });
+      // Check rice productions by packagingId
+      const rCount = await RiceProduction.count({
+        where: { packagingId: p.id }
+      });
+      p.inUse = (sCount > 0 || rCount > 0);
+      return p;
+    }));
+
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.json({ packagings: packagingsWithInUse });
   } catch (error) {
     console.error('Get packagings error:', error);
     res.status(500).json({ error: 'Failed to fetch packagings' });
@@ -133,8 +148,23 @@ router.delete('/:id', auth, authorize('manager', 'admin'), async (req, res) => {
       return res.status(404).json({ error: 'Packaging not found' });
     }
 
-    // Soft delete
-    await packaging.update({ isActive: false });
+    // Check if referenced in SampleEntries or RiceProductions
+    const SampleEntry = require('../models/SampleEntry');
+    const RiceProduction = require('../models/RiceProduction');
+
+    const sCount = await SampleEntry.count({
+      where: { packaging: packaging.allottedKg.toString() }
+    });
+    const rCount = await RiceProduction.count({
+      where: { packagingId: req.params.id }
+    });
+
+    if (sCount > 0 || rCount > 0) {
+      return res.status(400).json({ error: 'Cannot delete brand because it is in use by sample entries or production records' });
+    }
+
+    // Hard delete
+    await packaging.destroy();
 
     res.json({ message: 'Packaging deleted successfully' });
   } catch (error) {

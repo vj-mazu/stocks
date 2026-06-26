@@ -84,8 +84,7 @@ const LotAllotment = sequelize.define('LotAllotment', {
   },
   samplingRulesMode: {
     type: DataTypes.STRING(20),
-    allowNull: false,
-    defaultValue: 'old',
+    allowNull: true,
     field: 'sampling_rules_mode',
     comment: 'Selection rule mode chosen on first trip: old or new'
   }

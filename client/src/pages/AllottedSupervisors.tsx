@@ -723,7 +723,7 @@ const AllottedSupervisors: React.FC = () => {
       const token = localStorage.getItem('token');
       
       const payload: any = { isFinalized: true };
-      const isManager = user?.role === 'manager';
+      const isManager = user?.role === 'manager' || user?.role === 'ceo';
       if (isManager) {
         payload.fillMissingValues = true;
       }
@@ -990,12 +990,26 @@ const AllottedSupervisors: React.FC = () => {
                                 <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontSize: '12px', fontWeight: '700', color: '#4CAF50' }}>
                                   {progress?.inspectedBags || 0}
                                 </td>
-                                <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontSize: '12px', fontWeight: '700', color: entry.lotAllotment?.closedAt ? '#d32f2f' : (progress?.remainingBags === 0 ? '#4CAF50' : '#FF9800') }}>
-                                  {entry.lotAllotment?.closedAt ? (
-                                    <span>0 <span style={{ fontSize: '9px', fontWeight: 'normal', color: '#777' }}>(Closed)</span></span>
-                                  ) : (
-                                    progress?.remainingBags ?? (entry.lotAllotment?.allottedBags || entry.bags)
-                                  )}
+                                <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontSize: '12px' }}>
+                                  {(() => {
+                                    const allottedBags = entry.lotAllotment?.allottedBags || entry.bags || 0;
+                                    const totalInspected = progress?.inspectedBags || 0;
+                                    const diff = totalInspected - allottedBags;
+                                    return (
+                                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                        <div style={{ fontWeight: 'bold' }}>{allottedBags}</div>
+                                        {entry.lotAllotment?.closedAt ? (
+                                          <div style={{ color: '#d32f2f', fontWeight: 'bold', fontSize: '11px', marginTop: '2px' }}>0 (Closed)</div>
+                                        ) : diff > 0 ? (
+                                          <div style={{ color: '#1d4ed8', fontWeight: 'bold', fontSize: '11px', marginTop: '2px' }}>+{diff}</div>
+                                        ) : diff < 0 ? (
+                                          <div style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '11px', marginTop: '2px' }}>{diff}</div>
+                                        ) : (
+                                          <div style={{ color: '#16a34a', fontWeight: 'bold', fontSize: '11px', marginTop: '2px' }}>0</div>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
                                 </td>
                                 <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center' }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '5px', justifyContent: 'center' }}>
@@ -1253,7 +1267,7 @@ const AllottedSupervisors: React.FC = () => {
                                         ❌ Close Lot ({progress?.remainingBags || 0} bags left)
                                       </button>
                                     )}
-                                    {['admin', 'manager'].includes(user?.role) && !entry.lotAllotment?.closedAt && (
+                                    {['admin', 'manager', 'ceo'].includes(user?.role) && !entry.lotAllotment?.closedAt && (
                                       <button
                                         onClick={() => triggerCompleteLot(entry.id, entry.partyName)}
                                         style={{
@@ -1301,31 +1315,53 @@ const AllottedSupervisors: React.FC = () => {
                                       </thead>
                                       <tbody>
                                         {progress.previousInspections.map((inspection, idx) => {
+                                          const getValueWithFallback = (field: 'moisture' | 'cutting' | 'bend', currentIdx: number) => {
+                                            for (let i = currentIdx; i >= 0; i--) {
+                                              const insp = progress.previousInspections[i];
+                                              const stgList = insp?.samplingStages || {};
+                                              
+                                              const stagesToCheck: any[] = [];
+                                              if (stgList.full_avg?.reportedBy) stagesToCheck.push(stgList.full_avg);
+                                              if (stgList.half_lorry?.reportedBy) stagesToCheck.push(stgList.half_lorry);
+                                              
+                                              const nitKeys = Object.keys(stgList)
+                                                .filter(k => k.startsWith('nit_avg') && stgList[k]?.reportedBy)
+                                                .sort((a, b) => {
+                                                  if (a === 'nit_avg') return -1;
+                                                  if (b === 'nit_avg') return 1;
+                                                  const numA = parseInt(a.replace('nit_avg_', '')) || 0;
+                                                  const numB = parseInt(b.replace('nit_avg_', '')) || 0;
+                                                  return numB - numA;
+                                                });
+                                              nitKeys.forEach(k => stagesToCheck.push(stgList[k]));
+                                              
+                                              if (stgList.lot_avg?.reportedBy) stagesToCheck.push(stgList.lot_avg);
+                                              
+                                              for (const stg of stagesToCheck) {
+                                                if (!stg) continue;
+                                                if (field === 'moisture') {
+                                                  if (stg.moistureRaw) return `${stg.moistureRaw}%`;
+                                                  if (stg.moisture !== undefined && stg.moisture !== null && String(stg.moisture).trim() !== '' && String(stg.moisture).trim() !== '-') {
+                                                    return `${stg.moisture}%`;
+                                                  }
+                                                } else if (field === 'cutting') {
+                                                  if (stg.cutting1 !== undefined && stg.cutting1 !== null && String(stg.cutting1).trim() !== '' && String(stg.cutting1).trim() !== '-') {
+                                                    return `${stg.cutting1}×${stg.cutting2 || 0}`;
+                                                  }
+                                                } else if (field === 'bend') {
+                                                  if (stg.bend1 !== undefined && stg.bend1 !== null && String(stg.bend1).trim() !== '' && String(stg.bend1).trim() !== '-') {
+                                                    return `${stg.bend1}×${stg.bend2 || 0}`;
+                                                  }
+                                                }
+                                              }
+                                            }
+                                            return '-';
+                                          };
+
+                                          const moistureVal = getValueWithFallback('moisture', idx);
+                                          const cuttingVal = getValueWithFallback('cutting', idx);
+                                          const bendVal = getValueWithFallback('bend', idx);
                                           const stages = inspection.samplingStages || {};
-                                          // Find latest available stage
-                                          const latestStage = stages.balanced_lot?.reportedBy
-                                            ? stages.balanced_lot
-                                            : stages.full_avg?.reportedBy
-                                            ? stages.full_avg
-                                            : stages.half_lorry?.reportedBy
-                                            ? stages.half_lorry
-                                            : (() => {
-                                                const nitKeys = Object.keys(stages)
-                                                  .filter(k => k.startsWith('nit_avg') && stages[k]?.reportedBy)
-                                                  .sort((a, b) => {
-                                                    if (a === 'nit_avg') return -1;
-                                                    if (b === 'nit_avg') return 1;
-                                                    const numA = parseInt(a.replace('nit_avg_', '')) || 0;
-                                                    const numB = parseInt(b.replace('nit_avg_', '')) || 0;
-                                                    return numB - numA;
-                                                  });
-                                                if (nitKeys.length > 0) return stages[nitKeys[0]];
-                                                return stages.lot_avg?.reportedBy ? stages.lot_avg : null;
-                                              })();
-                                          
-                                          const moistureVal = latestStage ? (latestStage.moistureRaw ? `${latestStage.moistureRaw}%` : (latestStage.moisture !== undefined && latestStage.moisture !== null ? `${latestStage.moisture}%` : '-')) : '-';
-                                          const cuttingVal = latestStage ? (latestStage.cutting1 !== undefined && latestStage.cutting1 !== null ? `${latestStage.cutting1}×${latestStage.cutting2 || 0}` : '-') : '-';
-                                          const bendVal = latestStage ? (latestStage.bend1 !== undefined && latestStage.bend1 !== null ? `${latestStage.bend1}×${latestStage.bend2 || 0}` : '-') : '-';
                                           const o = offeringCache[entry.id] || {};
 
                                            // Calculate trip-level smell highlighting

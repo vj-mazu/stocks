@@ -87,7 +87,7 @@ export const splitCollectedByLine = (value?: string | null): CollectedByLinePart
 const toTitleCase = (value?: string | null) => {
   const str = typeof value === 'string' ? value.trim() : '';
   if (!str) return '';
-  return str.toLowerCase().replace(/(?:^|\s)\S/g, (char) => char.toUpperCase());
+  return str.replace(/(?:^|\s)\S/g, (char) => char.toUpperCase());
 };
 
 const getCollectorLabel = (value: string | null | undefined, supervisors: SupervisorLike[], entry?: any) => {

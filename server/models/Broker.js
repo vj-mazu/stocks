@@ -17,6 +17,11 @@ const Broker = sequelize.define('Broker', {
     allowNull: false,
     defaultValue: 'both'
   },
+  phoneNumber: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    field: 'phone_number'
+  },
   isActive: {
     type: DataTypes.BOOLEAN,
     defaultValue: true,

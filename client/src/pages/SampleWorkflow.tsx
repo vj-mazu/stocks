@@ -18,12 +18,12 @@ interface TabConfig {
 }
 
 const TABS: TabConfig[] = [
-    { key: 'ledger', label: 'Ledger', icon: '📊', roles: ['admin', 'manager'] },
-    { key: 'allot', label: 'Allot Supervisor', icon: '👤', roles: ['manager'] },
+    { key: 'ledger', label: 'Ledger', icon: '📊', roles: ['admin', 'manager', 'ceo'] },
+    { key: 'allot', label: 'Allot Supervisor', icon: '👤', roles: ['manager', 'ceo'] },
     { key: 'inventory', label: 'Inventory Entry', icon: '📦', roles: ['admin', 'inventory_staff'] },
     { key: 'owner-financial', label: 'Owner Financial', icon: '💰', roles: ['admin'] },
-    { key: 'manager-financial', label: 'Manager Financial', icon: '📈', roles: ['admin', 'manager'] },
-    { key: 'final-review', label: 'Final Review', icon: '✅', roles: ['admin', 'manager'] },
+    { key: 'manager-financial', label: 'Manager Financial', icon: '📈', roles: ['admin', 'manager', 'ceo'] },
+    { key: 'final-review', label: 'Final Review', icon: '✅', roles: ['admin', 'manager', 'ceo'] },
 ];
 
 const PageContainer = styled.div`

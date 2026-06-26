@@ -77,7 +77,7 @@ const OwnerSampleReports: React.FC = () => {
     return 'financials';
   });
   const { user } = useAuth();
-  const isManager = user?.role === 'manager';
+  const isManager = user?.role === 'manager' || user?.role === 'ceo';
   const loadApprovalPendingCount = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
@@ -252,7 +252,7 @@ const OwnerSampleReports: React.FC = () => {
               >
                 Pending Loading Lots
               </button>
-              {user?.role === 'manager' && (
+              {(user?.role === 'manager' || user?.role === 'ceo') && (
                 <button
                   onClick={() => setActiveSubTab('assign-supervisor')}
                   style={{
@@ -290,7 +290,7 @@ const OwnerSampleReports: React.FC = () => {
 
             <div>
               {activeSubTab === 'financials' && <LoadingLots excludeEntryType="RICE_SAMPLE" />}
-              {activeSubTab === 'assign-supervisor' && user?.role === 'manager' && <AssigningSupervisor />}
+              {activeSubTab === 'assign-supervisor' && (user?.role === 'manager' || user?.role === 'ceo') && <AssigningSupervisor />}
               {activeSubTab === 'assigned-lots' && <AllottedSupervisors />}
             </div>
           </div>

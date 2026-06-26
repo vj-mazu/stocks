@@ -30,6 +30,11 @@ const Warehouse = sequelize.define('Warehouse', {
     allowNull: false,
     defaultValue: 'mill'
   },
+  shortCutName: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+    field: 'short_cut_name'
+  },
   isActive: {
     type: DataTypes.BOOLEAN,
     defaultValue: true

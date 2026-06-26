@@ -98,7 +98,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
   }, []);
 
   const canAccessManagerApprovals = ['admin', 'owner'].includes(String(currentUser?.role || '').toLowerCase());
-  const canAccessLoadingQuality = ['admin', 'owner', 'manager'].includes(String(currentUser?.role || '').toLowerCase());
+  const canAccessLoadingQuality = ['admin', 'owner', 'manager', 'ceo'].includes(String(currentUser?.role || '').toLowerCase());
 
   const tabs = useMemo<ApprovalTabConfig[]>(() => {
     const baseTabs: ApprovalTabConfig[] = [
@@ -290,6 +290,23 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
       if (key === 'bags' || key === 'actualBags') {
         bVal = before.actualBags || before.bags;
         aVal = after.actualBags || after.bags;
+      }
+      if (key === 'smellHas') {
+        const normalizeSmell = (val: any) => {
+          if (val === true || String(val).toLowerCase() === 'true' || String(val).toLowerCase() === 'yes') return 'Yes';
+          return 'No';
+        };
+        bVal = normalizeSmell(bVal);
+        aVal = normalizeSmell(aVal);
+      }
+      if (key === 'smellType') {
+        const bSmell = before.smellHas === true || String(before.smellHas).toLowerCase() === 'true' || String(before.smellHas).toLowerCase() === 'yes';
+        const aSmell = after.smellHas === true || String(after.smellHas).toLowerCase() === 'true' || String(after.smellHas).toLowerCase() === 'yes';
+        if (!bSmell && !aSmell) {
+          return;
+        }
+        bVal = bVal || '';
+        aVal = aVal || '';
       }
       if (bVal !== undefined && aVal !== undefined && String(bVal).trim() !== String(aVal).trim() && !changes.some(c => c.label === label)) {
         changes.push({ label, before: bVal || '-', after: aVal || '-' });
@@ -607,13 +624,14 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                   <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '60px' }}>SL No</th>
                   <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '95px' }}>Date</th>
                   <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '100px' }}>Broker</th>
+                  {loadingSubTab === 'paddy' && (
+                    <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '130px' }}>Allotted Supervisor</th>
+                  )}
                   <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '140px' }}>Party</th>
                   <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '110px' }}>Location</th>
                   <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '110px' }}>Variety</th>
                   <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '90px' }}>Pur Bags</th>
-                  {loadingSubTab === 'paddy' && (
-                    <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '130px' }}>Allotted Supervisor</th>
-                  )}
+                  <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '90px' }}>Balance</th>
                   <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '150px' }}>Sampling Status</th>
                   <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '120px' }}>Lorry No</th>
                   <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '140px' }}>Actions</th>
@@ -638,6 +656,13 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                         <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>{index + 1}</td>
                         <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>{formatDate(entry.entryDate)}</td>
                         <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>{toTitleCase(entry.brokerName)}</td>
+                        {loadingSubTab === 'paddy' && (
+                          <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>
+                            {entry.lotAllotment?.supervisor
+                              ? toTitleCase(entry.lotAllotment.supervisor.fullName || entry.lotAllotment.supervisor.username)
+                              : '-'}
+                          </td>
+                        )}
                         <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>
                           <span
                             onClick={() => openDetailEntry(entry)}
@@ -656,13 +681,25 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                         <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>{entry.location ? toTitleCase(entry.location) : '-'}</td>
                         <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>{entry.variety ? toTitleCase(entry.variety) : '-'}</td>
                         <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>{entry.lotAllotment?.allottedBags || entry.bags || 0}</td>
-                        {loadingSubTab === 'paddy' && (
-                          <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>
-                            {entry.lotAllotment?.supervisor
-                              ? toTitleCase(entry.lotAllotment.supervisor.fullName || entry.lotAllotment.supervisor.username)
-                              : '-'}
-                          </td>
-                        )}
+                        <td style={{ border: '1px solid #ddd', padding: '10px 12px', textAlign: 'center' }}>
+                          {(() => {
+                            const allottedBags = entry.lotAllotment?.allottedBags || entry.bags || 0;
+                            const totalInspected = inspections.reduce((sum: number, insp: any) => sum + (insp.bags || 0), 0);
+                            const diff = totalInspected - allottedBags;
+                            return (
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                <div style={{ fontWeight: 'bold' }}>{allottedBags}</div>
+                                {diff > 0 ? (
+                                  <div style={{ color: '#1d4ed8', fontWeight: 'bold', fontSize: '11px', marginTop: '2px' }}>+{diff}</div>
+                                ) : diff < 0 ? (
+                                  <div style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '11px', marginTop: '2px' }}>{diff}</div>
+                                ) : (
+                                  <div style={{ color: '#16a34a', fontWeight: 'bold', fontSize: '11px', marginTop: '2px' }}>0</div>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </td>
                         <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>
                           <span style={getStatusBadgeStyle(getSamplingStatusLabel(entry))}>
                             {getSamplingStatusLabel(entry)}
@@ -817,6 +854,40 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                               const stages = activeInsp.samplingStages || {};
                               const hasApprovedFullOrBalanced = stages.full_avg?.approvalStatus === 'approved' || stages.balanced_lot?.approvalStatus === 'approved';
                               if (hasApprovedFullOrBalanced) {
+                                if (!isLotFullyInspected) {
+                                  return (
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                      <span style={{
+                                        color: '#047857',
+                                        backgroundColor: '#ecfdf5',
+                                        padding: '4px 8px',
+                                        borderRadius: '4px',
+                                        fontSize: '11px',
+                                        fontWeight: 'bold',
+                                        border: '1px solid #a7f3d0'
+                                      }}>
+                                        Lorry Approved (Awaiting Next Lorry)
+                                      </span>
+                                      <button
+                                        onClick={() => handleRejectSpecificLorry(entry.id, activeInsp.id, activeInsp.lorryNumber)}
+                                        disabled={processingLorry}
+                                        style={{
+                                          background: '#dc2626',
+                                          border: 'none',
+                                          color: '#fff',
+                                          fontWeight: 'bold',
+                                          cursor: 'pointer',
+                                          padding: '5px 12px',
+                                          fontSize: '11px',
+                                          borderRadius: '4px',
+                                          boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                                        }}
+                                      >
+                                        Reject
+                                      </button>
+                                    </div>
+                                  );
+                                }
                                 return (
                                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                     <button
@@ -894,7 +965,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                         </td>
                       </tr>
                       <tr style={{ height: '10px', backgroundColor: 'transparent' }}>
-                        <td colSpan={loadingSubTab === 'paddy' ? 11 : 10} style={{ padding: 0, height: '10px', backgroundColor: 'transparent', border: 'none' }}></td>
+                        <td colSpan={loadingSubTab === 'paddy' ? 12 : 11} style={{ padding: 0, height: '10px', backgroundColor: 'transparent', border: 'none' }}></td>
                       </tr>
                     </React.Fragment>
                   );

@@ -179,6 +179,7 @@ class SampleEntryRepository {
   _buildFullIncludes(role, userId) {
     return [
       { model: User, as: 'creator', attributes: ['id', 'username', 'fullName'] },
+      { model: SampleEntryOffering, as: 'offering', required: false },
       {
         model: QualityParameters, as: 'qualityParameters', required: false,
         include: [{ model: User, as: 'reportedByUser', attributes: ['id', 'username', 'fullName'] }]

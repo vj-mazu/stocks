@@ -22,7 +22,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, roles }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (roles && user && !roles.includes(user.role)) {
+  const effectiveRole = user?.role === 'ceo' ? 'manager' : user?.role;
+
+  if (roles && user && !roles.includes(effectiveRole as any)) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>
         <h2>Access Denied</h2>

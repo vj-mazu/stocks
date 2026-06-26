@@ -17,7 +17,7 @@ const User = sequelize.define('User', {
     allowNull: false
   },
   role: {
-    type: DataTypes.ENUM('admin', 'manager', 'staff', 'paddy_supervisor', 'inventory_staff', 'financial_account', 'quality_supervisor', 'physical_supervisor'),
+    type: DataTypes.ENUM('admin', 'manager', 'ceo', 'staff', 'paddy_supervisor', 'inventory_staff', 'financial_account', 'quality_supervisor', 'physical_supervisor'),
     allowNull: false
   },
   isActive: {
@@ -27,6 +27,11 @@ const User = sequelize.define('User', {
   staffType: {
     type: DataTypes.ENUM('mill', 'location'),
     allowNull: true
+  },
+  subRole: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+    field: 'sub_role'
   },
   fullName: {
     type: DataTypes.STRING,
