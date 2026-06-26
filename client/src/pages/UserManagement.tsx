@@ -342,7 +342,7 @@ const EditModal: React.FC<EditModalProps> = ({ user, mode, onClose, onSave }) =>
     const [qualityEnabled, setQualityEnabled] = useState(!!user?.qualityName);
     const [loading, setLoading] = useState(false);
     
-    const isSupervisorEdit = mode === 'edit' && user?.role === 'staff';
+    const isSupervisorEdit = false;
 
     const getAuthConfig = () => {
         const token = localStorage.getItem('token');
