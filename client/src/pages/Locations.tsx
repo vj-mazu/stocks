@@ -1448,8 +1448,7 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
                     <tr>
                       <Th style={{ width: '60px' }}>S.No</Th>
                       <Th>Name</Th>
-                      <Th>Code</Th>
-                      {canEdit && <Th style={{ width: '80px' }}>Actions</Th>}
+                      {canEdit && <Th style={{ width: '120px' }}>Actions</Th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -1457,12 +1456,19 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
                       <tr key={v.id}>
                         <Td>{index + 1}</Td>
                         <Td style={{ fontWeight: '600' }}>{v.name}</Td>
-                        <Td>{v.code}</Td>
                         {canEdit && (
                           <Td>
                             <ActionButtons>
                               <IconButton className="edit" onClick={() => { handleEdit('riceVariety', v); setShowModal(true); }}>
                                 ✏️ Edit
+                              </IconButton>
+                              <IconButton 
+                                className="delete" 
+                                onClick={() => handleDelete('riceVariety', v.id)}
+                                disabled={v.inUse}
+                                title={v.inUse ? 'Cannot delete: Rice Variety is currently in use' : 'Delete Rice Variety'}
+                              >
+                                🗑️
                               </IconButton>
                             </ActionButtons>
                           </Td>
