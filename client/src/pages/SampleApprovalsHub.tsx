@@ -40,6 +40,9 @@ const getStatusBadgeStyle = (status: string) => {
     textAlign: 'center'
   };
   
+  if (s.includes('edit')) {
+    return { ...baseStyle, backgroundColor: '#fef3c7', color: '#d97706', border: '1px solid #fde68a' }; // Amber
+  }
   if (s.includes('avg') && !s.includes('nit')) {
     return { ...baseStyle, backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }; // Light Blue
   }
@@ -225,9 +228,15 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
 
   const getPendingStage = (insp: any) => {
     const stages = insp.samplingStages || {};
-    if (stages.lot_avg?.approvalStatus === 'pending') return { key: 'lot_avg', label: 'Lot Avg' };
-    if (stages.balanced_lot?.approvalStatus === 'pending') return { key: 'balanced_lot', label: 'Balanced Lot' };
-    if (stages.half_lorry?.approvalStatus === 'pending') return { key: 'half_lorry', label: 'Half Lorry' };
+    if (stages.lot_avg?.approvalStatus === 'pending') {
+      return { key: 'lot_avg', label: 'Lot Avg', isEdited: !!(stages.lot_avg.isEdited || stages.lot_avg.beforeEdit) };
+    }
+    if (stages.balanced_lot?.approvalStatus === 'pending') {
+      return { key: 'balanced_lot', label: 'Balanced Lot', isEdited: !!(stages.balanced_lot.isEdited || stages.balanced_lot.beforeEdit) };
+    }
+    if (stages.half_lorry?.approvalStatus === 'pending') {
+      return { key: 'half_lorry', label: 'Half Lorry', isEdited: !!(stages.half_lorry.isEdited || stages.half_lorry.beforeEdit) };
+    }
     
     // Check all nit_avg stages
     const nitKeys = Object.keys(stages)
@@ -243,11 +252,13 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
       if (stages[key]?.approvalStatus === 'pending') {
         const idx = nitKeys.indexOf(key);
         const label = idx === 0 ? 'Nit Avg' : `Nit Avg ${idx + 1}`;
-        return { key, label };
+        return { key, label, isEdited: !!(stages[key].isEdited || stages[key].beforeEdit) };
       }
     }
 
-    if (stages.full_avg?.approvalStatus === 'pending') return { key: 'full_avg', label: 'Full Lorry' };
+    if (stages.full_avg?.approvalStatus === 'pending') {
+      return { key: 'full_avg', label: 'Full Lorry', isEdited: !!(stages.full_avg.isEdited || stages.full_avg.beforeEdit) };
+    }
     return null;
   };
 
@@ -488,12 +499,13 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     
     const pendingStage = getPendingStage(activeInsp);
     if (pendingStage) {
-      if (pendingStage.key === 'lot_avg') return 'Lot Avg Sampling (Pending Approval)';
-      if (pendingStage.key === 'balanced_lot') return 'Balanced Lot Sampling (Pending Approval)';
-      if (pendingStage.key === 'half_lorry') return 'Half Lorry Sampling (Pending Approval)';
-      if (pendingStage.key === 'full_avg') return 'Full Lorry Sampling (Pending Approval)';
-      if (pendingStage.key === 'nit_avg') return 'Nit Avg Sampling (Pending Approval)';
-      return `${pendingStage.label} Sampling (Pending Approval)`;
+      const suffix = (pendingStage as any).isEdited ? ' (Edit Pending Approval)' : ' (Pending Approval)';
+      if (pendingStage.key === 'lot_avg') return `Lot Avg Sampling${suffix}`;
+      if (pendingStage.key === 'balanced_lot') return `Balanced Lot Sampling${suffix}`;
+      if (pendingStage.key === 'half_lorry') return `Half Lorry Sampling${suffix}`;
+      if (pendingStage.key === 'full_avg') return `Full Lorry Sampling${suffix}`;
+      if (pendingStage.key.startsWith('nit_avg')) return `${pendingStage.label} Sampling${suffix}`;
+      return `${pendingStage.label} Sampling${suffix}`;
     }
     
     const stages = activeInsp.samplingStages || {};
