@@ -414,7 +414,7 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
 
   // Packaging form
   const [packagingBrandName, setPackagingBrandName] = useState('');
-  const [packagingKg, setPackagingKg] = useState('25');
+  const [packagingKg, setPackagingKg] = useState('26');
   const [packagings, setPackagings] = useState<any[]>([]);
   const [editingPackaging, setEditingPackaging] = useState<any>(null);
 
@@ -807,7 +807,7 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
     setEditingPackaging(null);
     setPackagingBrandName('');
     setEditingRiceVariety(null);
-    setPackagingKg('25');
+    setPackagingKg('26');
     setEditingRiceStockLocation(null);
     setRiceStockLocationCode('');
     setRiceStockLocationName('');
