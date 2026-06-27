@@ -937,6 +937,9 @@ class PhysicalInspectionService {
     const approverUser = await User.findByPk(userId);
     const approverName = approverUser ? (approverUser.fullName || approverUser.username) : 'System';
     stages[cleanStage].approvalStatus = 'approved';
+    if (!stages[cleanStage].firstApprovedBy) {
+      stages[cleanStage].firstApprovedBy = stages[cleanStage].approvedBy || approverName;
+    }
     stages[cleanStage].approvedBy = approverName;
     
     const updates = {

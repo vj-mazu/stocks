@@ -1465,7 +1465,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                             );
                         } else if (stageObj.approvalStatus === 'approved') {
                             const fallbackManagerName = detailEntry.lotAllotment?.manager?.fullName || detailEntry.lotAllotment?.manager?.username || 'MANAGER';
-                            const name = stageObj.approvedBy ? stageObj.approvedBy : fallbackManagerName;
+                            const name = stageObj.firstApprovedBy || stageObj.approvedBy || fallbackManagerName;
                             actionsCell = (
                                 <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.1', border: '1px solid rgba(39, 174, 96, 0.3)', backgroundColor: '#e8f5e9', padding: '3px 8px', borderRadius: '4px', textAlign: 'center' }}>
                                     <span style={{ color: '#2e7d32', fontWeight: '700', fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Approved</span>
@@ -1500,7 +1500,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     } else {
                         if (stageObj.approvalStatus === 'approved') {
                             const fallbackManagerName = detailEntry.lotAllotment?.manager?.fullName || detailEntry.lotAllotment?.manager?.username || 'MANAGER';
-                            const name = stageObj.approvedBy ? stageObj.approvedBy : fallbackManagerName;
+                            const name = stageObj.firstApprovedBy || stageObj.approvedBy || fallbackManagerName;
                             actionsCell = (
                                 <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.1', border: '1px solid rgba(39, 174, 96, 0.3)', backgroundColor: '#e8f5e9', padding: '3px 8px', borderRadius: '4px', textAlign: 'center' }}>
                                     <span style={{ color: '#2e7d32', fontWeight: '700', fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Approved</span>
