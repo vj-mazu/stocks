@@ -132,17 +132,19 @@ const PhysicalInspection: React.FC = () => {
   const formatCuttingForUI = (c1: any, c2: any) => {
     const v1 = parseFloat(c1);
     const v2 = parseFloat(c2);
-    if (isNaN(v1) || v1 === 0) return '';
-    if (isNaN(v2) || v2 === 0) return `${v1}`;
-    return `${v1}×${v2}`;
+    if (isNaN(v1)) return '';
+    const displayV1 = v1 === 0 ? 1 : v1;
+    const displayV2 = isNaN(v2) ? 0 : v2;
+    return `${displayV1}×${displayV2}`;
   };
 
   const formatBendForUI = (b1: any, b2: any) => {
     const v1 = parseFloat(b1);
     const v2 = parseFloat(b2);
-    if (isNaN(v1) || v1 === 0) return '';
-    if (isNaN(v2) || v2 === 0) return `${v1}`;
-    return `${v1}×${v2}`;
+    if (isNaN(v1)) return '';
+    const displayV1 = v1 === 0 ? 1 : v1;
+    const displayV2 = isNaN(v2) ? 0 : v2;
+    return `${displayV1}×${displayV2}`;
   };
 
   const { user } = useAuth();
@@ -2684,11 +2686,15 @@ const PhysicalInspection: React.FC = () => {
                                            }
                                          } else if (field === 'cutting') {
                                            if (stg.cutting1 !== undefined && stg.cutting1 !== null && String(stg.cutting1).trim() !== '' && String(stg.cutting1).trim() !== '-') {
-                                             return `${stg.cutting1}×${stg.cutting2 || 0}`;
+                                             const c1 = parseFloat(stg.cutting1);
+                                             const c2 = parseFloat(stg.cutting2) || 0;
+                                             return `${isNaN(c1) || c1 === 0 ? 1 : c1}×${c2}`;
                                            }
                                          } else if (field === 'bend') {
                                            if (stg.bend1 !== undefined && stg.bend1 !== null && String(stg.bend1).trim() !== '' && String(stg.bend1).trim() !== '-') {
-                                             return `${stg.bend1}×${stg.bend2 || 0}`;
+                                             const b1 = parseFloat(stg.bend1);
+                                             const b2 = parseFloat(stg.bend2) || 0;
+                                             return `${isNaN(b1) || b1 === 0 ? 1 : b1}×${b2}`;
                                            }
                                          }
                                        }
@@ -3878,12 +3884,16 @@ const PhysicalInspection: React.FC = () => {
 
                 const formatCutting = (stageObj: any) => {
                   if (stageObj.cutting1 === undefined || stageObj.cutting1 === null) return '-';
-                  return `${stageObj.cutting1}x${stageObj.cutting2 || 0}`;
+                  const c1 = parseFloat(stageObj.cutting1);
+                  const c2 = parseFloat(stageObj.cutting2) || 0;
+                  return `${isNaN(c1) || c1 === 0 ? 1 : c1}x${c2}`;
                 };
 
                 const formatBend = (stageObj: any) => {
                   if (stageObj.bend1 === undefined || stageObj.bend1 === null) return '-';
-                  return `${stageObj.bend1}x${stageObj.bend2 || 0}`;
+                  const b1 = parseFloat(stageObj.bend1);
+                  const b2 = parseFloat(stageObj.bend2) || 0;
+                  return `${isNaN(b1) || b1 === 0 ? 1 : b1}x${b2}`;
                 };
 
                 const getNitAvgLabel = (nitValue: string) => {

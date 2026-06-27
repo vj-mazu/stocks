@@ -1314,13 +1314,17 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 };
 
                 const formatStageCutting = (stageObj: any) => {
-                    if (stageObj.cutting1 === undefined || stageObj.cutting1 === null || String(stageObj.cutting1) === '0') return '-';
-                    return `${stageObj.cutting1}x${stageObj.cutting2 || 0}`;
+                    if (stageObj.cutting1 === undefined || stageObj.cutting1 === null) return '-';
+                    const c1 = parseFloat(stageObj.cutting1);
+                    const c2 = parseFloat(stageObj.cutting2) || 0;
+                    return `${isNaN(c1) || c1 === 0 ? 1 : c1}x${c2}`;
                 };
 
                 const formatStageBend = (stageObj: any) => {
-                    if (stageObj.bend1 === undefined || stageObj.bend1 === null || String(stageObj.bend1) === '0') return '-';
-                    return `${stageObj.bend1}x${stageObj.bend2 || 0}`;
+                    if (stageObj.bend1 === undefined || stageObj.bend1 === null) return '-';
+                    const b1 = parseFloat(stageObj.bend1);
+                    const b2 = parseFloat(stageObj.bend2) || 0;
+                    return `${isNaN(b1) || b1 === 0 ? 1 : b1}x${b2}`;
                 };
 
                 const formatStageGrains = (stageObj: any) => {
@@ -1805,13 +1809,17 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         };
 
         const formatStageCutting = (stageObj: any) => {
-            if (stageObj.cutting1 === undefined || stageObj.cutting1 === null || String(stageObj.cutting1) === '0') return '-';
-            return `${stageObj.cutting1}x${stageObj.cutting2 || 0}`;
+            if (stageObj.cutting1 === undefined || stageObj.cutting1 === null) return '-';
+            const c1 = parseFloat(stageObj.cutting1);
+            const c2 = parseFloat(stageObj.cutting2) || 0;
+            return `${isNaN(c1) || c1 === 0 ? 1 : c1}x${c2}`;
         };
 
         const formatStageBend = (stageObj: any) => {
-            if (stageObj.bend1 === undefined || stageObj.bend1 === null || String(stageObj.bend1) === '0') return '-';
-            return `${stageObj.bend1}x${stageObj.bend2 || 0}`;
+            if (stageObj.bend1 === undefined || stageObj.bend1 === null) return '-';
+            const b1 = parseFloat(stageObj.bend1);
+            const b2 = parseFloat(stageObj.bend2) || 0;
+            return `${isNaN(b1) || b1 === 0 ? 1 : b1}x${b2}`;
         };
 
         const formatStageGrains = (stageObj: any) => {

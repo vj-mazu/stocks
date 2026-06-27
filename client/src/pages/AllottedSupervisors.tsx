@@ -1345,14 +1345,18 @@ const AllottedSupervisors: React.FC = () => {
                                                     return `${stg.moisture}%`;
                                                   }
                                                 } else if (field === 'cutting') {
-                                                  if (stg.cutting1 !== undefined && stg.cutting1 !== null && String(stg.cutting1).trim() !== '' && String(stg.cutting1).trim() !== '-') {
-                                                    return `${stg.cutting1}×${stg.cutting2 || 0}`;
-                                                  }
-                                                } else if (field === 'bend') {
-                                                  if (stg.bend1 !== undefined && stg.bend1 !== null && String(stg.bend1).trim() !== '' && String(stg.bend1).trim() !== '-') {
-                                                    return `${stg.bend1}×${stg.bend2 || 0}`;
-                                                  }
-                                                }
+                                                   if (stg.cutting1 !== undefined && stg.cutting1 !== null && String(stg.cutting1).trim() !== '' && String(stg.cutting1).trim() !== '-') {
+                                                     const c1 = parseFloat(stg.cutting1);
+                                                     const c2 = parseFloat(stg.cutting2) || 0;
+                                                     return `${isNaN(c1) || c1 === 0 ? 1 : c1}×${c2}`;
+                                                   }
+                                                 } else if (field === 'bend') {
+                                                   if (stg.bend1 !== undefined && stg.bend1 !== null && String(stg.bend1).trim() !== '' && String(stg.bend1).trim() !== '-') {
+                                                     const b1 = parseFloat(stg.bend1);
+                                                     const b2 = parseFloat(stg.bend2) || 0;
+                                                     return `${isNaN(b1) || b1 === 0 ? 1 : b1}×${b2}`;
+                                                   }
+                                                 }
                                               }
                                             }
                                             return '-';
