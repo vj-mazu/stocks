@@ -212,7 +212,7 @@ class PhysicalInspectionService {
 
       // If it is the first trip, update the LotAllotment mode if specified
       if (isFirstRealTrip() && inspectionData.samplingRulesMode) {
-        const cleanMode = isWbVariety ? 'old' : (String(inspectionData.samplingRulesMode).toLowerCase() === 'new' ? 'new' : 'old');
+        const cleanMode = String(inspectionData.samplingRulesMode).toLowerCase() === 'new' ? 'new' : 'old';
         if (lotAllotment.samplingRulesMode !== cleanMode) {
           await lotAllotmentModel.update({ samplingRulesMode: cleanMode }, { transaction: t });
           lotAllotment.samplingRulesMode = cleanMode;
@@ -900,7 +900,7 @@ class PhysicalInspectionService {
         remainingBags,
         progressPercentage,
         previousInspections,
-        samplingRulesMode: isWbVariety ? 'old' : (lotAllotment?.samplingRulesMode || null)
+        samplingRulesMode: lotAllotment?.samplingRulesMode || null
       };
 
     } catch (error) {
