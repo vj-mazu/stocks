@@ -675,6 +675,34 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         }
     };
 
+    const handleRevertSkip = (entryId: string, inspectionId: string, stageKey: string) => {
+        setConfirmModal({
+            isOpen: true,
+            title: 'Retrieve Skip',
+            message: 'Are you sure you want to retrieve this skip? This will allow adding balanced lot sampling data again.',
+            type: 'confirm',
+            onConfirm: async () => {
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                try {
+                    setProcessingAction(true);
+                    const token = localStorage.getItem('token');
+                    await axios.post(
+                        `${API_URL}/sample-entries/${entryId}/physical-inspection/${inspectionId}/revert-skip-stage`,
+                        { stage: stageKey },
+                        { headers: { Authorization: `Bearer ${token}` } }
+                    );
+                    toast.success('Stage skip retrieved successfully.');
+                    await refreshProgressData();
+                } catch (error: any) {
+                    console.error('Error reverting skipped stage:', error);
+                    toast.error(error.response?.data?.error || 'Failed to retrieve skip');
+                } finally {
+                    setProcessingAction(false);
+                }
+            }
+        });
+    };
+
 
     const executeRejectSpecificLorry = async (entryId: string, inspectionId: string, lorryNumber: string) => {
         try {
@@ -1391,7 +1419,31 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     
                     let actionsCell: any = '-';
                     if (stageObj.isSkipped || stageObj.approvalStatus === 'skipped') {
-                        actionsCell = <span style={{ color: '#7f8c8d', fontWeight: 'bold', fontSize: '11px' }}>Skipped</span>;
+                        if (canApprove) {
+                            actionsCell = (
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center' }}>
+                                    <span style={{ color: '#7f8c8d', fontWeight: 'bold', fontSize: '11px' }}>Skipped</span>
+                                    <button
+                                        onClick={() => handleRevertSkip(detailEntry.id, insp.id, stageKey)}
+                                        disabled={processingAction}
+                                        style={{
+                                            background: '#8b5cf6',
+                                            border: 'none',
+                                            color: '#fff',
+                                            fontWeight: 'bold',
+                                            cursor: 'pointer',
+                                            fontSize: '10px',
+                                            padding: '3px 8px',
+                                            borderRadius: '3px'
+                                        }}
+                                    >
+                                        Retrieve Skip
+                                    </button>
+                                </div>
+                            );
+                        } else {
+                            actionsCell = <span style={{ color: '#7f8c8d', fontWeight: 'bold', fontSize: '11px' }}>Skipped</span>;
+                        }
                     } else if (canApprove) {
                         if (pendingStage && pendingStage.key === stageKey) {
                             actionsCell = (
@@ -1905,7 +1957,31 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             
             let actionsCell: any = '-';
             if (stageObj.isSkipped || stageObj.approvalStatus === 'skipped') {
-                actionsCell = <span style={{ color: '#7f8c8d', fontWeight: 'bold', fontSize: '11px' }}>Skipped</span>;
+                if (canApprove) {
+                    actionsCell = (
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center' }}>
+                            <span style={{ color: '#7f8c8d', fontWeight: 'bold', fontSize: '11px' }}>Skipped</span>
+                            <button
+                                onClick={() => handleRevertSkip(detailEntry.id, insp.id, stageKey)}
+                                disabled={processingAction}
+                                style={{
+                                    background: '#8b5cf6',
+                                    border: 'none',
+                                    color: '#fff',
+                                    fontWeight: 'bold',
+                                    cursor: 'pointer',
+                                    fontSize: '10px',
+                                    padding: '3px 8px',
+                                    borderRadius: '3px'
+                                }}
+                            >
+                                Retrieve Skip
+                            </button>
+                        </div>
+                    );
+                } else {
+                    actionsCell = <span style={{ color: '#7f8c8d', fontWeight: 'bold', fontSize: '11px' }}>Skipped</span>;
+                }
             } else if (canApprove) {
                 if (pendingStage && pendingStage.key === stageKey) {
                     actionsCell = (

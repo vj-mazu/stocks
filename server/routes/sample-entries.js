@@ -2839,6 +2839,41 @@ router.post('/:id/physical-inspection/:inspectionId/reject-stage', authenticateT
   }
 });
 
+// Revert skip on a progressive stage (Admin/Manager/CEO)
+router.post('/:id/physical-inspection/:inspectionId/revert-skip-stage', authenticateToken, async (req, res) => {
+  try {
+    const { id, inspectionId } = req.params;
+    const { stage } = req.body;
+
+    if (!stage) {
+      return res.status(400).json({ error: 'Stage is required' });
+    }
+
+    const workflowRole = getWorkflowRole(req.user);
+    const allowedRoles = ['manager', 'admin', 'owner'];
+    if (!allowedRoles.includes(String(workflowRole || '').toLowerCase())) {
+      return res.status(403).json({ error: 'Only Admin, Manager, or CEO can revert skipped stages' });
+    }
+
+    const PhysicalInspectionService = require('../services/PhysicalInspectionService');
+
+    const updated = await PhysicalInspectionService.revertSkipPhysicalInspectionStage(
+      id,
+      inspectionId,
+      stage,
+      req.user.userId,
+      workflowRole
+    );
+
+    invalidateSampleEntryTabCaches();
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Error reverting skipped stage:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // Update a specific progressive stage of physical inspection
 router.put('/:id/physical-inspection/:inspectionId/stage/:stageKey', authenticateToken, async (req, res) => {
   try {

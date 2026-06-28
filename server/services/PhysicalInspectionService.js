@@ -1066,6 +1066,49 @@ class PhysicalInspectionService {
     return updated;
   }
 
+  async revertSkipPhysicalInspectionStage(sampleEntryId, inspectionId, stageName, userId, userRole) {
+    const PhysicalInspection = require('../models/PhysicalInspection');
+    const AuditService = require('./AuditService');
+
+    const cleanRole = String(userRole || '').toLowerCase();
+    if (!['admin', 'owner', 'manager'].includes(cleanRole)) {
+      throw new Error('Only Admin, Manager, or CEO can revert skipped stages.');
+    }
+
+    const inspection = await PhysicalInspection.findByPk(inspectionId);
+    if (!inspection) {
+      throw new Error('Physical inspection record not found');
+    }
+
+    if (inspection.sampleEntryId !== sampleEntryId) {
+      throw new Error('Inspection does not belong to this sample entry');
+    }
+
+    const stages = inspection.samplingStages || {};
+    const cleanStage = stageName.toLowerCase();
+
+    if (!stages[cleanStage]) {
+      throw new Error(`Sampling stage '${stageName}' not found in this inspection`);
+    }
+
+    if (!stages[cleanStage].isSkipped) {
+      throw new Error(`Sampling stage '${stageName}' is not marked as skipped`);
+    }
+
+    // Completely remove this skipped stage from samplingStages
+    delete stages[cleanStage];
+
+    const updates = {
+      samplingStages: JSON.parse(JSON.stringify(stages))
+    };
+
+    inspection.changed('samplingStages', true);
+    const updated = await inspection.update(updates);
+    await AuditService.logUpdate(userId, 'physical_inspections', inspection.id, inspection, updated);
+
+    return updated;
+  }
+
   async updatePhysicalInspectionStage(sampleEntryId, inspectionId, stageKey, stageData, userId, userRole) {
     const PhysicalInspection = require('../models/PhysicalInspection');
     const SampleEntry = require('../models/SampleEntry');

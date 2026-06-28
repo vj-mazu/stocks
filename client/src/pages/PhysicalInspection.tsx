@@ -2020,6 +2020,30 @@ const PhysicalInspection: React.FC = () => {
     }
   };
 
+  const handleRevertSkip = async (entryId: string, inspectionId: string, stageKey: string) => {
+    if (!window.confirm('Are you sure you want to retrieve this skip? This will allow adding balanced lot sampling data again.')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `${API_URL}/sample-entries/${entryId}/physical-inspection/${inspectionId}/revert-skip-stage`,
+        { stage: stageKey },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      showNotification('Stage skip retrieved successfully', 'success');
+      await loadEntries();
+    } catch (error: any) {
+      showNotification(error.response?.data?.error || 'Failed to retrieve skip', 'error');
+    }
+  };
+
   const initializeInspectionData = (entryId: string) => {
     // Check if there is an incomplete trip to resume
     const progress = inspectionProgress[entryId];
@@ -2860,7 +2884,28 @@ const PhysicalInspection: React.FC = () => {
                                         // If balanced lot is pending or approved
                                         if (hasBalanced) {
                                           if (stages.balanced_lot?.isSkipped) {
-                                            return <span style={{ color: '#7f8c8d', fontWeight: 'bold', fontSize: '11px' }}>Skipped</span>;
+                                            return (
+                                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center' }}>
+                                                <span style={{ color: '#7f8c8d', fontWeight: 'bold', fontSize: '11px' }}>Skipped</span>
+                                                {['admin', 'owner', 'manager'].includes(String(user?.role || '').toLowerCase()) && (
+                                                  <button
+                                                    onClick={() => handleRevertSkip(entry.id, inspection.id, 'balanced_lot')}
+                                                    style={{
+                                                      backgroundColor: '#8b5cf6',
+                                                      color: '#ffffff',
+                                                      border: 'none',
+                                                      borderRadius: '3px',
+                                                      padding: '3px 8px',
+                                                      fontSize: '10px',
+                                                      fontWeight: 'bold',
+                                                      cursor: 'pointer'
+                                                    }}
+                                                  >
+                                                    Retrieve Skip
+                                                  </button>
+                                                )}
+                                              </div>
+                                            );
                                           }
                                           if (stages.balanced_lot.approvalStatus === 'pending') {
                                             return <span style={{ color: '#d97706', fontWeight: 'bold', fontSize: '11px' }}>Balanced Lot: Pending</span>;
