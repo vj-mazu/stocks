@@ -9,6 +9,7 @@ interface Warehouse {
   location?: string;
   capacity?: number;
   isActive: boolean;
+  inUse?: boolean;
 }
 
 interface Kunchinittu {
@@ -23,6 +24,7 @@ interface Kunchinittu {
   isActive: boolean;
   isClosed?: boolean;
   closedAt?: string;
+  inUse?: boolean;
 }
 
 interface Variety {
@@ -31,6 +33,7 @@ interface Variety {
   code: string;
   description?: string;
   isActive: boolean;
+  inUse?: boolean;
 }
 
 interface RiceVariety {
@@ -38,6 +41,7 @@ interface RiceVariety {
   name: string;
   code: string;
   isActive: boolean;
+  inUse?: boolean;
 }
 
 interface LocationContextType {
