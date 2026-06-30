@@ -513,25 +513,8 @@ const PhysicalInspection: React.FC = () => {
       if (data) {
         data.progressPercentage = Math.min(100, data.progressPercentage || 0);
       }
-      if (data && data.previousInspections) {
-        data.previousInspections.sort((a: any, b: any) => {
-          const getEarliestTimestamp = (insp: any) => {
-            const stages = insp.samplingStages || {};
-            let earliest: number | null = null;
-            for (const key in stages) {
-              const stage = stages[key];
-              if (stage && stage.reportedAt) {
-                const t = new Date(stage.reportedAt).getTime();
-                if (!earliest || t < earliest) earliest = t;
-              }
-            }
-            const createdAtTime = insp.createdAt ? new Date(insp.createdAt).getTime() : null;
-            const inspectionDateTime = insp.inspectionDate ? new Date(insp.inspectionDate).getTime() : null;
-            return earliest || createdAtTime || inspectionDateTime || (Number(insp.id) * 1000) || 9999999999999;
-          };
-          return getEarliestTimestamp(a) - getEarliestTimestamp(b);
-        });
-      }
+      // Backend already sorts previousInspections by inspectionDate ASC, createdAt ASC, id ASC
+      // No client-side re-sort needed — keeps outside table and modal in sync
       
       setInspectionProgress(prev => ({
         ...prev,
