@@ -429,7 +429,8 @@ const PhysicalInspection: React.FC = () => {
               bend: inspection.bend,
               bend2: (inspection as any).bend2,
               samplingStages: (inspection as any).samplingStages || {},
-              reportedBy: inspection.reportedBy || { username: 'System' }
+              reportedBy: inspection.reportedBy || { username: 'System' },
+              createdAt: (inspection as any).createdAt
             }));
 
             const getInspectionSortTime = (insp: any) => {
@@ -826,6 +827,30 @@ const PhysicalInspection: React.FC = () => {
     return null;
   };
 
+  const getStageHoldInfo = (entryId: string, stageKey: string) => {
+    const cleanLorry = (inspectionData[entryId]?.lorryNumber || '').trim().toUpperCase();
+    const prevInsps = inspectionProgress[entryId]?.previousInspections || [];
+    const tripInsps = prevInsps.filter(
+      (insp: any) => (insp.lorryNumber || '').trim().toUpperCase() === cleanLorry
+    );
+
+    let count = 0;
+    let latestStatus = null;
+
+    tripInsps.forEach((insp: any) => {
+      const stages = insp.samplingStages || {};
+      Object.keys(stages).forEach(key => {
+        if (key === stageKey || key.startsWith(`${stageKey}_hold_`)) {
+          count++;
+          // Get the approvalStatus of the latest one
+          latestStatus = stages[key]?.approvalStatus;
+        }
+      });
+    });
+
+    return { count, latestStatus };
+  };
+
   const isStageApprovedForLot = (entryId: string, stageKey: string) => {
     if (samplingStageData[entryId]?.[stageKey]?.isLocked && samplingStageData[entryId]?.[stageKey]?.approvalStatus === 'approved') {
       return true;
@@ -1037,11 +1062,47 @@ const PhysicalInspection: React.FC = () => {
       if (stageKey === 'nit_avg') return true;
 
       const stagesObj = getLorryStages(entryId, cleanLorry);
-      if (hasHoldOnPreviousDay(stagesObj)) {
-        if (stageKey === 'lot_avg') {
-          return false;
+
+      // Check if there is an active hold on balanced_lot or lot_avg
+      let activeHoldStage: string | null = null;
+      let holdDate: Date | null = null;
+      Object.keys(stagesObj).forEach(key => {
+        if (key.includes('_hold_')) {
+          const stg = stagesObj[key];
+          if (stg?.approvalStatus === 'hold') {
+            if (key.startsWith('balanced_lot')) {
+              activeHoldStage = 'balanced_lot';
+              holdDate = stg.holdAt ? new Date(stg.holdAt) : null;
+            } else if (key.startsWith('lot_avg')) {
+              activeHoldStage = 'lot_avg';
+              holdDate = stg.holdAt ? new Date(stg.holdAt) : null;
+            }
+          }
         }
-        return true;
+      });
+
+      if (activeHoldStage) {
+        // If the date has changed (next day) and balanced_lot is on hold, allow lot_avg
+        if (activeHoldStage === 'balanced_lot' && holdDate) {
+          const today = new Date();
+          const isNextDay = (today.getFullYear() > holdDate.getFullYear()) ||
+                            (today.getFullYear() === holdDate.getFullYear() && today.getMonth() > holdDate.getMonth()) ||
+                            (today.getFullYear() === holdDate.getFullYear() && today.getMonth() === holdDate.getMonth() && today.getDate() > holdDate.getDate());
+          if (isNextDay) {
+            if (stageKey === 'lot_avg') {
+              const holdInfo = getStageHoldInfo(entryId, 'lot_avg');
+              return holdInfo.count >= 4; // Disabled if already 4 times
+            }
+            return true; // Blocks all other stages
+          }
+        }
+
+        // Standard hold behavior: can only add the same stage that is on hold (up to 4 times)
+        if (stageKey === activeHoldStage) {
+          const holdInfo = getStageHoldInfo(entryId, stageKey);
+          return holdInfo.count >= 4;
+        }
+        return true; // Blocks all other stages
       }
 
       // Pending Lot Avg or Balanced Lot blocks everything else
@@ -1157,6 +1218,12 @@ const PhysicalInspection: React.FC = () => {
     if (stageKey.startsWith('nit_avg')) {
       return false;
     }
+
+    const holdInfo = getStageHoldInfo(entryId, stageKey);
+    if (holdInfo.latestStatus === 'hold' && holdInfo.count < 4) {
+      return false; // Under hold and limit of 4 attempts -> not locked!
+    }
+
     if (samplingStageData[entryId]?.[stageKey]?.isLocked) {
       return true;
     }
@@ -1294,7 +1361,13 @@ const PhysicalInspection: React.FC = () => {
       ? !!stages.full_avg
       : (stages.full_avg && stages.full_avg.approvalStatus === 'approved');
       
-    const hasBalancedLot = stages.balanced_lot && (stages.balanced_lot.approvalStatus === 'approved' || stages.balanced_lot.approvalStatus === 'pending' || stages.balanced_lot.isSkipped);
+    const hasBalancedLot = Object.keys(stages).some(key => {
+      if (key === 'balanced_lot' || key.startsWith('balanced_lot_hold_')) {
+        const stg = stages[key];
+        return stg && (stg.approvalStatus === 'approved' || stg.approvalStatus === 'pending' || stg.approvalStatus === 'rejected' || stg.isSkipped);
+      }
+      return false;
+    });
     
     if (hasFullAvg && !hasBalancedLot) {
       if (isNewCrop) {
@@ -2680,11 +2753,17 @@ const PhysicalInspection: React.FC = () => {
                                   const isNewCrop = getRulesMode(entry.id) === 'new' && !checkIfWbVariety(entry);
                                     
                                   const getValueWithFallback = (field: 'moisture' | 'cutting' | 'bend', currentIdx: number) => {
+                                     // Pass 1: Find the latest non-zero value across current and previous trips
                                      for (let i = currentIdx; i >= 0; i--) {
                                        const insp = progress.previousInspections[i];
-                                       const stgList = insp?.samplingStages || {};
+                                       if (!insp) continue;
+                                       const stgList = insp.samplingStages || {};
                                        
                                        const stagesToCheck: any[] = [];
+                                       const balancedLotKey = Object.keys(stgList).find(key => key === 'balanced_lot' || key.startsWith('balanced_lot_hold_'));
+                                       const balancedLotStage = balancedLotKey ? stgList[balancedLotKey] : null;
+                                       if (balancedLotStage?.reportedBy) stagesToCheck.push(balancedLotStage);
+                                       
                                        if (stgList.full_avg?.reportedBy) stagesToCheck.push(stgList.full_avg);
                                        if (stgList.half_lorry?.reportedBy) stagesToCheck.push(stgList.half_lorry);
                                        
@@ -2699,16 +2778,73 @@ const PhysicalInspection: React.FC = () => {
                                          });
                                        nitKeys.forEach(k => stagesToCheck.push(stgList[k]));
                                        
-                                       if (stgList.lot_avg?.reportedBy) stagesToCheck.push(stgList.lot_avg);
+                                       const lotAvgKey = Object.keys(stgList).find(key => key === 'lot_avg' || key.startsWith('lot_avg_hold_'));
+                                       const lotAvgStage = lotAvgKey ? stgList[lotAvgKey] : null;
+                                       if (lotAvgStage?.reportedBy) stagesToCheck.push(lotAvgStage);
                                        
                                        for (const stg of stagesToCheck) {
                                          if (!stg) continue;
                                          if (field === 'moisture') {
-                                           if (stg.moistureRaw) return `${stg.moistureRaw}%`;
-                                           if (stg.moisture !== undefined && stg.moisture !== null && String(stg.moisture).trim() !== '' && String(stg.moisture).trim() !== '-') {
-                                             return `${stg.moisture}%`;
+                                           const mRaw = String(stg.moistureRaw || '').trim();
+                                           const mVal = String(stg.moisture || '').trim();
+                                           if (mRaw && mRaw !== '0' && mRaw !== '0%' && mRaw !== '0.00' && mRaw !== '0.0' && mRaw !== '-') {
+                                             return `${mRaw}%`;
+                                           }
+                                           if (mVal && mVal !== '0' && mVal !== '0%' && mVal !== '0.00' && mVal !== '0.0' && mVal !== '-' && mVal !== '') {
+                                             return `${mVal}%`;
                                            }
                                          } else if (field === 'cutting') {
+                                           if (stg.cutting1 !== undefined && stg.cutting1 !== null && String(stg.cutting1).trim() !== '' && String(stg.cutting1).trim() !== '-') {
+                                             const c1 = parseFloat(stg.cutting1);
+                                             const c2 = parseFloat(stg.cutting2) || 0;
+                                             if (!isNaN(c1) && c2 > 0) {
+                                               return `${isNaN(c1) || c1 === 0 ? 1 : c1}×${c2}`;
+                                             }
+                                           }
+                                         } else if (field === 'bend') {
+                                           if (stg.bend1 !== undefined && stg.bend1 !== null && String(stg.bend1).trim() !== '' && String(stg.bend1).trim() !== '-') {
+                                             const b1 = parseFloat(stg.bend1);
+                                             const b2 = parseFloat(stg.bend2) || 0;
+                                             if (!isNaN(b1) && b2 > 0) {
+                                               return `${isNaN(b1) || b1 === 0 ? 1 : b1}×${b2}`;
+                                             }
+                                           }
+                                         }
+                                       }
+                                     }
+                                     
+                                     // Pass 2: Fallback to show first found stage values even if they are 1x0 / 0
+                                     for (let i = currentIdx; i >= 0; i--) {
+                                       const insp = progress.previousInspections[i];
+                                       if (!insp) continue;
+                                       const stgList = insp.samplingStages || {};
+                                       
+                                       const stagesToCheck: any[] = [];
+                                       const balancedLotKey = Object.keys(stgList).find(key => key === 'balanced_lot' || key.startsWith('balanced_lot_hold_'));
+                                       const balancedLotStage = balancedLotKey ? stgList[balancedLotKey] : null;
+                                       if (balancedLotStage?.reportedBy) stagesToCheck.push(balancedLotStage);
+                                       
+                                       if (stgList.full_avg?.reportedBy) stagesToCheck.push(stgList.full_avg);
+                                       if (stgList.half_lorry?.reportedBy) stagesToCheck.push(stgList.half_lorry);
+                                       
+                                       const nitKeys = Object.keys(stgList)
+                                         .filter(k => k.startsWith('nit_avg') && stgList[k]?.reportedBy)
+                                         .sort((a, b) => {
+                                           if (a === 'nit_avg') return -1;
+                                           if (b === 'nit_avg') return 1;
+                                           const numA = parseInt(a.replace('nit_avg_', '')) || 0;
+                                           const numB = parseInt(b.replace('nit_avg_', '')) || 0;
+                                           return numB - numA;
+                                         });
+                                       nitKeys.forEach(k => stagesToCheck.push(stgList[k]));
+                                       
+                                       const lotAvgKey = Object.keys(stgList).find(key => key === 'lot_avg' || key.startsWith('lot_avg_hold_'));
+                                       const lotAvgStage = lotAvgKey ? stgList[lotAvgKey] : null;
+                                       if (lotAvgStage?.reportedBy) stagesToCheck.push(lotAvgStage);
+                                       
+                                       for (const stg of stagesToCheck) {
+                                         if (!stg) continue;
+                                         if (field === 'cutting') {
                                            if (stg.cutting1 !== undefined && stg.cutting1 !== null && String(stg.cutting1).trim() !== '' && String(stg.cutting1).trim() !== '-') {
                                              const c1 = parseFloat(stg.cutting1);
                                              const c2 = parseFloat(stg.cutting2) || 0;
@@ -2859,8 +2995,10 @@ const PhysicalInspection: React.FC = () => {
                                         const stages = inspection.samplingStages || {};
                                         const hasLotAvg = !!stages.lot_avg;
                                         const hasHalf = !!stages.half_lorry;
+                                        const balancedLotKey = Object.keys(stages).find(key => key === 'balanced_lot' || key.startsWith('balanced_lot_hold_'));
+                                        const balancedLotStage = balancedLotKey ? stages[balancedLotKey] : null;
+                                        const hasBalanced = !!balancedLotStage;
                                         const hasFull = !!stages.full_avg;
-                                        const hasBalanced = !!stages.balanced_lot;
 
                                         // If dummy LOT_AVG trip
                                         const isLorryLotAvg = (inspection.lorryNumber || '').trim().toUpperCase() === 'LOT_AVG';
@@ -2881,9 +3019,8 @@ const PhysicalInspection: React.FC = () => {
                                           }
                                         }
 
-                                        // If balanced lot is pending or approved
-                                        if (hasBalanced) {
-                                          if (stages.balanced_lot?.isSkipped) {
+                                        if (hasBalanced && balancedLotStage) {
+                                          if (balancedLotStage.isSkipped) {
                                             return (
                                               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center' }}>
                                                 <span style={{ color: '#7f8c8d', fontWeight: 'bold', fontSize: '11px' }}>Skipped</span>
@@ -2907,10 +3044,40 @@ const PhysicalInspection: React.FC = () => {
                                               </div>
                                             );
                                           }
-                                          if (stages.balanced_lot.approvalStatus === 'pending') {
-                                            return <span style={{ color: '#d97706', fontWeight: 'bold', fontSize: '11px' }}>Balanced Lot: Pending</span>;
-                                          }
-                                          return <span style={{ color: '#2e7d32', fontWeight: 'bold', fontSize: '11px' }}>Completed</span>;
+                                           if (balancedLotStage.approvalStatus === 'pending') {
+                                             return <span style={{ color: '#d97706', fontWeight: 'bold', fontSize: '11px' }}>Balanced Lot: Pending</span>;
+                                           }
+                                           if (balancedLotStage.approvalStatus === 'rejected') {
+                                             return <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '11px' }}>Rejected</span>;
+                                           }
+                                           if (balancedLotStage.approvalStatus === 'hold') {
+                                             const holdInfo = getStageHoldInfo(entry.id, 'balanced_lot');
+                                             if (holdInfo.count < 4) {
+                                               return (
+                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center', justifyContent: 'center' }}>
+                                                   <span style={{ color: '#d97706', fontWeight: 'bold', fontSize: '11px' }}>Balanced Lot: Hold</span>
+                                                   <button
+                                                     onClick={() => handleResumeLorry(entry.id, inspection.lorryNumber, inspection.samplingStages, inspection.inspectionDate, true)}
+                                                     style={{
+                                                       backgroundColor: '#e67e22',
+                                                       color: '#ffffff',
+                                                       border: 'none',
+                                                       borderRadius: '3px',
+                                                       padding: '3px 8px',
+                                                       fontSize: '11px',
+                                                       fontWeight: 'bold',
+                                                       cursor: 'pointer'
+                                                     }}
+                                                   >
+                                                     Add Balanced
+                                                   </button>
+                                                 </div>
+                                               );
+                                             } else {
+                                               return <span style={{ color: '#d97706', fontWeight: 'bold', fontSize: '11px' }}>Balanced Lot: Hold (Max Attempts)</span>;
+                                             }
+                                           }
+                                           return <span style={{ color: '#2e7d32', fontWeight: 'bold', fontSize: '11px' }}>Completed</span>;
                                         }
 
                                         const isNewCrop = getRulesMode(entry.id) === 'new' && !checkIfWbVariety(entry);
@@ -3165,13 +3332,18 @@ const PhysicalInspection: React.FC = () => {
                                         <div style={{ border: '1px solid #ddd', borderRadius: '6px', overflow: 'hidden', marginBottom: '8px' }}>
                                           {stageItems.map((item) => {
                                             const isDisabled = freezed || item.disabled;
-                                            const isSelected = (selectedStage[entry.id] || 'lot_avg') === item.value;
                                             const isLocked = isStageLockedForLot(entry.id, item.value);
                                             const isApproved = isStageApprovedForLot(entry.id, item.value);
                                             const isDone = isLocked || isApproved;
+                                            const holdInfo = getStageHoldInfo(entry.id, item.value);
+                                            const isOnHold = holdInfo.latestStatus === 'hold';
                                             
-                                            let statusLabel = '✓ Done';
-                                            if (isDisabled && !freezed) {
+                                            let statusLabel = '';
+                                            if (isOnHold) {
+                                              statusLabel = 'Hold';
+                                            } else if (isDone) {
+                                              statusLabel = '✓ Done';
+                                            } else if (isDisabled && !freezed) {
                                               if (item.value === 'balanced_lot') {
                                                 const isLockedStg = isStageLockedForLot(entry.id, 'balanced_lot');
                                                 if (!isLockedStg && isAnyFullAvgSavedOrApproved(entry.id)) {
@@ -3184,6 +3356,7 @@ const PhysicalInspection: React.FC = () => {
                                                 }
                                               }
                                             }
+                                            const isSelected = (selectedStage[entry.id] || 'lot_avg') === item.value;
                                             return (
                                               <div
                                                 key={item.value}
@@ -3209,16 +3382,16 @@ const PhysicalInspection: React.FC = () => {
                                                 }}
                                               >
                                                 <span>{item.label}</span>
-                                                {isDisabled && (
-                                                  <span style={{ 
-                                                    fontSize: '10px', 
-                                                    color: statusLabel.startsWith('Expired') ? '#d32f2f' : '#999', 
-                                                    fontWeight: '600' 
-                                                  }}>
-                                                    {statusLabel}
-                                                  </span>
-                                                )}
-                                                {isSelected && !isDisabled && <span style={{ fontSize: '10px', color: '#27ae60', fontWeight: '700' }}>● Selected</span>}
+                                                {statusLabel && (
+                                                   <span style={{ 
+                                                     fontSize: '10px', 
+                                                     color: statusLabel === 'Hold' ? '#d97706' : (statusLabel.startsWith('Expired') ? '#d32f2f' : '#999'), 
+                                                     fontWeight: '700' 
+                                                   }}>
+                                                     {statusLabel}
+                                                   </span>
+                                                 )}
+                                                 {isSelected && !isDisabled && <span style={{ fontSize: '10px', color: '#27ae60', fontWeight: '700' }}>● Selected</span>}
                                               </div>
                                             );
                                           })}
@@ -4283,9 +4456,13 @@ const PhysicalInspection: React.FC = () => {
                             const isLocked = isStageLockedForLot(entry.id, item.value);
                             const isApproved = isStageApprovedForLot(entry.id, item.value);
                             const isDone = isLocked || isApproved;
+                            const holdInfo = getStageHoldInfo(entry.id, item.value);
+                            const isOnHold = holdInfo.latestStatus === 'hold';
                             
                             let statusLabel = '';
-                            if (isDone) {
+                            if (isOnHold) {
+                              statusLabel = 'Hold';
+                            } else if (isDone) {
                               statusLabel = '✓ Done';
                             } else if (isDisabled) {
                               if (item.value === 'balanced_lot') {
@@ -4332,8 +4509,8 @@ const PhysicalInspection: React.FC = () => {
                                 {statusLabel && (
                                   <span style={{ 
                                     fontSize: '10px', 
-                                    color: statusLabel.startsWith('Expired') ? '#d32f2f' : '#999', 
-                                    fontWeight: '600' 
+                                    color: statusLabel === 'Hold' ? '#d97706' : (statusLabel.startsWith('Expired') ? '#d32f2f' : '#999'), 
+                                    fontWeight: '700' 
                                   }}>
                                     {statusLabel}
                                   </span>

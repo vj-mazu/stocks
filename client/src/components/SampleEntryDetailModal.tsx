@@ -585,7 +585,7 @@ const getNitAvgLabel = (nitValue: string) => {
     return `Nit Avg (${clean})`;
 };
 
-export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpdate, showCollectorLoginPair = false, progressiveMode = false, onEditStage }: { detailEntry: SampleEntry, detailMode: 'quick' | 'history' | 'summary' | 'full', onClose: () => void, onUpdate?: (gpsCoordinates?: string) => void | Promise<void>, showCollectorLoginPair?: boolean, progressiveMode?: boolean, onEditStage?: (lorryNumber: string, stageKey: string) => void }) => {
+export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpdate, showCollectorLoginPair = false, progressiveMode = false, onEditStage, onTriggerDispute, autoTriggerDisputeKey }: { detailEntry: SampleEntry, detailMode: 'quick' | 'history' | 'summary' | 'full', onClose: () => void, onUpdate?: (gpsCoordinates?: string) => void | Promise<void>, showCollectorLoginPair?: boolean, progressiveMode?: boolean, onEditStage?: (lorryNumber: string, stageKey: string) => void, onTriggerDispute?: (entry: SampleEntry) => void, autoTriggerDisputeKey?: { inspectionId: string; stageKey: string } }) => {
     const { user } = useAuth();
     const buildMapHref = (value: any) => {
         const raw = typeof value === 'object' && value !== null
@@ -596,6 +596,18 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(raw)}`;
     };
     const isStaff = user?.role === 'staff';
+    const getStageLabel = (key: string) => {
+        if (key === 'lot_avg') return 'Lot Avg';
+        if (key === 'balanced_lot') return 'Balanced Lot';
+        if (key === 'half_lorry') return 'Half Lorry';
+        if (key === 'full_avg') return 'Full Lorry';
+        if (key.startsWith('nit_avg')) {
+            if (key === 'nit_avg') return 'Nit Avg';
+            const num = key.replace('nit_avg_', '');
+            return `Nit Avg ${num}`;
+        }
+        return key;
+    };
     const [supervisors, setSupervisors] = useState<any[]>([]);
     const [cookingInput, setCookingInput] = useState<any>({});
     const [isSaving, setIsSaving] = useState(false);
@@ -606,6 +618,114 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
     const [pricingDetail, setPricingDetail] = useState<{ entry: SampleEntry, mode: 'offer' | 'final' } | null>(null);
     const [inspectionsProgress, setInspectionsProgress] = useState<any>(null);
     const [selectedLorryForComparison, setSelectedLorryForComparison] = useState<any>(null);
+    const [disputeModalData, setDisputeModalData] = useState<{
+        isOpen: boolean;
+        inspectionId: string;
+        stageKey: string;
+        disputeRate: string;
+        disputeRateType: string;
+        sute: string;
+        suteUnit: string;
+        moistureValue: string;
+        revisedRateOption: string;
+        linkedRevisionId: string;
+        disputeReason: string;
+    }>({
+        isOpen: false,
+        inspectionId: '',
+        stageKey: '',
+        disputeRate: '',
+        disputeRateType: 'PD_LOOSE',
+        sute: '',
+        suteUnit: 'per_bag',
+        moistureValue: '',
+        revisedRateOption: 'final',
+        linkedRevisionId: '',
+        disputeReason: ''
+    });
+
+    const triggerDisputeFlow = async (inspectionId: string, stageKey: string) => {
+        if (onTriggerDispute) {
+            try {
+                setProcessingAction(true);
+                const token = localStorage.getItem('token');
+                // Dispute means approved only -> approve stage first
+                await axios.post(
+                    `${API_URL}/sample-entries/${detailEntry.id}/physical-inspection/${inspectionId}/approve-stage`,
+                    { stage: stageKey },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+                toast.success('Stage approved for dispute successfully!');
+                onTriggerDispute(detailEntry);
+                onClose();
+            } catch (error: any) {
+                console.error('Error approving stage for dispute:', error);
+                toast.error(error.response?.data?.error || 'Failed to approve stage for dispute');
+            } finally {
+                setProcessingAction(false);
+            }
+        } else {
+            const offering = detailEntry?.offering;
+            setDisputeModalData({
+                isOpen: true,
+                inspectionId,
+                stageKey,
+                disputeRate: String(offering?.disputeBaseRate ?? offering?.finalBaseRate ?? offering?.offerBaseRateValue ?? ''),
+                disputeRateType: offering?.disputeBaseRateType || offering?.baseRateType || 'PD_LOOSE',
+                sute: String(offering?.finalSute ?? offering?.sute ?? ''),
+                suteUnit: offering?.finalSuteUnit || offering?.suteUnit || 'per_bag',
+                moistureValue: String(offering?.moistureValue ?? ''),
+                revisedRateOption: offering?.revisedRateOption || 'final',
+                linkedRevisionId: '',
+                disputeReason: ''
+            });
+        }
+    };
+
+    const submitDisputeFlow = async () => {
+        if (!disputeModalData.disputeRate || isNaN(Number(disputeModalData.disputeRate))) {
+            toast.error('Please enter a valid Dispute Rate');
+            return;
+        }
+        if (disputeModalData.revisedRateOption === 'dispute' && !disputeModalData.linkedRevisionId) {
+            toast.error('Please select a revised rate to link');
+            return;
+        }
+        try {
+            setProcessingAction(true);
+            const token = localStorage.getItem('token');
+            const payload = {
+                isFinalized: true,
+                disputeBaseRate: Number(disputeModalData.disputeRate),
+                disputeBaseRateType: disputeModalData.disputeRateType,
+                finalSute: disputeModalData.sute ? Number(disputeModalData.sute) : null,
+                finalSuteUnit: disputeModalData.suteUnit,
+                moistureValue: disputeModalData.moistureValue ? Number(disputeModalData.moistureValue) : null,
+                revisedRateOption: disputeModalData.revisedRateOption,
+                linkedRevisionId: disputeModalData.revisedRateOption === 'dispute' ? disputeModalData.linkedRevisionId : null,
+                disputeReason: disputeModalData.disputeReason,
+                __requestType: 'dispute'
+            };
+            await axios.post(
+                `${API_URL}/sample-entries/${detailEntry.id}/final-price`,
+                payload,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            await axios.post(
+                `${API_URL}/sample-entries/${detailEntry.id}/physical-inspection/${disputeModalData.inspectionId}/approve-stage`,
+                { stage: disputeModalData.stageKey },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            toast.success('Dispute submitted & stage approved successfully!');
+            setDisputeModalData(prev => ({ ...prev, isOpen: false }));
+            await refreshProgressData();
+        } catch (error: any) {
+            console.error('Error submitting dispute workflow:', error);
+            toast.error(error.response?.data?.error || 'Failed to submit dispute');
+        } finally {
+            setProcessingAction(false);
+        }
+    };
 
     const [processingAction, setProcessingAction] = useState(false);
     const [confirmModal, setConfirmModal] = useState<{
@@ -763,13 +883,20 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         headers: { Authorization: `Bearer ${token}` }
                     });
                     setInspectionsProgress(response.data);
+
+                    if (autoTriggerDisputeKey) {
+                        // Small timeout to allow state to settle
+                        setTimeout(() => {
+                            triggerDisputeFlow(autoTriggerDisputeKey.inspectionId, autoTriggerDisputeKey.stageKey);
+                        }, 100);
+                    }
                 } catch (err) {
                     console.error('Error fetching inspection progress in modal:', err);
                 }
             };
             fetchInspectionProgress();
         }
-    }, [detailEntry]);
+    }, [detailEntry, autoTriggerDisputeKey]);
 
     useEffect(() => {
         const fetchUsers = async () => {
@@ -1445,41 +1572,75 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                             actionsCell = <span style={{ color: '#7f8c8d', fontWeight: 'bold', fontSize: '11px' }}>Skipped</span>;
                         }
                     } else if (canApprove) {
-                        if (pendingStage && pendingStage.key === stageKey) {
+                        const isStageAlreadyPassed = Object.keys(stages).some(key => {
+                            const isBaseMatch = (key === stageKey || key.startsWith(`${stageKey}_hold_`) || 
+                                (stageKey.includes('_hold_') && (key === stageKey.split('_hold_')[0] || key.startsWith(`${stageKey.split('_hold_')[0]}_hold_`))));
+                            if (isBaseMatch) {
+                                const stgObj = stages[key];
+                                return stgObj && (stgObj.approvalStatus === 'approved' || stgObj.approvalStatus === 'dispute' || stgObj.approvalStatus === 'rejected');
+                            }
+                            return false;
+                        });
+                        if (stageObj.approvalStatus === 'hold' && isStageAlreadyPassed) {
+                            actionsCell = <span style={{ color: '#d97706', fontWeight: 'bold', fontSize: '10px' }}>Hold (Past Attempt)</span>;
+                        } else if (stageObj.approvalStatus === 'pending' || stageObj.approvalStatus === 'hold') {
                             actionsCell = (
-                                <div style={{ display: 'flex', gap: '10px' }}>
-                                    <button
-                                        onClick={() => handleApproveProgressiveStage(detailEntry.id, insp.id, stageKey, pendingStage.label)}
-                                        disabled={processingAction}
-                                        style={{
-                                            background: '#27ae60',
-                                            border: 'none',
-                                            color: '#fff',
-                                            fontWeight: 'bold',
-                                            cursor: 'pointer',
-                                            fontSize: '10px',
-                                            padding: '3px 8px',
-                                            borderRadius: '3px'
-                                        }}
-                                    >
-                                        Approve
-                                    </button>
-                                    <button
-                                        onClick={() => handleRejectProgressiveStage(detailEntry.id, insp.id, stageKey, pendingStage.label)}
-                                        disabled={processingAction}
-                                        style={{
-                                            background: '#dc2626',
-                                            border: 'none',
-                                            color: '#fff',
-                                            fontWeight: 'bold',
-                                            cursor: 'pointer',
-                                            fontSize: '10px',
-                                            padding: '3px 8px',
-                                            borderRadius: '3px'
-                                        }}
-                                    >
-                                        Reject
-                                    </button>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center', justifyContent: 'center' }}>
+                                    {stageObj.approvalStatus === 'hold' && (
+                                        <span style={{ color: '#d97706', fontWeight: '800', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>[Hold]</span>
+                                    )}
+                                    <div style={{ display: 'flex', gap: '6px' }}>
+                                        <button
+                                            onClick={() => handleApproveProgressiveStage(detailEntry.id, insp.id, stageKey, getStageLabel(stageKey))}
+                                            disabled={processingAction}
+                                            style={{
+                                                background: '#27ae60',
+                                                border: 'none',
+                                                color: '#fff',
+                                                fontWeight: 'bold',
+                                                cursor: 'pointer',
+                                                fontSize: '10px',
+                                                padding: '3px 8px',
+                                                borderRadius: '3px'
+                                            }}
+                                        >
+                                            Approve
+                                        </button>
+                                        <button
+                                            onClick={() => handleRejectProgressiveStage(detailEntry.id, insp.id, stageKey, getStageLabel(stageKey))}
+                                            disabled={processingAction}
+                                            style={{
+                                                background: '#dc2626',
+                                                border: 'none',
+                                                color: '#fff',
+                                                fontWeight: 'bold',
+                                                cursor: 'pointer',
+                                                fontSize: '10px',
+                                                padding: '3px 8px',
+                                                borderRadius: '3px'
+                                            }}
+                                        >
+                                            Reject
+                                        </button>
+                                        {stageObj.approvalStatus === 'hold' && (
+                                            <button
+                                                onClick={() => triggerDisputeFlow(insp.id, stageKey)}
+                                                disabled={processingAction}
+                                                style={{
+                                                    background: '#d97706',
+                                                    border: 'none',
+                                                    color: '#fff',
+                                                    fontWeight: 'bold',
+                                                    cursor: 'pointer',
+                                                    fontSize: '10px',
+                                                    padding: '3px 8px',
+                                                    borderRadius: '3px'
+                                                }}
+                                            >
+                                                Dispute
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             );
                         } else if (!pendingStage && detailEntry.status === 'PHYSICAL_INSPECTION' && (insp.isComplete || stages.balanced_lot?.approvalStatus === 'approved') && stageKey === 'balanced_lot' && (inspectionsProgress?.inspectedBags >= inspectionsProgress?.totalBags)) {
@@ -1983,41 +2144,75 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     actionsCell = <span style={{ color: '#7f8c8d', fontWeight: 'bold', fontSize: '11px' }}>Skipped</span>;
                 }
             } else if (canApprove) {
-                if (pendingStage && pendingStage.key === stageKey) {
+                const isStageAlreadyPassed = Object.keys(stages).some(key => {
+                    const isBaseMatch = (key === stageKey || key.startsWith(`${stageKey}_hold_`) || 
+                        (stageKey.includes('_hold_') && (key === stageKey.split('_hold_')[0] || key.startsWith(`${stageKey.split('_hold_')[0]}_hold_`))));
+                    if (isBaseMatch) {
+                        const stgObj = stages[key];
+                        return stgObj && (stgObj.approvalStatus === 'approved' || stgObj.approvalStatus === 'dispute' || stgObj.approvalStatus === 'rejected');
+                    }
+                    return false;
+                });
+                if (stageObj.approvalStatus === 'hold' && isStageAlreadyPassed) {
+                    actionsCell = <span style={{ color: '#d97706', fontWeight: 'bold', fontSize: '10px' }}>Hold (Past Attempt)</span>;
+                } else if (stageObj.approvalStatus === 'pending' || stageObj.approvalStatus === 'hold') {
                     actionsCell = (
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            <button
-                                onClick={() => handleApproveProgressiveStage(detailEntry.id, insp.id, stageKey, pendingStage.label)}
-                                disabled={processingAction}
-                                style={{
-                                    background: '#27ae60',
-                                    border: 'none',
-                                    color: '#fff',
-                                    fontWeight: 'bold',
-                                    cursor: 'pointer',
-                                    fontSize: '10px',
-                                    padding: '3px 8px',
-                                    borderRadius: '3px'
-                                }}
-                            >
-                                Approve
-                            </button>
-                            <button
-                                onClick={() => handleRejectProgressiveStage(detailEntry.id, insp.id, stageKey, pendingStage.label)}
-                                disabled={processingAction}
-                                style={{
-                                    background: '#dc2626',
-                                    border: 'none',
-                                    color: '#fff',
-                                    fontWeight: 'bold',
-                                    cursor: 'pointer',
-                                    fontSize: '10px',
-                                    padding: '3px 8px',
-                                    borderRadius: '3px'
-                                }}
-                            >
-                                Reject
-                            </button>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center', justifyContent: 'center' }}>
+                            {stageObj.approvalStatus === 'hold' && (
+                                <span style={{ color: '#d97706', fontWeight: '800', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>[Hold]</span>
+                            )}
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                                <button
+                                    onClick={() => handleApproveProgressiveStage(detailEntry.id, insp.id, stageKey, getStageLabel(stageKey))}
+                                    disabled={processingAction}
+                                    style={{
+                                        background: '#27ae60',
+                                        border: 'none',
+                                        color: '#fff',
+                                        fontWeight: 'bold',
+                                        cursor: 'pointer',
+                                        fontSize: '10px',
+                                        padding: '3px 8px',
+                                        borderRadius: '3px'
+                                    }}
+                                >
+                                    Approve
+                                </button>
+                                <button
+                                    onClick={() => handleRejectProgressiveStage(detailEntry.id, insp.id, stageKey, getStageLabel(stageKey))}
+                                    disabled={processingAction}
+                                    style={{
+                                        background: '#dc2626',
+                                        border: 'none',
+                                        color: '#fff',
+                                        fontWeight: 'bold',
+                                        cursor: 'pointer',
+                                        fontSize: '10px',
+                                        padding: '3px 8px',
+                                        borderRadius: '3px'
+                                    }}
+                                >
+                                    Reject
+                                </button>
+                                {stageObj.approvalStatus === 'hold' && (
+                                    <button
+                                        onClick={() => triggerDisputeFlow(insp.id, stageKey)}
+                                        disabled={processingAction}
+                                        style={{
+                                            background: '#d97706',
+                                            border: 'none',
+                                            color: '#fff',
+                                            fontWeight: 'bold',
+                                            cursor: 'pointer',
+                                            fontSize: '10px',
+                                            padding: '3px 8px',
+                                            borderRadius: '3px'
+                                        }}
+                                    >
+                                        Dispute
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     );
                 } else if (!pendingStage && detailEntry.status === 'PHYSICAL_INSPECTION' && (stageKey === 'balanced_lot' || stageKey === 'full_avg') && (stages.full_avg?.approvalStatus === 'approved' || stages.balanced_lot?.approvalStatus === 'approved')) {
@@ -4042,6 +4237,333 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 style={{ marginTop: '16px', width: '100%', padding: '9px', background: '#1565c0', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
                             >
                                 Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {disputeModalData.isOpen && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 9999
+                }}>
+                    <div style={{
+                        backgroundColor: '#fff',
+                        borderRadius: '8px',
+                        width: '380px',
+                        boxShadow: '0 4px 15px rgba(0,0,0,0.15)',
+                        overflow: 'hidden',
+                        fontFamily: 'system-ui, -apple-system, sans-serif'
+                    }}>
+                        {/* Header Details */}
+                        <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9' }}>
+                            <h3 style={{ margin: '0 0 4px 0', fontSize: '16px', fontWeight: 'bold', color: '#dc2626' }}>
+                                Dispute Rate — {detailEntry.brokerName} / {detailEntry.partyName}
+                            </h3>
+                            <div style={{
+                                backgroundColor: '#f8fafc',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '4px',
+                                padding: '6px 10px',
+                                fontSize: '11px',
+                                color: '#475569'
+                            }}>
+                                Bags: <b>{detailEntry.bags}</b> | Variety: <b>{detailEntry.variety}</b> | Location: <b>{detailEntry.location}</b>
+                            </div>
+                        </div>
+
+                        <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            {/* Dispute Rate */}
+                            <div>
+                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#1e293b', marginBottom: '4px' }}>
+                                    Dispute Rate
+                                </label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    value={disputeModalData.disputeRate}
+                                    onChange={(e) => setDisputeModalData({ ...disputeModalData, disputeRate: e.target.value })}
+                                    style={{
+                                        width: '100%',
+                                        padding: '7px 9px',
+                                        border: '1px solid #cbd5e1',
+                                        borderRadius: '4px',
+                                        fontSize: '13px',
+                                        boxSizing: 'border-box'
+                                    }}
+                                />
+                            </div>
+
+                            {/* Rate Type */}
+                            <div>
+                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#1e293b', marginBottom: '4px' }}>
+                                    Type
+                                </label>
+                                <select
+                                    value={disputeModalData.disputeRateType}
+                                    onChange={(e) => setDisputeModalData({ ...disputeModalData, disputeRateType: e.target.value })}
+                                    style={{
+                                        width: '100%',
+                                        padding: '7px 9px',
+                                        border: '1px solid #cbd5e1',
+                                        borderRadius: '4px',
+                                        fontSize: '13px',
+                                        boxSizing: 'border-box',
+                                        backgroundColor: '#fff'
+                                    }}
+                                >
+                                    <option value="PD_LOOSE">PD/Loose</option>
+                                    <option value="MD_LOOSE">MD/Loose</option>
+                                    <option value="PD_WB">PD/WB</option>
+                                    <option value="MD_WB">MD/WB</option>
+                                </select>
+                            </div>
+
+                            {/* Hamali & LF Option */}
+                            <div>
+                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#1e293b', marginBottom: '4px' }}>
+                                    Hamali & LF Option
+                                </label>
+                                <select
+                                    value={disputeModalData.revisedRateOption}
+                                    onChange={(e) => setDisputeModalData({ ...disputeModalData, revisedRateOption: e.target.value })}
+                                    style={{
+                                        width: '100%',
+                                        padding: '7px 9px',
+                                        border: '1px solid #cbd5e1',
+                                        borderRadius: '4px',
+                                        fontSize: '13px',
+                                        boxSizing: 'border-box',
+                                        backgroundColor: '#fff'
+                                    }}
+                                >
+                                    <option value="final">Use Final Rate Hamali & LF</option>
+                                    <option value="dispute">Use Existing Revised Rate</option>
+                                </select>
+                            </div>
+
+                            {disputeModalData.revisedRateOption === 'dispute' && (() => {
+                                const offering = detailEntry?.offering || {};
+                                const pendingQueue = [];
+                                if (String(offering.pendingManagerValueApprovalStatus || '').toLowerCase() === 'pending') {
+                                    try {
+                                        const parsed = typeof offering.pendingManagerValueApprovalQueue === 'string'
+                                            ? JSON.parse(offering.pendingManagerValueApprovalQueue)
+                                            : (offering.pendingManagerValueApprovalQueue || []);
+                                        if (Array.isArray(parsed)) pendingQueue.push(...parsed);
+                                    } catch (e) {
+                                        console.error(e);
+                                    }
+                                }
+                                const pendingRevisions = pendingQueue.filter((request: any) => {
+                                    const data = request?.data || {};
+                                    return (data.revisedHamali !== undefined && data.revisedHamali !== null && data.revisedHamali !== '')
+                                        || (data.revisedLf !== undefined && data.revisedLf !== null && data.revisedLf !== '');
+                                });
+                                
+                                const approvedRevisions = Array.isArray(offering.disputeVersions)
+                                    ? offering.disputeVersions.filter((v: any) => v.type === 'revision' || (!v.type && ((v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== '') || (v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== ''))))
+                                    : [];
+                                const hasLegacyRevision = (approvedRevisions.length === 0 && 
+                                    ((offering.revisedHamali !== undefined && offering.revisedHamali !== null && offering.revisedHamali !== '') ||
+                                     (offering.revisedLf !== undefined && offering.revisedLf !== null && offering.revisedLf !== '')));
+                                const legacyRevision = hasLegacyRevision ? [{ id: 'legacy-revision', revisedHamali: offering.revisedHamali, hamaliUnit: offering.hamaliUnit, revisedLf: offering.revisedLf, lfUnit: offering.lfUnit }] : [];
+                                const allApprovedRevisions = [...approvedRevisions, ...legacyRevision];
+                                const totalRevisions = allApprovedRevisions.length + pendingRevisions.length;
+
+                                if (totalRevisions === 0) {
+                                    return (
+                                        <div style={{ fontSize: '11px', color: '#dc2626', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '4px', padding: '6px 10px', marginTop: '4px' }}>
+                                            No revised Hamali & LF rates exist yet for this lot. Please add a revised rate first.
+                                        </div>
+                                    );
+                                }
+
+                                return (
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#1e293b', marginBottom: '4px' }}>
+                                            Select Revised Rate
+                                        </label>
+                                        <select
+                                            value={disputeModalData.linkedRevisionId}
+                                            onChange={(e) => setDisputeModalData({ ...disputeModalData, linkedRevisionId: e.target.value })}
+                                            style={{
+                                                width: '100%',
+                                                padding: '7px 9px',
+                                                border: '1px solid #cbd5e1',
+                                                borderRadius: '4px',
+                                                fontSize: '13px',
+                                                boxSizing: 'border-box',
+                                                backgroundColor: '#fff'
+                                            }}
+                                        >
+                                            <option value="">-- Select Revision --</option>
+                                            {allApprovedRevisions.map((rev: any, index: number) => {
+                                                const hVal = rev.revisedHamali || offering.revisedHamali || offering.hamali;
+                                                const hUnit = rev.hamaliUnit || offering.hamaliUnit || 'per_bag';
+                                                const lfVal = rev.revisedLf || offering.revisedLf || offering.lf;
+                                                const lfUnit = rev.lfUnit || offering.lfUnit || 'per_bag';
+                                                const labelText = `Revision ${index + 1} (Approved): Hamali ${hVal}/${hUnit === 'per_quintal' ? 'Qtl' : 'Bag'}, LF ${lfVal}/${lfUnit === 'per_quintal' ? 'Qtl' : 'Bag'}`;
+                                                return (
+                                                    <option key={rev.id || `approved-${index}`} value={rev.id || 'legacy-revision'}>
+                                                        {labelText}
+                                                    </option>
+                                                );
+                                            })}
+                                            {pendingRevisions.map((req: any, index: number) => {
+                                                const data = req.data || {};
+                                                const hVal = data.revisedHamali || offering.hamali;
+                                                const hUnit = data.hamaliUnit || offering.hamaliUnit || 'per_bag';
+                                                const lfVal = data.revisedLf || offering.lf;
+                                                const lfUnit = data.lfUnit || offering.lfUnit || 'per_bag';
+                                                const displayNum = allApprovedRevisions.length + index + 1;
+                                                const labelText = `Revision ${displayNum} (Pending): Hamali ${hVal}/${hUnit === 'per_quintal' ? 'Qtl' : 'Bag'}, LF ${lfVal}/${lfUnit === 'per_quintal' ? 'Qtl' : 'Bag'}`;
+                                                return (
+                                                    <option key={req.id || `pending-${index}`} value={req.id}>
+                                                        {labelText}
+                                                    </option>
+                                                );
+                                            })}
+                                        </select>
+                                    </div>
+                                );
+                            })()}
+
+                            {/* Sute and Sute Unit */}
+                            <div>
+                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#1e293b', marginBottom: '4px' }}>
+                                    Sute
+                                </label>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value={disputeModalData.sute}
+                                        onChange={(e) => setDisputeModalData({ ...disputeModalData, sute: e.target.value })}
+                                        style={{
+                                            flex: 1,
+                                            padding: '7px 9px',
+                                            border: '1px solid #cbd5e1',
+                                            borderRadius: '4px',
+                                            fontSize: '13px',
+                                            boxSizing: 'border-box'
+                                        }}
+                                    />
+                                    <select
+                                        value={disputeModalData.suteUnit}
+                                        onChange={(e) => setDisputeModalData({ ...disputeModalData, suteUnit: e.target.value })}
+                                        style={{
+                                            width: '100px',
+                                            padding: '7px 9px',
+                                            border: '1px solid #cbd5e1',
+                                            borderRadius: '4px',
+                                            fontSize: '13px',
+                                            boxSizing: 'border-box',
+                                            backgroundColor: '#fff'
+                                        }}
+                                    >
+                                        <option value="per_bag">/Bag</option>
+                                        <option value="per_quintal">/Quintal</option>
+                                        <option value="per_ton">/Ton</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Moisture % */}
+                            <div>
+                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#1e293b', marginBottom: '4px' }}>
+                                    Moisture %
+                                </label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    value={disputeModalData.moistureValue}
+                                    onChange={(e) => setDisputeModalData({ ...disputeModalData, moistureValue: e.target.value })}
+                                    style={{
+                                        width: '100%',
+                                        padding: '7px 9px',
+                                        border: '1px solid #cbd5e1',
+                                        borderRadius: '4px',
+                                        fontSize: '13px',
+                                        boxSizing: 'border-box'
+                                    }}
+                                />
+                            </div>
+
+
+
+                            {/* Dispute Reason */}
+                            <div>
+                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#1e293b', marginBottom: '4px' }}>
+                                    Dispute Reason
+                                </label>
+                                <textarea
+                                    value={disputeModalData.disputeReason}
+                                    onChange={(e) => setDisputeModalData({ ...disputeModalData, disputeReason: e.target.value })}
+                                    rows={2}
+                                    placeholder="Enter reason for dispute"
+                                    style={{
+                                        width: '100%',
+                                        padding: '7px 9px',
+                                        border: '1px solid #cbd5e1',
+                                        borderRadius: '4px',
+                                        fontSize: '13px',
+                                        boxSizing: 'border-box',
+                                        resize: 'none',
+                                        fontFamily: 'inherit'
+                                    }}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div style={{
+                            padding: '12px 20px',
+                            backgroundColor: '#f8fafc',
+                            borderTop: '1px solid #e2e8f0',
+                            display: 'flex',
+                            gap: '8px',
+                            justifyContent: 'flex-end'
+                        }}>
+                            <button
+                                onClick={() => setDisputeModalData(prev => ({ ...prev, isOpen: false }))}
+                                disabled={processingAction}
+                                style={{
+                                    padding: '6px 16px',
+                                    border: '1px solid #cbd5e1',
+                                    borderRadius: '4px',
+                                    backgroundColor: '#fff',
+                                    color: '#475569',
+                                    cursor: 'pointer',
+                                    fontWeight: '600',
+                                    fontSize: '12px'
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={submitDisputeFlow}
+                                disabled={processingAction}
+                                style={{
+                                    padding: '6px 16px',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    backgroundColor: '#22c55e',
+                                    color: '#fff',
+                                    cursor: 'pointer',
+                                    fontWeight: '600',
+                                    fontSize: '12px'
+                                }}
+                            >
+                                Save Values
                             </button>
                         </div>
                     </div>

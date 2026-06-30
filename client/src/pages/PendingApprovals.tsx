@@ -657,7 +657,11 @@ type TabType = 'arrivals' | 'rice-production' | 'rice-stock' | 'paddy-hamali' | 
 
 const PendingApprovals: React.FC = () => {
     const { user } = useAuth();
-    const [activeTab, setActiveTab] = useState<TabType>('arrivals');
+    const [activeTab, setActiveTab] = useState<TabType>(() => {
+        const saved = localStorage.getItem('pending_approvals_active_tab');
+        const allowedTabs = ['arrivals', 'rice-production', 'rice-stock', 'paddy-hamali', 'rice-hamali', 'purchase-rates', 'lorry-quality'];
+        return (saved && allowedTabs.includes(saved)) ? (saved as TabType) : 'arrivals';
+    });
     const [loading, setLoading] = useState(false);
     const [processing, setProcessing] = useState(false);
 
@@ -698,6 +702,7 @@ const PendingApprovals: React.FC = () => {
     });
 
     useEffect(() => {
+        localStorage.setItem('pending_approvals_active_tab', activeTab);
         fetchData();
     }, [activeTab]);
 

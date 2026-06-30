@@ -336,7 +336,7 @@ router.post('/users', auth, authorize('admin'), async (req, res) => {
 router.put('/users/:id/credentials', auth, async (req, res) => {
     try {
         const { id } = req.params;
-        const { username, password, fullName, customUserId, staffType, subRole, qualityName } = req.body;
+        const { username, password, oldPassword, fullName, customUserId, staffType, subRole, qualityName } = req.body;
         const normalizeName = (value = '') => String(value).trim().replace(/\s+/g, ' ').toLowerCase();
 
         const isSelf = String(req.user.userId) === String(id);
@@ -360,6 +360,15 @@ router.put('/users/:id/credentials', auth, async (req, res) => {
             if (password && password.trim() !== '') {
                 if (password.length < 4) {
                     return res.status(400).json({ error: 'Password must be at least 4 characters' });
+                }
+                if (isSelf) {
+                    if (!oldPassword || oldPassword.trim() === '') {
+                        return res.status(400).json({ error: 'Current password is required to change password' });
+                    }
+                    const isMatch = await bcrypt.compare(oldPassword, user.password);
+                    if (!isMatch) {
+                        return res.status(400).json({ error: 'Incorrect current password' });
+                    }
                 }
                 const hashedPassword = await bcrypt.hash(password, 10);
                 updates.password = hashedPassword;
@@ -401,6 +410,15 @@ router.put('/users/:id/credentials', auth, async (req, res) => {
             if (password && password.trim() !== '') {
                 if (password.length < 4) {
                     return res.status(400).json({ error: 'Password must be at least 4 characters' });
+                }
+                if (isSelf) {
+                    if (!oldPassword || oldPassword.trim() === '') {
+                        return res.status(400).json({ error: 'Current password is required to change password' });
+                    }
+                    const isMatch = await bcrypt.compare(oldPassword, user.password);
+                    if (!isMatch) {
+                        return res.status(400).json({ error: 'Incorrect current password' });
+                    }
                 }
                 const hashedPassword = await bcrypt.hash(password, 10);
                 updates.password = hashedPassword;

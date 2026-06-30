@@ -895,6 +895,13 @@ const AllottedSupervisors: React.FC = () => {
                           const progress = inspectionProgress[entry.id];
                           const progressPercentage = progress?.progressPercentage || 0;
                           const hasPreviousInspections = progress && progress.previousInspections && progress.previousInspections.length > 0;
+                          const hasActiveHoldStage = (() => {
+                             if (!progress?.previousInspections) return false;
+                             return progress.previousInspections.some((insp: any) => {
+                               const stages = insp.samplingStages || {};
+                               return Object.keys(stages).some(key => stages[key]?.approvalStatus === 'hold');
+                             });
+                           })();
 
                           const formatTitleCase = (str: string) => str ? str.replace(/\b\w/g, c => c.toUpperCase()) : '';
                           const partyNameText = entry.partyName ? formatTitleCase(entry.partyName).trim() : '';
@@ -1028,8 +1035,15 @@ const AllottedSupervisors: React.FC = () => {
                                         borderRadius: '9px'
                                       }} />
                                     </div>
-                                    <span style={{ fontSize: '10px', fontWeight: '600', minWidth: '30px' }}>
-                                      {entry.lotAllotment?.closedAt ? 'Closed' : `${progressPercentage.toFixed(0)}%`}
+                                    <span style={{ fontSize: '10px', fontWeight: '600', minWidth: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                      {entry.lotAllotment?.closedAt ? 'Closed' : (
+                                        <>
+                                          {progressPercentage.toFixed(0)}%
+                                          {hasActiveHoldStage && (
+                                            <span style={{ color: '#d97706', fontWeight: '850', fontSize: '9px', textTransform: 'uppercase', marginTop: '2px', backgroundColor: '#fffbeb', border: '1px solid #fcd34d', padding: '1px 3px', borderRadius: '3px' }}>Hold</span>
+                                          )}
+                                        </>
+                                      )}
                                     </span>
                                   </div>
                                   {hasPreviousInspections && (
@@ -1316,50 +1330,109 @@ const AllottedSupervisors: React.FC = () => {
                                       <tbody>
                                         {progress.previousInspections.map((inspection, idx) => {
                                           const getValueWithFallback = (field: 'moisture' | 'cutting' | 'bend', currentIdx: number) => {
-                                            for (let i = currentIdx; i >= 0; i--) {
-                                              const insp = progress.previousInspections[i];
-                                              const stgList = insp?.samplingStages || {};
-                                              
-                                              const stagesToCheck: any[] = [];
-                                              if (stgList.full_avg?.reportedBy) stagesToCheck.push(stgList.full_avg);
-                                              if (stgList.half_lorry?.reportedBy) stagesToCheck.push(stgList.half_lorry);
-                                              
-                                              const nitKeys = Object.keys(stgList)
-                                                .filter(k => k.startsWith('nit_avg') && stgList[k]?.reportedBy)
-                                                .sort((a, b) => {
-                                                  if (a === 'nit_avg') return -1;
-                                                  if (b === 'nit_avg') return 1;
-                                                  const numA = parseInt(a.replace('nit_avg_', '')) || 0;
-                                                  const numB = parseInt(b.replace('nit_avg_', '')) || 0;
-                                                  return numB - numA;
-                                                });
-                                              nitKeys.forEach(k => stagesToCheck.push(stgList[k]));
-                                              
-                                              if (stgList.lot_avg?.reportedBy) stagesToCheck.push(stgList.lot_avg);
-                                              
-                                              for (const stg of stagesToCheck) {
-                                                if (!stg) continue;
-                                                if (field === 'moisture') {
-                                                  if (stg.moistureRaw) return `${stg.moistureRaw}%`;
-                                                  if (stg.moisture !== undefined && stg.moisture !== null && String(stg.moisture).trim() !== '' && String(stg.moisture).trim() !== '-') {
-                                                    return `${stg.moisture}%`;
+                                             // Pass 1: Find the latest non-zero value
+                                             for (let i = currentIdx; i >= 0; i--) {
+                                               const insp = progress.previousInspections[i];
+                                               if (!insp) continue;
+                                               const stgList = insp.samplingStages || {};
+                                               
+                                               const stagesToCheck: any[] = [];
+                                               const balancedLotKey = Object.keys(stgList).find(key => key === 'balanced_lot' || key.startsWith('balanced_lot_hold_'));
+                                               const balancedLotStage = balancedLotKey ? stgList[balancedLotKey] : null;
+                                               if (balancedLotStage?.reportedBy) stagesToCheck.push(balancedLotStage);
+                                               
+                                               if (stgList.full_avg?.reportedBy) stagesToCheck.push(stgList.full_avg);
+                                               if (stgList.half_lorry?.reportedBy) stagesToCheck.push(stgList.half_lorry);
+                                               
+                                               const nitKeys = Object.keys(stgList)
+                                                 .filter(k => k.startsWith('nit_avg') && stgList[k]?.reportedBy)
+                                                 .sort((a, b) => {
+                                                   if (a === 'nit_avg') return -1;
+                                                   if (b === 'nit_avg') return 1;
+                                                   const numA = parseInt(a.replace('nit_avg_', '')) || 0;
+                                                   const numB = parseInt(b.replace('nit_avg_', '')) || 0;
+                                                   return numB - numA;
+                                                 });
+                                               nitKeys.forEach(k => stagesToCheck.push(stgList[k]));
+                                               
+                                               const lotAvgKey = Object.keys(stgList).find(key => key === 'lot_avg' || key.startsWith('lot_avg_hold_'));
+                                               const lotAvgStage = lotAvgKey ? stgList[lotAvgKey] : null;
+                                               if (lotAvgStage?.reportedBy) stagesToCheck.push(lotAvgStage);
+                                               
+                                               for (const stg of stagesToCheck) {
+                                                 if (!stg) continue;
+                                                 if (field === 'moisture') {
+                                                   if (stg.moistureRaw) return `${stg.moistureRaw}%`;
+                                                   if (stg.moisture !== undefined && stg.moisture !== null && String(stg.moisture).trim() !== '' && String(stg.moisture).trim() !== '-') {
+                                                     return `${stg.moisture}%`;
+                                                   }
+                                                 } else if (field === 'cutting') {
+                                                    if (stg.cutting1 !== undefined && stg.cutting1 !== null && String(stg.cutting1).trim() !== '' && String(stg.cutting1).trim() !== '-') {
+                                                      const c1 = parseFloat(stg.cutting1);
+                                                      const c2 = parseFloat(stg.cutting2) || 0;
+                                                      if (!isNaN(c1) && c2 > 0) {
+                                                        return `${isNaN(c1) || c1 === 0 ? 1 : c1}×${c2}`;
+                                                      }
+                                                    }
+                                                  } else if (field === 'bend') {
+                                                    if (stg.bend1 !== undefined && stg.bend1 !== null && String(stg.bend1).trim() !== '' && String(stg.bend1).trim() !== '-') {
+                                                      const b1 = parseFloat(stg.bend1);
+                                                      const b2 = parseFloat(stg.bend2) || 0;
+                                                      if (!isNaN(b1) && b2 > 0) {
+                                                        return `${isNaN(b1) || b1 === 0 ? 1 : b1}×${b2}`;
+                                                      }
+                                                    }
                                                   }
-                                                } else if (field === 'cutting') {
-                                                   if (stg.cutting1 !== undefined && stg.cutting1 !== null && String(stg.cutting1).trim() !== '' && String(stg.cutting1).trim() !== '-') {
-                                                     const c1 = parseFloat(stg.cutting1);
-                                                     const c2 = parseFloat(stg.cutting2) || 0;
-                                                     return `${isNaN(c1) || c1 === 0 ? 1 : c1}×${c2}`;
-                                                   }
-                                                 } else if (field === 'bend') {
-                                                   if (stg.bend1 !== undefined && stg.bend1 !== null && String(stg.bend1).trim() !== '' && String(stg.bend1).trim() !== '-') {
-                                                     const b1 = parseFloat(stg.bend1);
-                                                     const b2 = parseFloat(stg.bend2) || 0;
-                                                     return `${isNaN(b1) || b1 === 0 ? 1 : b1}×${b2}`;
-                                                   }
-                                                 }
-                                              }
-                                            }
-                                            return '-';
+                                               }
+                                             }
+                                             
+                                             // Pass 2: Fallback to show first found stage values even if they are 1x0 / 0
+                                             for (let i = currentIdx; i >= 0; i--) {
+                                               const insp = progress.previousInspections[i];
+                                               if (!insp) continue;
+                                               const stgList = insp.samplingStages || {};
+                                               
+                                               const stagesToCheck: any[] = [];
+                                               const balancedLotKey = Object.keys(stgList).find(key => key === 'balanced_lot' || key.startsWith('balanced_lot_hold_'));
+                                               const balancedLotStage = balancedLotKey ? stgList[balancedLotKey] : null;
+                                               if (balancedLotStage?.reportedBy) stagesToCheck.push(balancedLotStage);
+                                               
+                                               if (stgList.full_avg?.reportedBy) stagesToCheck.push(stgList.full_avg);
+                                               if (stgList.half_lorry?.reportedBy) stagesToCheck.push(stgList.half_lorry);
+                                               
+                                               const nitKeys = Object.keys(stgList)
+                                                 .filter(k => k.startsWith('nit_avg') && stgList[k]?.reportedBy)
+                                                 .sort((a, b) => {
+                                                   if (a === 'nit_avg') return -1;
+                                                   if (b === 'nit_avg') return 1;
+                                                   const numA = parseInt(a.replace('nit_avg_', '')) || 0;
+                                                   const numB = parseInt(b.replace('nit_avg_', '')) || 0;
+                                                   return numB - numA;
+                                                 });
+                                               nitKeys.forEach(k => stagesToCheck.push(stgList[k]));
+                                               
+                                               const lotAvgKey = Object.keys(stgList).find(key => key === 'lot_avg' || key.startsWith('lot_avg_hold_'));
+                                               const lotAvgStage = lotAvgKey ? stgList[lotAvgKey] : null;
+                                               if (lotAvgStage?.reportedBy) stagesToCheck.push(lotAvgStage);
+                                               
+                                               for (const stg of stagesToCheck) {
+                                                 if (!stg) continue;
+                                                 if (field === 'cutting') {
+                                                    if (stg.cutting1 !== undefined && stg.cutting1 !== null && String(stg.cutting1).trim() !== '' && String(stg.cutting1).trim() !== '-') {
+                                                      const c1 = parseFloat(stg.cutting1);
+                                                      const c2 = parseFloat(stg.cutting2) || 0;
+                                                      return `${isNaN(c1) || c1 === 0 ? 1 : c1}×${c2}`;
+                                                    }
+                                                  } else if (field === 'bend') {
+                                                    if (stg.bend1 !== undefined && stg.bend1 !== null && String(stg.bend1).trim() !== '' && String(stg.bend1).trim() !== '-') {
+                                                      const b1 = parseFloat(stg.bend1);
+                                                      const b2 = parseFloat(stg.bend2) || 0;
+                                                      return `${isNaN(b1) || b1 === 0 ? 1 : b1}×${b2}`;
+                                                    }
+                                                  }
+                                               }
+                                             }
+                                             return '-';
                                           };
 
                                           const moistureVal = getValueWithFallback('moisture', idx);
@@ -1885,6 +1958,10 @@ const AllottedSupervisors: React.FC = () => {
           }}
           showCollectorLoginPair={false}
           onUpdate={() => loadEntries(true)}
+          onTriggerDispute={(entry) => {
+            setDetailModalEntry(null);
+            handleOpenEditValues(entry, 'dispute');
+          }}
         />
       )}
 

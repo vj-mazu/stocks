@@ -952,16 +952,6 @@ router.delete('/rice-varieties/:id', auth, authorize('admin'), async (req, res) 
       return res.status(404).json({ error: 'Rice variety not found' });
     }
 
-    // Check if referenced in RiceProduction
-    const RiceProduction = require('../models/RiceProduction');
-    const rCount = await RiceProduction.count({
-      where: { varietyId: req.params.id }
-    });
-
-    if (rCount > 0) {
-      return res.status(400).json({ error: 'Cannot delete variety because it is in use in production records' });
-    }
-
     // Hard delete
     await variety.destroy();
     res.json({ message: 'Rice variety deleted successfully' });

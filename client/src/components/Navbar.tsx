@@ -258,6 +258,12 @@ const UserInfo = styled.div`
   padding-left: 0.75rem;
   border-left: 1px solid rgba(255, 255, 255, 0.2);
   white-space: nowrap;
+  cursor: pointer;
+  transition: opacity 0.2s;
+
+  &:hover {
+    opacity: 0.85;
+  }
 
   @media (max-width: 1024px) {
     margin: 1rem 0;
@@ -421,13 +427,18 @@ const Navbar: React.FC = () => {
   const location = useLocation();
 
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!oldPassword) {
+      toast.error('Current password is required');
+      return;
+    }
     if (!newPassword || newPassword.trim().length < 4) {
-      toast.error('Password must be at least 4 characters long');
+      toast.error('New password must be at least 4 characters long');
       return;
     }
     setSavingPassword(true);
@@ -435,11 +446,13 @@ const Navbar: React.FC = () => {
       const token = localStorage.getItem('token');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       await axios.put(`${API_URL}/admin/users/${user?.id}/credentials`, {
-        password: newPassword
+        password: newPassword,
+        oldPassword: oldPassword
       }, { headers });
       
       toast.success('Password updated successfully!');
       setShowPasswordModal(false);
+      setOldPassword('');
       setNewPassword('');
     } catch (err: any) {
       console.error(err);
@@ -765,11 +778,10 @@ const Navbar: React.FC = () => {
 
 
 
-          <UserInfo>
+          <UserInfo onClick={() => setShowPasswordModal(true)}>
             <UserBadge>{user?.role === 'staff' ? 'Paddy Supervisor' : user?.role}</UserBadge>
             <span style={{ textTransform: 'capitalize' }}>{user?.username}</span>
           </UserInfo>
-          <ChangePasswordButton onClick={() => setShowPasswordModal(true)}>🔑 Password</ChangePasswordButton>
           <LogoutButton onClick={handleLogout}>Logout</LogoutButton>
         </NavLinks>
       </NavContainer>
@@ -781,10 +793,24 @@ const Navbar: React.FC = () => {
       />
 
       {showPasswordModal && (
-        <ModalOverlay onClick={() => setShowPasswordModal(false)}>
+        <ModalOverlay onClick={() => {
+          setShowPasswordModal(false);
+          setOldPassword('');
+          setNewPassword('');
+        }}>
           <ModalContent onClick={e => e.stopPropagation()}>
             <ModalTitle>✏️ Change Password</ModalTitle>
             <form onSubmit={handlePasswordChange}>
+              <FormGroup>
+                <Label>Current Password</Label>
+                <Input
+                  type="password"
+                  value={oldPassword}
+                  onChange={e => setOldPassword(e.target.value)}
+                  placeholder="Enter current password"
+                  required
+                />
+              </FormGroup>
               <FormGroup>
                 <Label>New Password</Label>
                 <Input
@@ -797,7 +823,11 @@ const Navbar: React.FC = () => {
                 />
               </FormGroup>
               <ButtonRow>
-                <ModalButton type="button" variant="secondary" onClick={() => setShowPasswordModal(false)}>
+                <ModalButton type="button" variant="secondary" onClick={() => {
+                  setShowPasswordModal(false);
+                  setOldPassword('');
+                  setNewPassword('');
+                }}>
                   Cancel
                 </ModalButton>
                 <ModalButton type="submit" variant="primary" disabled={savingPassword}>

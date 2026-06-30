@@ -40,6 +40,9 @@ const getStatusBadgeStyle = (status: string) => {
     textAlign: 'center'
   };
   
+  if (s.includes('hold') || s.includes('hold')) {
+    return { ...baseStyle, backgroundColor: '#fffbeb', color: '#d97706', border: '1px solid #fcd34d' }; // Amber/Orange
+  }
   if (s.includes('edit')) {
     return { ...baseStyle, backgroundColor: '#fef3c7', color: '#d97706', border: '1px solid #fde68a' }; // Amber
   }
@@ -86,6 +89,8 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
   const [selectedLorryForComparison, setSelectedLorryForComparison] = useState<any>(null);
   const [processingLorry, setProcessingLorry] = useState(false);
   const [detailModalEntry, setDetailModalEntry] = useState<any | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [autoDisputeStage, setAutoDisputeStage] = useState<{ inspectionId: string; stageKey: string } | null>(null);
   const [loadingSubTab, setLoadingSubTab] = useState<'paddy' | 'rice'>(() => {
     const saved = localStorage.getItem('sample_approvals_hub_loading_sub_tab');
     return (saved === 'paddy' || saved === 'rice') ? saved : 'paddy';
@@ -162,6 +167,39 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     localStorage.setItem('sample_approvals_hub_loading_sub_tab', loadingSubTab);
   }, [loadingSubTab]);
 
+  const fetchCounts = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+      const editRes = await axios.get('/sample-entries/tabs/edit-approvals', { headers });
+      const editEntries = editRes.data?.entries || [];
+      setEditApprovalCount(editEntries.length);
+
+      if (canAccessManagerApprovals) {
+        const mgrRes = await axios.get(`${API_URL}/sample-entries/tabs/manager-value-approvals`, { headers });
+        const mgrEntries = mgrRes.data?.entries || [];
+        let stdCount = 0;
+        let lorryCount = 0;
+        mgrEntries.forEach((entry: any) => {
+          const pendingData = entry.offering?.pendingManagerValueApprovalData || {};
+          const hasLorryFields = pendingData.disputeBaseRate !== undefined || pendingData.revisedHamali !== undefined || pendingData.revisedLf !== undefined;
+          if (hasLorryFields) {
+            lorryCount++;
+          } else {
+            stdCount++;
+          }
+        });
+        setManagerApprovalCount(stdCount);
+        setLorryApprovalCount(lorryCount);
+      } else {
+        setManagerApprovalCount(0);
+        setLorryApprovalCount(0);
+      }
+    } catch (err) {
+      console.error('Error fetching global approvals counts:', err);
+    }
+  }, [canAccessManagerApprovals]);
+
   useEffect(() => {
     if (!canAccessManagerApprovals) {
       setManagerApprovalCount(0);
@@ -180,9 +218,13 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
 
   useEffect(() => {
     fetchLoadingQuality(false);
-    const interval = setInterval(() => fetchLoadingQuality(true), 30000);
+    fetchCounts();
+    const interval = setInterval(() => {
+      fetchLoadingQuality(true);
+      fetchCounts();
+    }, 30000);
     return () => clearInterval(interval);
-  }, [fetchLoadingQuality]);
+  }, [fetchLoadingQuality, fetchCounts]);
 
   useEffect(() => {
     onPendingCountChange?.(totalPendingCount);
@@ -228,14 +270,18 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
 
   const getPendingStage = (insp: any) => {
     const stages = insp.samplingStages || {};
-    if (stages.lot_avg?.approvalStatus === 'pending') {
-      return { key: 'lot_avg', label: 'Lot Avg', isEdited: !!(stages.lot_avg.isEdited || stages.lot_avg.beforeEdit) };
+    const lotAvgKey = Object.keys(stages).find(key => key === 'lot_avg' || key.startsWith('lot_avg_hold_'));
+    const lotAvgStage = lotAvgKey ? stages[lotAvgKey] : null;
+    if (lotAvgStage && (lotAvgStage.approvalStatus === 'pending' || lotAvgStage.approvalStatus === 'hold')) {
+      return { key: lotAvgKey, label: 'Lot Avg', approvalStatus: lotAvgStage.approvalStatus, isEdited: !!(lotAvgStage.isEdited || lotAvgStage.beforeEdit) };
     }
-    if (stages.balanced_lot?.approvalStatus === 'pending') {
-      return { key: 'balanced_lot', label: 'Balanced Lot', isEdited: !!(stages.balanced_lot.isEdited || stages.balanced_lot.beforeEdit) };
+    const balancedLotKey = Object.keys(stages).find(key => key === 'balanced_lot' || key.startsWith('balanced_lot_hold_'));
+    const balancedLotStage = balancedLotKey ? stages[balancedLotKey] : null;
+    if (balancedLotStage && (balancedLotStage.approvalStatus === 'pending' || balancedLotStage.approvalStatus === 'hold')) {
+      return { key: balancedLotKey, label: 'Balanced Lot', approvalStatus: balancedLotStage.approvalStatus, isEdited: !!(balancedLotStage.isEdited || balancedLotStage.beforeEdit) };
     }
-    if (stages.half_lorry?.approvalStatus === 'pending') {
-      return { key: 'half_lorry', label: 'Half Lorry', isEdited: !!(stages.half_lorry.isEdited || stages.half_lorry.beforeEdit) };
+    if (stages.half_lorry?.approvalStatus === 'pending' || stages.half_lorry?.approvalStatus === 'hold') {
+      return { key: 'half_lorry', label: 'Half Lorry', approvalStatus: stages.half_lorry.approvalStatus, isEdited: !!(stages.half_lorry.isEdited || stages.half_lorry.beforeEdit) };
     }
     
     // Check all nit_avg stages
@@ -249,15 +295,15 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
         return numA - numB;
       });
     for (const key of nitKeys) {
-      if (stages[key]?.approvalStatus === 'pending') {
+      if (stages[key]?.approvalStatus === 'pending' || stages[key]?.approvalStatus === 'hold') {
         const idx = nitKeys.indexOf(key);
         const label = idx === 0 ? 'Nit Avg' : `Nit Avg ${idx + 1}`;
-        return { key, label, isEdited: !!(stages[key].isEdited || stages[key].beforeEdit) };
+        return { key, label, approvalStatus: stages[key].approvalStatus, isEdited: !!(stages[key].isEdited || stages[key].beforeEdit) };
       }
     }
 
-    if (stages.full_avg?.approvalStatus === 'pending') {
-      return { key: 'full_avg', label: 'Full Lorry', isEdited: !!(stages.full_avg.isEdited || stages.full_avg.beforeEdit) };
+    if (stages.full_avg?.approvalStatus === 'pending' || stages.full_avg?.approvalStatus === 'hold') {
+      return { key: 'full_avg', label: 'Full Lorry', approvalStatus: stages.full_avg.approvalStatus, isEdited: !!(stages.full_avg.isEdited || stages.full_avg.beforeEdit) };
     }
     return null;
   };
@@ -266,11 +312,11 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     const inspections = entry.physicalInspections || entry.lotAllotment?.physicalInspections || [];
     const activeInsp = inspections.find((insp: any) => {
       const stages = insp.samplingStages || {};
-      return Object.keys(stages).some(key => stages[key]?.approvalStatus === 'pending');
+      return Object.keys(stages).some(key => stages[key]?.approvalStatus === 'pending' || stages[key]?.approvalStatus === 'hold');
     });
     if (!activeInsp) return null;
     const stages = activeInsp.samplingStages || {};
-    const pendingKey = Object.keys(stages).find(key => stages[key]?.approvalStatus === 'pending');
+    const pendingKey = Object.keys(stages).find(key => stages[key]?.approvalStatus === 'pending' || stages[key]?.approvalStatus === 'hold');
     if (!pendingKey) return null;
     const stageObj = stages[pendingKey];
     if (!stageObj || !stageObj.isEdited || !stageObj.beforeEdit) return null;
@@ -459,14 +505,14 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     }
   };
 
-  const getSamplingStatusLabel = (entry: any) => {
+  const getNormalizedInspections = (entry: any) => {
     let inspections = entry.physicalInspections || entry.lotAllotment?.physicalInspections || [];
-    if (inspections.length === 0) return 'Still Loading/Not Started';
+    if (inspections.length === 0) return [];
     
-    // Copy to avoid mutating original objects
+    // Copy
     inspections = JSON.parse(JSON.stringify(inspections));
     
-    // Sort chronologically ascending
+    // Sort
     inspections.sort((a: any, b: any) => {
       const idA = Number(a.id) || 0;
       const idB = Number(b.id) || 0;
@@ -489,16 +535,27 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
               realLorryInsp.samplingStages.lot_avg = lotAvgInsp.samplingStages.lot_avg;
             }
           }
-          inspections = inspections.filter((_, idx) => idx !== lotAvgIdx);
+          return inspections.filter((_, idx) => idx !== lotAvgIdx);
         }
       }
     }
+    return inspections;
+  };
+
+  const getSamplingStatusLabel = (entry: any) => {
+    const inspections = getNormalizedInspections(entry);
+    if (inspections.length === 0) return 'Still Loading/Not Started';
 
     const activeInsp = inspections.find((insp: any) => getPendingStage(insp) !== null) || inspections[inspections.length - 1];
     if (!activeInsp) return '-';
     
     const pendingStage = getPendingStage(activeInsp);
     if (pendingStage) {
+      const isHold = pendingStage.approvalStatus === 'hold';
+      if (isHold) {
+        if (pendingStage.key === 'lot_avg') return 'Lot Avg Hold';
+        if (pendingStage.key === 'balanced_lot') return 'Balanced Lot Hold';
+      }
       const suffix = (pendingStage as any).isEdited ? ' (Edit Pending Approval)' : ' (Pending Approval)';
       if (pendingStage.key === 'lot_avg') return `Lot Avg Sampling${suffix}`;
       if (pendingStage.key === 'balanced_lot') return `Balanced Lot Sampling${suffix}`;
@@ -639,27 +696,19 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                   {loadingSubTab === 'paddy' && (
                     <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '130px' }}>Allotted Supervisor</th>
                   )}
-                  <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '140px' }}>Party</th>
-                  <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '110px' }}>Location</th>
-                  <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '110px' }}>Variety</th>
-                  <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '90px' }}>Pur Bags</th>
-                  <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '90px' }}>Balance</th>
+                  <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '120px' }}>Party</th>
+                  <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '100px' }}>Location</th>
+                  <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '100px' }}>Variety</th>
+                  <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '85px' }}>Pur Bags</th>
+                  <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '85px' }}>Balance</th>
                   <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '150px' }}>Sampling Status</th>
-                  <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '120px' }}>Lorry No</th>
-                  <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '140px' }}>Actions</th>
+                  <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '110px' }}>Lorry No</th>
+                  <th style={{ border: '1px solid #24629e', padding: '10px 12px', fontWeight: '600', fontSize: '13px', textAlign: 'left', width: '235px' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredInspections.map((entry, index) => {
-                  const inspectionsRaw = entry.physicalInspections || entry.lotAllotment?.physicalInspections || [];
-                  const inspections = [...inspectionsRaw].sort((a: any, b: any) => {
-                    const idA = Number(a.id) || 0;
-                    const idB = Number(b.id) || 0;
-                    if (idA !== idB) return idA - idB;
-                    const dateA = new Date(a.createdAt || a.inspectionDate || 0).getTime();
-                    const dateB = new Date(b.createdAt || b.inspectionDate || 0).getTime();
-                    return dateA - dateB;
-                  });
+                  const inspections = getNormalizedInspections(entry);
                   const activeInsp = inspections.find((insp: any) => getPendingStage(insp) !== null) || inspections[inspections.length - 1];
 
                   return (
@@ -727,6 +776,11 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                               if (pendingStage) {
                                 return (
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
+                                    {pendingStage.approvalStatus === 'hold' && (
+                                      <span style={{ color: '#d97706', fontWeight: '800', fontSize: '10px', textTransform: 'uppercase', marginBottom: '2px', backgroundColor: '#fffbeb', padding: '2px 6px', borderRadius: '4px', border: '1px solid #fcd34d' }}>
+                                        [On Hold]
+                                      </span>
+                                    )}
                                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                       <button
                                         onClick={() => handleApproveProgressiveStage(entry.id, activeInsp.id, pendingStage.key, pendingStage.label)}
@@ -762,96 +816,48 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                                       >
                                         Reject
                                       </button>
+                                      {pendingStage.approvalStatus === 'hold' && (
+                                        <button
+                                          onClick={() => {
+                                            setAutoDisputeStage({ inspectionId: activeInsp.id, stageKey: pendingStage.key });
+                                            setDetailModalEntry(entry);
+                                          }}
+                                          disabled={processingLorry}
+                                          style={{
+                                            background: '#d97706',
+                                            border: 'none',
+                                            color: '#fff',
+                                            fontWeight: 'bold',
+                                            cursor: 'pointer',
+                                            padding: '5px 12px',
+                                            fontSize: '11px',
+                                            borderRadius: '4px',
+                                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                                          }}
+                                        >
+                                          Dispute
+                                        </button>
+                                      )}
                                     </div>
-                                    {entry.lotAllotment?.samplingRulesMode === 'new' && ['lot_avg', 'balanced_lot'].includes(pendingStage.key) && (
+                                    {pendingStage.approvalStatus !== 'hold' && entry.lotAllotment?.samplingRulesMode === 'new' && ['lot_avg', 'balanced_lot'].includes(pendingStage.key) && (
                                        <div style={{ display: 'block', marginTop: '2px' }}>
-                                         {holdDropdown?.entryId === entry.id && holdDropdown?.stageKey === pendingStage.key ? (
-                                           <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                                             <input
-                                               type="text"
-                                               placeholder="e.g. 2 Hours"
-                                               id={`hold-input-${entry.id}`}
-                                               onKeyDown={(e) => {
-                                                 if (e.key === 'Enter') {
-                                                   const val = (e.target as HTMLInputElement).value.trim();
-                                                   if (val) {
-                                                     const formatted = /^\d+$/.test(val) ? `${val} Hours` : val;
-                                                     handleHoldProgressiveStage(entry.id, activeInsp.id, pendingStage.key, formatted);
-                                                   }
-                                                 } else if (e.key === 'Escape') {
-                                                   setHoldDropdown(null);
-                                                 }
-                                               }}
-                                               style={{
-                                                 padding: '4px 6px',
-                                                 fontSize: '11px',
-                                                 border: '1px solid #cbd5e1',
-                                                 borderRadius: '4px',
-                                                 width: '90px',
-                                                 boxSizing: 'border-box'
-                                               }}
-                                               autoFocus
-                                             />
-                                             <button
-                                               onClick={() => {
-                                                 const input = document.getElementById(`hold-input-${entry.id}`) as HTMLInputElement;
-                                                 const val = input?.value.trim();
-                                                 if (val) {
-                                                   const formatted = /^\d+$/.test(val) ? `${val} Hours` : val;
-                                                   handleHoldProgressiveStage(entry.id, activeInsp.id, pendingStage.key, formatted);
-                                                 }
-                                               }}
-                                               disabled={processingLorry}
-                                               style={{
-                                                 background: '#d97706',
-                                                 border: 'none',
-                                                 color: '#fff',
-                                                 fontWeight: 'bold',
-                                                 cursor: 'pointer',
-                                                 padding: '4px 8px',
-                                                 fontSize: '11px',
-                                                 borderRadius: '4px'
-                                               }}
-                                             >
-                                               Set
-                                             </button>
-                                             <button
-                                               onClick={() => setHoldDropdown(null)}
-                                               style={{
-                                                 background: '#64748b',
-                                                 border: 'none',
-                                                 color: '#fff',
-                                                 fontWeight: 'bold',
-                                                 cursor: 'pointer',
-                                                 padding: '4px 8px',
-                                                 fontSize: '11px',
-                                                 borderRadius: '4px'
-                                               }}
-                                             >
-                                               ✖
-                                             </button>
-                                           </div>
-                                         ) : (
-                                           <button
-                                             onClick={() => {
-                                               setHoldDropdown({ entryId: entry.id, inspectionId: activeInsp.id, stageKey: pendingStage.key });
-                                             }}
-                                             disabled={processingLorry}
-                                             style={{
-                                               background: '#d97706',
-                                               border: 'none',
-                                               color: '#fff',
-                                               fontWeight: 'bold',
-                                               cursor: 'pointer',
-                                               padding: '4px 12px',
-                                               fontSize: '11px',
-                                               borderRadius: '4px',
-                                               boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                                             }}
-                                           >
-                                             Hold
-                                           </button>
-                                         )}
+                                         <button
+                                           onClick={() => handleHoldProgressiveStage(entry.id, activeInsp.id, pendingStage.key, 'Hold')}
+                                           disabled={processingLorry}
+                                           style={{
+                                             background: '#d97706',
+                                             border: 'none',
+                                             color: '#fff',
+                                             fontWeight: 'bold',
+                                             cursor: 'pointer',
+                                             padding: '4px 12px',
+                                             fontSize: '11px',
+                                             borderRadius: '4px',
+                                             boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                                           }}
+                                         >
+                                           Hold
+                                         </button>
                                        </div>
                                      )}
                                   </div>
@@ -1057,15 +1063,19 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
 
       <div style={{ padding: '16px' }}>
         {activeTab === 'approval-for-edits' && (
-          <SampleEditApprovals entryType={entryType} excludeEntryType={excludeEntryType} onCountChange={setEditApprovalCount} />
+          <SampleEditApprovals key={`edits-${refreshKey}`} entryType={entryType} excludeEntryType={excludeEntryType} onCountChange={setEditApprovalCount} />
         )}
         {canAccessManagerApprovals && activeTab === 'approval-for-manager' && (
-          <ManagerValueApprovals filterType="standard" onCountChange={setManagerApprovalCount} />
+          <ManagerValueApprovals key={`manager-${refreshKey}`} filterType="standard" onCountChange={setManagerApprovalCount} />
         )}
         {canAccessManagerApprovals && activeTab === 'lorry-approvals' && (
-          <ManagerValueApprovals filterType="lorry" onCountChange={setLorryApprovalCount} />
+          <ManagerValueApprovals key={`lorry-${refreshKey}`} filterType="lorry" onCountChange={setLorryApprovalCount} />
         )}
-        {canAccessLoadingQuality && activeTab === 'loading-quality-approvals' && renderLorryQualityTable()}
+        {canAccessLoadingQuality && activeTab === 'loading-quality-approvals' && (
+          <div key={`loading-quality-${refreshKey}`}>
+            {renderLorryQualityTable()}
+          </div>
+        )}
       </div>
 
       {selectedLorryForComparison && (
@@ -1360,9 +1370,17 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
           progressiveMode={true}
           onClose={() => {
             setDetailModalEntry(null);
+            setAutoDisputeStage(null);
+            setRefreshKey(prev => prev + 1);
             fetchLoadingQuality();
+            fetchCounts();
           }}
-          onUpdate={fetchLoadingQuality}
+          onUpdate={() => {
+            setRefreshKey(prev => prev + 1);
+            fetchLoadingQuality();
+            fetchCounts();
+          }}
+          autoTriggerDisputeKey={autoDisputeStage || undefined}
         />
       )}
     </div>
