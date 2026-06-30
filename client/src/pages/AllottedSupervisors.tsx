@@ -466,7 +466,8 @@ const AllottedSupervisors: React.FC = () => {
               bend: inspection.bend,
               bend2: (inspection as any).bend2,
               samplingStages: (inspection as any).samplingStages || {},
-              reportedBy: inspection.reportedBy || { username: 'System' }
+              reportedBy: inspection.reportedBy || { username: 'System' },
+              createdAt: (inspection as any).createdAt
             }));
 
             if (mapped.length > 1) {
@@ -485,6 +486,18 @@ const AllottedSupervisors: React.FC = () => {
                 }
               }
             }
+
+            // Sort progressive trips chronologically — match backend order: inspectionDate ASC, createdAt ASC, id ASC
+            mapped.sort((a, b) => {
+              const dateA = a.inspectionDate ? new Date(a.inspectionDate).getTime() : 0;
+              const dateB = b.inspectionDate ? new Date(b.inspectionDate).getTime() : 0;
+              if (dateA !== dateB) return dateA - dateB;
+              const createdA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+              const createdB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+              if (createdA !== createdB) return createdA - createdB;
+              return (a.id || 0) - (b.id || 0);
+            });
+
             return mapped;
           })()
         };
