@@ -880,9 +880,15 @@ class PhysicalInspectionService {
         }
       }
 
-      // Sort progressive trips chronologically by the earliest reported stage timestamp
+      // Sort progressive trips chronologically — match DB order: inspectionDate ASC, then createdAt, then id
       previousInspections.sort((a, b) => {
-        return getInspectionSortTime(a) - getInspectionSortTime(b);
+        const dateA = a.inspectionDate ? new Date(a.inspectionDate).getTime() : 0;
+        const dateB = b.inspectionDate ? new Date(b.inspectionDate).getTime() : 0;
+        if (dateA !== dateB) return dateA - dateB;
+        const createdA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const createdB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        if (createdA !== createdB) return createdA - createdB;
+        return (a.id || 0) - (b.id || 0);
       });
 
       const variety = entry?.variety || '';

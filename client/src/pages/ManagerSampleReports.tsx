@@ -136,7 +136,12 @@ const ManagerSampleReports: React.FC = () => {
                     return (
                         <button
                             key={tab.key}
-                            onClick={() => setActiveTab(tab.key)}
+                            onClick={() => {
+                                if (tab.key === 'approvals') {
+                                    localStorage.setItem('sample_approvals_hub_active_tab', 'approval-for-edits');
+                                }
+                                setActiveTab(tab.key);
+                            }}
                             style={{
                                 padding: '12px 16px',
                                 fontSize: '13px',

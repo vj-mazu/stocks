@@ -2753,20 +2753,23 @@ const PhysicalInspection: React.FC = () => {
                                   const isNewCrop = getRulesMode(entry.id) === 'new' && !checkIfWbVariety(entry);
                                     
                                   const getValueWithFallback = (field: 'moisture' | 'cutting' | 'bend', currentIdx: number) => {
-                                     // Pass 1: Find the latest non-zero value across current and previous trips
-                                     for (let i = currentIdx; i >= 0; i--) {
-                                       const insp = progress.previousInspections[i];
-                                       if (!insp) continue;
+                                     // Get the current trip's lorry number for same-lorry fallback matching
+                                     const currentLorry = (progress.previousInspections[currentIdx]?.lorryNumber || '').trim().toUpperCase();
+                                     
+                                     // Check if any previous trip (before currentIdx) has the same lorry number
+                                     const hasSameLorryPrevious = progress.previousInspections.some((insp: any, i: number) => 
+                                       i < currentIdx && (insp.lorryNumber || '').trim().toUpperCase() === currentLorry
+                                     );
+                                     
+                                     // Helper to collect stages from an inspection
+                                     const collectStages = (insp: any) => {
                                        const stgList = insp.samplingStages || {};
-                                       
                                        const stagesToCheck: any[] = [];
                                        const balancedLotKey = Object.keys(stgList).find(key => key === 'balanced_lot' || key.startsWith('balanced_lot_hold_'));
                                        const balancedLotStage = balancedLotKey ? stgList[balancedLotKey] : null;
                                        if (balancedLotStage?.reportedBy) stagesToCheck.push(balancedLotStage);
-                                       
                                        if (stgList.full_avg?.reportedBy) stagesToCheck.push(stgList.full_avg);
                                        if (stgList.half_lorry?.reportedBy) stagesToCheck.push(stgList.half_lorry);
-                                       
                                        const nitKeys = Object.keys(stgList)
                                          .filter(k => k.startsWith('nit_avg') && stgList[k]?.reportedBy)
                                          .sort((a, b) => {
@@ -2777,86 +2780,80 @@ const PhysicalInspection: React.FC = () => {
                                            return numB - numA;
                                          });
                                        nitKeys.forEach(k => stagesToCheck.push(stgList[k]));
-                                       
                                        const lotAvgKey = Object.keys(stgList).find(key => key === 'lot_avg' || key.startsWith('lot_avg_hold_'));
                                        const lotAvgStage = lotAvgKey ? stgList[lotAvgKey] : null;
                                        if (lotAvgStage?.reportedBy) stagesToCheck.push(lotAvgStage);
-                                       
-                                       for (const stg of stagesToCheck) {
-                                         if (!stg) continue;
-                                         if (field === 'moisture') {
-                                           const mRaw = String(stg.moistureRaw || '').trim();
-                                           const mVal = String(stg.moisture || '').trim();
-                                           if (mRaw && mRaw !== '0' && mRaw !== '0%' && mRaw !== '0.00' && mRaw !== '0.0' && mRaw !== '-') {
-                                             return `${mRaw}%`;
-                                           }
-                                           if (mVal && mVal !== '0' && mVal !== '0%' && mVal !== '0.00' && mVal !== '0.0' && mVal !== '-' && mVal !== '') {
-                                             return `${mVal}%`;
-                                           }
-                                         } else if (field === 'cutting') {
-                                           if (stg.cutting1 !== undefined && stg.cutting1 !== null && String(stg.cutting1).trim() !== '' && String(stg.cutting1).trim() !== '-') {
-                                             const c1 = parseFloat(stg.cutting1);
-                                             const c2 = parseFloat(stg.cutting2) || 0;
-                                             if (!isNaN(c1) && c2 > 0) {
-                                               return `${isNaN(c1) || c1 === 0 ? 1 : c1}×${c2}`;
-                                             }
-                                           }
-                                         } else if (field === 'bend') {
-                                           if (stg.bend1 !== undefined && stg.bend1 !== null && String(stg.bend1).trim() !== '' && String(stg.bend1).trim() !== '-') {
-                                             const b1 = parseFloat(stg.bend1);
-                                             const b2 = parseFloat(stg.bend2) || 0;
-                                             if (!isNaN(b1) && b2 > 0) {
-                                               return `${isNaN(b1) || b1 === 0 ? 1 : b1}×${b2}`;
-                                             }
-                                           }
+                                       return stagesToCheck;
+                                     };
+                                     
+                                     // Helper to extract non-zero value from a stage
+                                     const extractNonZero = (stg: any) => {
+                                       if (!stg) return null;
+                                       if (field === 'moisture') {
+                                         const mRaw = String(stg.moistureRaw || '').trim();
+                                         const mVal = String(stg.moisture || '').trim();
+                                         if (mRaw && mRaw !== '0' && mRaw !== '0%' && mRaw !== '0.00' && mRaw !== '0.0' && mRaw !== '-') return `${mRaw}%`;
+                                         if (mVal && mVal !== '0' && mVal !== '0%' && mVal !== '0.00' && mVal !== '0.0' && mVal !== '-' && mVal !== '') return `${mVal}%`;
+                                       } else if (field === 'cutting') {
+                                         if (stg.cutting1 !== undefined && stg.cutting1 !== null && String(stg.cutting1).trim() !== '' && String(stg.cutting1).trim() !== '-') {
+                                           const c1 = parseFloat(stg.cutting1);
+                                           const c2 = parseFloat(stg.cutting2) || 0;
+                                           if (!isNaN(c1) && c2 > 0) return `${isNaN(c1) || c1 === 0 ? 1 : c1}×${c2}`;
                                          }
+                                       } else if (field === 'bend') {
+                                         if (stg.bend1 !== undefined && stg.bend1 !== null && String(stg.bend1).trim() !== '' && String(stg.bend1).trim() !== '-') {
+                                           const b1 = parseFloat(stg.bend1);
+                                           const b2 = parseFloat(stg.bend2) || 0;
+                                           if (!isNaN(b1) && b2 > 0) return `${isNaN(b1) || b1 === 0 ? 1 : b1}×${b2}`;
+                                         }
+                                       }
+                                       return null;
+                                     };
+                                     
+                                     // Helper to extract any value (even zero) for cutting/bend
+                                     const extractAny = (stg: any) => {
+                                       if (!stg) return null;
+                                       if (field === 'cutting') {
+                                         if (stg.cutting1 !== undefined && stg.cutting1 !== null && String(stg.cutting1).trim() !== '' && String(stg.cutting1).trim() !== '-') {
+                                           const c1 = parseFloat(stg.cutting1);
+                                           const c2 = parseFloat(stg.cutting2) || 0;
+                                           return `${isNaN(c1) || c1 === 0 ? 1 : c1}×${c2}`;
+                                         }
+                                       } else if (field === 'bend') {
+                                         if (stg.bend1 !== undefined && stg.bend1 !== null && String(stg.bend1).trim() !== '' && String(stg.bend1).trim() !== '-') {
+                                           const b1 = parseFloat(stg.bend1);
+                                           const b2 = parseFloat(stg.bend2) || 0;
+                                           return `${isNaN(b1) || b1 === 0 ? 1 : b1}×${b2}`;
+                                         }
+                                       }
+                                       return null;
+                                     };
+                                     
+                                     // Pass 1: Non-zero values — same lorry first, then any if no same lorry exists
+                                     for (let i = currentIdx; i >= 0; i--) {
+                                       const insp = progress.previousInspections[i];
+                                       if (!insp) continue;
+                                       if (i !== currentIdx && hasSameLorryPrevious) {
+                                         const prevLorry = (insp.lorryNumber || '').trim().toUpperCase();
+                                         if (prevLorry !== currentLorry) continue;
+                                       }
+                                       for (const stg of collectStages(insp)) {
+                                         const val = extractNonZero(stg);
+                                         if (val) return val;
                                        }
                                      }
                                      
-                                     // Pass 2: Fallback to show first found stage values even if they are 1x0 / 0
+                                     // Pass 2: Any values (even zero) for cutting/bend — same lorry first, then any
                                      for (let i = currentIdx; i >= 0; i--) {
                                        const insp = progress.previousInspections[i];
                                        if (!insp) continue;
-                                       const stgList = insp.samplingStages || {};
-                                       
-                                       const stagesToCheck: any[] = [];
-                                       const balancedLotKey = Object.keys(stgList).find(key => key === 'balanced_lot' || key.startsWith('balanced_lot_hold_'));
-                                       const balancedLotStage = balancedLotKey ? stgList[balancedLotKey] : null;
-                                       if (balancedLotStage?.reportedBy) stagesToCheck.push(balancedLotStage);
-                                       
-                                       if (stgList.full_avg?.reportedBy) stagesToCheck.push(stgList.full_avg);
-                                       if (stgList.half_lorry?.reportedBy) stagesToCheck.push(stgList.half_lorry);
-                                       
-                                       const nitKeys = Object.keys(stgList)
-                                         .filter(k => k.startsWith('nit_avg') && stgList[k]?.reportedBy)
-                                         .sort((a, b) => {
-                                           if (a === 'nit_avg') return -1;
-                                           if (b === 'nit_avg') return 1;
-                                           const numA = parseInt(a.replace('nit_avg_', '')) || 0;
-                                           const numB = parseInt(b.replace('nit_avg_', '')) || 0;
-                                           return numB - numA;
-                                         });
-                                       nitKeys.forEach(k => stagesToCheck.push(stgList[k]));
-                                       
-                                       const lotAvgKey = Object.keys(stgList).find(key => key === 'lot_avg' || key.startsWith('lot_avg_hold_'));
-                                       const lotAvgStage = lotAvgKey ? stgList[lotAvgKey] : null;
-                                       if (lotAvgStage?.reportedBy) stagesToCheck.push(lotAvgStage);
-                                       
-                                       for (const stg of stagesToCheck) {
-                                         if (!stg) continue;
-                                         if (field === 'cutting') {
-                                           if (stg.cutting1 !== undefined && stg.cutting1 !== null && String(stg.cutting1).trim() !== '' && String(stg.cutting1).trim() !== '-') {
-                                             const c1 = parseFloat(stg.cutting1);
-                                             const c2 = parseFloat(stg.cutting2) || 0;
-                                             return `${isNaN(c1) || c1 === 0 ? 1 : c1}×${c2}`;
-                                           }
-                                         } else if (field === 'bend') {
-                                           if (stg.bend1 !== undefined && stg.bend1 !== null && String(stg.bend1).trim() !== '' && String(stg.bend1).trim() !== '-') {
-                                             const b1 = parseFloat(stg.bend1);
-                                             const b2 = parseFloat(stg.bend2) || 0;
-                                             return `${isNaN(b1) || b1 === 0 ? 1 : b1}×${b2}`;
-                                           }
-                                         }
+                                       if (i !== currentIdx && hasSameLorryPrevious) {
+                                         const prevLorry = (insp.lorryNumber || '').trim().toUpperCase();
+                                         if (prevLorry !== currentLorry) continue;
+                                       }
+                                       for (const stg of collectStages(insp)) {
+                                         const val = extractAny(stg);
+                                         if (val) return val;
                                        }
                                      }
                                      return '-';
@@ -2911,7 +2908,7 @@ const PhysicalInspection: React.FC = () => {
                                      </td>
                                      <td style={{ border: '1px solid #000', padding: '6px', fontWeight: '700' }}>
                                        <span
-                                         onClick={() => setSelectedLorryForComparison({ entryId: entry.id, lorryNumber: inspection.lorryNumber, previousInspections: [inspection], lotAllotment: entry.lotAllotment, singleLorryMode: true })}
+                                         onClick={() => setSelectedLorryForComparison({ entryId: entry.id, lorryNumber: inspection.lorryNumber, previousInspections: [inspection], lotAllotment: entry.lotAllotment, singleLorryMode: true, loadNumber: idx + 1 })}
                                          style={{ color: tripSmellType === 'DARK' ? '#ffffff' : '#1565c0', textDecoration: 'underline', cursor: 'pointer' }}
                                        >
                                          {inspection.lorryNumber?.toUpperCase()}
@@ -4191,11 +4188,14 @@ const PhysicalInspection: React.FC = () => {
                   ['LOT_AVG', 'BALANCED_LOT'].includes(inspection.lorryNumber.toUpperCase().trim()) ||
                   inspection.lorryNumber.toLowerCase().includes('next loading lorry');
 
+                const actualLoadNumber = selectedLorryForComparison.singleLorryMode && selectedLorryForComparison.loadNumber
+                  ? selectedLorryForComparison.loadNumber
+                  : idx + 1;
                 const tripHeaderLabel = isLorryNotAdded
                   ? <span style={{ color: 'white', fontWeight: '900' }}>Next Loading Lorry Sampling: Lot Avg Sampling or Balance Lot Sampling</span>
-                  : idx === 0
+                  : actualLoadNumber === 1
                     ? `Load 1 - Loading Sample Details : ${inspection.lorryNumber?.toUpperCase() || ''}`
-                    : `Load ${idx + 1} - Lorry Number: ${inspection.lorryNumber?.toUpperCase() || ''}`;
+                    : `Load ${actualLoadNumber} - Lorry Number: ${inspection.lorryNumber?.toUpperCase() || ''}`;
 
                 return (
                   <div key={inspection.id} style={{ border: '1px solid #f2cfb6', borderRadius: '8px', overflow: 'hidden' }}>

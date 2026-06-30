@@ -70,8 +70,8 @@ const sequelize = dbUrl
        family: 4
      },
     pool: {
-      max: 20,  // Supabase Pro allows ~60 connections, keep headroom
-      min: 5,   // Keep 5 warm connections
+      max: 10,  // Supabase session-mode pool_size is 15 — keep headroom to avoid EMAXCONNSESSION
+      min: 2,   // Keep 2 warm connections, reduced from 5 to avoid holding unnecessary slots
       acquire: 30000,
       idle: 10000,
       evict: 1000,
@@ -95,8 +95,8 @@ const sequelize = dbUrl
 
     // Connection pool — tuned for PostgreSQL
     pool: {
-      max: 15,   // Optimal for PostgreSQL (CPU cores * 2 + spindle count)
-      min: 5,    // Keep 5 warm connections
+      max: 10,   // Match production pool limits
+      min: 2,    // Keep 2 warm connections
       acquire: 30000,
       idle: 10000,
       evict: 1000,

@@ -1871,7 +1871,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         lorryNumber: insp.lorryNumber,
                                         previousInspections: [insp],
                                         lotAllotment: detailEntry.lotAllotment,
-                                        singleLorryMode: true
+                                        singleLorryMode: true,
+                                        loadNumber: tripIdx + 1
                                     });
                                 }}
                                 style={{ color: '#000000', textDecoration: 'underline', cursor: 'pointer', fontWeight: 900 }}
@@ -2471,7 +2472,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 lorryNumber: insp.lorryNumber,
                                 previousInspections: [insp],
                                 lotAllotment: detailEntry.lotAllotment,
-                                singleLorryMode: true
+                                singleLorryMode: true,
+                                loadNumber: tripIdx + 1
                             });
                         }}
                         style={{ color: '#000000', textDecoration: 'underline', cursor: 'pointer', fontWeight: 900 }}
@@ -4143,7 +4145,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                 {isLorryNotAdded ? (
                                                     <span style={{ color: '#ffcccc', fontWeight: '900' }}>Next Loading Lorry Sampling: Lot Avg Sampling or Balance Lot Sampling</span>
                                                 ) : (
-                                                    <>Load {idx + 1} | Lorry No: {inspection.lorryNumber?.toUpperCase()}</>
+                                                    <>Load {selectedLorryForComparison.loadNumber || (idx + 1)} | Lorry No: {inspection.lorryNumber?.toUpperCase()}</>
                                                 )}
                                                 {` | Bags Loaded: ${inspection.bags || '-'}`}
                                             </span>
