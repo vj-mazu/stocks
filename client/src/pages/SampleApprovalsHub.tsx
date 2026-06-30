@@ -747,17 +747,12 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                             const allottedBags = entry.lotAllotment?.allottedBags || entry.bags || 0;
                             const totalInspected = inspections.reduce((sum: number, insp: any) => sum + (insp.bags || 0), 0);
                             const diff = totalInspected - allottedBags;
-                            return (
-                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                <div style={{ fontWeight: 'bold' }}>{allottedBags}</div>
-                                {diff > 0 ? (
-                                  <div style={{ color: '#1d4ed8', fontWeight: 'bold', fontSize: '11px', marginTop: '2px' }}>+{diff}</div>
-                                ) : diff < 0 ? (
-                                  <div style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '11px', marginTop: '2px' }}>{diff}</div>
-                                ) : (
-                                  <div style={{ color: '#16a34a', fontWeight: 'bold', fontSize: '11px', marginTop: '2px' }}>0</div>
-                                )}
-                              </div>
+                            return diff > 0 ? (
+                              <span style={{ color: '#1d4ed8', fontWeight: 'bold' }}>+{diff}</span>
+                            ) : diff < 0 ? (
+                              <span style={{ color: '#dc2626', fontWeight: 'bold' }}>{diff}</span>
+                            ) : (
+                              <span style={{ color: '#16a34a', fontWeight: 'bold' }}>0</span>
                             );
                           })()}
                         </td>
