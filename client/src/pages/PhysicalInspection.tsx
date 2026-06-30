@@ -840,6 +840,34 @@ const PhysicalInspection: React.FC = () => {
     return { count, latestStatus };
   };
 
+  const getStageBaseKey = (key: string, stageObj?: any) => stageObj?.baseStage || key.replace(/_hold_\d+$/, '');
+
+  const getStageAttemptNo = (stages: Record<string, any>, key: string) => {
+    const stageObj = stages[key] || {};
+    if (stageObj.attemptNo) return stageObj.attemptNo;
+    const baseKey = getStageBaseKey(key, stageObj);
+    const matchingKeys = Object.keys(stages)
+      .filter(stageKey => getStageBaseKey(stageKey, stages[stageKey]) === baseKey)
+      .sort((a, b) => {
+        const timeA = new Date(stages[a]?.reportedAt || stages[a]?.holdAt || stages[a]?.createdAt || 0).getTime();
+        const timeB = new Date(stages[b]?.reportedAt || stages[b]?.holdAt || stages[b]?.createdAt || 0).getTime();
+        return timeA - timeB;
+      });
+    return matchingKeys.indexOf(key) + 1;
+  };
+
+  const getStageDisplayLabel = (baseKey: string, stageObj?: any) => {
+    if (baseKey === 'lot_avg') return 'Lot Avg';
+    if (baseKey === 'balanced_lot') return 'Balanced Lot';
+    if (baseKey === 'half_lorry') return 'Half Lorry';
+    if (baseKey === 'full_avg') return 'Full Avg Lorry';
+    if (baseKey === 'nit_avg' || baseKey.startsWith('nit_avg')) {
+      const nit = String(stageObj?.nit || '').trim();
+      return nit ? `Nit Avg (${nit})` : 'Nit Avg';
+    }
+    return baseKey.replace(/_/g, ' ');
+  };
+
   const isStageApprovedForLot = (entryId: string, stageKey: string) => {
     if (samplingStageData[entryId]?.[stageKey]?.isLocked && samplingStageData[entryId]?.[stageKey]?.approvalStatus === 'approved') {
       return true;

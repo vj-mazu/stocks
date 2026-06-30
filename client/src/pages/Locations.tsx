@@ -757,7 +757,15 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
     }
 
     try {
-      await axios.delete(`${API_URL}/locations/${type === 'riceVariety' ? 'rice-varieties' : type + 's'}/${id}`);
+      let endpoint = '';
+      if (type === 'riceVariety') {
+        endpoint = 'rice-varieties';
+      } else if (type === 'variety') {
+        endpoint = 'varieties';
+      } else {
+        endpoint = type + 's';
+      }
+      await axios.delete(`${API_URL}/locations/${endpoint}/${id}`);
 
       toast.success(`${type === 'riceVariety' ? 'Rice Variety' : type.charAt(0).toUpperCase() + type.slice(1)} deleted successfully!`);
 

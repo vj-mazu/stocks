@@ -702,6 +702,7 @@ class PhysicalInspectionService {
     if (!stages[cleanStage]) {
       throw new Error(`Sampling stage '${stageName}' not found in this inspection`);
     }
+    const baseStage = stages[cleanStage]?.baseStage || cleanStage.replace(/_hold_\d+$/, '');
 
     const User = require('../models/User');
     const editorUser = await User.findByPk(userId);
@@ -959,18 +960,19 @@ class PhysicalInspectionService {
 
     // If approving full_avg, balanced_lot, or return_bags_report (for Ready Lorry), copy values to main columns of physical inspection
     const isReadyLorry = entry.entryType === 'DIRECT_LOADED_VEHICLE';
-    if (cleanStage === 'full_avg' || cleanStage === 'balanced_lot' || (isReadyLorry && cleanStage === 'return_bags_report')) {
+    if (baseStage === 'full_avg' || baseStage === 'balanced_lot' || (isReadyLorry && baseStage === 'return_bags_report')) {
       const stageData = stages[cleanStage] || {};
-      if (cleanStage === 'balanced_lot') {
-        const fullAvgBags = Number(stages.full_avg?.actualBags || stages.full_avg?.bags || 0);
+      if (baseStage === 'balanced_lot') {
+        const fullAvgStage = stages.full_avg || Object.values(stages).find(stage => stage?.baseStage === 'full_avg' && stage?.approvalStatus === 'approved') || {};
+        const fullAvgBags = Number(fullAvgStage.actualBags || fullAvgStage.bags || 0);
         updates.bags = fullAvgBags;
-      } else if (isReadyLorry && cleanStage === 'return_bags_report') {
+      } else if (isReadyLorry && baseStage === 'return_bags_report') {
         updates.bags = stageData.finalUnloadedBags !== undefined ? Number(stageData.finalUnloadedBags) : inspection.bags;
       } else {
         updates.bags = stageData.actualBags !== undefined ? Number(stageData.actualBags) : (stageData.bags !== undefined ? Number(stageData.bags) : inspection.bags);
       }
 
-      if (isReadyLorry && cleanStage === 'return_bags_report') {
+      if (isReadyLorry && baseStage === 'return_bags_report') {
         const fullAvgStage = stages.full_avg || {};
         updates.cutting1 = fullAvgStage.cutting1 || 0;
         updates.cutting2 = fullAvgStage.cutting2 || 0;
@@ -1038,6 +1040,7 @@ class PhysicalInspectionService {
     if (!stages[cleanStage]) {
       throw new Error(`Sampling stage '${stageName}' not found in this inspection`);
     }
+    const baseStage = stages[cleanStage]?.baseStage || cleanStage.replace(/_hold_\d+$/, '');
 
     const User = require('../models/User');
     const approverUser = await User.findByPk(userId);
@@ -1051,7 +1054,7 @@ class PhysicalInspectionService {
         isEdited: false,
         beforeEdit: null
       };
-      if (cleanStage === 'full_avg' && beforeVal.bags !== undefined) {
+      if (baseStage === 'full_avg' && beforeVal.bags !== undefined) {
         inspection.bags = beforeVal.bags;
       }
     } else {
@@ -1195,10 +1198,18 @@ class PhysicalInspectionService {
     const approverName = approverUser ? (approverUser.fullName || approverUser.username) : 'System';
 
     const timestamp = Date.now();
+    const baseStage = stages[cleanStage]?.baseStage || cleanStage.replace(/_hold_\d+$/, '');
+    const attemptNo = Object.keys(stages).filter(key => {
+      const stage = stages[key] || {};
+      const keyBase = stage.baseStage || key.replace(/_hold_\d+$/, '');
+      return keyBase === baseStage;
+    }).length;
     const historyKey = `${cleanStage}_hold_${timestamp}`;
     
     stages[historyKey] = {
       ...stages[cleanStage],
+      baseStage,
+      attemptNo,
       approvalStatus: 'hold',
       holdDuration: holdDuration,
       holdAt: new Date().toISOString(),

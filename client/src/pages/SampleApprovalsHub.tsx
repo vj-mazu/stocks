@@ -78,6 +78,34 @@ const getLorryBadgeStyle = () => {
   } as React.CSSProperties;
 };
 
+const getStageBaseKey = (key: string, stageObj?: any) => stageObj?.baseStage || key.replace(/_hold_\d+$/, '');
+
+const getStageAttemptNo = (stages: Record<string, any>, key: string) => {
+  const stageObj = stages[key] || {};
+  if (stageObj.attemptNo) return stageObj.attemptNo;
+  const baseKey = getStageBaseKey(key, stageObj);
+  const matchingKeys = Object.keys(stages)
+    .filter(stageKey => getStageBaseKey(stageKey, stages[stageKey]) === baseKey)
+    .sort((a, b) => {
+      const timeA = new Date(stages[a]?.reportedAt || stages[a]?.holdAt || stages[a]?.createdAt || 0).getTime();
+      const timeB = new Date(stages[b]?.reportedAt || stages[b]?.holdAt || stages[b]?.createdAt || 0).getTime();
+      return timeA - timeB;
+    });
+  return matchingKeys.indexOf(key) + 1;
+};
+
+const getStageDisplayLabel = (baseKey: string, stageObj?: any) => {
+  if (baseKey === 'lot_avg') return 'Lot Avg';
+  if (baseKey === 'balanced_lot') return 'Balanced Lot';
+  if (baseKey === 'half_lorry') return 'Half Lorry';
+  if (baseKey === 'full_avg') return 'Full Lorry';
+  if (baseKey === 'nit_avg' || baseKey.startsWith('nit_avg')) {
+    const nit = String(stageObj?.nit || '').trim();
+    return nit ? `Nit Avg (${nit})` : 'Nit Avg';
+  }
+  return baseKey.replace(/_/g, ' ');
+};
+
 const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excludeEntryType, onPendingCountChange }) => {
   const [editApprovalCount, setEditApprovalCount] = useState(0);
   const [managerApprovalCount, setManagerApprovalCount] = useState(0);
@@ -270,40 +298,25 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
 
   const getPendingStage = (insp: any) => {
     const stages = insp.samplingStages || {};
-    const lotAvgKey = Object.keys(stages).find(key => key === 'lot_avg' || key.startsWith('lot_avg_hold_'));
-    const lotAvgStage = lotAvgKey ? stages[lotAvgKey] : null;
-    if (lotAvgStage && (lotAvgStage.approvalStatus === 'pending' || lotAvgStage.approvalStatus === 'hold')) {
-      return { key: lotAvgKey, label: 'Lot Avg', approvalStatus: lotAvgStage.approvalStatus, isEdited: !!(lotAvgStage.isEdited || lotAvgStage.beforeEdit) };
-    }
-    const balancedLotKey = Object.keys(stages).find(key => key === 'balanced_lot' || key.startsWith('balanced_lot_hold_'));
-    const balancedLotStage = balancedLotKey ? stages[balancedLotKey] : null;
-    if (balancedLotStage && (balancedLotStage.approvalStatus === 'pending' || balancedLotStage.approvalStatus === 'hold')) {
-      return { key: balancedLotKey, label: 'Balanced Lot', approvalStatus: balancedLotStage.approvalStatus, isEdited: !!(balancedLotStage.isEdited || balancedLotStage.beforeEdit) };
-    }
-    if (stages.half_lorry?.approvalStatus === 'pending' || stages.half_lorry?.approvalStatus === 'hold') {
-      return { key: 'half_lorry', label: 'Half Lorry', approvalStatus: stages.half_lorry.approvalStatus, isEdited: !!(stages.half_lorry.isEdited || stages.half_lorry.beforeEdit) };
-    }
-    
-    // Check all nit_avg stages
-    const nitKeys = Object.keys(stages)
-      .filter(k => k.startsWith('nit_avg'))
+    const priority = ['lot_avg', 'balanced_lot', 'half_lorry', 'nit_avg', 'full_avg'];
+    const pendingKeys = Object.keys(stages)
+      .filter(key => stages[key]?.approvalStatus === 'pending' || stages[key]?.approvalStatus === 'hold')
       .sort((a, b) => {
-        if (a === 'nit_avg') return -1;
-        if (b === 'nit_avg') return 1;
-        const numA = parseInt(a.replace('nit_avg_', '')) || 0;
-        const numB = parseInt(b.replace('nit_avg_', '')) || 0;
-        return numA - numB;
+        const baseA = getStageBaseKey(a, stages[a]);
+        const baseB = getStageBaseKey(b, stages[b]);
+        const priorityDiff = priority.indexOf(baseA) - priority.indexOf(baseB);
+        if (priorityDiff !== 0) return priorityDiff;
+        const timeA = new Date(stages[a]?.reportedAt || stages[a]?.holdAt || stages[a]?.createdAt || 0).getTime();
+        const timeB = new Date(stages[b]?.reportedAt || stages[b]?.holdAt || stages[b]?.createdAt || 0).getTime();
+        return timeB - timeA;
       });
-    for (const key of nitKeys) {
-      if (stages[key]?.approvalStatus === 'pending' || stages[key]?.approvalStatus === 'hold') {
-        const idx = nitKeys.indexOf(key);
-        const label = idx === 0 ? 'Nit Avg' : `Nit Avg ${idx + 1}`;
-        return { key, label, approvalStatus: stages[key].approvalStatus, isEdited: !!(stages[key].isEdited || stages[key].beforeEdit) };
-      }
-    }
-
-    if (stages.full_avg?.approvalStatus === 'pending' || stages.full_avg?.approvalStatus === 'hold') {
-      return { key: 'full_avg', label: 'Full Lorry', approvalStatus: stages.full_avg.approvalStatus, isEdited: !!(stages.full_avg.isEdited || stages.full_avg.beforeEdit) };
+    if (pendingKeys.length > 0) {
+      const key = pendingKeys[0];
+      const stageObj = stages[key];
+      const baseKey = getStageBaseKey(key, stageObj);
+      const attemptNo = getStageAttemptNo(stages, key);
+      const label = `${getStageDisplayLabel(baseKey, stageObj)}${attemptNo > 1 ? ` Attempt ${attemptNo}` : ''}`;
+      return { key, baseKey, label, approvalStatus: stageObj.approvalStatus, isEdited: !!(stageObj.isEdited || stageObj.beforeEdit), attemptNo };
     }
     return null;
   };
@@ -553,15 +566,9 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     if (pendingStage) {
       const isHold = pendingStage.approvalStatus === 'hold';
       if (isHold) {
-        if (pendingStage.key === 'lot_avg') return 'Lot Avg Hold';
-        if (pendingStage.key === 'balanced_lot') return 'Balanced Lot Hold';
+        return `${pendingStage.label} Hold`;
       }
       const suffix = (pendingStage as any).isEdited ? ' (Edit Pending Approval)' : ' (Pending Approval)';
-      if (pendingStage.key === 'lot_avg') return `Lot Avg Sampling${suffix}`;
-      if (pendingStage.key === 'balanced_lot') return `Balanced Lot Sampling${suffix}`;
-      if (pendingStage.key === 'half_lorry') return `Half Lorry Sampling${suffix}`;
-      if (pendingStage.key === 'full_avg') return `Full Lorry Sampling${suffix}`;
-      if (pendingStage.key.startsWith('nit_avg')) return `${pendingStage.label} Sampling${suffix}`;
       return `${pendingStage.label} Sampling${suffix}`;
     }
     
@@ -572,16 +579,17 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
       return 'Lot Avg / Balanced Sampling (Pending)';
     }
     
-    const initialStageApproved = stages.lot_avg?.approvalStatus === 'approved' || stages.balanced_lot?.approvalStatus === 'approved';
+    const isStageApproved = (baseKey: string) => Object.keys(stages).some(key => getStageBaseKey(key, stages[key]) === baseKey && stages[key]?.approvalStatus === 'approved');
+    const initialStageApproved = isStageApproved('lot_avg') || isStageApproved('balanced_lot');
     if (initialStageApproved && (!stages.half_lorry || !stages.half_lorry.reportedBy) && (!stages.nit_avg || !stages.nit_avg.reportedBy)) {
       return 'Half Lorry / Nit Avg Sampling (Pending)';
     }
     
-    if (stages.balanced_lot?.approvalStatus === 'approved') return 'Balanced Lot Sampling (Approved)';
-    if (stages.full_avg?.approvalStatus === 'approved') return 'Full Lorry Sampling (Approved)';
-    if (stages.nit_avg?.approvalStatus === 'approved') return 'Nit Avg Sampling (Approved)';
-    if (stages.half_lorry?.approvalStatus === 'approved') return 'Half Lorry Sampling (Approved)';
-    if (stages.lot_avg?.approvalStatus === 'approved') return 'Lot Avg Sampling (Approved)';
+    if (isStageApproved('balanced_lot')) return 'Balanced Lot Sampling (Approved)';
+    if (isStageApproved('full_avg')) return 'Full Lorry Sampling (Approved)';
+    if (isStageApproved('nit_avg')) return 'Nit Avg Sampling (Approved)';
+    if (isStageApproved('half_lorry')) return 'Half Lorry Sampling (Approved)';
+    if (isStageApproved('lot_avg')) return 'Lot Avg Sampling (Approved)';
     
     return 'Pending';
   };
@@ -834,7 +842,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                                         </button>
                                       )}
                                     </div>
-                                    {pendingStage.approvalStatus !== 'hold' && entry.lotAllotment?.samplingRulesMode === 'new' && ['lot_avg', 'balanced_lot'].includes(pendingStage.key) && (
+                                    {pendingStage.approvalStatus !== 'hold' && (
                                        <div style={{ display: 'block', marginTop: '2px' }}>
                                          <button
                                            onClick={() => handleHoldProgressiveStage(entry.id, activeInsp.id, pendingStage.key, 'Hold')}
@@ -865,7 +873,10 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                               const isLotFullyInspected = totalInspected >= allottedBags;
 
                               const stages = activeInsp.samplingStages || {};
-                              const hasApprovedFullOrBalanced = stages.full_avg?.approvalStatus === 'approved' || stages.balanced_lot?.approvalStatus === 'approved';
+                              const hasApprovedFullOrBalanced = Object.keys(stages).some(key => {
+                                const baseKey = getStageBaseKey(key, stages[key]);
+                                return ['full_avg', 'balanced_lot'].includes(baseKey) && stages[key]?.approvalStatus === 'approved';
+                              });
                               if (hasApprovedFullOrBalanced) {
                                 if (!isLotFullyInspected) {
                                   return (
@@ -1304,43 +1315,21 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
 
                       return stageKeys.map((key) => {
                         const stageObj = stages[key];
-                        let name = '';
-                        let color = '#333';
-                        let bgColor = '#fff';
-                        let isFull = false;
-
-                        if (key === 'lot_avg') {
-                          name = 'Lot Avg';
-                          color = '#000000';
-                          bgColor = '#ffffff';
-                        } else if (key.startsWith('lot_avg_hold')) {
-                          name = 'Lot Avg (Hold)';
-                          color = '#d97706';
-                          bgColor = '#fffbeb';
-                        } else if (key.startsWith('nit_avg')) {
-                          name = getNitAvgLabel(stageObj.nit || '');
-                          color = '#000000';
-                          bgColor = '#ffffff';
-                        } else if (key === 'half_lorry') {
-                          name = 'Half Lorry';
-                          color = '#000000';
-                          bgColor = '#ffffff';
-                        } else if (key === 'full_avg') {
-                          name = 'Full Avg Lorry';
-                          color = '#000000';
-                          bgColor = '#ffffff';
-                          isFull = true;
-                        } else if (key === 'balanced_lot') {
-                          name = 'Balanced Lot';
-                          color = '#000000';
-                          bgColor = '#ffffff';
-                        } else if (key.startsWith('balanced_lot_hold')) {
-                          name = 'Balanced Lot (Hold)';
-                          color = '#d97706';
-                          bgColor = '#fffbeb';
-                        } else {
-                          name = key;
-                        }
+                        const baseKey = getStageBaseKey(key, stageObj);
+                        const attemptNo = getStageAttemptNo(stages, key);
+                        const statusSuffix = stageObj.approvalStatus === 'hold'
+                          ? ' - Hold'
+                          : stageObj.approvalStatus === 'rejected'
+                            ? ' - Rejected'
+                            : stageObj.approvalStatus === 'pending'
+                              ? ' - Pending'
+                              : stageObj.approvalStatus === 'approved'
+                                ? ' - Approved'
+                                : '';
+                        const name = `${getStageDisplayLabel(baseKey, stageObj)}${attemptNo > 1 ? ` - Attempt ${attemptNo}` : ''}${statusSuffix}`;
+                        const color = stageObj.approvalStatus === 'hold' ? '#d97706' : '#000000';
+                        const bgColor = stageObj.approvalStatus === 'hold' ? '#fffbeb' : '#ffffff';
+                        const isFull = baseKey === 'full_avg';
 
                         return renderRow(name, color, bgColor, stageObj, isFull);
                       });

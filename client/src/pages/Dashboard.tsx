@@ -189,12 +189,6 @@ const Dashboard: React.FC = () => {
       <QuickActions>
         <SectionTitle>Quick Actions</SectionTitle>
         <ActionGrid>
-          <ActionButton href="/arrivals">
-            📝 New Arrival Entry
-          </ActionButton>
-          <ActionButton href="/records">
-            📊 View Records
-          </ActionButton>
           {(user?.role === 'manager' || user?.role === 'admin') && (
             <>
                <ActionButton 
