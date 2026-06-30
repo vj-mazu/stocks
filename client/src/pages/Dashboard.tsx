@@ -200,9 +200,14 @@ const Dashboard: React.FC = () => {
                <ActionButton href="/admin/warehouses">
                  📍 Manage Locations
                </ActionButton>
-               <ActionButton href="/pending-approvals">
-                 ⚖️ Paddy Approvals
-               </ActionButton>
+               <ActionButton 
+                  href={user?.role === 'manager' ? '/manager-sample-reports?tab=approvals' : '/paddy-sample-reports?tab=approvals'}
+                  onClick={() => {
+                    localStorage.setItem('sample_approvals_hub_active_tab', 'approval-for-edits');
+                  }}
+                >
+                  ⚖️ Paddy Approvals
+                </ActionButton>
                <ActionButton href={user?.role === 'manager' ? '/manager-sample-reports?tab=sample-book-2' : '/paddy-sample-reports?tab=sample-book-2'}>
                  📖 MIS (Paddy Sample Book)
                </ActionButton>
