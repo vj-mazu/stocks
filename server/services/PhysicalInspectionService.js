@@ -241,8 +241,6 @@ class PhysicalInspectionService {
         return cleaned === 'pdwb' || cleaned === 'mdwb';
       };
       const isWbVariety = checkWb(variety) || checkWb(baseRateType) || checkWb(finalBaseRateType);
-      const isLoose = baseRateType === 'PD_LOOSE' || baseRateType === 'MD_LOOSE' || finalBaseRateType === 'PD_LOOSE' || finalBaseRateType === 'MD_LOOSE';
-
       // If it is the first trip, update the LotAllotment mode if specified
       if (isFirstRealTrip() && inspectionData.samplingRulesMode) {
         const cleanMode = String(inspectionData.samplingRulesMode).toLowerCase() === 'new' ? 'new' : 'old';
@@ -254,6 +252,7 @@ class PhysicalInspectionService {
 
       const activeRulesMode = isWbVariety ? 'old' : (lotAllotment.samplingRulesMode || 'old');
       const isNewMode = activeRulesMode === 'new';
+      const isLoose = (baseRateType === 'PD_LOOSE' || baseRateType === 'MD_LOOSE' || finalBaseRateType === 'PD_LOOSE' || finalBaseRateType === 'MD_LOOSE') && isNewMode;
 
       const isLotAvgRequired = () => {
         const priorRealLorries = existingInspections.filter(i => {

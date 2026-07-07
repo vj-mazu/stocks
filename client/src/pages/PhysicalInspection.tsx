@@ -1267,7 +1267,7 @@ const PhysicalInspection: React.FC = () => {
   const isStageVisibleForEntry = (entryId: string, stageKey: string) => {
     const entry = getEntryById(entryId);
     const isNewCrop = getRulesMode(entryId) === 'new' && !checkIfWbVariety(entry);
-    if (isLooseEntry(entryId)) {
+    if (isLooseEntry(entryId) && isNewCrop) {
       return stageKey === 'lot_avg' || stageKey === 'balanced_lot';
     }
     if (isNewCrop && stageKey === 'nit_avg') {
@@ -1398,7 +1398,7 @@ const PhysicalInspection: React.FC = () => {
     }
 
     if (stageKey === 'balanced_lot') {
-      if (isLooseEntry(entryId)) {
+      if (isLooseEntry(entryId) && isNewCrop) {
         return isStageLockedForLot(entryId, 'balanced_lot');
       }
       const hasFullAvg = Object.keys(stagesObj).some(key => getStageBaseKey(key, stagesObj[key]) === 'full_avg');
