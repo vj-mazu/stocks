@@ -1,14 +1,16 @@
 /**
  * Enhanced Cache Service for 10 Lakh Records
  * 
- * Provides in-memory caching with:
- * - LRU (Least Recently Used) eviction
- * - Memory limit protection (max 10,000 items)
- * - TTL support with auto-expiry
+ * Provides hybrid caching:
+ * - Distributed caching using Redis when REDIS_URL is provided
+ * - Safe fallback to optimized in-memory caching with:
+ *   - LRU (Least Recently Used) eviction
+ *   - Memory limit protection (max 10,000 items)
+ *   - TTL support with auto-expiry
  * - Performance statistics
- * 
- * For production, this can be replaced with Redis by setting REDIS_URL env var
  */
+
+const redisCacheService = require('./redisCacheService');
 
 class CacheService {
   constructor() {
@@ -16,6 +18,7 @@ class CacheService {
     this.timers = new Map();
     this.accessOrder = []; // Track access order for LRU eviction
     this.enabled = process.env.CACHE_ENABLED !== 'false'; // Enabled by default
+    this.useRedis = !!process.env.REDIS_URL; // Enable Redis if URL is set
     this.maxItems = parseInt(process.env.CACHE_MAX_ITEMS) || 10000; // Limit for memory protection
     this.stats = {
       hits: 0,
@@ -26,7 +29,7 @@ class CacheService {
     };
 
     // Log cache configuration
-    console.log(`📦 Cache Service initialized: maxItems=${this.maxItems}, enabled=${this.enabled}`);
+    console.log(`📦 Cache Service initialized: maxItems=${this.maxItems}, enabled=${this.enabled}, useRedis=${this.useRedis}`);
   }
 
   /**
@@ -70,6 +73,21 @@ class CacheService {
   async get(key) {
     if (!this.enabled) return null;
 
+    // Delegate to Redis if enabled
+    if (this.useRedis) {
+      try {
+        const val = await redisCacheService.get(key);
+        if (val !== null) {
+          this.stats.hits++;
+          return val;
+        }
+        this.stats.misses++;
+        return null;
+      } catch (error) {
+        console.warn('⚠️ Redis read error, falling back to local memory cache:', error.message);
+      }
+    }
+
     try {
       const item = this.cache.get(key);
 
@@ -107,6 +125,17 @@ class CacheService {
    */
   async set(key, value, ttl = 300) {
     if (!this.enabled) return false;
+
+    // Delegate to Redis if enabled
+    if (this.useRedis) {
+      try {
+        const success = await redisCacheService.set(key, value, ttl);
+        this.stats.sets++;
+        return success;
+      } catch (error) {
+        console.warn('⚠️ Redis write error, falling back to local memory cache:', error.message);
+      }
+    }
 
     try {
       // Check if we need to evict items (LRU eviction for memory protection)
@@ -170,6 +199,17 @@ class CacheService {
   async del(key) {
     if (!this.enabled) return false;
 
+    // Delegate to Redis if enabled
+    if (this.useRedis) {
+      try {
+        await redisCacheService.del(key);
+        this.stats.deletes++;
+        return true;
+      } catch (error) {
+        console.warn('⚠️ Redis delete error, falling back to local memory cache:', error.message);
+      }
+    }
+
     try {
       const deleted = this.cache.delete(key);
       this.clearTimer(key);
@@ -193,6 +233,16 @@ class CacheService {
    */
   async delPattern(pattern) {
     if (!this.enabled) return 0;
+
+    // Delegate to Redis if enabled
+    if (this.useRedis) {
+      try {
+        await redisCacheService.delPattern(pattern);
+        return 1;
+      } catch (error) {
+        console.warn('⚠️ Redis pattern delete error, falling back to local memory cache:', error.message);
+      }
+    }
 
     try {
       const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
@@ -219,6 +269,16 @@ class CacheService {
    */
   async exists(key) {
     if (!this.enabled) return false;
+
+    // Delegate to Redis if enabled
+    if (this.useRedis) {
+      try {
+        const val = await redisCacheService.get(key);
+        return val !== null;
+      } catch (error) {
+        console.warn('⚠️ Redis exists check error, falling back to local memory cache:', error.message);
+      }
+    }
 
     try {
       const item = this.cache.get(key);
@@ -270,6 +330,15 @@ class CacheService {
    * @returns {Promise<void>}
    */
   async clear() {
+    // Delegate to Redis if enabled
+    if (this.useRedis) {
+      try {
+        await redisCacheService.clear();
+      } catch (error) {
+        console.warn('⚠️ Redis clear error, falling back to local memory cache:', error.message);
+      }
+    }
+
     try {
       // Clear all timers
       for (const timer of this.timers.values()) {
@@ -280,7 +349,7 @@ class CacheService {
       this.timers.clear();
       this.accessOrder = [];
 
-      console.log('✅ Cache cleared');
+      console.log('✅ Local memory cache cleared');
     } catch (error) {
       console.warn('Cache clear error:', error.message);
     }
@@ -304,7 +373,9 @@ class CacheService {
       size: this.cache.size,
       maxItems: this.maxItems,
       memoryEstimateMB: estimatedMemoryMB.toFixed(2),
-      enabled: this.enabled
+      enabled: this.enabled,
+      useRedis: this.useRedis,
+      redisReady: this.useRedis ? redisCacheService.isReady() : false
     };
   }
 

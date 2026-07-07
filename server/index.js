@@ -39,6 +39,7 @@ const sampleEntriesRoutes = require('./routes/sample-entries');
 
 const compression = require('compression');
 const performanceMonitor = require('./middleware/performanceMonitor');
+const { queryOptimizer } = require('./middleware/queryOptimizer');
 // queryTimingMiddleware removed — duplicates performanceMonitor
 
 const app = express();
@@ -46,6 +47,12 @@ const PORT = process.env.PORT || 5000;
 
 // Performance monitoring (tracks response times)
 app.use(performanceMonitor);
+app.use(queryOptimizer({
+  enabled: true,
+  cacheTTL: 300,
+  cacheEnabled: process.env.CACHE_ENABLED !== 'false',
+  slowQueryThreshold: 1000
+}));
 
 // queryTimingMiddleware removed — was duplicating performanceMonitor
 
