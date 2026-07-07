@@ -584,6 +584,30 @@ const getNitAvgLabel = (nitValue: string) => {
     const clean = nitValue.trim().replace(/^(nit_avg|nit\s*)/i, '').trim();
     return `Nit Avg (${clean})`;
 };
+const getApprovedFullAvgBags = (stages: any, defaultBags: any) => {
+    if (!stages) return defaultBags;
+    const approvedKey = Object.keys(stages).find(key => {
+        const baseKey = key.replace(/_hold_\d+$/, '').replace(/_reattempt_\d+$/, '');
+        return baseKey === 'full_avg' && stages[key]?.approvalStatus === 'approved';
+    });
+    if (approvedKey && stages[approvedKey]?.actualBags !== undefined && stages[approvedKey]?.actualBags !== null) {
+        return stages[approvedKey].actualBags;
+    }
+    const latestFullAvg = Object.keys(stages)
+        .filter(key => key === 'full_avg' || key.startsWith('full_avg_'))
+        .sort((a, b) => {
+            const timeA = new Date(stages[a].reportedAt || stages[a].holdAt || stages[a].createdAt || 0).getTime();
+            const timeB = new Date(stages[b].reportedAt || stages[b].holdAt || stages[b].createdAt || 0).getTime();
+            return timeB - timeA;
+        });
+    if (latestFullAvg.length > 0) {
+        const key = latestFullAvg[0];
+        if (stages[key]?.actualBags !== undefined && stages[key]?.actualBags !== null) {
+            return stages[key].actualBags;
+        }
+    }
+    return defaultBags || '-';
+};
 
 export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpdate, showCollectorLoginPair = false, progressiveMode = false, onEditStage, onTriggerDispute, autoTriggerDisputeKey }: { detailEntry: SampleEntry, detailMode: 'quick' | 'history' | 'summary' | 'full', onClose: () => void, onUpdate?: (gpsCoordinates?: string) => void | Promise<void>, showCollectorLoginPair?: boolean, progressiveMode?: boolean, onEditStage?: (lorryNumber: string, stageKey: string) => void, onTriggerDispute?: (entry: SampleEntry) => void, autoTriggerDisputeKey?: { inspectionId: string; stageKey: string } }) => {
     const { user } = useAuth();
@@ -790,6 +814,25 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         } catch (error: any) {
             console.error('Error rejecting progressive stage:', error);
             toast.error(error.response?.data?.error || 'Failed to reject stage');
+        } finally {
+            setProcessingAction(false);
+        }
+    };
+
+    const handleHoldProgressiveStage = async (entryId: string, inspectionId: string, stageKey: string, stageLabel: string) => {
+        try {
+            setProcessingAction(true);
+            const token = localStorage.getItem('token');
+            await axios.post(
+                `${API_URL}/sample-entries/${entryId}/physical-inspection/${inspectionId}/hold-stage`,
+                { stage: stageKey, holdDuration: 'Hold' },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            toast.success(`${stageLabel} Stage put on Hold successfully!`);
+            await refreshProgressData();
+        } catch (error: any) {
+            console.error('Error holding progressive stage:', error);
+            toast.error(error.response?.data?.error || 'Failed to hold stage');
         } finally {
             setProcessingAction(false);
         }
@@ -1499,7 +1542,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     ['LOT_AVG', 'BALANCED_LOT'].includes(insp.lorryNumber.toUpperCase().trim()) ||
                     insp.lorryNumber.toLowerCase().includes('next loading lorry');
 
-                const bagsLoaded = stages.full_avg?.actualBags || insp.bags || '-';
+                const bagsLoaded = getApprovedFullAvgBags(stages, insp.bags);
 
                 rows.push({
                     type: 'header',
@@ -1545,6 +1588,28 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     const reportedAt = stageObj.reportedAt;
                     
                     let actionsCell: any = '-';
+                    const isStageAlreadyPassed = Object.keys(stages).filter(key => key !== 'holdHistory').some(key => {
+                        const isBaseMatch = (key === stageKey || key.startsWith(`${stageKey}_hold_`) || 
+                            (stageKey.includes('_hold_') && (key === stageKey.split('_hold_')[0] || key.startsWith(`${stageKey.split('_hold_')[0]}_hold_`))));
+                        if (isBaseMatch) {
+                            const stgObj = stages[key];
+                            return stgObj && (stgObj.approvalStatus === 'approved' || stgObj.approvalStatus === 'dispute' || stgObj.approvalStatus === 'rejected');
+                        }
+                        return false;
+                    });
+                    const baseStageKey = stageKey.replace(/_hold_\d+$/, '');
+                    const sameStageKeys = Object.keys(stages)
+                        .filter(k => k !== 'holdHistory')
+                        .filter(k => k.replace(/_hold_\d+$/, '') === baseStageKey)
+                        .sort((a, b) => {
+                            const timeA = new Date(stages[a].reportedAt || stages[a].createdAt || stages[a].updatedAt || 0).getTime();
+                            const timeB = new Date(stages[b].reportedAt || stages[b].createdAt || stages[b].updatedAt || 0).getTime();
+                            return timeA - timeB;
+                        });
+                    const isLatestAttempt = sameStageKeys.length === 0 || stageKey === sameStageKeys[sameStageKeys.length - 1];
+                    const attemptIndex = sameStageKeys.indexOf(stageKey);
+                    const attemptNo = attemptIndex !== -1 ? attemptIndex + 1 : 1;
+
                     if (stageObj.isSkipped || stageObj.approvalStatus === 'skipped') {
                         if (canApprove) {
                             actionsCell = (
@@ -1571,21 +1636,28 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         } else {
                             actionsCell = <span style={{ color: '#7f8c8d', fontWeight: 'bold', fontSize: '11px' }}>Skipped</span>;
                         }
+                    } else if (stageObj.isHoldHistory) {
+                        actionsCell = <span style={{ color: '#d97706', fontWeight: 'bold', fontSize: '10px' }}>Hold (Past Attempt)</span>;
                     } else if (canApprove) {
-                        const isStageAlreadyPassed = Object.keys(stages).some(key => {
-                            const isBaseMatch = (key === stageKey || key.startsWith(`${stageKey}_hold_`) || 
-                                (stageKey.includes('_hold_') && (key === stageKey.split('_hold_')[0] || key.startsWith(`${stageKey.split('_hold_')[0]}_hold_`))));
-                            if (isBaseMatch) {
-                                const stgObj = stages[key];
-                                return stgObj && (stgObj.approvalStatus === 'approved' || stgObj.approvalStatus === 'dispute' || stgObj.approvalStatus === 'rejected');
+                        if (isStageAlreadyPassed) {
+                            if (stageObj.approvalStatus === 'approved') {
+                                const fallbackManagerName = detailEntry.lotAllotment?.manager?.fullName || detailEntry.lotAllotment?.manager?.username || 'MANAGER';
+                                const name = stageObj.firstApprovedBy || stageObj.approvedBy || fallbackManagerName;
+                                actionsCell = (
+                                    <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.1', border: '1px solid rgba(39, 174, 96, 0.3)', backgroundColor: '#e8f5e9', padding: '3px 8px', borderRadius: '4px', textAlign: 'center' }}>
+                                        <span style={{ color: '#2e7d32', fontWeight: '700', fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Approved (Attempt {attemptNo})</span>
+                                        <span style={{ color: '#1b5e20', fontSize: '13px', fontWeight: '900', whiteSpace: 'normal', maxWidth: '110px', wordBreak: 'break-word' }}>by {name.toUpperCase()}</span>
+                                    </div>
+                                );
+                            } else if (stageObj.approvalStatus === 'rejected') {
+                                actionsCell = <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '10px' }}>Rejected</span>;
+                            } else {
+                                actionsCell = <span style={{ color: '#d97706', fontWeight: 'bold', fontSize: '10px' }}>Hold (Past Attempt)</span>;
                             }
-                            return false;
-                        });
-                        if (stageObj.approvalStatus === 'hold' && isStageAlreadyPassed) {
-                            actionsCell = <span style={{ color: '#d97706', fontWeight: 'bold', fontSize: '10px' }}>Hold (Past Attempt)</span>;
-                        } else if (stageObj.approvalStatus === 'pending' || stageObj.approvalStatus === 'hold') {
+                        } else if (canApprove && (stageObj.approvalStatus === 'pending' || stageObj.approvalStatus === 'hold')) {
                             actionsCell = (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center', justifyContent: 'center' }}>
+                                    <span style={{ fontSize: '7px', color: 'blue' }}>D: {stageKey} Passed: {isStageAlreadyPassed ? "YES" : "NO"} Keys: {Object.keys(stages).join(', ')}</span>
                                     {stageObj.approvalStatus === 'hold' && (
                                         <span style={{ color: '#d97706', fontWeight: '800', fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>[Hold]</span>
                                     )}
@@ -1622,6 +1694,24 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         >
                                             Reject
                                         </button>
+                                        {stageObj.approvalStatus !== 'hold' && (
+                                            <button
+                                                onClick={() => handleHoldProgressiveStage(detailEntry.id, insp.id, stageKey, getStageLabel(stageKey))}
+                                                disabled={processingAction}
+                                                style={{
+                                                    background: '#d97706',
+                                                    border: 'none',
+                                                    color: '#fff',
+                                                    fontWeight: 'bold',
+                                                    cursor: 'pointer',
+                                                    fontSize: '10px',
+                                                    padding: '3px 8px',
+                                                    borderRadius: '3px'
+                                                }}
+                                            >
+                                                Hold
+                                            </button>
+                                        )}
                                         {stageObj.approvalStatus === 'hold' && (
                                             <button
                                                 onClick={() => triggerDisputeFlow(insp.id, stageKey)}
@@ -1728,10 +1818,20 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                             actionsCell = <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '10px' }}>Rejected</span>;
                         } else if (stageObj.approvalStatus === 'pending') {
                             actionsCell = <span style={{ color: '#d97706', fontWeight: 'bold', fontSize: '10px' }}>Pending Approval</span>;
+                        } else if (stageObj.approvalStatus === 'hold') {
+                            actionsCell = (
+                                <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.1', border: '1px solid rgba(217, 119, 6, 0.3)', backgroundColor: '#fffbeb', padding: '3px 8px', borderRadius: '4px', textAlign: 'center' }}>
+                                    <span style={{ color: '#d97706', fontWeight: '700', fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Hold</span>
+                                    {stageObj.holdDuration && (
+                                        <span style={{ color: '#b45309', fontSize: '11px', fontWeight: '800' }}>{stageObj.holdDuration}</span>
+                                    )}
+                                </div>
+                            );
                         }
                     }
 
-                    if (onEditStage && !stageObj.isSkipped && stageObj.approvalStatus !== 'skipped') {
+                    const canEdit = onEditStage && !stageObj.isSkipped && stageObj.approvalStatus !== 'skipped' && stageObj.approvalStatus !== 'hold' && (stageObj.approvalStatus === 'approved' || stageObj.approvalStatus === 'pending');
+                    if (canEdit) {
                         const editBtn = (
                             <button
                                 onClick={(e) => {
@@ -1843,20 +1943,35 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     });
 
                 sortedKeys.forEach(key => {
-                    let label = '';
-                    if (key === 'lot_avg') label = 'Lot Avg';
-                    else if (key === 'half_lorry') label = 'Half Lorry';
-                    else if (key === 'full_avg') label = 'Full Avg Lorry';
-                    else if (key === 'balanced_lot') label = 'Balanced Lot';
-                    else if (key.startsWith('nit_avg')) {
+                    const baseStageKey = key.replace(/_hold_\d+$/, '');
+                    let baseLabel = '';
+                    if (baseStageKey === 'lot_avg') baseLabel = 'Lot Avg';
+                    else if (baseStageKey === 'half_lorry') baseLabel = 'Half Lorry';
+                    else if (baseStageKey === 'full_avg') baseLabel = 'Full Avg Lorry';
+                    else if (baseStageKey === 'balanced_lot') baseLabel = 'Balanced Lot';
+                    else if (baseStageKey.startsWith('nit_avg')) {
                         const stageObj = stages[key];
-                        label = getNitAvgLabel(stageObj?.nit || '');
-                    } else if (key.startsWith('lot_avg_hold')) {
-                        label = 'Lot Avg (Hold)';
-                    } else if (key.startsWith('balanced_lot_hold')) {
-                        label = 'Balanced Lot (Hold)';
+                        baseLabel = getNitAvgLabel(stageObj?.nit || '');
                     } else {
-                        label = key;
+                        baseLabel = baseStageKey;
+                    }
+
+                    const sameStageKeys = Object.keys(stages)
+                        .filter(k => k.replace(/_hold_\d+$/, '') === baseStageKey)
+                        .sort((a, b) => {
+                            const timeA = new Date(stages[a].reportedAt || stages[a].createdAt || stages[a].updatedAt || 0).getTime();
+                            const timeB = new Date(stages[b].reportedAt || stages[b].createdAt || stages[b].updatedAt || 0).getTime();
+                            return timeA - timeB;
+                        });
+                    const attemptIndex = sameStageKeys.indexOf(key);
+                    const attemptNo = attemptIndex !== -1 ? attemptIndex + 1 : 1;
+                    const isHold = key.includes('_hold_');
+
+                    let label = '';
+                    if (sameStageKeys.length > 1) {
+                        label = `${baseLabel} (Attempt ${attemptNo}${isHold ? ' - Hold' : ''})`;
+                    } else {
+                        label = `${baseLabel}${isHold ? ' (Hold)' : ''}`;
                     }
                     stageKeys.push({ key, label });
                 });
@@ -2076,6 +2191,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
 
         const makeRow = (labelElement: any, stageObj: any, stageKey: string) => {
             if (!stageObj || !stageObj.reportedBy) return null;
+            let isStageAlreadyPassed = false;
             const reportedAt = stageObj.reportedAt;
             
             const renderStageCompareCell = (
@@ -2118,6 +2234,28 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             };
             
             let actionsCell: any = '-';
+            const getBaseStageKey = (k: string) => {
+                return k.replace(/_hold_\d+$/, '').replace(/_reattempt_\d+$/, '');
+            };
+            const baseStageKey = getBaseStageKey(stageKey);
+            isStageAlreadyPassed = Object.keys(stages).some(key => {
+                if (getBaseStageKey(key) === baseStageKey) {
+                    const stgObj = stages[key];
+                    return stgObj && (stgObj.approvalStatus === 'approved' || stgObj.approvalStatus === 'dispute' || stgObj.approvalStatus === 'rejected');
+                }
+                return false;
+            });
+            const sameStageKeys = Object.keys(stages)
+                .filter(k => getBaseStageKey(k) === baseStageKey)
+                .sort((a, b) => {
+                    const timeA = new Date(stages[a].reportedAt || stages[a].createdAt || stages[a].updatedAt || 0).getTime();
+                    const timeB = new Date(stages[b].reportedAt || stages[b].createdAt || stages[b].updatedAt || 0).getTime();
+                    return timeA - timeB;
+                });
+            const isLatestAttempt = sameStageKeys.length === 0 || stageKey === sameStageKeys[sameStageKeys.length - 1];
+            const attemptIndex = sameStageKeys.indexOf(stageKey);
+            const attemptNo = attemptIndex !== -1 ? attemptIndex + 1 : 1;
+
             if (stageObj.isSkipped || stageObj.approvalStatus === 'skipped') {
                 if (canApprove) {
                     actionsCell = (
@@ -2145,18 +2283,22 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     actionsCell = <span style={{ color: '#7f8c8d', fontWeight: 'bold', fontSize: '11px' }}>Skipped</span>;
                 }
             } else if (canApprove) {
-                const isStageAlreadyPassed = Object.keys(stages).some(key => {
-                    const isBaseMatch = (key === stageKey || key.startsWith(`${stageKey}_hold_`) || 
-                        (stageKey.includes('_hold_') && (key === stageKey.split('_hold_')[0] || key.startsWith(`${stageKey.split('_hold_')[0]}_hold_`))));
-                    if (isBaseMatch) {
-                        const stgObj = stages[key];
-                        return stgObj && (stgObj.approvalStatus === 'approved' || stgObj.approvalStatus === 'dispute' || stgObj.approvalStatus === 'rejected');
+                if (isStageAlreadyPassed) {
+                    if (stageObj.approvalStatus === 'approved') {
+                        const fallbackManagerName = detailEntry.lotAllotment?.manager?.fullName || detailEntry.lotAllotment?.manager?.username || 'MANAGER';
+                        const name = stageObj.firstApprovedBy || stageObj.approvedBy || fallbackManagerName;
+                        actionsCell = (
+                            <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.1', border: '1px solid rgba(39, 174, 96, 0.3)', backgroundColor: '#e8f5e9', padding: '3px 8px', borderRadius: '4px', textAlign: 'center' }}>
+                                <span style={{ color: '#2e7d32', fontWeight: '700', fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Approved (Attempt {attemptNo})</span>
+                                <span style={{ color: '#1b5e20', fontSize: '13px', fontWeight: '900', whiteSpace: 'normal', maxWidth: '110px', wordBreak: 'break-word' }}>by {name.toUpperCase()}</span>
+                            </div>
+                        );
+                    } else if (stageObj.approvalStatus === 'rejected') {
+                        actionsCell = <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '10px' }}>Rejected</span>;
+                    } else {
+                        actionsCell = <span style={{ color: '#d97706', fontWeight: 'bold', fontSize: '10px' }}>Hold (Past Attempt)</span>;
                     }
-                    return false;
-                });
-                if (stageObj.approvalStatus === 'hold' && isStageAlreadyPassed) {
-                    actionsCell = <span style={{ color: '#d97706', fontWeight: 'bold', fontSize: '10px' }}>Hold (Past Attempt)</span>;
-                } else if (stageObj.approvalStatus === 'pending' || stageObj.approvalStatus === 'hold') {
+                } else if (canApprove && (stageObj.approvalStatus === 'pending' || stageObj.approvalStatus === 'hold')) {
                     actionsCell = (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center', justifyContent: 'center' }}>
                             {stageObj.approvalStatus === 'hold' && (
@@ -2195,6 +2337,24 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 >
                                     Reject
                                 </button>
+                                {stageObj.approvalStatus !== 'hold' && (
+                                    <button
+                                        onClick={() => handleHoldProgressiveStage(detailEntry.id, insp.id, stageKey, getStageLabel(stageKey))}
+                                        disabled={processingAction}
+                                        style={{
+                                            background: '#d97706',
+                                            border: 'none',
+                                            color: '#fff',
+                                            fontWeight: 'bold',
+                                            cursor: 'pointer',
+                                            fontSize: '10px',
+                                            padding: '3px 8px',
+                                            borderRadius: '3px'
+                                        }}
+                                    >
+                                        Hold
+                                    </button>
+                                )}
                                 {stageObj.approvalStatus === 'hold' && (
                                     <button
                                         onClick={() => triggerDisputeFlow(insp.id, stageKey)}
@@ -2322,7 +2482,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 }
             }
 
-            if (onEditStage && !stageObj.isSkipped && stageObj.approvalStatus !== 'skipped') {
+            const canEdit = onEditStage && !stageObj.isSkipped && stageObj.approvalStatus !== 'skipped' && stageObj.approvalStatus !== 'hold' && (stageObj.approvalStatus === 'approved' || stageObj.approvalStatus === 'pending');
+            if (canEdit) {
                 const editBtn = (
                     <button
                         onClick={(e) => {
@@ -2434,36 +2595,56 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             ];
         };
 
+        const displayStages: Record<string, any> = { ...stages };
+        // holdHistory is not a real stage — remove it from the display dictionary
+        delete displayStages.holdHistory;
+
         const stageKeys: { key: string; label: string }[] = [];
-        const sortedKeys = Object.keys(stages)
-            .filter(key => stages[key] && stages[key].reportedBy)
+        const sortedKeys = Object.keys(displayStages)
+            .filter(key => key !== 'holdHistory' && displayStages[key] && displayStages[key].reportedBy)
             .sort((a, b) => {
-                const timeA = new Date(stages[a].reportedAt || stages[a].createdAt || stages[a].updatedAt || 0).getTime();
-                const timeB = new Date(stages[b].reportedAt || stages[b].createdAt || stages[b].updatedAt || 0).getTime();
+                const timeA = new Date(displayStages[a].reportedAt || displayStages[a].holdAt || displayStages[a].createdAt || displayStages[a].updatedAt || 0).getTime();
+                const timeB = new Date(displayStages[b].reportedAt || displayStages[b].holdAt || displayStages[b].createdAt || displayStages[b].updatedAt || 0).getTime();
                 return timeA - timeB;
             });
 
         sortedKeys.forEach(key => {
-            let label = '';
-            if (key === 'lot_avg') label = 'Lot Avg';
-            else if (key === 'half_lorry') label = 'Half Lorry';
-            else if (key === 'full_avg') label = 'Full Avg Lorry';
-            else if (key === 'balanced_lot') label = 'Balanced Lot';
-            else if (key.startsWith('nit_avg')) {
-                const stageObj = stages[key];
-                label = getNitAvgLabel(stageObj?.nit || '');
-            } else if (key.startsWith('lot_avg_hold')) {
-                label = 'Lot Avg (Hold)';
-            } else if (key.startsWith('balanced_lot_hold')) {
-                label = 'Balanced Lot (Hold)';
+            const baseStageKey = key.replace(/_hold_\d+$/, '').replace(/_reattempt_\d+$/, '');
+            let baseLabel = '';
+            if (baseStageKey === 'lot_avg') baseLabel = 'Lot Avg';
+            else if (baseStageKey === 'half_lorry') baseLabel = 'Half Lorry';
+            else if (baseStageKey === 'full_avg') baseLabel = 'Full Avg Lorry';
+            else if (baseStageKey === 'balanced_lot') baseLabel = 'Balanced Lot';
+            else if (baseStageKey.startsWith('nit_avg')) {
+                const stageObj = displayStages[key];
+                baseLabel = getNitAvgLabel(stageObj?.nit || '');
             } else {
-                label = key;
+                baseLabel = baseStageKey;
+            }
+
+            const sameStageKeys = Object.keys(displayStages)
+                .filter(k => k !== 'holdHistory')
+                .filter(k => k.replace(/_hold_\d+$/, '').replace(/_reattempt_\d+$/, '') === baseStageKey)
+                .sort((a, b) => {
+                    const timeA = new Date(displayStages[a].reportedAt || displayStages[a].holdAt || displayStages[a].createdAt || displayStages[a].updatedAt || 0).getTime();
+                    const timeB = new Date(displayStages[b].reportedAt || displayStages[b].holdAt || displayStages[b].createdAt || displayStages[b].updatedAt || 0).getTime();
+                    return timeA - timeB;
+                });
+            const attemptIndex = sameStageKeys.indexOf(key);
+            const attemptNo = attemptIndex !== -1 ? attemptIndex + 1 : 1;
+            const isHold = displayStages[key]?.approvalStatus === 'hold';
+
+            let label = '';
+            if (sameStageKeys.length > 1) {
+                label = `${baseLabel} (Attempt ${attemptNo}${isHold ? ' - Hold' : ''})`;
+            } else {
+                label = `${baseLabel}${isHold ? ' (Hold)' : ''}`;
             }
             stageKeys.push({ key, label });
         });
 
         stageKeys.forEach(({ key, label }) => {
-            const stageObj = stages[key];
+            const stageObj = displayStages[key];
             if (stageObj && stageObj.reportedBy) {
                 const labelElement = (
                     <span
@@ -2484,7 +2665,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 {label}
                                 {stageObj?.isEdited && <span style={{ color: '#d97706', fontSize: '9.5px', fontWeight: '900' }}> (Edited)</span>}
                             </>
-                        ) : key === 'full_avg' && (insp.bags || stageObj.actualBags || stageObj.bags) ? (
+                        ) : (key === 'full_avg' || key.startsWith('full_avg_')) && (insp.bags || stageObj.actualBags || stageObj.bags) ? (
                             <>
                                 {label}{' '}
                                 <span style={{ color: '#1565c0', fontWeight: '900' }}>
@@ -3574,7 +3755,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                 ['LOT_AVG', 'BALANCED_LOT'].includes(insp.lorryNumber.toUpperCase().trim()) ||
                                                 insp.lorryNumber.toLowerCase().includes('next loading lorry');
                                             const stages = insp.samplingStages || {};
-                                            const bagsLoaded = stages.full_avg?.actualBags || insp.bags || '-';
+                                            const bagsLoaded = getApprovedFullAvgBags(stages, insp.bags);
                                             const title = isLorryNotAdded
                                                 ? <span style={{ color: 'white', fontWeight: 'bold' }}>Next Loading Lorry Sampling: Lot Avg Sampling or Balance Lot Sampling</span>
                                                 : tripIdx === 0
@@ -4208,10 +4389,19 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                 name = 'Half Lorry';
                                                                 color = '#000000';
                                                                 bgColor = '#ffffff';
+                                                            } else if (key.startsWith('half_lorry_hold')) {
+                                                                name = 'Half Lorry (Hold)';
+                                                                color = '#d97706';
+                                                                bgColor = '#fffbeb';
                                                             } else if (key === 'full_avg') {
                                                                 name = 'Full Avg Lorry';
                                                                 color = '#000000';
                                                                 bgColor = '#ffffff';
+                                                                isFull = true;
+                                                            } else if (key.startsWith('full_avg_hold')) {
+                                                                name = 'Full Avg Lorry (Hold)';
+                                                                color = '#d97706';
+                                                                bgColor = '#fffbeb';
                                                                 isFull = true;
                                                             } else if (key === 'balanced_lot') {
                                                                 name = 'Balanced Lot';

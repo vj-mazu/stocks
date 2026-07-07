@@ -186,11 +186,39 @@ class PhysicalInspectionService {
 
       const isLocationSample = entry.entryType === 'LOCATION_SAMPLE';
       const currentStages = existingLorryInspection?.samplingStages || {};
+      const getStageBaseKey = (stageKey, stageObj = {}) => {
+        if (stageObj?.baseStage) return stageObj.baseStage;
+        return stageKey.replace(/_hold_\d+$/, '').replace(/_reattempt_\d+$/, '');
+      };
+      const getHoldHistory = (stages, baseStage) => {
+        const history = stages?.holdHistory?.[baseStage];
+        return Array.isArray(history) ? history : [];
+      };
+      const getLatestStageForBase = (stages, baseStage) => {
+        if (!stages) return null;
+        // Collect ALL keys matching this baseStage (including reattempt keys)
+        const allKeys = Object.keys(stages).filter(stageKey => {
+          if (stageKey === 'holdHistory') return false;
+          return getStageBaseKey(stageKey, stages[stageKey]) === baseStage;
+        });
+        if (allKeys.length === 0) return null;
+        allKeys.sort((a, b) => {
+          const timeA = new Date(stages[a]?.reportedAt || stages[a]?.holdAt || stages[a]?.createdAt || 0).getTime();
+          const timeB = new Date(stages[b]?.reportedAt || stages[b]?.holdAt || stages[b]?.createdAt || 0).getTime();
+          return timeB - timeA;
+        });
+        // Return the latest one that is NOT on hold (prefer pending/approved over hold)
+        for (const key of allKeys) {
+          if (stages[key]?.approvalStatus !== 'hold') return stages[key];
+        }
+        // If all are hold, return the latest
+        return stages[allKeys[0]];
+      };
       const hasStage = (stages, key) => {
         if (key === 'nit_avg') {
           return Object.keys(stages || {}).some(stageKey => stageKey === 'nit_avg' || stageKey.startsWith('nit_avg_'));
         }
-        return !!stages?.[key];
+        return !!getLatestStageForBase(stages, key);
       };
       const isStageApproved = (stages, key) => {
         if (key === 'nit_avg') {
@@ -198,7 +226,11 @@ class PhysicalInspectionService {
             return (stageKey === 'nit_avg' || stageKey.startsWith('nit_avg_')) && stages[stageKey]?.approvalStatus === 'approved';
           });
         }
-        return stages?.[key]?.approvalStatus === 'approved';
+        return Object.keys(stages || {}).some(stageKey => {
+          if (stageKey === 'holdHistory') return false;
+          const base = getStageBaseKey(stageKey, stages[stageKey]);
+          return base === key && stages[stageKey]?.approvalStatus === 'approved';
+        });
       };
 
       const variety = entry?.variety || '';
@@ -209,6 +241,7 @@ class PhysicalInspectionService {
         return cleaned === 'pdwb' || cleaned === 'mdwb';
       };
       const isWbVariety = checkWb(variety) || checkWb(baseRateType) || checkWb(finalBaseRateType);
+      const isLoose = baseRateType === 'PD_LOOSE' || baseRateType === 'MD_LOOSE' || finalBaseRateType === 'PD_LOOSE' || finalBaseRateType === 'MD_LOOSE';
 
       // If it is the first trip, update the LotAllotment mode if specified
       if (isFirstRealTrip() && inspectionData.samplingRulesMode) {
@@ -260,8 +293,33 @@ class PhysicalInspectionService {
           return false;
         }
 
+        const currentInspectionDate = inspectionData.inspectionDate || new Date().toISOString().split('T')[0];
+        const getFormattedDateOnly = (d) => {
+          if (!d) return '';
+          try {
+            const dateObj = new Date(d);
+            if (isNaN(dateObj.getTime())) return '';
+            return dateObj.toISOString().split('T')[0];
+          } catch (e) {
+            return '';
+          }
+        };
+        const currentDateStr = getFormattedDateOnly(currentInspectionDate);
+        const lastLorryDateStr = getFormattedDateOnly(lastLorry.inspectionDate);
+
+        if (currentDateStr && lastLorryDateStr && currentDateStr === lastLorryDateStr) {
+          return false;
+        }
+
         const stages = lastLorry?.samplingStages || {};
-        const isPreviousBalanced = stages.balanced_lot?.approvalStatus === 'approved';
+        const isPreviousBalanced = Object.keys(stages).some(key => {
+          const baseKey = stages[key]?.baseStage || key.replace(/_hold_\d+$/, '').replace(/_reattempt_\d+$/, '');
+          if (baseKey === 'balanced_lot') {
+            const stg = stages[key];
+            return stg && (stg.approvalStatus === 'approved' || stg.approvalStatus === 'skipped' || !!stg.isSkipped);
+          }
+          return false;
+        });
 
         return !isPreviousBalanced;
       };
@@ -270,22 +328,61 @@ class PhysicalInspectionService {
         throw new Error('Nit Avg sampling stage is not permitted for New Crop.');
       }
 
-      if (isNewMode) {
-        // Enforce blockers: If any previous lot_avg or balanced_lot is pending, reject new requests
-        const hasPendingLotAvg = existingInspections.some(insp => {
-          const stages = insp.samplingStages || {};
-          return stages.lot_avg && stages.lot_avg.approvalStatus === 'pending';
+      // Enforce blockers: If any previous lot_avg or balanced_lot is pending, reject new requests (applies to both modes)
+      const hasPendingLotAvg = existingInspections.some(insp => {
+        const stages = insp.samplingStages || {};
+        return Object.keys(stages).some(key => {
+          const base = stages[key]?.baseStage || key.replace(/_hold_\d+$/, '').replace(/_reattempt_\d+$/, '');
+          return base === 'lot_avg' && stages[key]?.approvalStatus === 'pending';
         });
-        const hasPendingBalancedLot = existingInspections.some(insp => {
-          const stages = insp.samplingStages || {};
-          return stages.balanced_lot && stages.balanced_lot.approvalStatus === 'pending';
+      });
+      const hasPendingBalancedLot = existingInspections.some(insp => {
+        const stages = insp.samplingStages || {};
+        return Object.keys(stages).some(key => {
+          const base = stages[key]?.baseStage || key.replace(/_hold_\d+$/, '').replace(/_reattempt_\d+$/, '');
+          return base === 'balanced_lot' && stages[key]?.approvalStatus === 'pending';
         });
+      });
 
-        if (stage !== 'lot_avg' && hasPendingLotAvg) {
-          throw new Error('Cannot add new stages/trips while Lot Avg is pending approval.');
+      if (stage !== 'lot_avg' && hasPendingLotAvg) {
+        throw new Error('Cannot add new stages/trips while Lot Avg is pending approval.');
+      }
+      if (stage !== 'balanced_lot' && hasPendingBalancedLot) {
+        throw new Error('Cannot add new stages/trips while Balanced Lot is pending approval.');
+      }
+
+      // Check if there is an active hold on any stage (applies to both Old and New Crop)
+      let activeHoldStage = null;
+      Object.keys(currentStages).forEach(key => {
+        if (key === 'holdHistory') return;
+        const stg = currentStages[key];
+        if (stg?.approvalStatus === 'hold') {
+          const baseKey = getStageBaseKey(key, stg);
+          if (!isStageApproved(currentStages, baseKey)) {
+            activeHoldStage = baseKey;
+          }
         }
-        if (stage !== 'balanced_lot' && hasPendingBalancedLot) {
-          throw new Error('Cannot add new stages/trips while Balanced Lot is pending approval.');
+      });
+
+      if (activeHoldStage) {
+        // If the date has changed (next day) and balanced_lot is on hold, allow lot_avg
+        if (activeHoldStage === 'balanced_lot') {
+          const stgKey = Object.keys(currentStages).find(key => getStageBaseKey(key, currentStages[key]) === 'balanced_lot' && currentStages[key]?.approvalStatus === 'hold');
+          const stg = stgKey ? currentStages[stgKey] : null;
+          const holdDate = stg?.holdAt ? new Date(stg.holdAt) : null;
+          if (holdDate) {
+            const today = new Date();
+            const isNextDay = (today.getFullYear() > holdDate.getFullYear()) ||
+                              (today.getFullYear() === holdDate.getFullYear() && today.getMonth() > holdDate.getMonth()) ||
+                              (today.getFullYear() === holdDate.getFullYear() && today.getMonth() === holdDate.getMonth() && today.getDate() > holdDate.getDate());
+            if (isNextDay && stage === 'lot_avg') {
+              activeHoldStage = null;
+            }
+          }
+        }
+
+        if (activeHoldStage && stage !== activeHoldStage) {
+          throw new Error(`Cannot add new stages/trips while ${activeHoldStage.replace('_', ' ').toUpperCase()} is on hold.`);
         }
       }
 
@@ -492,7 +589,7 @@ class PhysicalInspectionService {
       if (!existingLorryInspection) {
         let bagsVal = null;
         let completeVal = false;
-        if (stage === 'balanced_lot') {
+        if (stage === 'balanced_lot' && !isLoose) {
           throw new Error('Full Avg Lorry must be submitted on the lorry trip before adding Balanced Lot.');
         } else if (stage === 'full_avg') {
           bagsVal = Number.parseInt(inspectionData.actualBags || '0');
@@ -545,7 +642,9 @@ class PhysicalInspectionService {
         const currentInspection = await PhysicalInspectionRepository.findById(existingLorryInspection.id, { transaction: t });
         const stages = currentInspection.samplingStages || {};
         
-        if (stages[stage] && stage !== 'nit_avg') {
+        const existingCurrentStage = stages[stage];
+        const isRetryingHeldStage = existingCurrentStage?.approvalStatus === 'hold';
+        if (existingCurrentStage && stage !== 'nit_avg' && !isRetryingHeldStage) {
           throw new Error(`Sampling stage '${inspectionData.stage}' has already been submitted and is locked.`);
         }
 
@@ -573,22 +672,26 @@ class PhysicalInspectionService {
             .filter(i => i.id !== currentInspection.id)
             .reduce((sum, i) => sum + (i.bags || 0), 0);
 
-          const currentTripFullAvgBags = Number.parseInt(stages.full_avg?.actualBags || currentInspection.bags || '0');
+          const fullAvgStageObj = getLatestStageForBase(stages, 'full_avg');
+          const currentTripFullAvgBags = Number.parseInt(fullAvgStageObj?.actualBags || currentInspection.bags || '0');
 
           if (stage === 'balanced_lot') {
-            const fullAvgStage = stages.full_avg;
-            if (!fullAvgStage) {
-              throw new Error('Full Avg Lorry must be submitted on the lorry trip before adding Balanced Lot.');
+            const isBypass = isLoose;
+            if (!isBypass) {
+              if (!fullAvgStageObj) {
+                throw new Error('Full Avg Lorry must be submitted on the lorry trip before adding Balanced Lot.');
+              }
+              if (fullAvgStageObj.approvalStatus === 'hold') {
+                throw new Error('Cannot add Balanced Lot while Full Avg Lorry is on Hold.');
+              }
             }
-            if (fullAvgStage.reportedAt) {
-              const fullAvgDate = new Date(fullAvgStage.reportedAt);
+            if (fullAvgStageObj && fullAvgStageObj.reportedAt) {
+              const fullAvgDate = new Date(fullAvgStageObj.reportedAt);
               const today = new Date();
               const fullAvgDay = new Date(fullAvgDate.getFullYear(), fullAvgDate.getMonth(), fullAvgDate.getDate());
               const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
               if (todayDay > fullAvgDay) {
-                if (!isNewMode) {
-                  throw new Error('Cannot add Balanced Lot. The midnight deadline has expired.');
-                }
+                throw new Error('Cannot add Balanced Lot. The midnight deadline has expired.');
               }
             }
             stageData.actualBags = 0;
@@ -625,6 +728,15 @@ class PhysicalInspectionService {
           }
         }
 
+        if (isRetryingHeldStage) {
+          const holdHistory = getHoldHistory(stages, stage);
+          const attemptNo = holdHistory.length + 1;
+          stageData.baseStage = stage;
+          stageData.attemptNo = attemptNo;
+          stageData.previousHoldCount = holdHistory.length;
+          // Save as a separate key so all attempts are preserved
+          targetStageKey = `${stage}_reattempt_${attemptNo}`;
+        }
         stages[targetStageKey] = stageData;
         updates.samplingStages = JSON.parse(JSON.stringify(stages));
 
@@ -702,7 +814,7 @@ class PhysicalInspectionService {
     if (!stages[cleanStage]) {
       throw new Error(`Sampling stage '${stageName}' not found in this inspection`);
     }
-    const baseStage = stages[cleanStage]?.baseStage || cleanStage.replace(/_hold_\d+$/, '');
+    const baseStage = stages[cleanStage]?.baseStage || cleanStage.replace(/_hold_\d+$/, '').replace(/_reattempt_\d+$/, '');
 
     const User = require('../models/User');
     const editorUser = await User.findByPk(userId);
@@ -819,8 +931,17 @@ class PhysicalInspectionService {
       // Get all inspections for this entry
       const inspections = await PhysicalInspectionRepository.findBySampleEntryId(sampleEntryId);
 
-      // Calculate total inspected bags
-      const inspectedBags = inspections.reduce((sum, inspection) => sum + (inspection.bags || 0), 0);
+      // Calculate total inspected bags dynamically looking at approved full_avg actualBags
+      const inspectedBags = inspections.reduce((sum, inspection) => {
+        const stages = inspection.samplingStages || {};
+        const fullAvgStageKey = Object.keys(stages).find(key => {
+          const base = stages[key]?.baseStage || key.replace(/_hold_\d+$/, '').replace(/_reattempt_\d+$/, '');
+          return (base === 'full_avg' || base === 'full_avg_lorry') && stages[key]?.approvalStatus === 'approved';
+        });
+        const fullAvgStage = fullAvgStageKey ? stages[fullAvgStageKey] : (stages.full_avg || {});
+        const actualBags = Number(fullAvgStage.actualBags || fullAvgStage.bags || inspection.bags || 0);
+        return sum + actualBags;
+      }, 0);
       const remainingBags = totalBags - inspectedBags;
       const rawProgressPercentage = totalBags > 0 ? (inspectedBags / totalBags) * 100 : 0;
       const progressPercentage = Math.min(100, rawProgressPercentage);
@@ -869,11 +990,17 @@ class PhysicalInspectionService {
           if (realLorryInsp) {
             const lotAvgInsp = previousInspections[lotAvgIdx];
             const lotAvgHappenedBeforeFirstLoad = getInspectionSortTime(lotAvgInsp) <= getInspectionSortTime(realLorryInsp);
-            if (lotAvgHappenedBeforeFirstLoad && lotAvgInsp.samplingStages && lotAvgInsp.samplingStages.lot_avg) {
+            const lotAvgKeys = Object.keys(lotAvgInsp.samplingStages || {}).filter(key => {
+              const base = lotAvgInsp.samplingStages[key]?.baseStage || key.replace(/_hold_\d+$/, '').replace(/_reattempt_\d+$/, '');
+              return base === 'lot_avg';
+            });
+            if (lotAvgHappenedBeforeFirstLoad && lotAvgInsp.samplingStages && lotAvgKeys.length > 0) {
               if (!realLorryInsp.samplingStages) realLorryInsp.samplingStages = {};
-              if (!realLorryInsp.samplingStages.lot_avg) {
-                realLorryInsp.samplingStages.lot_avg = lotAvgInsp.samplingStages.lot_avg;
-              }
+              lotAvgKeys.forEach(key => {
+                if (!realLorryInsp.samplingStages[key]) {
+                  realLorryInsp.samplingStages[key] = lotAvgInsp.samplingStages[key];
+                }
+              });
               // Exclude the separate first-trip LOT_AVG placeholder
               previousInspections = previousInspections.filter((_, idx) => idx !== lotAvgIdx);
             }
@@ -901,13 +1028,15 @@ class PhysicalInspectionService {
       };
       const isWbVariety = checkWb(variety) || checkWb(baseRateType) || checkWb(finalBaseRateType);
 
+      const activeRulesMode = isWbVariety ? 'old' : (lotAllotment?.samplingRulesMode || 'old');
+
       return {
         totalBags,
         inspectedBags,
         remainingBags,
         progressPercentage,
         previousInspections,
-        samplingRulesMode: lotAllotment?.samplingRulesMode || null
+        samplingRulesMode: activeRulesMode
       };
 
     } catch (error) {
@@ -934,6 +1063,7 @@ class PhysicalInspectionService {
 
     const stages = inspection.samplingStages || {};
     const cleanStage = stageName.toLowerCase();
+    const baseStage = stages[cleanStage]?.baseStage || cleanStage.replace(/_hold_\d+$/, '').replace(/_reattempt_\d+$/, '');
 
     if (!stages[cleanStage]) {
       throw new Error(`Sampling stage '${stageName}' not found in this inspection`);
@@ -949,6 +1079,16 @@ class PhysicalInspectionService {
     }
     stages[cleanStage].approvedBy = approverName;
     
+    // Mark all OTHER attempts of the same baseStage as superseded
+    // This allows manager to pick ANY attempt (1st, 2nd, 3rd, 4th) to approve
+    Object.keys(stages).forEach(key => {
+      if (key === cleanStage || key === 'holdHistory') return;
+      const thisBase = stages[key]?.baseStage || key.replace(/_hold_\d+$/, '').replace(/_reattempt_\d+$/, '');
+      if (thisBase === baseStage && stages[key]?.approvalStatus !== 'approved') {
+        stages[key].approvalStatus = 'superseded';
+      }
+    });
+    
     const updates = {
       samplingStages: JSON.parse(JSON.stringify(stages))
     };
@@ -963,7 +1103,11 @@ class PhysicalInspectionService {
     if (baseStage === 'full_avg' || baseStage === 'balanced_lot' || (isReadyLorry && baseStage === 'return_bags_report')) {
       const stageData = stages[cleanStage] || {};
       if (baseStage === 'balanced_lot') {
-        const fullAvgStage = stages.full_avg || Object.values(stages).find(stage => stage?.baseStage === 'full_avg' && stage?.approvalStatus === 'approved') || {};
+        const fullAvgStageKey = Object.keys(stages).find(key => {
+          const base = stages[key]?.baseStage || key.replace(/_hold_\d+$/, '').replace(/_reattempt_\d+$/, '');
+          return (base === 'full_avg' || base === 'full_avg_lorry') && stages[key]?.approvalStatus === 'approved';
+        });
+        const fullAvgStage = fullAvgStageKey ? stages[fullAvgStageKey] : (stages.full_avg || {});
         const fullAvgBags = Number(fullAvgStage.actualBags || fullAvgStage.bags || 0);
         updates.bags = fullAvgBags;
       } else if (isReadyLorry && baseStage === 'return_bags_report') {
@@ -1040,7 +1184,7 @@ class PhysicalInspectionService {
     if (!stages[cleanStage]) {
       throw new Error(`Sampling stage '${stageName}' not found in this inspection`);
     }
-    const baseStage = stages[cleanStage]?.baseStage || cleanStage.replace(/_hold_\d+$/, '');
+    const baseStage = stages[cleanStage]?.baseStage || cleanStage.replace(/_hold_\d+$/, '').replace(/_reattempt_\d+$/, '');
 
     const User = require('../models/User');
     const approverUser = await User.findByPk(userId);
@@ -1192,22 +1336,22 @@ class PhysicalInspectionService {
     if (!stages[cleanStage]) {
       throw new Error(`Sampling stage '${stageName}' not found in this inspection`);
     }
+    if (stages[cleanStage].approvalStatus === 'approved') {
+      throw new Error(`Sampling stage '${stageName}' is already approved and cannot be put on hold`);
+    }
 
     const User = require('../models/User');
     const approverUser = await User.findByPk(userId);
     const approverName = approverUser ? (approverUser.fullName || approverUser.username) : 'System';
 
-    const timestamp = Date.now();
-    const baseStage = stages[cleanStage]?.baseStage || cleanStage.replace(/_hold_\d+$/, '');
-    const attemptNo = Object.keys(stages).filter(key => {
-      const stage = stages[key] || {};
-      const keyBase = stage.baseStage || key.replace(/_hold_\d+$/, '');
-      return keyBase === baseStage;
-    }).length;
-    const historyKey = `${cleanStage}_hold_${timestamp}`;
-    
-    stages[historyKey] = {
-      ...stages[cleanStage],
+    const baseStage = stages[cleanStage]?.baseStage || cleanStage.replace(/_hold_\d+$/, '').replace(/_reattempt_\d+$/, '');
+    const holdHistory = {
+      ...(stages.holdHistory || {})
+    };
+    const stageHistory = Array.isArray(holdHistory[baseStage]) ? [...holdHistory[baseStage]] : [];
+    const attemptNo = stages[cleanStage].attemptNo || (stageHistory.length + 1);
+    const heldSnapshot = {
+      ...JSON.parse(JSON.stringify(stages[cleanStage])),
       baseStage,
       attemptNo,
       approvalStatus: 'hold',
@@ -1216,8 +1360,20 @@ class PhysicalInspectionService {
       holdBy: approverName,
       isLocked: true
     };
-
-    delete stages[cleanStage];
+    stageHistory.push(heldSnapshot);
+    holdHistory[baseStage] = stageHistory;
+    
+    stages[cleanStage] = {
+      ...stages[cleanStage],
+      baseStage,
+      attemptNo,
+      approvalStatus: 'hold',
+      holdDuration,
+      holdAt: heldSnapshot.holdAt,
+      holdBy: approverName,
+      isLocked: true
+    };
+    stages.holdHistory = holdHistory;
 
     const updates = {
       samplingStages: JSON.parse(JSON.stringify(stages))

@@ -799,10 +799,19 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
                           name = 'Half Lorry';
                           color = '#000000';
                           bgColor = '#ffffff';
+                        } else if (key.startsWith('half_lorry_hold')) {
+                          name = 'Half Lorry (Hold)';
+                          color = '#d97706';
+                          bgColor = '#fffbeb';
                         } else if (key === 'full_avg') {
                           name = 'Full Avg Lorry';
                           color = '#000000';
                           bgColor = '#ffffff';
+                          isFull = true;
+                        } else if (key.startsWith('full_avg_hold')) {
+                          name = 'Full Avg Lorry (Hold)';
+                          color = '#d97706';
+                          bgColor = '#fffbeb';
                           isFull = true;
                         } else if (key === 'balanced_lot') {
                           name = 'Balanced Lot';

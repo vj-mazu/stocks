@@ -78,7 +78,7 @@ const getLorryBadgeStyle = () => {
   } as React.CSSProperties;
 };
 
-const getStageBaseKey = (key: string, stageObj?: any) => stageObj?.baseStage || key.replace(/_hold_\d+$/, '');
+const getStageBaseKey = (key: string, stageObj?: any) => stageObj?.baseStage || key.replace(/_hold_\d+$/, '').replace(/_reattempt_\d+$/, '');
 
 const getStageAttemptNo = (stages: Record<string, any>, key: string) => {
   const stageObj = stages[key] || {};
@@ -299,7 +299,37 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
   const getPendingStage = (insp: any) => {
     const stages = insp.samplingStages || {};
     const priority = ['lot_avg', 'balanced_lot', 'half_lorry', 'nit_avg', 'full_avg'];
-    const pendingKeys = Object.keys(stages)
+    
+    // Group keys by baseKey
+    const baseGroups: Record<string, string[]> = {};
+    Object.keys(stages).forEach(key => {
+      const baseKey = getStageBaseKey(key, stages[key]);
+      if (!baseGroups[baseKey]) {
+        baseGroups[baseKey] = [];
+      }
+      baseGroups[baseKey].push(key);
+    });
+
+    const activeKeys: string[] = [];
+    Object.keys(baseGroups).forEach(baseKey => {
+      const groupKeys = baseGroups[baseKey];
+      // If any key in the group is approved, the whole stage is resolved
+      const isApproved = groupKeys.some(key => stages[key]?.approvalStatus === 'approved');
+      if (isApproved) {
+        return;
+      }
+      // Otherwise, only the latest attempt can be pending/hold
+      if (groupKeys.length > 0) {
+        groupKeys.sort((a, b) => {
+          const timeA = new Date(stages[a]?.reportedAt || stages[a]?.holdAt || stages[a]?.createdAt || 0).getTime();
+          const timeB = new Date(stages[b]?.reportedAt || stages[b]?.holdAt || stages[b]?.createdAt || 0).getTime();
+          return timeB - timeA;
+        });
+        activeKeys.push(groupKeys[0]);
+      }
+    });
+
+    const pendingKeys = activeKeys
       .filter(key => stages[key]?.approvalStatus === 'pending' || stages[key]?.approvalStatus === 'hold')
       .sort((a, b) => {
         const baseA = getStageBaseKey(a, stages[a]);
@@ -310,6 +340,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
         const timeB = new Date(stages[b]?.reportedAt || stages[b]?.holdAt || stages[b]?.createdAt || 0).getTime();
         return timeB - timeA;
       });
+
     if (pendingKeys.length > 0) {
       const key = pendingKeys[0];
       const stageObj = stages[key];
@@ -323,14 +354,18 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
 
   const renderEditComparison = (entry: any) => {
     const inspections = entry.physicalInspections || entry.lotAllotment?.physicalInspections || [];
-    const activeInsp = inspections.find((insp: any) => {
-      const stages = insp.samplingStages || {};
-      return Object.keys(stages).some(key => stages[key]?.approvalStatus === 'pending' || stages[key]?.approvalStatus === 'hold');
-    });
-    if (!activeInsp) return null;
+    let activeInsp: any = null;
+    let pendingStage: any = null;
+    for (const insp of inspections) {
+      pendingStage = getPendingStage(insp);
+      if (pendingStage) {
+        activeInsp = insp;
+        break;
+      }
+    }
+    if (!activeInsp || !pendingStage) return null;
     const stages = activeInsp.samplingStages || {};
-    const pendingKey = Object.keys(stages).find(key => stages[key]?.approvalStatus === 'pending' || stages[key]?.approvalStatus === 'hold');
-    if (!pendingKey) return null;
+    const pendingKey = pendingStage.key;
     const stageObj = stages[pendingKey];
     if (!stageObj || !stageObj.isEdited || !stageObj.beforeEdit) return null;
 
@@ -539,7 +574,15 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     if (inspections.length > 1) {
       const lotAvgIdx = inspections.findIndex((i: any) => (i.lorryNumber || '').trim().toUpperCase() === 'LOT_AVG');
       if (lotAvgIdx !== -1) {
-        const realLorryInsp = inspections.find((i: any) => (i.lorryNumber || '').trim().toUpperCase() !== 'LOT_AVG');
+        const realLorryInsp = inspections.find((i: any) => {
+          const lorry = (i.lorryNumber || '').trim().toUpperCase();
+          if (lorry === 'LOT_AVG' || lorry === 'BALANCED_LOT') return false;
+          const stages = i.samplingStages || {};
+          const isFullApproved = Object.keys(stages).some(k => {
+            return getStageBaseKey(k, stages[k]) === 'full_avg' && stages[k]?.approvalStatus === 'approved';
+          });
+          return !isFullApproved;
+        });
         if (realLorryInsp) {
           const lotAvgInsp = inspections[lotAvgIdx];
           if (lotAvgInsp.samplingStages && lotAvgInsp.samplingStages.lot_avg) {
