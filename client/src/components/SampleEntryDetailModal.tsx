@@ -4308,6 +4308,22 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             </td>
                                             
                                             <td style={{ padding: '8px 10px', textAlign: 'center', color: finalTextColor, fontWeight: '700' }}>{isFull ? formatField(inspection.bags) : '-'}</td>
+                                            <td style={{ padding: '8px 10px', textAlign: 'center', color: finalTextColor, fontWeight: '700' }}>
+                                                {(() => {
+                                                    const status = stageObj.approvalStatus || 'approved';
+                                                    const isSkipped = stageObj.isSkipped || status === 'skipped';
+                                                    if (isSkipped) {
+                                                        return <span style={{ color: '#7f8c8d' }}>Skipped</span>;
+                                                    }
+                                                    if (status === 'hold' || status === 'superseded') {
+                                                        return <span style={{ color: '#d97706' }}>Hold</span>;
+                                                    }
+                                                    if (status === 'pending') {
+                                                        return <span style={{ color: '#2563eb' }}>Pending</span>;
+                                                    }
+                                                    return <span style={{ color: '#16a34a' }}>Approved</span>;
+                                                })()}
+                                            </td>
                                             <td style={{ padding: '8px 10px', textAlign: 'center' }}>
                                                 {stageObj.imageUrl ? <a href={resolveMediaUrl(stageObj.imageUrl)} target="_blank" rel="noreferrer" style={{ color: '#1565c0', fontWeight: 'bold' }}>🖼️ View</a> : '-'}
                                             </td>
@@ -4354,6 +4370,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                         <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '50px' }}>P COLOR</th>
                                                         
                                                         <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>LOADED BAGS</th>
+                                                        <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '80px' }}>STATUS</th>
                                                         <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PHOTO</th>
                                                     </tr>
                                                 </thead>
