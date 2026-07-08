@@ -115,6 +115,20 @@ async function addCriticalIndexes() {
     }
 
     console.log(`\n📊 Results: ${success} created, ${skipped} skipped, ${failed} failed`);
+    
+    // Auto-update table statistics so PostgreSQL query engine picks the correct index maps
+    console.log('📊 Updating table statistics (ANALYZE)...');
+    const tablesToAnalyze = ['arrivals', 'sample_entries', 'physical_inspections', 'lot_allotments', 'rice_productions', 'rice_stock_movements'];
+    for (const table of tablesToAnalyze) {
+        try {
+            await sequelize.query(`ANALYZE "${table}"`);
+            console.log(`  📊 Analyzed table: ${table}`);
+        } catch (err) {
+            // Table might not exist yet during initial setup sync
+            console.log(`  ⚠️ Could not analyze ${table}: ${err.message.substring(0, 50)}`);
+        }
+    }
+    
     console.log('✅ Index optimization complete!\n');
 }
 
