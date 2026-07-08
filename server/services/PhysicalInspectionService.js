@@ -238,7 +238,7 @@ class PhysicalInspectionService {
       const finalBaseRateType = entry?.offering?.finalBaseRateType || '';
       const checkWb = (str) => {
         const cleaned = String(str || '').replace(/[\s_/]+/g, '').toLowerCase();
-        return cleaned === 'pdwb' || cleaned === 'mdwb';
+        return cleaned === 'pdwb' || cleaned === 'mdwb' || cleaned === 'pdloose' || cleaned === 'mdloose';
       };
       const isMillSample = ['CREATE_NEW', 'READY_LORRY', 'DIRECT_LOADED_VEHICLE', 'NEW_PADDY_SAMPLE'].includes(entry?.entryType);
       const isWbVariety = checkWb(variety) || checkWb(baseRateType) || checkWb(finalBaseRateType) || isLocationSample || isMillSample;
@@ -253,7 +253,7 @@ class PhysicalInspectionService {
 
       const activeRulesMode = isWbVariety ? 'old' : (lotAllotment.samplingRulesMode || 'old');
       const isNewMode = activeRulesMode === 'new';
-      const isLoose = (baseRateType === 'PD_LOOSE' || baseRateType === 'MD_LOOSE' || finalBaseRateType === 'PD_LOOSE' || finalBaseRateType === 'MD_LOOSE') && isNewMode;
+      const isLoose = (baseRateType === 'PD_LOOSE' || baseRateType === 'MD_LOOSE' || finalBaseRateType === 'PD_LOOSE' || finalBaseRateType === 'MD_LOOSE');
 
       const isLotAvgRequired = () => {
         const priorRealLorries = existingInspections.filter(i => {
@@ -269,7 +269,7 @@ class PhysicalInspectionService {
         const lastLorry = priorRealLorries[priorRealLorries.length - 1];
 
         // Midnight check for New Crop
-        if (isNewMode && lastLorry && lastLorry.inspectionDate) {
+        if ((isNewMode || isLoose) && lastLorry && lastLorry.inspectionDate) {
           const currentInspectionDate = inspectionData.inspectionDate || new Date().toISOString().split('T')[0];
           // Compare dates formatted as YYYY-MM-DD
           const getFormattedDateOnly = (d) => {
@@ -289,7 +289,7 @@ class PhysicalInspectionService {
           }
         }
 
-        if (isNewMode) {
+        if (isNewMode || isLoose) {
           return false;
         }
 
@@ -412,7 +412,7 @@ class PhysicalInspectionService {
       }
 
       if (stage === 'full_avg') {
-        if (!isNewMode) {
+        if (!isNewMode && !isLoose) {
           if (!isStageApproved(currentStages, 'half_lorry') && !isStageApproved(currentStages, 'nit_avg')) {
             throw new Error('Cannot add Full Avg Lorry until Half Lorry or Nit Avg is approved by Manager.');
           }
@@ -589,7 +589,7 @@ class PhysicalInspectionService {
       if (!existingLorryInspection) {
         let bagsVal = null;
         let completeVal = false;
-        if (stage === 'balanced_lot' && !isLoose) {
+        if (stage === 'balanced_lot') {
           throw new Error('Full Avg Lorry must be submitted on the lorry trip before adding Balanced Lot.');
         } else if (stage === 'full_avg') {
           bagsVal = Number.parseInt(inspectionData.actualBags || '0');
@@ -676,14 +676,11 @@ class PhysicalInspectionService {
           const currentTripFullAvgBags = Number.parseInt(fullAvgStageObj?.actualBags || currentInspection.bags || '0');
 
           if (stage === 'balanced_lot') {
-            const isBypass = isLoose;
-            if (!isBypass) {
-              if (!fullAvgStageObj) {
-                throw new Error('Full Avg Lorry must be submitted on the lorry trip before adding Balanced Lot.');
-              }
-              if (fullAvgStageObj.approvalStatus === 'hold') {
-                throw new Error('Cannot add Balanced Lot while Full Avg Lorry is on Hold.');
-              }
+            if (!fullAvgStageObj) {
+              throw new Error('Full Avg Lorry must be submitted on the lorry trip before adding Balanced Lot.');
+            }
+            if (fullAvgStageObj.approvalStatus === 'hold') {
+              throw new Error('Cannot add Balanced Lot while Full Avg Lorry is on Hold.');
             }
             if (fullAvgStageObj && fullAvgStageObj.reportedAt) {
               const fullAvgDate = new Date(fullAvgStageObj.reportedAt);
@@ -1024,7 +1021,7 @@ class PhysicalInspectionService {
       const finalBaseRateType = entry?.offering?.finalBaseRateType || '';
       const checkWb = (str) => {
         const cleaned = String(str || '').replace(/[\s_/]+/g, '').toLowerCase();
-        return cleaned === 'pdwb' || cleaned === 'mdwb';
+        return cleaned === 'pdwb' || cleaned === 'mdwb' || cleaned === 'pdloose' || cleaned === 'mdloose';
       };
       const isLocationSample = entry?.entryType === 'LOCATION_SAMPLE';
       const isMillSample = ['CREATE_NEW', 'READY_LORRY', 'DIRECT_LOADED_VEHICLE', 'NEW_PADDY_SAMPLE'].includes(entry?.entryType);
