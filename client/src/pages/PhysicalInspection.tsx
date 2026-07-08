@@ -1751,6 +1751,12 @@ const PhysicalInspection: React.FC = () => {
   const checkIfWbVariety = (entry?: any) => {
     if (!entry) return false;
     
+    // Mill and Location samples in New Crop must follow Old Crop rules
+    const type = entry.entryType || '';
+    const isLocationSample = type === 'LOCATION_SAMPLE';
+    const isMillSample = ['CREATE_NEW', 'READY_LORRY', 'DIRECT_LOADED_VEHICLE', 'NEW_PADDY_SAMPLE'].includes(type);
+    if (isLocationSample || isMillSample) return true;
+
     // Check variety
     const variety = entry.variety || '';
     const normalizedVariety = String(variety).replace(/\s+/g, '').toLowerCase();

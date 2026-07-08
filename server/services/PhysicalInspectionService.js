@@ -240,7 +240,8 @@ class PhysicalInspectionService {
         const cleaned = String(str || '').replace(/[\s_/]+/g, '').toLowerCase();
         return cleaned === 'pdwb' || cleaned === 'mdwb';
       };
-      const isWbVariety = checkWb(variety) || checkWb(baseRateType) || checkWb(finalBaseRateType);
+      const isMillSample = ['CREATE_NEW', 'READY_LORRY', 'DIRECT_LOADED_VEHICLE', 'NEW_PADDY_SAMPLE'].includes(entry?.entryType);
+      const isWbVariety = checkWb(variety) || checkWb(baseRateType) || checkWb(finalBaseRateType) || isLocationSample || isMillSample;
       // If it is the first trip, update the LotAllotment mode if specified
       if (isFirstRealTrip() && inspectionData.samplingRulesMode) {
         const cleanMode = String(inspectionData.samplingRulesMode).toLowerCase() === 'new' ? 'new' : 'old';
@@ -1025,7 +1026,9 @@ class PhysicalInspectionService {
         const cleaned = String(str || '').replace(/[\s_/]+/g, '').toLowerCase();
         return cleaned === 'pdwb' || cleaned === 'mdwb';
       };
-      const isWbVariety = checkWb(variety) || checkWb(baseRateType) || checkWb(finalBaseRateType);
+      const isLocationSample = entry?.entryType === 'LOCATION_SAMPLE';
+      const isMillSample = ['CREATE_NEW', 'READY_LORRY', 'DIRECT_LOADED_VEHICLE', 'NEW_PADDY_SAMPLE'].includes(entry?.entryType);
+      const isWbVariety = checkWb(variety) || checkWb(baseRateType) || checkWb(finalBaseRateType) || isLocationSample || isMillSample;
 
       const activeRulesMode = isWbVariety ? 'old' : (lotAllotment?.samplingRulesMode || 'old');
 
