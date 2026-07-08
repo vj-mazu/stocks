@@ -313,8 +313,9 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     const activeKeys: string[] = [];
     Object.keys(baseGroups).forEach(baseKey => {
       const groupKeys = baseGroups[baseKey];
-      // If any key in the group is approved, the whole stage is resolved
-      const isApproved = groupKeys.some(key => stages[key]?.approvalStatus === 'approved');
+      // If any key in the group is approved, and there is no pending edit/stage, the whole stage is resolved
+      const hasPending = groupKeys.some(key => stages[key]?.approvalStatus === 'pending');
+      const isApproved = !hasPending && groupKeys.some(key => stages[key]?.approvalStatus === 'approved');
       if (isApproved) {
         return;
       }
