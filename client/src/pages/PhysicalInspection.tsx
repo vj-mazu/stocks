@@ -1068,8 +1068,20 @@ const PhysicalInspection: React.FC = () => {
     });
   };
 
-  const isFullAvgEligibleForBalanced = (stages: any) => {
-    return isStageApprovedInStages(stages, 'full_avg');
+  const isFullAvgEligibleForBalanced = (stages: any, entryId?: string) => {
+    const isApproved = isStageApprovedInStages(stages, 'full_avg');
+    if (isApproved) return true;
+    if (entryId) {
+      const entry = getEntryById(entryId);
+      const isNewCrop = getRulesMode(entryId) === 'new' && !checkIfWbVariety(entry);
+      if (entry && isLooseEntry(entryId) && isNewCrop) {
+        const progress = inspectionProgress[entryId];
+        if (progress && progress.totalBags > 0 && progress.inspectedBags >= progress.totalBags) {
+          return true;
+        }
+      }
+    }
+    return false;
   };
 
   const getStageObjFromStages = (stages: any, stageKey: string) => {
@@ -1467,8 +1479,13 @@ const PhysicalInspection: React.FC = () => {
     }
     const entry = getEntryById(entryId);
     
-    // Loose entries need full_avg to be submitted/approved before balanced_lot can be added
+    // Loose entries need full_avg to be submitted/approved before balanced_lot can be added, OR the bag limit is reached (New Crop only)
     if (isLooseEntry(entryId)) {
+      const isNewCrop = getRulesMode(entryId) === 'new' && !checkIfWbVariety(entry);
+      const progress = inspectionProgress[entryId];
+      if (isNewCrop && progress && progress.totalBags > 0 && progress.inspectedBags >= progress.totalBags) {
+        return false; // Enable if max bags reached in New Crop
+      }
       const cleanLorry = (inspectionData[entryId]?.lorryNumber || '').trim().toUpperCase();
       const prevInsps = inspectionProgress[entryId]?.previousInspections || [];
       const hasFullAvg = hasStageInStages(samplingStageData[entryId], 'full_avg') || 
@@ -3188,7 +3205,13 @@ const PhysicalInspection: React.FC = () => {
                             });
                           })();
 
-                          const isDisabled = !!entry.lotAllotment?.closedAt || isMissingBalancedAcrossTrips || hasActiveHold || hasBlockedPendingStage;
+                          const isMaxBagsReached = (() => {
+                             if (!progress) return false;
+                             const isLoose = isLooseEntry(entry.id);
+                             return isLoose && progress.totalBags > 0 && progress.inspectedBags >= progress.totalBags;
+                           })();
+
+                          const isDisabled = !!entry.lotAllotment?.closedAt || (isMissingBalancedAcrossTrips && !isMaxBagsReached) || hasActiveHold || hasBlockedPendingStage;
 
                           return (
                             <button
@@ -3461,7 +3484,7 @@ const PhysicalInspection: React.FC = () => {
                                         const balancedLotStage = getStageObjFromStages(stages, 'balanced_lot');
                                         const hasBalanced = Object.keys(balancedLotStage).length > 0;
                                         const hasFull = hasStageInStages(stages, 'full_avg');
-                                        const isEligibleForBalanced = isFullAvgEligibleForBalanced(stages);
+                                        const isEligibleForBalanced = isFullAvgEligibleForBalanced(stages, entry.id);
                                         const hasFullApproved = isStageApprovedInStages(stages, 'full_avg');
 
                                         // If dummy LOT_AVG trip

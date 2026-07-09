@@ -1017,7 +1017,6 @@ const AllottedSupervisors: React.FC = () => {
                                     const diff = totalInspected - allottedBags;
                                     return (
                                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                        <div style={{ fontWeight: 'bold' }}>{allottedBags}</div>
                                         {entry.lotAllotment?.closedAt ? (
                                           <div style={{ color: '#d32f2f', fontWeight: 'bold', fontSize: '11px', marginTop: '2px' }}>0 (Closed)</div>
                                         ) : diff > 0 ? (

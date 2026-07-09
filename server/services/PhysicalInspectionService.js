@@ -676,11 +676,20 @@ class PhysicalInspectionService {
           const currentTripFullAvgBags = Number.parseInt(fullAvgStageObj?.actualBags || currentInspection.bags || '0');
 
           if (stage === 'balanced_lot') {
-            if (!fullAvgStageObj) {
-              throw new Error('Full Avg Lorry must be submitted on the lorry trip before adding Balanced Lot.');
-            }
-            if (fullAvgStageObj.approvalStatus === 'hold') {
-              throw new Error('Cannot add Balanced Lot while Full Avg Lorry is on Hold.');
+            const isLoose = ['PD_LOOSE', 'MD_LOOSE'].includes(entry.entryType) || 
+                            ['PD_LOOSE', 'MD_LOOSE'].includes(entry.offering?.baseRateType) ||
+                            ['PD_LOOSE', 'MD_LOOSE'].includes(entry.offering?.finalBaseRateType);
+            const isNewCrop = entry.samplingRulesMode === 'new' && !['WB', 'WHITE_BROKEN', 'WHITE BROKEN'].includes(String(entry.variety || '').toUpperCase());
+            const progressInspected = otherTripsBags;
+            const isMaxReached = isLoose && isNewCrop && totalAllottedBags > 0 && progressInspected >= totalAllottedBags;
+
+            if (!isMaxReached) {
+              if (!fullAvgStageObj) {
+                throw new Error('Full Avg Lorry must be submitted on the lorry trip before adding Balanced Lot.');
+              }
+              if (fullAvgStageObj.approvalStatus === 'hold') {
+                throw new Error('Cannot add Balanced Lot while Full Avg Lorry is on Hold.');
+              }
             }
             if (fullAvgStageObj && fullAvgStageObj.reportedAt) {
               const fullAvgDate = new Date(fullAvgStageObj.reportedAt);
@@ -708,8 +717,11 @@ class PhysicalInspectionService {
           updates.bend2 = stageData.bend2 || 0;
           updates.remarks = inspectionData.remarks || null;
 
+          const isLoose = ['PD_LOOSE', 'MD_LOOSE'].includes(entry.entryType) || 
+                          ['PD_LOOSE', 'MD_LOOSE'].includes(entry.offering?.baseRateType) ||
+                          ['PD_LOOSE', 'MD_LOOSE'].includes(entry.offering?.finalBaseRateType);
           const newTotalInspected = otherTripsBags + (updates.bags || 0);
-          if (newTotalInspected >= totalAllottedBags || (stage === 'balanced_lot' && !isSkipped)) {
+          if ((newTotalInspected >= totalAllottedBags || (stage === 'balanced_lot' && !isSkipped)) && !isLoose) {
             updates.isComplete = true;
           }
         }
@@ -1140,19 +1152,24 @@ class PhysicalInspectionService {
         where: { sampleEntryId }
       });
       const totalAllottedBags = lotAllotment?.allottedBags || entry.bags || 0;
+      const isLoose = ['PD_LOOSE', 'MD_LOOSE'].includes(entry.entryType) || 
+                       ['PD_LOOSE', 'MD_LOOSE'].includes(entry.offering?.baseRateType) ||
+                       ['PD_LOOSE', 'MD_LOOSE'].includes(entry.offering?.finalBaseRateType);
 
       if (totalInspected >= totalAllottedBags || (isReadyLorry && cleanStage === 'return_bags_report')) {
-        updates.isComplete = true;
-        
-        // Transition workflow to INVENTORY_ENTRY only if not already in that status
-        if (entry.workflowStatus !== 'INVENTORY_ENTRY') {
-          await WorkflowEngine.transitionTo(
-            sampleEntryId,
-            'INVENTORY_ENTRY',
-            userId,
-            userRole,
-            { reason: 'Physical inspection completed and approved' }
-          );
+        if (!isLoose) {
+          updates.isComplete = true;
+          
+          // Transition workflow to INVENTORY_ENTRY only if not already in that status
+          if (entry.workflowStatus !== 'INVENTORY_ENTRY') {
+            await WorkflowEngine.transitionTo(
+              sampleEntryId,
+              'INVENTORY_ENTRY',
+              userId,
+              userRole,
+              { reason: 'Physical inspection completed and approved' }
+            );
+          }
         }
       }
     }

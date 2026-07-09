@@ -704,6 +704,12 @@ class SampleEntryService {
           if (wStatus === 'PHYSICAL_INSPECTION') {
             return true;
           }
+          const isLoose = ['PD_LOOSE', 'MD_LOOSE'].includes(entry.entryType) || 
+                          ['PD_LOOSE', 'MD_LOOSE'].includes(entry.offering?.baseRateType) ||
+                          ['PD_LOOSE', 'MD_LOOSE'].includes(entry.offering?.finalBaseRateType);
+          if (isLoose) {
+            return true; // Keep loose entries visible in approvals
+          }
           const inspections = entry.physicalInspections || (entry.lotAllotment && entry.lotAllotment.physicalInspections) || [];
           return inspections.some((insp) => {
             const stages = insp.samplingStages || {};
