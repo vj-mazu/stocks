@@ -418,8 +418,10 @@ router.delete('/kunchinittus/:id', auth, authorize('manager', 'admin'), async (r
 
 // ===== VARIETIES =====
 
+const { cacheMiddleware } = require('../middleware/cache');
+
 // Get all varieties
-router.get('/varieties', auth, async (req, res) => {
+router.get('/varieties', auth, cacheMiddleware(300), async (req, res) => {
   try {
     const varieties = await Variety.findAll({
       where: { isActive: true },

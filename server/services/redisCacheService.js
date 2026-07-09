@@ -38,8 +38,7 @@ class RedisCacheService {
         maxRetriesPerRequest: 3,
         retryDelayOnFailover: 100,
         enableReadyCheck: true,
-        lazyConnect: true,
-        connectTimeout: 5000,
+        connectTimeout: 10000,
       });
 
       redisClient.on('connect', () => {
