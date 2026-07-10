@@ -8,6 +8,7 @@ import EditArrivalModal from '../../components/EditArrivalModal';
 import InlineHamaliForm from '../../components/InlineHamaliForm';
 import InlineRiceHamaliForm from '../../components/InlineRiceHamaliForm';
 import InlinePaltiForm from '../../components/InlinePaltiForm';
+import { API_URL } from '../../config/api';
 
 import AddPaddyHamaliModal from '../../components/AddPaddyHamaliModal';
 import EnhancedPaltiModal from '../../components/EnhancedPaltiModal';
@@ -36,12 +37,12 @@ import {
   RateFormCell, RateFormContainer, RateFormTitle, RateFormGrid, RateFormGroup,
   RateLabel, RateInput, RateRadioGroup, RateRadioLabel, RateCalculationBox,
   RateCalcRow, RateCalcLabel, RateCalcValue, RateButtonGroup
-} from './FileStyles';
+} from './RecordsManagementStyles';
 
 import {
   MonthOption, PaginationData, RecordsResponse, Arrival,
   getWeekRange, formatCutting, getWeekKey
-} from './FileTypes';
+} from './RecordsManagementTypes';
 
 // Alias renamed styled-components back to their original names used in JSX
 const Pagination = PaginationStyled;
@@ -49,7 +50,7 @@ const InlineRateForm = InlineRateFormStyled;
 
 
 
-const FilePage: React.FC = () => {
+const RecordsManagementPage: React.FC = () => {
   const { user } = useAuth();
 
   // Month navigation functions for paddy stock
@@ -152,6 +153,12 @@ const FilePage: React.FC = () => {
 
   // Rice Movement Edit State - for editing rice stock movement entries
   const [editingRiceMovement, setEditingRiceMovement] = useState<any>(null);
+
+  // Deletion Confirmation Dialog State
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    show: boolean;
+    item: any;
+  }>({ show: false, item: null });
 
   // Get business date (if before 6 AM, use previous day)
   const getBusinessDate = () => {
@@ -320,8 +327,22 @@ const FilePage: React.FC = () => {
     // Step 2: Process data (keep individual rows for hamali matching)
     const processedData: any[] = filteredData.map(item => ({ ...item, _isGrouped: false, _groupItems: [] }));
 
-    // Sort by date descending
-    processedData.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    // Sort by date descending, and group sales with the same bill number together on the same date
+    processedData.sort((a: any, b: any) => {
+      const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (dateDiff !== 0) return dateDiff;
+
+      const aIsSale = a.movementType === 'sale' && a.billNumber;
+      const bIsSale = b.movementType === 'sale' && b.billNumber;
+
+      if (aIsSale && bIsSale) {
+        return a.billNumber.localeCompare(b.billNumber);
+      }
+      if (aIsSale) return -1;
+      if (bIsSale) return 1;
+
+      return 0;
+    });
 
     // Build SL number lookup with rowspan info for grouped sales
     const billGroups: { [key: string]: any[] } = {};
@@ -490,7 +511,7 @@ const FilePage: React.FC = () => {
             isCleared?: boolean;
             clearedAt?: string;
             remainingBags?: number;
-          }>(`/rice-productions/outturn/${selectedOutturnId}/available-bags`);
+          }>(`${API_URL}/rice-productions/outturn/${selectedOutturnId}/available-bags`);
           setAvailableBags(response.data.availableBags);
           setIsOutturnCleared(response.data.isCleared || false);
         } catch (error) {
@@ -533,7 +554,7 @@ const FilePage: React.FC = () => {
       const response = await axios.get<{
         warehouseBalance: { [key: string]: { variety: string; location: string; bags: number } };
         productionBalance: { [key: string]: { variety: string; outturn: string; bags: number } };
-      }>('/arrivals/opening-balance', {
+      }>(`${API_URL}/arrivals/opening-balance`, {
         params: { beforeDate }
       });
 
@@ -666,7 +687,7 @@ const FilePage: React.FC = () => {
       if (arrivalIds.length > 0) {
         const token = localStorage.getItem('token');
         const response = await axios.post<{ entries: { [key: number]: any } }>(
-          '/hamali-entries/batch',
+          `${API_URL}/hamali-entries/batch`,
           { arrivalIds },
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -709,7 +730,7 @@ const FilePage: React.FC = () => {
         try {
           const token = localStorage.getItem('token');
           const riceHamaliResponse = await axios.post<{ success: boolean; data: { entries: { [key: string]: any[] } } }>(
-            '/rice-hamali-entries-simple/batch',
+            `${API_URL}/rice-hamali-entries-simple/batch`,
             { riceProductionIds, stockMovementIds },
             { headers: { Authorization: `Bearer ${token}` } }
           );
@@ -728,7 +749,7 @@ const FilePage: React.FC = () => {
             console.log('🔄 Trying fallback endpoint...');
             const token = localStorage.getItem('token');
             const fallbackResponse = await axios.post<{ entries: { [key: string]: any[] } }>(
-              '/rice-hamali-entries/batch',
+              `${API_URL}/rice-hamali-entries/batch`,
               { riceProductionIds, stockMovementIds },
               { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -798,9 +819,9 @@ const FilePage: React.FC = () => {
 
       if (debouncedSearch) params.search = debouncedSearch;
 
-      const endpoint = activeTab === 'arrivals' ? '/records/arrivals' :
-        activeTab === 'purchase' ? '/records/purchase' :
-          activeTab === 'shifting' ? '/records/shifting' : '/records/stock';
+      const endpoint = activeTab === 'arrivals' ? `${API_URL}/records/arrivals` :
+        activeTab === 'purchase' ? `${API_URL}/records/purchase` :
+          activeTab === 'shifting' ? `${API_URL}/records/shifting` : `${API_URL}/records/stock`;
 
       const response = await axios.get(endpoint, { params });
       const data = response.data as RecordsResponse;
@@ -1136,7 +1157,7 @@ const FilePage: React.FC = () => {
   const fetchOutturns = async () => {
 
     try {
-      const response = await axios.get<any[]>('/outturns');
+      const response = await axios.get<any[]>(`${API_URL}/outturns`);
       setOutturns(response.data);
     } catch (error) {
       console.error('Error fetching outturns:', error);
@@ -1151,7 +1172,7 @@ const FilePage: React.FC = () => {
     }
 
     try {
-      const response = await axios.post<{ message: string }>(`/outturns/${selectedOutturnId}/clear`,
+      const response = await axios.post<{ message: string }>(`${API_URL}/outturns/${selectedOutturnId}/clear`,
         { clearDate: clearOutturnDate },
         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
       );
@@ -1178,13 +1199,13 @@ const FilePage: React.FC = () => {
 
       // Fetch both production-shifting AND for-production purchases
       const [productionShiftingResponse, forProductionResponse] = await Promise.all([
-        axios.get<any>('/records/arrivals', {
+        axios.get<any>(`${API_URL}/records/arrivals`, {
           params: {
             ...params,
             movementType: 'production-shifting'
           }
         }),
-        axios.get<any>('/records/arrivals', {
+        axios.get<any>(`${API_URL}/records/arrivals`, {
           params: {
             ...params,
             movementType: 'purchase'
@@ -1212,7 +1233,7 @@ const FilePage: React.FC = () => {
     if (!selectedOutturnId) return;
 
     try {
-      const response = await axios.get<any[]>(`/byproducts/outturn/${selectedOutturnId}`);
+      const response = await axios.get<any[]>(`${API_URL}/byproducts/outturn/${selectedOutturnId}`);
       let data = response.data || [];
 
       // Apply client-side filters on by-products
@@ -1277,7 +1298,7 @@ const FilePage: React.FC = () => {
       if (faram && faram.trim() !== '') payload.faram = parseFloat(faram);
       if (bran && bran.trim() !== '') payload.bran = parseFloat(bran);
 
-      await axios.post('/byproducts', payload);
+      await axios.post(`${API_URL}/byproducts`, payload);
 
       toast.success('By-products recorded successfully!');
 
@@ -1303,7 +1324,7 @@ const FilePage: React.FC = () => {
   const fetchPackagings = async () => {
     try {
       console.log('Fetching packagings...');
-      const response = await axios.get<any>('/packagings');
+      const response = await axios.get<any>(`${API_URL}/packagings`);
       console.log('Packagings response:', response.data);
       setPackagings(response.data.packagings || []);
     } catch (error: any) {
@@ -1316,7 +1337,7 @@ const FilePage: React.FC = () => {
   const fetchLocationsData = async () => {
     try {
       console.log('Fetching kunchinittus...');
-      const response = await axios.get<any>('/locations/kunchinittus');
+      const response = await axios.get<any>(`${API_URL}/locations/kunchinittus`);
       console.log('Kunchinittus response:', response.data);
       setLocationsData(response.data.kunchinittus || []);
     } catch (error: any) {
@@ -1328,7 +1349,7 @@ const FilePage: React.FC = () => {
 
   const fetchRiceStockLocations = async () => {
     try {
-      const response = await axios.get<any>('/locations/rice-stock-locations');
+      const response = await axios.get<any>(`${API_URL}/locations/rice-stock-locations`);
       setRiceStockLocations(response.data.locations || []);
     } catch (error: any) {
       console.error('Error fetching rice stock locations:', error);
@@ -1411,12 +1432,12 @@ const FilePage: React.FC = () => {
       }
 
       // Save to rice-productions table (backend automatically creates/updates by-product entry)
-      await axios.post('/rice-productions', payload);
+      await axios.post(`${API_URL}/rice-productions`, payload);
 
       toast.success('Rice production entry saved successfully!');
 
       // Refresh available bags
-      const bagsResponse = await axios.get<{ availableBags: number }>(`/rice-productions/outturn/${selectedOutturnId}/available-bags`);
+      const bagsResponse = await axios.get<{ availableBags: number }>(`${API_URL}/rice-productions/outturn/${selectedOutturnId}/available-bags`);
       setAvailableBags(bagsResponse.data.availableBags);
 
       // Reset form
@@ -1437,12 +1458,14 @@ const FilePage: React.FC = () => {
       setBillNumber('');
 
       // Refresh production records, rice stock, by-products AND paddy stock data
-      fetchProductionRecords();
-      fetchRiceStock();
-      fetchByProducts();
-      fetchRecords();
-      fetchAllRiceProductions();
-      fetchOpeningBalance();
+      Promise.all([
+        fetchProductionRecords(),
+        fetchRiceStock(),
+        fetchByProducts(),
+        fetchRecords(),
+        fetchAllRiceProductions(),
+        fetchOpeningBalance()
+      ]).catch(e => console.error('Error refreshing stock data:', e));
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Failed to save entry');
     } finally {
@@ -1465,7 +1488,7 @@ const FilePage: React.FC = () => {
       // DO NOT apply date filters for rice productions
       // The frontend will filter by date when displaying, but we need ALL data for stock calculation
 
-      const response = await axios.get<{ productions: any[]; pagination?: any }>('/rice-productions', {
+      const response = await axios.get<{ productions: any[]; pagination?: any }>(`${API_URL}/rice-productions`, {
         headers: { Authorization: `Bearer ${token}` },
         params
       });
@@ -1512,7 +1535,7 @@ const FilePage: React.FC = () => {
         if (dateTo) productionsParams.dateTo = convertDateFormat(dateTo);
         if (selectedMonth) productionsParams.month = selectedMonth;
 
-        const productionsResponse = await axios.get<{ productions: any[]; pagination?: any }>('/rice-productions', {
+        const productionsResponse = await axios.get<{ productions: any[]; pagination?: any }>(`${API_URL}/rice-productions`, {
           headers: {
             Authorization: `Bearer ${token}`,
             'Cache-Control': 'no-cache'
@@ -1550,7 +1573,7 @@ const FilePage: React.FC = () => {
           // Add product type filter if available
           if (riceStockProductType) movementsParams.productType = riceStockProductType;
 
-          const movementsResponse = await axios.get('/rice-stock-management/movements', {
+          const movementsResponse = await axios.get(`${API_URL}/rice-stock-management/movements`, {
             headers: {
               Authorization: `Bearer ${token}`,
               'Cache-Control': 'no-cache',
@@ -1810,7 +1833,7 @@ const FilePage: React.FC = () => {
 
   const handleApprove = async (id: number, status: 'approved' | 'rejected') => {
     try {
-      await axios.patch(`/arrivals/${id}/approve`, { status });
+      await axios.patch(`${API_URL}/arrivals/${id}/approve`, { status });
       setLastToastMessage(''); // Clear last toast
       toast.success(`Record ${status} successfully`);
       fetchRecords();
@@ -1823,7 +1846,7 @@ const FilePage: React.FC = () => {
 
   const handleAdminApprove = async (id: number) => {
     try {
-      await axios.patch(`/arrivals/${id}/admin-approve`);
+      await axios.patch(`${API_URL}/arrivals/${id}/admin-approve`);
       toast.success('Record approved by admin - added to paddy stock');
       fetchRecords();
       fetchOpeningBalance(); // Refresh stock totals
@@ -1839,7 +1862,7 @@ const FilePage: React.FC = () => {
     }
 
     try {
-      await axios.delete(`/arrivals/${id}`);
+      await axios.delete(`${API_URL}/arrivals/${id}`);
       toast.success('Arrival deleted successfully');
       fetchRecords();
       fetchOpeningBalance();
@@ -1849,10 +1872,49 @@ const FilePage: React.FC = () => {
     }
   };
 
+  const handleDeleteRiceMovement = (item: any) => {
+    setDeleteConfirmation({ show: true, item });
+  };
+
+  const executeDeleteRiceMovement = async (item: any) => {
+    try {
+      const isStockMovement = String(item.originalId || item.id).includes('movement-') ||
+        ['purchase', 'sale', 'palti'].includes(item.movementType?.toLowerCase());
+      
+      const cleanId = String(item.id).replace('movement-', '');
+
+      if (isStockMovement) {
+        const token = localStorage.getItem('token');
+        await axios.delete(`${API_URL}/rice-stock-management/movements/${cleanId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } else {
+        await axios.delete(`${API_URL}/rice-productions/${cleanId}`);
+      }
+
+      toast.success('Rice movement deleted successfully');
+      
+      // Comprehensive refresh
+      await Promise.all([
+        fetchRiceStock(),
+        fetchProductionRecords(),
+        fetchOutturns(),
+        fetchByProducts(),
+        fetchRecords(),
+        fetchAllRiceProductions(),
+        fetchOpeningBalance(),
+        fetchPendingMovements()
+      ]);
+    } catch (error: any) {
+      console.error('Delete rice movement error:', error);
+      toast.error(error.response?.data?.error || error.response?.data?.message || 'Failed to delete rice movement');
+    }
+  };
+
   const fetchPendingMovements = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('/rice-stock-management/movements/pending', {
+      const response = await axios.get(`${API_URL}/rice-stock-management/movements/pending`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setPendingMovements((response.data as any).data.movements || []);
@@ -1867,7 +1929,7 @@ const FilePage: React.FC = () => {
   const handleApproveMovement = async (id: number, status: 'approved' | 'rejected', rejectionReason?: string) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.patch(`/rice-stock-management/movements/${id}/status`, {
+      await axios.patch(`${API_URL}/rice-stock-management/movements/${id}/status`, {
         status,
         rejectionReason
       }, {
@@ -1894,7 +1956,7 @@ const FilePage: React.FC = () => {
     setIsBulkProcessing(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post('/rice-stock-management/movements/bulk-approve', {
+      const response = await axios.post(`${API_URL}/rice-stock-management/movements/bulk-approve`, {
         ids: Array.from(selectedMovementIds)
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -1934,7 +1996,7 @@ const FilePage: React.FC = () => {
     setIsBulkProcessing(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post('/rice-stock-management/movements/bulk-reject', {
+      const response = await axios.post(`${API_URL}/rice-stock-management/movements/bulk-reject`, {
         ids: Array.from(selectedMovementIds),
         rejectionReason: reason || undefined
       }, {
@@ -2041,7 +2103,7 @@ const FilePage: React.FC = () => {
         if (riceStockLocationCode) params.locationCode = riceStockLocationCode;
       }
 
-      const response = await axios.get(endpoint, {
+      const response = await axios.get(`${API_URL}/${endpoint}`, {
         params,
         responseType: 'blob'
       });
@@ -2280,7 +2342,7 @@ const FilePage: React.FC = () => {
           </FormGroup>
 
           {/* Actions Row */}
-          <div style={{ display: 'flex', gap: '0.5rem', gridColumn: '1 / -1', marginTop: '1rem', borderTop: '1px solid #f3f4f6', paddingTop: '1rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', gridColumn: '1 / -1', marginTop: '0.5rem', borderTop: '1px solid #f3f4f6', paddingTop: '0.5rem' }}>
             <Button className="primary" onClick={fetchRecords} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               🔍 Search
             </Button>
@@ -3046,6 +3108,28 @@ const FilePage: React.FC = () => {
                                   title={item.status === 'approved' ? "Admin Edit: Approved Record" : "Edit this entry"}
                                 >
                                   ✏️ Edit
+                                </button>
+                              )}
+
+                              {/* Delete Button - only for Manager/Admin */}
+                              {(user?.role === 'admin' || user?.role === 'manager') && (
+                                <button
+                                  onClick={() => handleDeleteRiceMovement(item)}
+                                  style={{
+                                    padding: '4px 12px',
+                                    backgroundColor: '#ef4444',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.85rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                  }}
+                                  title="Delete this entry"
+                                >
+                                  🗑️ Delete
                                 </button>
                               )}
 
@@ -9357,6 +9441,97 @@ const FilePage: React.FC = () => {
         onDateChange={setPaltiDate}
       />
 
+      {deleteConfirmation.show && deleteConfirmation.item && createPortal(
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 11000,
+          animation: 'fadeIn 0.2s ease'
+        }} onClick={() => setDeleteConfirmation({ show: false, item: null })}>
+          <div style={{
+            background: 'white',
+            width: '90%',
+            maxWidth: '420px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            borderRadius: '16px',
+            padding: '2rem',
+            position: 'relative',
+            animation: 'scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+            textAlign: 'center'
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              backgroundColor: '#fee2e2',
+              color: '#ef4444',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.75rem',
+              margin: '0 auto 1.25rem auto'
+            }}>
+              ⚠️
+            </div>
+            
+            <h3 style={{ margin: '0 0 0.5rem 0', color: '#1f2937', fontSize: '1.25rem', fontWeight: 700 }}>
+              Confirm Deletion
+            </h3>
+            
+            <p style={{ margin: '0 0 1.5rem 0', color: '#6b7280', fontSize: '0.9rem', lineHeight: '1.5' }}>
+              Are you sure you want to delete this <strong>{deleteConfirmation.item.movementType || 'movement'}</strong> entry? This action is permanent and cannot be undone.
+            </p>
+            
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+              <button
+                onClick={() => setDeleteConfirmation({ show: false, item: null })}
+                style={{
+                  padding: '0.5rem 1.25rem',
+                  background: '#f3f4f6',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  fontSize: '0.9rem'
+                }}
+              >
+                Cancel
+              </button>
+              
+              <button
+                onClick={async () => {
+                  const targetItem = deleteConfirmation.item;
+                  setDeleteConfirmation({ show: false, item: null });
+                  await executeDeleteRiceMovement(targetItem);
+                }}
+                style={{
+                  padding: '0.5rem 1.25rem',
+                  background: '#ef4444',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  fontSize: '0.9rem'
+                }}
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {editingRiceMovement && createPortal(
         <div style={{
           position: 'fixed',
@@ -9625,24 +9800,97 @@ const FilePage: React.FC = () => {
               {editingRiceMovement.movementType === 'palti' && (
                 <div style={{
                   background: '#f5f3ff',
-                  padding: '12px',
-                  borderRadius: '8px',
+                  padding: '16px',
+                  borderRadius: '12px',
                   marginBottom: '16px',
-                  border: '1px solid #c4b5fd'
+                  border: '1.5px solid #c4b5fd'
                 }}>
-                  <div style={{ fontWeight: '600', color: '#7c3aed', marginBottom: '8px' }}>🔄 Palti Details</div>
-                  <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.9rem' }}>
+                  <div style={{ fontWeight: '700', color: '#7c3aed', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>🔄</span> Palti Configuration Details
+                  </div>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    {/* From Location */}
                     <div>
-                      <span style={{ color: '#6b7280' }}>From:</span> {editingRiceMovement.from_location || editingRiceMovement.fromLocation || 'N/A'}
+                      <label style={{ display: 'block', marginBottom: '4px', fontWeight: '600', fontSize: '0.85rem', color: '#4b5563' }}>From Location (Source)</label>
+                      <select
+                        value={editingRiceMovement.fromLocation || editingRiceMovement.from_location || ''}
+                        onChange={(e) => setEditingRiceMovement({ ...editingRiceMovement, fromLocation: e.target.value, from_location: e.target.value })}
+                        style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #d1d5db', borderRadius: '8px', fontSize: '0.9rem', backgroundColor: 'white' }}
+                      >
+                        <option value="">Select Location</option>
+                        {riceStockLocations.map((loc: any) => (
+                          <option key={loc.code} value={loc.code}>{loc.code} - {loc.name}</option>
+                        ))}
+                      </select>
                     </div>
+
+                    {/* To Location */}
                     <div>
-                      <span style={{ color: '#6b7280' }}>To:</span> {editingRiceMovement.to_location || editingRiceMovement.toLocation || 'N/A'}
+                      <label style={{ display: 'block', marginBottom: '4px', fontWeight: '600', fontSize: '0.85rem', color: '#4b5563' }}>To Location (Target)</label>
+                      <select
+                        value={editingRiceMovement.toLocation || editingRiceMovement.to_location || editingRiceMovement.locationCode || editingRiceMovement.location_code || ''}
+                        onChange={(e) => setEditingRiceMovement({
+                          ...editingRiceMovement,
+                          toLocation: e.target.value,
+                          to_location: e.target.value,
+                          locationCode: e.target.value,
+                          location_code: e.target.value
+                        })}
+                        style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #d1d5db', borderRadius: '8px', fontSize: '0.9rem', backgroundColor: 'white' }}
+                      >
+                        <option value="">Select Location</option>
+                        {riceStockLocations.map((loc: any) => (
+                          <option key={loc.code} value={loc.code}>{loc.code} - {loc.name}</option>
+                        ))}
+                      </select>
                     </div>
-                    {(editingRiceMovement.shortage_kg || editingRiceMovement.shortageKg) && (
-                      <div style={{ gridColumn: '1 / -1', color: '#dc2626', fontWeight: '600' }}>
-                        ⚠️ Shortage: {editingRiceMovement.shortage_kg || editingRiceMovement.shortageKg} kg
-                      </div>
-                    )}
+
+                    {/* Source Bags */}
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '4px', fontWeight: '600', fontSize: '0.85rem', color: '#4b5563' }}>Source Bags</label>
+                      <input
+                        type="number"
+                        value={editingRiceMovement.sourceBags || editingRiceMovement.source_bags || 0}
+                        onChange={(e) => setEditingRiceMovement({ ...editingRiceMovement, sourceBags: parseInt(e.target.value) || 0, source_bags: parseInt(e.target.value) || 0 })}
+                        style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #d1d5db', borderRadius: '8px', fontSize: '0.9rem' }}
+                      />
+                    </div>
+
+                    {/* Source Packaging */}
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '4px', fontWeight: '600', fontSize: '0.85rem', color: '#4b5563' }}>Source Packaging</label>
+                      <select
+                        value={editingRiceMovement.source_packaging_brand || editingRiceMovement.sourcePackaging?.brandName || ''}
+                        onChange={(e) => {
+                          const selectedPkg = packagings.find(pkg => pkg.brandName === e.target.value);
+                          setEditingRiceMovement({
+                            ...editingRiceMovement,
+                            source_packaging_brand: e.target.value,
+                            sourcePackagingId: selectedPkg?.id || editingRiceMovement.sourcePackagingId,
+                            source_packaging_id: selectedPkg?.id || editingRiceMovement.sourcePackagingId
+                          });
+                        }}
+                        style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #d1d5db', borderRadius: '8px', fontSize: '0.9rem', backgroundColor: 'white' }}
+                      >
+                        <option value="">Select Packaging</option>
+                        {packagings.map((pkg: any) => (
+                          <option key={pkg.id} value={pkg.brandName}>{pkg.brandName} ({pkg.allottedKg}kg)</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Shortage kg */}
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <label style={{ display: 'block', marginBottom: '4px', fontWeight: '600', fontSize: '0.85rem', color: '#dc2626' }}>Shortage (kg)</label>
+                      <input
+                        type="number"
+                        step="any"
+                        value={editingRiceMovement.shortageKg || editingRiceMovement.shortage_kg || 0}
+                        onChange={(e) => setEditingRiceMovement({ ...editingRiceMovement, shortageKg: parseFloat(e.target.value) || 0, shortage_kg: parseFloat(e.target.value) || 0 })}
+                        style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #fca5a5', borderRadius: '8px', fontSize: '0.9rem', color: '#dc2626', backgroundColor: '#fef2f2' }}
+                      />
+                    </div>
                   </div>
                 </div>
               )}
@@ -9712,5 +9960,5 @@ const FilePage: React.FC = () => {
   );
 };
 
-export default FilePage;
+export default RecordsManagementPage;
 // Trigger check: 2026-01-06 10:26:54

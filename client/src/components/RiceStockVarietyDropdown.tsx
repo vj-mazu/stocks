@@ -178,18 +178,25 @@ const RiceStockVarietyDropdown: React.FC<RiceStockVarietyDropdownProps> = ({
       console.log('   URL:', `/rice-stock/varieties?${params.toString()}`);
       console.log('   Token exists:', !!token);
 
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
       const response = await axios.get<{
-        varieties: RiceStockVariety[];
-        total: number;
-      }>(`/rice-stock/varieties?${params.toString()}`, {
+        varieties: any[];
+      }>(`${API_URL}/locations/rice-varieties?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       console.log('✅ RiceStockVarietyDropdown: API Response received');
       console.log('   Varieties count:', response.data.varieties?.length || 0);
-      console.log('   Response data:', response.data);
 
-      const fetchedVarieties = response.data.varieties || [];
+      // Map varieties from locations/rice-varieties structure: id, name, code
+      const fetchedVarieties: RiceStockVariety[] = (response.data.varieties || []).map((v: any) => ({
+        id: v.id,
+        code: v.code || v.name?.substring(0, 10).toUpperCase(),
+        standardized_variety: v.name,
+        allotted_variety: v.name,
+        processing_type: 'Raw' // default fallback
+      }));
+      
       setVarieties(fetchedVarieties);
       setFilteredVarieties(fetchedVarieties);
 
@@ -228,10 +235,9 @@ const RiceStockVarietyDropdown: React.FC<RiceStockVarietyDropdownProps> = ({
   const filterVarieties = useCallback(() => {
     let filtered = varieties;
 
-    // Apply processing type filter
-    if (activeFilter !== 'all') {
-      filtered = filtered.filter(v => v.processing_type === activeFilter);
-    }
+    // Locations rice varieties do not have a processing_type field, so we skip the processing type check
+    // to prevent filtering out all varieties.
+    // if (activeFilter !== 'all') { ... }
 
     // Apply search filter
     if (searchTerm.trim()) {

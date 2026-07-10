@@ -271,9 +271,18 @@ const IconButton = styled.button`
 
 const EmptyState = styled.div`
   text-align: center;
-  padding: 3rem;
+  padding: 3rem 2rem;
   color: #9ca3af;
   font-size: 1.1rem;
+  border: 2px dashed #e5e7eb;
+  border-radius: 12px;
+  background: #fafafa;
+  margin: 1.5rem 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 `;
 
 const AddButton = styled.button`
@@ -451,6 +460,9 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
     fetchWarehouses();
     fetchKunchinittus();
     fetchVarieties();
+    if (defaultTab === 'production' || activeTab === 'production') {
+      fetchOutturns();
+    }
   }, []);
 
   useEffect(() => {
@@ -472,46 +484,11 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
   const fetchOutturns = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get<any[]>('/outturns', {
+      const response = await axios.get<any[]>(`${API_URL}/outturns`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const data = response.data;
+      const data = Array.isArray(response.data) ? response.data : [];
       setOutturns(data);
-
-      // Auto-generate next outturn code
-      if (data.length > 0) {
-        // Find the latest code (assuming format YY-SEQUENCE, e.g., 24-01)
-        // Sort by ID descending to get the latest created
-        const sortedOutturns = [...data].sort((a, b) => b.id - a.id);
-        const latestOutturn = sortedOutturns[0];
-
-        if (latestOutturn && latestOutturn.code) {
-          const parts = latestOutturn.code.split('-');
-          if (parts.length === 2) {
-            const year = parts[0];
-            const sequence = parseInt(parts[1]);
-
-            // Check if it's the same year
-            const currentYear = new Date().getFullYear().toString().slice(-2);
-
-            if (year === currentYear && !isNaN(sequence)) {
-              const nextSequence = (sequence + 1).toString().padStart(2, '0');
-              setOutturnCode(`${currentYear}-${nextSequence}`);
-            } else {
-              // New year or invalid format, start fresh for current year
-              setOutturnCode(`${currentYear}-01`);
-            }
-          } else {
-            // Different format, start fresh for current year
-            const currentYear = new Date().getFullYear().toString().slice(-2);
-            setOutturnCode(`${currentYear}-01`);
-          }
-        }
-      } else {
-        // No outturns yet, start with current year
-        const currentYear = new Date().getFullYear().toString().slice(-2);
-        setOutturnCode(`${currentYear}-01`);
-      }
     } catch (error) {
       console.error('Error fetching outturns:', error);
       toast.error('Failed to fetch outturns');
@@ -566,7 +543,6 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
     setOutturnCode('');
     setAllottedVariety('');
     setOutturnType('Raw');
-    fetchOutturns(); // Re-generate next code
   };
 
   const handleDeleteOutturn = async (id: number) => {
@@ -1517,7 +1493,7 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
                     </tr>
                   </thead>
                   <tbody>
-                    {outturns.map((outturn: any, index) => (
+                    {Array.isArray(outturns) && outturns.map((outturn: any, index) => (
                       <tr key={outturn.id}>
                         <Td>{index + 1}</Td>
                         <Td>{outturn.code}</Td>

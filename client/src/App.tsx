@@ -14,7 +14,7 @@ import './App.css';
 const Login = React.lazy(() => import('./pages/Login'));
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const Arrivals = React.lazy(() => import('./pages/Arrivals'));
-const Records = React.lazy(() => import('./pages/File'));
+const Records = React.lazy(() => import('./pages/RecordsManagement'));
 const Locations = React.lazy(() => import('./pages/Locations'));
 const KunchinintuLedger = React.lazy(() => import('./pages/KunchinintuLedger'));
 const RiceLedger = React.lazy(() => import('./pages/RiceLedger'));
@@ -25,6 +25,8 @@ const UserManagement = React.lazy(() => import('./pages/UserManagement'));
 const BrokerManagement = React.lazy(() => import('./pages/BrokerManagement'));
 const VarietyManagement = React.lazy(() => import('./pages/VarietyManagement'));
 const WarehouseManagement = React.lazy(() => import('./pages/WarehouseManagement'));
+const RiceStockLocationManagement = React.lazy(() => import('./pages/RiceStockLocationManagement'));
+const ProductionManagement = React.lazy(() => import('./pages/ProductionManagement'));
 const KunchinintuManagement = React.lazy(() => import('./pages/KunchinintuManagement'));
 const PackagingManagement = React.lazy(() => import('./pages/PackagingManagement'));
 const PaddyHamaliManagement = React.lazy(() => import('./pages/PaddyHamaliManagement'));
@@ -52,7 +54,7 @@ const ResampleAllotment = React.lazy(() => import('./pages/ResampleAllotment'));
 // Lightweight loading spinner for page transitions
 const PageLoader = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh', flexDirection: 'column', gap: '12px' }}>
-    <div style={{ width: '36px', height: '36px', border: '3px solid #e2e8f0', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+    <div style={{ width: '36px', height: '36px', border: '3px solid #e2e8f0', borderTopColor: '#10b981', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
     <span style={{ color: '#64748b', fontSize: '14px' }}>Loading...</span>
     <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
   </div>
@@ -205,6 +207,26 @@ const AppContent: React.FC = () => {
                   <ProtectedRoute roles={['manager', 'admin']}>
                     <Layout>
                       <WarehouseManagement />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/rice-stock-locations"
+                element={
+                  <ProtectedRoute roles={['manager', 'admin']}>
+                    <Layout>
+                      <RiceStockLocationManagement />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/production"
+                element={
+                  <ProtectedRoute roles={['manager', 'admin']}>
+                    <Layout>
+                      <ProductionManagement />
                     </Layout>
                   </ProtectedRoute>
                 }

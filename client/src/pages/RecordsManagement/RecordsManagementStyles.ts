@@ -5,6 +5,11 @@ import styled from 'styled-components';
 // ═══════════════════════════════════════════════════════
 
 export const Container = styled.div`
+  @media (max-width: 768px) {
+    .hide-mobile {
+      display: none !important;
+    }
+  }
 `;
 
 export const Title = styled.h1`
@@ -19,21 +24,23 @@ export const Title = styled.h1`
 
 export const TabContainer = styled.div`
   display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
   border-bottom: 2px solid #e5e7eb;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding-bottom: 0.25rem;
+  -webkit-overflow-scrolling: touch;
   
-  @media (max-width: 767px) {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    white-space: nowrap;
-    padding-bottom: 5px;
-    gap: 0.5rem;
+  &::-webkit-scrollbar {
+    display: none;
   }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 `;
 
 export const Tab = styled.button<{ $active: boolean }>`
-  padding: 1rem 2rem;
+  padding: 0.5rem 1rem;
   border: none;
   background: ${props => props.$active ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'transparent'};
   color: ${props => props.$active ? 'white' : '#6b7280'};
@@ -41,6 +48,8 @@ export const Tab = styled.button<{ $active: boolean }>`
   cursor: pointer;
   border-radius: 8px 8px 0 0;
   transition: all 0.3s ease;
+  flex-shrink: 0;
+  font-size: 0.85rem;
 
   &:hover {
     background: ${props => props.$active ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : '#f3f4f6'};
@@ -50,42 +59,39 @@ export const Tab = styled.button<{ $active: boolean }>`
 
 export const FilterSection = styled.div`
   background: white;
-  padding: 1.5rem;
+  padding: 1rem;
   border-radius: 12px;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
 
   @media (max-width: 767px) {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.75rem;
   }
 `;
 
 export const FilterRow = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.5rem;
   align-items: end;
 
   @media (max-width: 767px) {
-    grid-template-columns: 1fr;
-  @media (max-width: 767px) {
     grid-template-columns: 1fr !important;
-  }
   }
 `;
 
 export const FormGroup = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.25rem;
 `;
 
 export const Label = styled.label`
   font-weight: 600;
   color: #374151;
-  font-size: 0.9rem;
+  font-size: 0.75rem;
 `;
 
 export const InfoText = styled.p`
@@ -95,10 +101,10 @@ export const InfoText = styled.p`
 `;
 
 export const Input = styled.input`
-  padding: 0.75rem;
+  padding: 0.5rem;
   border: 2px solid #e5e7eb;
   border-radius: 8px;
-  font-size: 1rem;
+  font-size: 0.85rem;
 
   &:focus {
     outline: none;
@@ -107,10 +113,10 @@ export const Input = styled.input`
 `;
 
 export const Select = styled.select`
-  padding: 0.75rem;
+  padding: 0.5rem;
   border: 2px solid #e5e7eb;
   border-radius: 8px;
-  font-size: 1rem;
+  font-size: 0.85rem;
   background: white;
   cursor: pointer;
 
@@ -121,12 +127,13 @@ export const Select = styled.select`
 `;
 
 export const Button = styled.button`
-  padding: 0.75rem 1.5rem;
+  padding: 0.5rem 1rem;
   border: none;
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
+  font-size: 0.85rem;
 
   &.primary {
     background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
@@ -179,7 +186,7 @@ export const DateHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem;
+  padding: 0.75rem 1rem;
   background: #f8fafc;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -191,16 +198,16 @@ export const DateHeader = styled.div`
 
 export const DateTitle = styled.h3`
   color: #1f2937;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   margin: 0;
 `;
 
 export const RecordCount = styled.span`
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: white;
-  padding: 0.25rem 0.75rem;
+  padding: 0.15rem 0.5rem;
   border-radius: 20px;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-weight: 600;
 `;
 
@@ -225,19 +232,22 @@ export const Table = styled.table`
 
 export const Th = styled.th`
   background: #f8fafc;
-  padding: 1rem;
+  padding: 0.4rem 0.5rem;
   text-align: left;
   font-weight: 600;
   color: #374151;
   border-bottom: 2px solid #e5e7eb;
-  font-size: 0.9rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
 `;
 
 export const Td = styled.td`
-  padding: 1rem;
+  padding: 0.4rem 0.5rem;
   border-bottom: 1px solid #e5e7eb;
   color: #6b7280;
   text-transform: uppercase;
+  font-size: 0.75rem;
+  white-space: nowrap;
 `;
 
 export const StatusBadge = styled.span<{ status: string }>`
