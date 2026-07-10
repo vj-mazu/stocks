@@ -222,17 +222,12 @@ router.get('/kunchinittu/:id', auth, async (req, res) => {
       });
     }
 
-    // Calculate average rate from SQL result — no more JS loop over all records
+    // Calculate average rate from SQL result — no database write inside GET request
     let calculatedAverageRate = 0;
     try {
       const rateData = avgRateRaw[0];
       if (rateData && parseFloat(rateData.totalWeight) > 0) {
         calculatedAverageRate = (parseFloat(rateData.totalAmount) / parseFloat(rateData.totalWeight)) * 75;
-        // Save to database
-        await kunchinittu.update({
-          averageRate: parseFloat(calculatedAverageRate.toFixed(2)),
-          lastRateCalculation: new Date()
-        });
       }
     } catch (error) {
       console.error('Error calculating average rate:', error);

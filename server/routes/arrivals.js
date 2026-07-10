@@ -1552,6 +1552,10 @@ router.put('/:id', auth, authorize('manager', 'admin'), async (req, res) => {
       ]
     });
 
+    // Invalidate dashboard stats cache on edit
+    await cacheService.delPattern('dashboard:*');
+    await cacheService.delPattern('stock:*');
+
     res.json({
       message: 'Arrival updated successfully',
       arrival: updatedArrival
@@ -1616,6 +1620,10 @@ router.delete('/:id', auth, authorize('manager', 'admin'), async (req, res) => {
         console.error('Error recalculating yield after deletion:', error);
       }
     }
+
+    // Invalidate dashboard stats cache on deletion
+    await cacheService.delPattern('dashboard:*');
+    await cacheService.delPattern('stock:*');
 
     res.json({
       message: 'Arrival deleted successfully',
@@ -1710,6 +1718,10 @@ router.post('/bulk-approve', auth, authorize('manager', 'admin'), async (req, re
 
     const responseTime = Date.now() - startTime;
 
+    // Invalidate dashboard stats cache on bulk approve
+    await cacheService.delPattern('dashboard:*');
+    await cacheService.delPattern('stock:*');
+
     res.json({
       message: `Bulk approval completed: ${results.approved.length} approved, ${results.failed.length} failed`,
       results,
@@ -1763,6 +1775,10 @@ router.post('/bulk-reject', auth, authorize('manager', 'admin'), async (req, res
         results.failed.push({ id, reason: error.message });
       }
     }
+
+    // Invalidate dashboard stats cache on bulk reject
+    await cacheService.delPattern('dashboard:*');
+    await cacheService.delPattern('stock:*');
 
     res.json({
       message: `Bulk rejection completed: ${results.rejected.length} rejected, ${results.failed.length} failed`,

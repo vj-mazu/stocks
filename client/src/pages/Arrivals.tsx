@@ -7,6 +7,7 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { useLocation } from '../contexts/LocationContext';
 import { useAuth } from '../contexts/AuthContext';
+import { API_URL } from '../config/api';
 
 const Container = styled.div`
   animation: fadeIn 0.5s ease-in;
@@ -32,9 +33,9 @@ const MainGrid = styled.div`
 
   @media (max-width: 1200px) {
     grid-template-columns: 1fr;
+  }
   @media (max-width: 767px) {
     grid-template-columns: 1fr !important;
-  }
   }
 `;
 
@@ -373,6 +374,7 @@ const Arrivals: React.FC = () => {
   // Outturn fields (for purchase from outturn)
   const [fromOutturnId, setFromOutturnId] = useState('');
   const [outturns, setOutturns] = useState<any[]>([]);
+  const [brokersList, setBrokersList] = useState<any[]>([]);
 
   // Shifting fields
   const [fromKunchinintuId, setFromKunchinintuId] = useState('');
@@ -497,7 +499,7 @@ const Arrivals: React.FC = () => {
 
       setLoadingStockLocations(true);
       try {
-        const response = await axios.get<{ locations: any[] }>(`/arrivals/stock/variety-locations/${encodeURIComponent(variety.trim())}`);
+        const response = await axios.get<{ locations: any[] }>(`${API_URL}/arrivals/stock/variety-locations/${encodeURIComponent(variety.trim())}`);
         setStockLocations(response.data.locations || []);
       } catch (error) {
         console.error('Error fetching stock locations:', error);
@@ -614,11 +616,21 @@ const Arrivals: React.FC = () => {
     fetchKunchinittus();
     fetchVarieties();
     fetchOutturns();
+    fetchBrokers();
   }, []);
+ 
+  const fetchBrokers = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/locations/brokers?type=paddy`);
+      setBrokersList(response.data.brokers || []);
+    } catch (error) {
+      console.error('Error fetching brokers:', error);
+    }
+  };
 
   const fetchNextSlNo = async () => {
     try {
-      const response = await axios.get('/arrivals/next-sl-no');
+      const response = await axios.get(`${API_URL}/arrivals/next-sl-no`);
       setSlNo((response.data as { slNo: string }).slNo);
     } catch (error) {
       console.error('Error fetching SL No:', error);
@@ -628,7 +640,7 @@ const Arrivals: React.FC = () => {
 
   const fetchOutturns = async () => {
     try {
-      const response = await axios.get<any[]>('/outturns');
+      const response = await axios.get<any[]>(`${API_URL}/outturns`);
       setOutturns(response.data);
     } catch (error) {
       console.error('Error fetching outturns:', error);
@@ -767,7 +779,7 @@ const Arrivals: React.FC = () => {
         }
       }
 
-      await axios.post('/arrivals', data);
+      await axios.post(`${API_URL}/arrivals`, data);
 
       toast.success(NotificationMessages.arrivals.created);
       handleReset();
@@ -881,14 +893,21 @@ const Arrivals: React.FC = () => {
                       <FormRow>
                         <FormGroup>
                           <Label>Broker *</Label>
-                          <Input
-                            type="text"
+                          <Select
                             value={broker}
-                            onChange={(e) => setBroker(e.target.value.toUpperCase())}
-                            placeholder="Enter broker name"
-                            style={{ textTransform: 'uppercase' }}
+                            onChange={(e) => setBroker(e.target.value)}
                             required
-                          />
+                          >
+                            <option value="">-- Select Broker --</option>
+                            {[...brokersList]
+                              .sort((a, b) => a.name.localeCompare(b.name))
+                              .map((b) => (
+                                <option key={b.id} value={b.name}>
+                                  {b.name}
+                                </option>
+                              ))
+                            }
+                          </Select>
                         </FormGroup>
 
                         <FormGroup>
@@ -990,14 +1009,21 @@ const Arrivals: React.FC = () => {
                       <FormRow>
                         <FormGroup>
                           <Label>Broker *</Label>
-                          <Input
-                            type="text"
+                          <Select
                             value={broker}
-                            onChange={(e) => setBroker(e.target.value.toUpperCase())}
-                            placeholder="Broker name"
-                            style={{ textTransform: 'uppercase' }}
+                            onChange={(e) => setBroker(e.target.value)}
                             required
-                          />
+                          >
+                            <option value="">-- Select Broker --</option>
+                            {[...brokersList]
+                              .sort((a, b) => a.name.localeCompare(b.name))
+                              .map((b) => (
+                                <option key={b.id} value={b.name}>
+                                  {b.name}
+                                </option>
+                              ))
+                            }
+                          </Select>
                         </FormGroup>
 
                         <FormGroup>

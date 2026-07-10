@@ -121,7 +121,7 @@ app.use(limiter);
 // Strict rate limiter for auth endpoints (prevent brute force)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: process.env.NODE_ENV === 'development' ? 1000 : 1000, // Increased limit to prevent testing logouts
+  max: 1000, // Safe threshold to prevent brute force while avoiding testing lockouts
   message: { error: 'Too many login attempts. Please try again after 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false
@@ -1778,6 +1778,14 @@ const startServer = async () => {
       await require('./seeders/createDefaultUsers')();
     } catch (error) {
       console.log('⚠️ Default users creation warning:', error.message);
+    }
+
+    // Seed other hamali works on startup
+    try {
+      const { seedOtherHamaliWorks } = require('./seeders/seed_other_hamali_works');
+      await seedOtherHamaliWorks();
+    } catch (error) {
+      console.log('⚠️ Other Hamali works seeding warning:', error.message);
     }
 
     // AUTO-APPLY critical database indexes for 30 lakh record performance

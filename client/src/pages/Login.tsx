@@ -149,7 +149,18 @@ const Login: React.FC = () => {
             />
           </FormGroup>
 
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+            {loading && (
+              <span style={{
+                width: '18px',
+                height: '18px',
+                border: '2px solid rgba(255, 255, 255, 0.3)',
+                borderTopColor: '#ffffff',
+                borderRadius: '50%',
+                display: 'inline-block',
+                animation: 'spin 0.8s linear infinite'
+              }} />
+            )}
             {loading ? 'Logging in...' : 'Login'}
           </Button>
         </Form>

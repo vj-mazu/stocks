@@ -29,6 +29,20 @@ const Subtitle = styled.p`
   margin-top: 1rem;
 `;
 
+const skeletonPulse = `
+  @keyframes skeleton-pulse {
+    0% {
+      background-color: #f3f4f6;
+    }
+    50% {
+      background-color: #e5e7eb;
+    }
+    100% {
+      background-color: #f3f4f6;
+    }
+  }
+`;
+
 const StatsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -60,10 +74,18 @@ const StatLabel = styled.div`
   font-weight: 600;
 `;
 
-const StatValue = styled.div`
+const StatValue = styled.div<{ $loading?: boolean }>`
   color: #1f2937;
   font-size: 2rem;
   font-weight: 700;
+  
+  ${props => props.$loading && `
+    height: 2.5rem;
+    width: 60%;
+    border-radius: 6px;
+    animation: skeleton-pulse 1.5s ease-in-out infinite;
+    ${skeletonPulse}
+  `}
 `;
 
 const QuickActions = styled.div`
@@ -170,19 +192,19 @@ const Dashboard: React.FC = () => {
       <StatsGrid>
         <StatCard>
           <StatLabel>Today's Arrivals</StatLabel>
-          <StatValue>{loading ? '...' : stats.todayArrivals}</StatValue>
+          <StatValue $loading={loading}>{loading ? '' : stats.todayArrivals}</StatValue>
         </StatCard>
         <StatCard>
           <StatLabel>Pending Approvals</StatLabel>
-          <StatValue>{loading ? '...' : stats.pendingApprovals}</StatValue>
+          <StatValue $loading={loading}>{loading ? '' : stats.pendingApprovals}</StatValue>
         </StatCard>
         <StatCard>
           <StatLabel>Total Stock (kg)</StatLabel>
-          <StatValue>{loading ? '...' : stats.totalStock.toLocaleString()}</StatValue>
+          <StatValue $loading={loading}>{loading ? '' : stats.totalStock.toLocaleString()}</StatValue>
         </StatCard>
         <StatCard>
           <StatLabel>Active Warehouses</StatLabel>
-          <StatValue>{loading ? '...' : stats.activeWarehouses}</StatValue>
+          <StatValue $loading={loading}>{loading ? '' : stats.activeWarehouses}</StatValue>
         </StatCard>
       </StatsGrid>
 

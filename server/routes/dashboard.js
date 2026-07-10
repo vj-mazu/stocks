@@ -39,8 +39,8 @@ router.get('/stats', auth, async (req, res) => {
 
     const responseTime = Date.now() - startTime;
 
-    // Set cache-control header
-    res.set('Cache-Control', 'public, max-age=120');
+    // Force browser to always check with server, server handles cache
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
 
     res.json({
       success: true,

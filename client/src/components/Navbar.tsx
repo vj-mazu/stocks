@@ -575,6 +575,8 @@ const Navbar: React.FC = () => {
     '/admin/brokers',
     '/admin/varieties',
     '/admin/warehouses',
+    '/admin/rice-stock-locations',
+    '/admin/production',
     '/admin/kunchinittus',
     '/admin/packaging',
     '/admin/paddy-hamali',
@@ -709,7 +711,9 @@ const Navbar: React.FC = () => {
                   <DropdownLink to="/admin/brokers" $active={isActive('/admin/brokers')}>Broker</DropdownLink>
                   <DropdownLink to="/admin/varieties" $active={isActive('/admin/varieties')}>Variety</DropdownLink>
                   <DropdownLink to="/admin/warehouses" $active={isActive('/admin/warehouses')}>Warehouse</DropdownLink>
+                  <DropdownLink to="/admin/rice-stock-locations" $active={isActive('/admin/rice-stock-locations')}>Rice Stock Location</DropdownLink>
                   <DropdownLink to="/admin/kunchinittus" $active={isActive('/admin/kunchinittus')}>Kunchinintu</DropdownLink>
+                  <DropdownLink to="/admin/production" $active={isActive('/admin/production')}>Production (Outturn)</DropdownLink>
                   <DropdownLink to="/admin/packaging" $active={isActive('/admin/packaging')}>Brand Management</DropdownLink>
                   <DropdownLink to="/admin/paddy-hamali" $active={isActive('/admin/paddy-hamali')}>Paddy Hamali</DropdownLink>
                   <DropdownLink to="/admin/rice-hamali" $active={isActive('/admin/rice-hamali')}>Rice Hamali</DropdownLink>

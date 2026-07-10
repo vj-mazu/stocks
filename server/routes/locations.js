@@ -435,28 +435,59 @@ router.get('/varieties', auth, cacheMiddleware(300), async (req, res) => {
     const InventoryData = require('../models/InventoryData');
     const Outturn = require('../models/Outturn');
 
-    const varietiesWithInUse = await Promise.all(varieties.map(async (v) => {
-      const lowerName = v.name.trim().toLowerCase();
-      
-      const sCount = await SampleEntry.count({
-        where: sequelize.where(sequelize.fn('LOWER', sequelize.col('variety')), lowerName)
-      });
-      const aCount = await Arrival.count({
-        where: sequelize.where(sequelize.fn('LOWER', sequelize.col('variety')), lowerName)
-      });
-      const iCount = await InventoryData.count({
-        where: sequelize.where(sequelize.fn('LOWER', sequelize.col('variety')), lowerName)
-      });
-      const oCount = await Outturn.count({
-        where: sequelize.where(sequelize.fn('LOWER', sequelize.col('allottedVariety')), lowerName)
-      });
-      const kCount = await Kunchinittu.count({
-        where: { varietyId: v.id, isActive: true }
-      });
+    // Fetch distinct active values across tables in single group counts
+    const [sampleVarieties, arrivalVarieties, inventoryVarieties, outturnVarieties, activeKunchinittus] = await Promise.all([
+      SampleEntry.findAll({
+        attributes: [
+          [sequelize.fn('LOWER', sequelize.fn('TRIM', sequelize.col('variety'))), 'variety']
+        ],
+        group: [sequelize.fn('LOWER', sequelize.fn('TRIM', sequelize.col('variety')))],
+        raw: true
+      }),
+      Arrival.findAll({
+        attributes: [
+          [sequelize.fn('LOWER', sequelize.fn('TRIM', sequelize.col('variety'))), 'variety']
+        ],
+        group: [sequelize.fn('LOWER', sequelize.fn('TRIM', sequelize.col('variety')))],
+        raw: true
+      }),
+      InventoryData.findAll({
+        attributes: [
+          [sequelize.fn('LOWER', sequelize.fn('TRIM', sequelize.col('variety'))), 'variety']
+        ],
+        group: [sequelize.fn('LOWER', sequelize.fn('TRIM', sequelize.col('variety')))],
+        raw: true
+      }),
+      Outturn.findAll({
+        attributes: [
+          [sequelize.fn('LOWER', sequelize.fn('TRIM', sequelize.col('allottedVariety'))), 'variety']
+        ],
+        group: [sequelize.fn('LOWER', sequelize.fn('TRIM', sequelize.col('allottedVariety')))],
+        raw: true
+      }),
+      Kunchinittu.findAll({
+        where: { isActive: true },
+        attributes: ['varietyId'],
+        group: ['varietyId'],
+        raw: true
+      })
+    ]);
 
-      v.inUse = (sCount > 0 || aCount > 0 || iCount > 0 || oCount > 0 || kCount > 0);
+    const samplesSet = new Set(sampleVarieties.map(item => item.variety));
+    const arrivalsSet = new Set(arrivalVarieties.map(item => item.variety));
+    const inventorySet = new Set(inventoryVarieties.map(item => item.variety));
+    const outturnsSet = new Set(outturnVarieties.map(item => item.variety));
+    const kunchinittusSet = new Set(activeKunchinittus.map(item => item.varietyId));
+
+    const varietiesWithInUse = varieties.map((v) => {
+      const lowerName = v.name.trim().toLowerCase();
+      v.inUse = samplesSet.has(lowerName) ||
+                arrivalsSet.has(lowerName) ||
+                inventorySet.has(lowerName) ||
+                outturnsSet.has(lowerName) ||
+                kunchinittusSet.has(v.id);
       return v;
-    }));
+    });
 
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.json({ varieties: varietiesWithInUse });
@@ -1126,6 +1157,19 @@ router.put('/brokers/:id', auth, authorize('manager', 'admin'), async (req, res)
         }
       );
       console.log(`✅ Cascade update: Updated ${entryUpdated[0]} sample entries from broker "${oldName}" to "${trimmedName}"`);
+
+      // Cascade to Arrival (case-insensitive match)
+      const Arrival = require('../models/Arrival');
+      const arrivalUpdated = await Arrival.update(
+        { brokerName: trimmedName },
+        {
+          where: sqlWhere(
+            fn('TRIM', fn('LOWER', col('broker_name'))),
+            oldName.trim().toLowerCase()
+          )
+        }
+      );
+      console.log(`✅ Cascade update: Updated ${arrivalUpdated[0]} arrivals from broker "${oldName}" to "${trimmedName}"`);
     }
 
     res.json({
@@ -1154,6 +1198,16 @@ router.delete('/brokers/:id', auth, authorize('admin'), async (req, res) => {
 
     if (sCount > 0) {
       return res.status(400).json({ error: 'Cannot delete broker because they are referenced in sample entries' });
+    }
+
+    // Check if referenced in Arrivals
+    const Arrival = require('../models/Arrival');
+    const aCount = await Arrival.count({
+      where: sequelize.where(sequelize.fn('LOWER', sequelize.col('broker_name')), broker.name.trim().toLowerCase())
+    });
+
+    if (aCount > 0) {
+      return res.status(400).json({ error: 'Cannot delete broker because they are referenced in arrivals' });
     }
 
     // Hard delete

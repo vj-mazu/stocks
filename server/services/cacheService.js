@@ -19,7 +19,7 @@ class CacheService {
     this.accessOrder = []; // Track access order for LRU eviction
     this.enabled = process.env.CACHE_ENABLED !== 'false'; // Enabled by default
     this.useRedis = !!process.env.REDIS_URL; // Enable Redis if URL is set
-    this.maxItems = parseInt(process.env.CACHE_MAX_ITEMS) || 10000; // Limit for memory protection
+    this.maxItems = parseInt(process.env.CACHE_MAX_ITEMS) || 1000; // Limit for memory protection
     this.stats = {
       hits: 0,
       misses: 0,
