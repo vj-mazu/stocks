@@ -209,6 +209,31 @@ const AllottedSupervisors: React.FC = () => {
   const [selectedLorryForComparison, setSelectedLorryForComparison] = useState<any>(null);
   const [targetLorryTripId, setTargetLorryTripId] = useState<string | null>(null);
 
+  const getApprovedFullAvgBags = (stages: any, defaultBags: any) => {
+    if (!stages) return defaultBags;
+    const approvedKey = Object.keys(stages).find(key => {
+      const baseKey = key.replace(/_hold_\d+$/, '').replace(/_reattempt_\d+$/, '');
+      return baseKey === 'full_avg' && stages[key]?.approvalStatus === 'approved';
+    });
+    if (approvedKey && stages[approvedKey]?.actualBags !== undefined && stages[approvedKey]?.actualBags !== null) {
+      return stages[approvedKey].actualBags;
+    }
+    const latestFullAvg = Object.keys(stages)
+      .filter(key => key === 'full_avg' || key.startsWith('full_avg_'))
+      .sort((a, b) => {
+        const timeA = new Date(stages[a].reportedAt || stages[a].holdAt || stages[a].createdAt || 0).getTime();
+        const timeB = new Date(stages[b].reportedAt || stages[b].holdAt || stages[b].createdAt || 0).getTime();
+        return timeB - timeA;
+      });
+    if (latestFullAvg.length > 0) {
+      const key = latestFullAvg[0];
+      if (stages[key]?.actualBags !== undefined && stages[key]?.actualBags !== null) {
+        return stages[key].actualBags;
+      }
+    }
+    return defaultBags;
+  };
+
   const resolveMediaUrl = (value?: string | null) => {
     const url = String(value || '').trim();
     if (!url) return '';
@@ -1504,7 +1529,7 @@ const AllottedSupervisors: React.FC = () => {
                                                   {inspection.lorryNumber?.toUpperCase()}
                                                 </span>
                                               </td>
-                                              <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{stages.full_avg?.actualBags || inspection.bags || '-'}</td>
+                                              <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{getApprovedFullAvgBags(stages, inspection.bags) || '-'}</td>
                                               <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600', color: tripSmellType === 'DARK' ? '#ffffff' : '#000000' }}>{moistureVal}</td>
                                               <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{cuttingVal}</td>
                                               <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{bendVal}</td>
