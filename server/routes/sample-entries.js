@@ -171,6 +171,7 @@ const invalidateSampleEntryTabCaches = () => {
     'sample-entries/tabs/resample-assignments',
     'sample-entries/tabs/completed-lots',
     'sample-entries/tabs/sample-book',
+    'sample-entries/tabs/rate-linking-approvals',
     'sample-entries/by-role'
   ].forEach(invalidateCache);
 };
@@ -1317,6 +1318,148 @@ router.get('/tabs/manager-value-approvals', authenticateToken, cacheMiddleware(1
   }
 });
 
+
+router.get('/tabs/rate-linking-approvals', authenticateToken, cacheMiddleware(15), async (req, res) => {
+  try {
+    const workflowRole = getWorkflowRole(req.user);
+    if (!['admin', 'owner'].includes(workflowRole)) {
+      return res.status(403).json({ error: 'Only admin can view rate linking approvals' });
+    }
+
+    const entries = await SampleEntry.findAll({
+      include: [
+        {
+          model: SampleEntryOffering,
+          as: 'offering',
+          where: { pendingRateLinkingStatus: 'pending' },
+          required: true
+        },
+        { model: User, as: 'creator', attributes: ['id', 'username', 'fullName'], required: false }
+      ],
+      order: [
+        ['entryDate', 'DESC'],
+        ['createdAt', 'DESC']
+      ]
+    });
+
+    return res.json({ entries });
+  } catch (error) {
+    console.error('Error getting rate linking approvals:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/:id/rate-linking-decision', authenticateToken, async (req, res) => {
+  try {
+    const workflowRole = getWorkflowRole(req.user);
+    if (!['admin', 'owner'].includes(workflowRole)) {
+      return res.status(403).json({ error: 'Only admin can approve rate linking requests' });
+    }
+
+    const nextDecision = String(req.body?.decision || '').trim().toLowerCase();
+    if (!['approve', 'reject'].includes(nextDecision)) {
+      return res.status(400).json({ error: 'Decision must be approve or reject' });
+    }
+
+    const sampleEntry = await SampleEntry.findByPk(req.params.id, {
+      include: [{ model: SampleEntryOffering, as: 'offering', required: false }]
+    });
+    if (!sampleEntry || !sampleEntry.offering) {
+      return res.status(404).json({ error: 'Sample entry offering not found' });
+    }
+
+    const offering = sampleEntry.offering;
+    if (offering.pendingRateLinkingStatus !== 'pending' || !offering.pendingRateLinkingData) {
+      return res.status(400).json({ error: 'No pending rate linking request found for this lot' });
+    }
+
+    if (nextDecision === 'approve') {
+      const data = offering.pendingRateLinkingData;
+
+      if (data && data.targetLorryTripId) {
+        const PhysicalInspection = require('../models/PhysicalInspection');
+        const AuditService = require('../services/AuditService');
+
+        const trip = await PhysicalInspection.findByPk(data.targetLorryTripId);
+        if (!trip) {
+          return res.status(404).json({ error: 'Lorry trip not found. The linked lorry may have been deleted or the ID is invalid.' });
+        }
+
+        const oldTrip = JSON.parse(JSON.stringify(trip));
+        trip.linkedPattiRate = data.rateInfo;
+        trip.finalBaseRate = data.rateInfo.rate;
+        trip.finalBaseRateType = data.rateInfo.rateType;
+        trip.finalSute = data.rateInfo.sute;
+        trip.finalSuteUnit = data.rateInfo.suteUnit;
+        trip.moisture = data.rateInfo.moisture;
+        trip.revisedHamali = data.rateInfo.hamali;
+        trip.hamaliUnit = data.rateInfo.hamaliUnit;
+        trip.revisedLf = data.rateInfo.lf;
+        trip.lfUnit = data.rateInfo.lfUnit;
+        await trip.save();
+        await AuditService.logUpdate(req.user.userId, 'physical_inspections', trip.id, oldTrip, trip);
+
+        // Also update the offering with same approved rates so both tables stay in sync
+        const offeringUpdates = {
+          pendingRateLinkingStatus: 'approved',
+          pendingRateLinkingData: null
+        };
+        if (data.rateInfo) {
+          offeringUpdates.finalBaseRate = data.rateInfo.rate;
+          offeringUpdates.finalBaseRateType = data.rateInfo.rateType;
+          offeringUpdates.finalSute = data.rateInfo.sute;
+          offeringUpdates.finalSuteUnit = data.rateInfo.suteUnit;
+          offeringUpdates.moistureValue = data.rateInfo.moisture;
+          offeringUpdates.hamali = data.rateInfo.hamali;
+          offeringUpdates.hamaliUnit = data.rateInfo.hamaliUnit;
+          offeringUpdates.lf = data.rateInfo.lf;
+          offeringUpdates.lfUnit = data.rateInfo.lfUnit;
+        }
+        await offering.update(offeringUpdates);
+      } else {
+        await offering.update({
+          finalPrice: data.finalPrice !== undefined ? data.finalPrice : offering.finalPrice,
+          finalBaseRate: data.finalBaseRate !== undefined ? data.finalBaseRate : offering.finalBaseRate,
+          finalSute: data.finalSute !== undefined ? data.finalSute : offering.finalSute,
+          finalSuteUnit: data.finalSuteUnit !== undefined ? data.finalSuteUnit : offering.finalSuteUnit,
+          baseRateType: data.baseRateType !== undefined ? data.baseRateType : offering.baseRateType,
+          baseRateUnit: data.baseRateUnit !== undefined ? data.baseRateUnit : offering.baseRateUnit,
+          moistureValue: data.moistureValue !== undefined ? data.moistureValue : offering.moistureValue,
+          hamali: data.hamali !== undefined ? data.hamali : offering.hamali,
+          hamaliUnit: data.hamaliUnit !== undefined ? data.hamaliUnit : offering.hamaliUnit,
+          brokerage: data.brokerage !== undefined ? data.brokerage : offering.brokerage,
+          brokerageUnit: data.brokerageUnit !== undefined ? data.brokerageUnit : offering.brokerageUnit,
+          lf: data.lf !== undefined ? data.lf : offering.lf,
+          lfUnit: data.lfUnit !== undefined ? data.lfUnit : offering.lfUnit,
+          egbValue: data.egbValue !== undefined ? data.egbValue : offering.egbValue,
+          egbType: data.egbType !== undefined ? data.egbType : offering.egbType,
+          cdEnabled: data.cdEnabled !== undefined ? data.cdEnabled : offering.cdEnabled,
+          cdValue: data.cdValue !== undefined ? data.cdValue : offering.cdValue,
+          cdUnit: data.cdUnit !== undefined ? data.cdUnit : offering.cdUnit,
+          bankLoanEnabled: data.bankLoanEnabled !== undefined ? data.bankLoanEnabled : offering.bankLoanEnabled,
+          bankLoanValue: data.bankLoanValue !== undefined ? data.bankLoanValue : offering.bankLoanValue,
+          bankLoanUnit: data.bankLoanUnit !== undefined ? data.bankLoanUnit : offering.bankLoanUnit,
+          paymentConditionValue: data.paymentConditionValue !== undefined ? data.paymentConditionValue : offering.paymentConditionValue,
+          paymentConditionUnit: data.paymentConditionUnit !== undefined ? data.paymentConditionUnit : offering.paymentConditionUnit,
+          pendingRateLinkingStatus: 'approved',
+          pendingRateLinkingData: null
+        });
+      }
+    } else {
+      await offering.update({
+        pendingRateLinkingStatus: 'rejected',
+        pendingRateLinkingData: null
+      });
+    }
+
+    invalidateSampleEntryTabCaches();
+    return res.json({ success: true, message: `Rate linking request ${nextDecision}ed successfully` });
+  } catch (error) {
+    console.error('Error deciding rate linking approval:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 router.post('/:id/edit-approval-request', authenticateToken, async (req, res) => {
   try {
     const workflowRole = getWorkflowRole(req.user);
@@ -2063,6 +2206,89 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
         if (!entry) {
           return res.status(404).json({ error: 'Sample entry not found' });
+        }
+
+        // Intercept offering Patti edits by manager/admin:
+        const userRole = getWorkflowRole(req.user);
+        const hasRateEdits = updates.finalPrice !== undefined || updates.finalBaseRate !== undefined ||
+          updates.finalSute !== undefined || updates.finalSuteUnit !== undefined ||
+          updates.baseRateType !== undefined || updates.baseRateUnit !== undefined ||
+          updates.moistureValue !== undefined || updates.hamali !== undefined ||
+          updates.hamaliUnit !== undefined || updates.brokerage !== undefined ||
+          updates.brokerageUnit !== undefined || updates.lf !== undefined ||
+          updates.lfUnit !== undefined || updates.egbValue !== undefined ||
+          updates.egbType !== undefined || updates.cdEnabled !== undefined ||
+          updates.cdValue !== undefined || updates.cdUnit !== undefined ||
+          updates.bankLoanEnabled !== undefined || updates.bankLoanValue !== undefined ||
+          updates.bankLoanUnit !== undefined || updates.paymentConditionValue !== undefined ||
+          updates.paymentConditionUnit !== undefined;
+
+        if (hasRateEdits) {
+          const offering = await SampleEntryOffering.findOne({ where: { sampleEntryId: req.params.id } });
+          if (offering) {
+            // Prevent overwriting a pending rate linking request
+            if (userRole === 'manager' && offering.pendingRateLinkingStatus === 'pending') {
+              return res.status(409).json({ error: 'A rate update request is already pending approval for this lot. Please wait for admin to process it before submitting new rates.' });
+            }
+            if (userRole === 'manager') {
+              // Manager rate change -> goes to admin approval
+              await offering.update({
+                pendingRateLinkingStatus: 'pending',
+                pendingRateLinkingData: {
+                  finalPrice: updates.finalPrice,
+                  finalBaseRate: updates.finalBaseRate,
+                  finalSute: updates.finalSute,
+                  finalSuteUnit: updates.finalSuteUnit,
+                  baseRateType: updates.baseRateType,
+                  baseRateUnit: updates.baseRateUnit,
+                  moistureValue: updates.moistureValue,
+                  hamali: updates.hamali,
+                  hamaliUnit: updates.hamaliUnit,
+                  brokerage: updates.brokerage,
+                  brokerageUnit: updates.brokerageUnit,
+                  lf: updates.lf,
+                  lfUnit: updates.lfUnit,
+                  egbValue: updates.egbValue,
+                  egbType: updates.egbType,
+                  cdEnabled: updates.cdEnabled,
+                  cdValue: updates.cdValue,
+                  cdUnit: updates.cdUnit,
+                  bankLoanEnabled: updates.bankLoanEnabled,
+                  bankLoanValue: updates.bankLoanValue,
+                  bankLoanUnit: updates.bankLoanUnit,
+                  paymentConditionValue: updates.paymentConditionValue,
+                  paymentConditionUnit: updates.paymentConditionUnit
+                }
+              });
+            } else if (['admin', 'owner'].includes(userRole)) {
+              // Admin/owner rate change -> applied directly
+              await offering.update({
+                finalPrice: updates.finalPrice !== undefined ? updates.finalPrice : offering.finalPrice,
+                finalBaseRate: updates.finalBaseRate !== undefined ? updates.finalBaseRate : offering.finalBaseRate,
+                finalSute: updates.finalSute !== undefined ? updates.finalSute : offering.finalSute,
+                finalSuteUnit: updates.finalSuteUnit !== undefined ? updates.finalSuteUnit : offering.finalSuteUnit,
+                baseRateType: updates.baseRateType !== undefined ? updates.baseRateType : offering.baseRateType,
+                baseRateUnit: updates.baseRateUnit !== undefined ? updates.baseRateUnit : offering.baseRateUnit,
+                moistureValue: updates.moistureValue !== undefined ? updates.moistureValue : offering.moistureValue,
+                hamali: updates.hamali !== undefined ? updates.hamali : offering.hamali,
+                hamaliUnit: updates.hamaliUnit !== undefined ? updates.hamaliUnit : offering.hamaliUnit,
+                brokerage: updates.brokerage !== undefined ? updates.brokerage : offering.brokerage,
+                brokerageUnit: updates.brokerageUnit !== undefined ? updates.brokerageUnit : offering.brokerageUnit,
+                lf: updates.lf !== undefined ? updates.lf : offering.lf,
+                lfUnit: updates.lfUnit !== undefined ? updates.lfUnit : offering.lfUnit,
+                egbValue: updates.egbValue !== undefined ? updates.egbValue : offering.egbValue,
+                egbType: updates.egbType !== undefined ? updates.egbType : offering.egbType,
+                cdEnabled: updates.cdEnabled !== undefined ? updates.cdEnabled : offering.cdEnabled,
+                cdValue: updates.cdValue !== undefined ? updates.cdValue : offering.cdValue,
+                cdUnit: updates.cdUnit !== undefined ? updates.cdUnit : offering.cdUnit,
+                bankLoanEnabled: updates.bankLoanEnabled !== undefined ? updates.bankLoanEnabled : offering.bankLoanEnabled,
+                bankLoanValue: updates.bankLoanValue !== undefined ? updates.bankLoanValue : offering.bankLoanValue,
+                bankLoanUnit: updates.bankLoanUnit !== undefined ? updates.bankLoanUnit : offering.bankLoanUnit,
+                paymentConditionValue: updates.paymentConditionValue !== undefined ? updates.paymentConditionValue : offering.paymentConditionValue,
+                paymentConditionUnit: updates.paymentConditionUnit !== undefined ? updates.paymentConditionUnit : offering.paymentConditionUnit
+              });
+            }
+          }
         }
 
         // Resample assignment should only allot the lot to the location sample user.
@@ -3266,6 +3492,88 @@ router.post('/:id/final-price', authenticateToken, async (req, res) => {
     console.log(`[FINAL-PRICE] User role: ${getWorkflowRole(req.user)}, baseRole: ${req.user.role}, userId: ${req.user.userId}`);
     console.log(`[FINAL-PRICE] isFinalized: ${req.body.isFinalized}`);
     console.log(`[FINAL-PRICE] finalPrice: ${req.body.finalPrice}`);
+
+    // If a specific lorry trip ID is targetted
+    if (req.body.targetLorryTripId) {
+      const PhysicalInspection = require('../models/PhysicalInspection');
+      const AuditService = require('../services/AuditService');
+      const SampleEntryOffering = require('../models/SampleEntryOffering');
+
+      const trip = await PhysicalInspection.findByPk(req.body.targetLorryTripId);
+      if (!trip) {
+        return res.status(404).json({ error: 'Target lorry trip inspection not found' });
+      }
+
+      const rateInfo = {
+        rate: req.body.finalBaseRate,
+        rateType: req.body.finalBaseRateType,
+        sute: req.body.finalSute,
+        suteUnit: req.body.finalSuteUnit,
+        moisture: req.body.moistureValue,
+        hamali: req.body.revisedHamali,
+        hamaliUnit: req.body.hamaliUnit,
+        lf: req.body.revisedLf,
+        lfUnit: req.body.lfUnit,
+        disputeReason: req.body.disputeReason,
+        isDispute: Boolean(req.body.isDispute === true || req.body.isDispute === 'true' || req.body.revisedRateOption === 'dispute'),
+        isRevision: Boolean(req.body.isRevision === true || req.body.isRevision === 'true'),
+        linkedRevisionId: req.body.linkedRevisionId || null,
+        linkedAt: new Date().toISOString(),
+        linkedByUserId: req.user.userId
+      };
+
+      const userRole = getWorkflowRole(req.user);
+      const isAlreadyLinked = !!trip.linkedPattiRate;
+
+      if (isAlreadyLinked && (userRole === 'manager' || userRole === 'ceo')) {
+        // Edit by manager on already linked lorry -> goes to approvals
+        const offering = await SampleEntryOffering.findOne({ where: { sampleEntryId: trip.sampleEntryId } });
+        if (!offering) {
+          return res.status(404).json({ error: 'Offering not found for this entry' });
+        }
+
+        await offering.update({
+          pendingRateLinkingStatus: 'pending',
+          pendingRateLinkingData: {
+            targetLorryTripId: req.body.targetLorryTripId,
+            targetLorryNumber: trip.lorryNumber,
+            rateInfo: rateInfo,
+            // Format fields so the frontend Rate Linking Approvals tab table can display them
+            finalPrice: rateInfo.rate,
+            finalBaseRate: rateInfo.rate,
+            finalSute: rateInfo.sute,
+            finalSuteUnit: rateInfo.suteUnit,
+            baseRateType: rateInfo.rateType,
+            moistureValue: rateInfo.moisture,
+            hamali: rateInfo.hamali,
+            hamaliUnit: rateInfo.hamaliUnit,
+            lf: rateInfo.lf,
+            lfUnit: rateInfo.lfUnit
+          }
+        });
+
+        invalidateSampleEntryTabCaches();
+        return res.json({ success: true, pendingApproval: true, message: 'Lorry rate edit submitted for Admin approval!' });
+      }
+
+      // First time linking, or actioned by Admin/Owner -> Save directly
+      const oldTrip = JSON.parse(JSON.stringify(trip));
+      trip.linkedPattiRate = rateInfo;
+      trip.finalBaseRate = rateInfo.rate;
+      trip.finalBaseRateType = rateInfo.rateType;
+      trip.finalSute = rateInfo.sute;
+      trip.finalSuteUnit = rateInfo.suteUnit;
+      trip.moisture = rateInfo.moisture;
+      trip.revisedHamali = rateInfo.hamali;
+      trip.hamaliUnit = rateInfo.hamaliUnit;
+      trip.revisedLf = rateInfo.lf;
+      trip.lfUnit = rateInfo.lfUnit;
+
+      await trip.save();
+      await AuditService.logUpdate(req.user.userId, 'physical_inspections', trip.id, oldTrip, trip);
+      invalidateSampleEntryTabCaches();
+      return res.json({ success: true, message: 'Rate linked to lorry trip successfully', linkedPattiRate: rateInfo });
+    }
 
     const currentEntry = await SampleEntry.findByPk(req.params.id, {
       attributes: ['id', 'lotSelectionDecision', 'resampleAfterFinal']

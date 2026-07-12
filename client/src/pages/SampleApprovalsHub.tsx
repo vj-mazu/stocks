@@ -12,7 +12,7 @@ interface SampleApprovalsHubProps {
   onPendingCountChange?: (count: number) => void;
 }
 
-type ApprovalTabKey = 'approval-for-edits' | 'approval-for-manager' | 'lorry-approvals' | 'loading-quality-approvals';
+type ApprovalTabKey = 'approval-for-edits' | 'approval-for-manager' | 'lorry-approvals' | 'loading-quality-approvals' | 'rate-linking-approvals';
 
 interface ApprovalTabConfig {
   key: ApprovalTabKey;
@@ -111,6 +111,9 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
   const [managerApprovalCount, setManagerApprovalCount] = useState(0);
   const [lorryApprovalCount, setLorryApprovalCount] = useState(0);
   const [loadingQualityApprovalCount, setLoadingQualityApprovalCount] = useState(0);
+  const [rateLinkingCount, setRateLinkingCount] = useState(0);
+  const [rateLinkingEntries, setRateLinkingEntries] = useState<any[]>([]);
+  const [loadingRateLinking, setLoadingRateLinking] = useState(false);
 
   const [pendingLorryInspections, setPendingLorryInspections] = useState<any[]>([]);
   const [loadingQuality, setLoadingQuality] = useState(false);
@@ -143,6 +146,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     if (canAccessManagerApprovals) {
       baseTabs.push({ key: 'approval-for-manager', label: 'Loading Lots', color: '#16a34a' });
       baseTabs.push({ key: 'lorry-approvals', label: 'Dispute Approval', color: '#f39c12' });
+      baseTabs.push({ key: 'rate-linking-approvals', label: 'Rate Linking Approvals', color: '#0284c7' });
     }
     if (canAccessLoadingQuality) {
       baseTabs.push({ key: 'loading-quality-approvals', label: 'Loading Quality Approvals', color: '#1565c0' });
@@ -154,7 +158,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     const saved = localStorage.getItem('sample_approvals_hub_active_tab');
     const allowedKeys = ['approval-for-edits'];
     if (canAccessManagerApprovals) {
-      allowedKeys.push('approval-for-manager', 'lorry-approvals');
+      allowedKeys.push('approval-for-manager', 'lorry-approvals', 'rate-linking-approvals');
     }
     if (canAccessLoadingQuality) {
       allowedKeys.push('loading-quality-approvals');
@@ -162,7 +166,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     return (saved && allowedKeys.includes(saved)) ? (saved as ApprovalTabKey) : 'approval-for-edits';
   });
   const totalPendingCount = editApprovalCount + 
-    (canAccessManagerApprovals ? (managerApprovalCount + lorryApprovalCount) : 0) + 
+    (canAccessManagerApprovals ? (managerApprovalCount + lorryApprovalCount + rateLinkingCount) : 0) + 
     (canAccessLoadingQuality ? loadingQualityApprovalCount : 0);
 
   const fetchLoadingQuality = useCallback(async (isSilent = false) => {
@@ -219,9 +223,17 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
         });
         setManagerApprovalCount(stdCount);
         setLorryApprovalCount(lorryCount);
+
+        // Fetch rate linking count
+        const rateLinkRes = await axios.get(`${API_URL}/sample-entries/tabs/rate-linking-approvals`, { headers });
+        const rateLinkEntriesList = rateLinkRes.data?.entries || [];
+        setRateLinkingEntries(rateLinkEntriesList);
+        setRateLinkingCount(rateLinkEntriesList.length);
       } else {
         setManagerApprovalCount(0);
         setLorryApprovalCount(0);
+        setRateLinkingCount(0);
+        setRateLinkingEntries([]);
       }
     } catch (err) {
       console.error('Error fetching global approvals counts:', err);
@@ -617,13 +629,23 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     }
     
     const stages = activeInsp.samplingStages || {};
+    const isStageApproved = (baseKey: string) => Object.keys(stages).some(key => getStageBaseKey(key, stages[key]) === baseKey && stages[key]?.approvalStatus === 'approved');
+
+    if (isStageApproved('balanced_lot') || isStageApproved('full_avg')) {
+      const allottedBags = entry.lotAllotment?.allottedBags || entry.bags || 0;
+      const totalInspected = inspections.reduce((sum: number, i: any) => sum + (i.bags || 0), 0);
+      if (totalInspected >= allottedBags) {
+        return 'All Stages Approved';
+      } else {
+        return 'Lorry Approved (Awaiting Next Lorry)';
+      }
+    }
+
     const hasInitialStage = (stages.lot_avg && stages.lot_avg.reportedBy) || (stages.balanced_lot && stages.balanced_lot.reportedBy);
-    
     if (!hasInitialStage) {
       return 'Lot Avg / Balanced Sampling (Pending)';
     }
     
-    const isStageApproved = (baseKey: string) => Object.keys(stages).some(key => getStageBaseKey(key, stages[key]) === baseKey && stages[key]?.approvalStatus === 'approved');
     const initialStageApproved = isStageApproved('lot_avg') || isStageApproved('balanced_lot');
     if (initialStageApproved && (!stages.half_lorry || !stages.half_lorry.reportedBy) && (!stages.nit_avg || !stages.nit_avg.reportedBy)) {
       return 'Half Lorry / Nit Avg Sampling (Pending)';
@@ -958,40 +980,17 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                                 }
                                 return (
                                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                    <button
-                                      onClick={() => handleApproveLorryQuality(entry.id)}
-                                      disabled={processingLorry}
-                                      style={{
-                                        background: '#27ae60',
-                                        border: 'none',
-                                        color: '#fff',
-                                        fontWeight: 'bold',
-                                        cursor: 'pointer',
-                                        padding: '5px 12px',
-                                        fontSize: '11px',
-                                        borderRadius: '4px',
-                                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                                      }}
-                                    >
-                                      Approve
-                                    </button>
-                                    <button
-                                      onClick={() => handleRejectSpecificLorry(entry.id, activeInsp.id, activeInsp.lorryNumber)}
-                                      disabled={processingLorry}
-                                      style={{
-                                        background: '#dc2626',
-                                        border: 'none',
-                                        color: '#fff',
-                                        fontWeight: 'bold',
-                                        cursor: 'pointer',
-                                        padding: '5px 12px',
-                                        fontSize: '11px',
-                                        borderRadius: '4px',
-                                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                                      }}
-                                    >
-                                      Reject
-                                    </button>
+                                    <span style={{
+                                      color: '#16a34a',
+                                      backgroundColor: '#f0fdf4',
+                                      padding: '4px 8px',
+                                      borderRadius: '4px',
+                                      fontSize: '11px',
+                                      fontWeight: 'bold',
+                                      border: '1px solid #bbf7d0'
+                                    }}>
+                                      All Stages Approved (Ready for Completion)
+                                    </span>
                                   </div>
                                 );
                               }
@@ -1046,6 +1045,136 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     );
   };
 
+  const handleRateLinkingDecision = async (entryId: string, decision: 'approve' | 'reject') => {
+    try {
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+      await axios.post(`${API_URL}/sample-entries/${entryId}/rate-linking-decision`, { decision }, { headers });
+      toast.success(`Rate Linking request ${decision}ed successfully!`);
+      fetchCounts();
+    } catch (error: any) {
+      console.error('Error submitting rate linking decision:', error);
+      toast.error(error.response?.data?.error || 'Failed to submit decision');
+    }
+  };
+
+  const renderRateLinkingTable = () => {
+    if (loadingRateLinking) {
+      return <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>Loading rate linking approvals...</div>;
+    }
+    if (rateLinkingEntries.length === 0) {
+      return (
+        <div style={{
+          padding: '40px 16px',
+          textAlign: 'center',
+          color: '#64748b',
+          fontWeight: 600,
+          backgroundColor: '#f8fafc',
+          borderRadius: '8px',
+          border: '1px dashed #cbd5e1'
+        }}>
+          No pending rate linking approvals.
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid #1565c0', boxShadow: '0 2px 8px rgba(21,101,192,0.12)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
+          <thead>
+            <tr style={{ background: 'linear-gradient(135deg, #1565c0, #1e88e5)', color: '#fff' }}>
+              <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>SL No</th>
+              <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Date</th>
+              <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Broker</th>
+              <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Party / Lorry</th>
+              <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Bags</th>
+              <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Base Rate</th>
+              <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Sute</th>
+              <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Moisture</th>
+              <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Hamali</th>
+              <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>LF</th>
+              <th style={{ padding: '10px 12px', fontWeight: '700', textAlign: 'center' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rateLinkingEntries.map((e, index) => {
+              const pending = e.offering?.pendingRateLinkingData || {};
+
+              return (
+                <tr key={e.id} style={{ borderBottom: '1px solid #e2e8f0', background: index % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                  <td style={{ padding: '10px 12px', fontWeight: 'bold', borderRight: '1px solid #e2e8f0' }}>{index + 1}</td>
+                  <td style={{ padding: '10px 12px', whiteSpace: 'nowrap', borderRight: '1px solid #e2e8f0' }}>{new Date(e.entryDate).toLocaleDateString('en-IN')}</td>
+                  <td style={{ padding: '10px 12px', borderRight: '1px solid #e2e8f0' }}>{e.brokerName}</td>
+                  <td style={{ padding: '10px 12px', borderRight: '1px solid #e2e8f0' }}>
+                    <div style={{ fontWeight: 'bold', color: '#1e40af' }}>{e.partyName || e.lorryNumber || '-'}</div>
+                    {pending.targetLorryNumber ? (
+                      <div style={{ fontSize: '11px', color: '#7c3aed', fontWeight: 'bold', marginTop: '3px', background: '#faf5ff', border: '1px solid #e9d5ff', padding: '2px 6px', borderRadius: '4px', display: 'inline-block' }}>
+                        🚚 Lorry: {pending.targetLorryNumber.toUpperCase()}
+                      </div>
+                    ) : (
+                      e.lorryNumber && e.partyName && <div style={{ fontSize: '10px', color: '#64748b' }}>{e.lorryNumber}</div>
+                    )}
+                  </td>
+                  <td style={{ padding: '10px 12px', fontWeight: 'bold', borderRight: '1px solid #e2e8f0' }}>{e.bags}</td>
+                  <td style={{ padding: '10px 12px', borderRight: '1px solid #e2e8f0', fontWeight: 600, color: '#0f172a' }}>
+                    {pending.finalBaseRate ? `Rs ${pending.finalBaseRate}` : '-'}
+                    {pending.baseRateType ? <div style={{ fontSize: '10px', color: '#64748b' }}>{pending.baseRateType}</div> : null}
+                  </td>
+                  <td style={{ padding: '10px 12px', borderRight: '1px solid #e2e8f0' }}>
+                    {pending.finalSute ? `${pending.finalSute} / ${pending.finalSuteUnit || 'Per Ton'}` : '-'}
+                  </td>
+                  <td style={{ padding: '10px 12px', borderRight: '1px solid #e2e8f0' }}>
+                    {pending.moistureValue ? `${pending.moistureValue}%` : '-'}
+                  </td>
+                  <td style={{ padding: '10px 12px', borderRight: '1px solid #e2e8f0' }}>
+                    {pending.hamali ? `Rs ${pending.hamali} / ${pending.hamaliUnit === 'per_quintal' ? 'Qtl' : 'Bag'}` : '-'}
+                  </td>
+                  <td style={{ padding: '10px 12px', borderRight: '1px solid #e2e8f0' }}>
+                    {pending.lf ? `Rs ${pending.lf} / ${pending.lfUnit === 'per_quintal' ? 'Qtl' : 'Bag'}` : '-'}
+                  </td>
+                  <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                    <div style={{ display: 'inline-flex', gap: '8px' }}>
+                      <button
+                        onClick={() => handleRateLinkingDecision(e.id, 'approve')}
+                        style={{
+                          backgroundColor: '#10b981',
+                          color: '#fff',
+                          border: 'none',
+                          padding: '6px 14px',
+                          borderRadius: '4px',
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          fontSize: '11px'
+                        }}
+                      >
+                        ✅ Approve
+                      </button>
+                      <button
+                        onClick={() => handleRateLinkingDecision(e.id, 'reject')}
+                        style={{
+                          backgroundColor: '#ef4444',
+                          color: '#fff',
+                          border: 'none',
+                          padding: '6px 14px',
+                          borderRadius: '4px',
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          fontSize: '11px'
+                        }}
+                      >
+                        ❌ Reject
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   return (
     <div style={{
       background: '#ffffff',
@@ -1069,7 +1198,9 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
               ? managerApprovalCount 
               : tab.key === 'lorry-approvals'
                 ? lorryApprovalCount
-                : loadingQualityApprovalCount;
+                : tab.key === 'rate-linking-approvals'
+                  ? rateLinkingCount
+                  : loadingQualityApprovalCount;
           return (
             <button
               key={tab.key}
@@ -1120,6 +1251,11 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
         )}
         {canAccessManagerApprovals && activeTab === 'lorry-approvals' && (
           <ManagerValueApprovals key={`lorry-${refreshKey}`} filterType="lorry" onCountChange={setLorryApprovalCount} />
+        )}
+        {canAccessManagerApprovals && activeTab === 'rate-linking-approvals' && (
+          <div key={`rate-linking-${refreshKey}`}>
+            {renderRateLinkingTable()}
+          </div>
         )}
         {canAccessLoadingQuality && activeTab === 'loading-quality-approvals' && (
           <div key={`loading-quality-${refreshKey}`}>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import styled from 'styled-components';
 import axios from 'axios';
 import { toast } from '../utils/toast';
@@ -804,11 +804,377 @@ const Arrivals: React.FC = () => {
     }
   };
 
+  const [arrivalsActiveSubTab, setArrivalsActiveSubTab] = useState<'entry' | 'transit'>('transit');
+  const [inTransitEntries, setInTransitEntries] = useState<any[]>([]);
+  const [loadingTransit, setLoadingTransit] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [transitNextCursor, setTransitNextCursor] = useState<string | null>(null);
+  const [transitHasNextPage, setTransitHasNextPage] = useState(false);
+  const [transitPageSize, setTransitPageSize] = useState(20);
+  const [transitTotalLoaded, setTransitTotalLoaded] = useState(0);
+  const [transitSearchQuery, setTransitSearchQuery] = useState('');
+  const [transitDebouncedSearch, setTransitDebouncedSearch] = useState('');
+  const searchTimerRef = useRef<any>(null);
+
+  // Debounce search input
+  useEffect(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      setTransitDebouncedSearch(transitSearchQuery);
+    }, 400);
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+  }, [transitSearchQuery]);
+
+  const fetchInTransitEntries = useCallback(async (cursor?: string | null, append = false) => {
+    try {
+      if (append) {
+        setLoadingMore(true);
+      } else {
+        setLoadingTransit(true);
+      }
+      const token = localStorage.getItem('token');
+      const params: any = {
+        status: 'PHYSICAL_INSPECTION',
+        pageSize: transitPageSize
+      };
+      if (cursor) params.cursor = cursor;
+      if (transitDebouncedSearch.trim()) {
+        params.broker = transitDebouncedSearch.trim();
+        params.variety = transitDebouncedSearch.trim();
+        params.party = transitDebouncedSearch.trim();
+      }
+      const response = await axios.get(`${API_URL}/sample-entries/by-role`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params
+      });
+      const newEntries = response.data.entries || [];
+      const pagination = response.data.pagination || {};
+      
+      if (append) {
+        setInTransitEntries(prev => [...prev, ...newEntries]);
+      } else {
+        setInTransitEntries(newEntries);
+      }
+      setTransitNextCursor(pagination.nextCursor || null);
+      setTransitHasNextPage(!!pagination.hasNextPage);
+      setTransitTotalLoaded(prev => append ? prev + newEntries.length : newEntries.length);
+    } catch (err) {
+      console.error('Error fetching in transit entries:', err);
+    } finally {
+      setLoadingTransit(false);
+      setLoadingMore(false);
+    }
+  }, [transitPageSize, transitDebouncedSearch]);
+
+  // Reset and refetch when search or pageSize changes
+  useEffect(() => {
+    if (arrivalsActiveSubTab === 'transit') {
+      setTransitNextCursor(null);
+      setTransitTotalLoaded(0);
+      fetchInTransitEntries(null, false);
+    }
+  }, [arrivalsActiveSubTab, transitDebouncedSearch, transitPageSize]);
+
+  const handleLoadMore = () => {
+    if (transitHasNextPage && transitNextCursor && !loadingMore) {
+      fetchInTransitEntries(transitNextCursor, true);
+    }
+  };
+
+  const handleRefreshTransit = () => {
+    setTransitNextCursor(null);
+    setTransitTotalLoaded(0);
+    fetchInTransitEntries(null, false);
+  };
+
   return (
     <Container>
-      <Title>📝 Arrivals - Data Entry</Title>
+      <Title>📝 Arrivals</Title>
 
-      <MainGrid>
+      <div style={{
+        display: 'flex',
+        gap: '8px',
+        marginBottom: '20px',
+        borderBottom: '1px solid #cbd5e1',
+        paddingBottom: '10px'
+      }}>
+        <button
+          onClick={() => setArrivalsActiveSubTab('transit')}
+          style={{
+            padding: '8px 16px',
+            border: 'none',
+            borderRadius: '4px',
+            background: arrivalsActiveSubTab === 'transit' ? '#10b981' : '#f1f5f9',
+            color: arrivalsActiveSubTab === 'transit' ? '#fff' : '#475569',
+            fontWeight: 'bold',
+            cursor: 'pointer'
+          }}
+        >
+          In Transit
+        </button>
+        <button
+          onClick={() => setArrivalsActiveSubTab('entry')}
+          style={{
+            padding: '8px 16px',
+            border: 'none',
+            borderRadius: '4px',
+            background: arrivalsActiveSubTab === 'entry' ? '#10b981' : '#f1f5f9',
+            color: arrivalsActiveSubTab === 'entry' ? '#fff' : '#475569',
+            fontWeight: 'bold',
+            cursor: 'pointer'
+          }}
+        >
+          Arrivals Data Entry
+        </button>
+      </div>
+
+      {arrivalsActiveSubTab === 'transit' ? (
+        <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.07)', border: '2px solid #f3f4f6' }}>
+          {/* Header with title + stats */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+            <h2 style={{ fontSize: '1.25rem', color: '#1e293b', fontWeight: 'bold', margin: 0 }}>
+              🚚 Active In Transit Lorries
+              {!loadingTransit && <span style={{ marginLeft: '10px', fontSize: '0.8rem', background: '#dbeafe', color: '#1565c0', padding: '3px 10px', borderRadius: '12px', fontWeight: 600 }}>{inTransitEntries.length} loaded</span>}
+            </h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button onClick={handleRefreshTransit} disabled={loadingTransit} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', background: '#f8fafc', cursor: loadingTransit ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: 600, color: '#475569', display: 'flex', alignItems: 'center', gap: '4px', transition: 'all 0.2s' }}>
+                <span style={{ display: 'inline-block', animation: loadingTransit ? 'spin 1s linear infinite' : 'none' }}>🔄</span> Refresh
+              </button>
+            </div>
+          </div>
+
+          {/* Search + Page Size Controls */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', gap: '12px', flexWrap: 'wrap' }}>
+            <div style={{ position: 'relative', flex: '1 1 300px', maxWidth: '400px' }}>
+              <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '14px', color: '#94a3b8', pointerEvents: 'none' }}>🔍</span>
+              <input
+                type="text"
+                placeholder="Search by broker, variety, or party..."
+                value={transitSearchQuery}
+                onChange={(e) => setTransitSearchQuery(e.target.value)}
+                style={{ width: '100%', padding: '8px 10px 8px 32px', border: '1.5px solid #cbd5e1', borderRadius: '8px', fontSize: '13px', outline: 'none', background: '#f8fafc', transition: 'border-color 0.2s, box-shadow 0.2s' }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = '#1565c0'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(21,101,192,0.1)'; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.boxShadow = 'none'; }}
+              />
+              {transitSearchQuery && (
+                <button onClick={() => setTransitSearchQuery('')} style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '14px', color: '#94a3b8', padding: '2px' }}>✕</button>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+              <label style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Per page:</label>
+              <select
+                value={transitPageSize}
+                onChange={(e) => setTransitPageSize(Number(e.target.value))}
+                style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', borderRadius: '6px', fontSize: '12px', background: '#f8fafc', cursor: 'pointer', fontWeight: 600, color: '#334155' }}
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Skeleton Loading */}
+          {loadingTransit ? (
+            <div style={{ borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+              {/* Skeleton header */}
+              <div style={{ background: 'linear-gradient(135deg, #1565c0, #1e88e5)', padding: '10px 12px', display: 'flex', gap: '12px' }}>
+                {[80, 70, 60, 60, 100, 70, 50, 50, 60].map((w, i) => (
+                  <div key={i} style={{ height: '14px', width: `${w}px`, background: 'rgba(255,255,255,0.25)', borderRadius: '4px', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                ))}
+              </div>
+              {/* Skeleton rows */}
+              {Array.from({ length: Math.min(transitPageSize, 8) }).map((_, ri) => (
+                <div key={ri} style={{ display: 'flex', gap: '12px', padding: '12px', borderBottom: '1px solid #f1f5f9', background: ri % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
+                  {[40, 70, 60, 60, 100, 70, 40, 40, 60].map((w, ci) => (
+                    <div key={ci} style={{ height: '12px', width: `${w}px`, background: '#e2e8f0', borderRadius: '3px', animation: `pulse 1.5s ease-in-out ${ri * 0.08}s infinite` }} />
+                  ))}
+                </div>
+              ))}
+            </div>
+          ) : inTransitEntries.length === 0 ? (
+            <div style={{ padding: '40px 16px', textAlign: 'center', color: '#64748b', fontWeight: 600, backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
+              {transitDebouncedSearch ? `No results for "${transitDebouncedSearch}"` : 'No lorries currently in transit.'}
+            </div>
+          ) : (
+            <>
+              <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid #1565c0', boxShadow: '0 2px 8px rgba(21,101,192,0.12)' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ background: 'linear-gradient(135deg, #1565c0, #1e88e5)', color: '#fff', borderBottom: '2px solid #0d47a1' }}>
+                      <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>SL No</th>
+                      <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Date</th>
+                      <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Broker</th>
+                      <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Party</th>
+                      <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Lorry Number</th>
+                      <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Variety</th>
+                      <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Bags</th>
+                      <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Loads</th>
+                      <th style={{ padding: '10px 12px', fontWeight: '700' }}>STATUS</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {inTransitEntries.map((e, idx) => {
+                      const inspections = e.lotAllotment?.physicalInspections || e.physicalInspections || [];
+                      if (inspections.length === 0) {
+                        return (
+                          <React.Fragment key={e.id}>
+                            {idx > 0 && (
+                              <tr>
+                                <td colSpan={9} style={{ 
+                                  padding: '0', 
+                                  height: '14px', 
+                                  backgroundColor: '#f3f4f6', 
+                                  borderLeft: 'none',
+                                  borderRight: 'none',
+                                  borderTop: '1px solid #cbd5e1',
+                                  borderBottom: '1px solid #cbd5e1'
+                                }}></td>
+                              </tr>
+                            )}
+                            <tr style={{ background: 'linear-gradient(135deg, #1565c0, #1e88e5)', color: '#fff', borderLeft: '1px solid #1565c0', borderRight: '1px solid #1565c0' }}>
+                              <td style={{ padding: '9px 12px', fontWeight: 'bold', color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{e.serialNo}</td>
+                              <td style={{ padding: '9px 12px', whiteSpace: 'nowrap', fontWeight: 600, color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{new Date(e.entryDate).toLocaleDateString('en-IN')}</td>
+                              <td style={{ padding: '9px 12px', fontWeight: 600, color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{e.brokerName}</td>
+                              <td style={{ padding: '9px 12px', fontWeight: 'bold', color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{e.partyName || '-'}</td>
+                              <td style={{ padding: '9px 12px', fontWeight: 'bold', color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{e.lorryNumber || '-'}</td>
+                              <td style={{ padding: '9px 12px', fontWeight: 'bold', color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{e.variety}</td>
+                              <td style={{ padding: '9px 12px', fontWeight: 'bold', color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{e.bags}</td>
+                              <td style={{ padding: '9px 12px', fontWeight: 600, color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>⏳</td>
+                              <td style={{ padding: '9px 12px', fontWeight: 600, color: '#fff' }}>In Transit</td>
+                            </tr>
+                          </React.Fragment>
+                        );
+                      }
+                      const linkedCount = inspections.filter((i: any) => !!i.linkedPattiRate).length;
+                      return (
+                        <React.Fragment key={e.id}>
+                          {idx > 0 && (
+                            <tr>
+                              <td colSpan={9} style={{ 
+                                padding: '0', 
+                                height: '14px', 
+                                backgroundColor: '#f3f4f6', 
+                                borderLeft: 'none',
+                                borderRight: 'none',
+                                borderTop: '1px solid #cbd5e1',
+                                borderBottom: '1px solid #cbd5e1'
+                              }}></td>
+                            </tr>
+                          )}
+                          <tr style={{ background: 'linear-gradient(135deg, #1565c0, #1e88e5)', color: '#fff', borderLeft: '1px solid #1565c0', borderRight: '1px solid #1565c0' }}>
+                            <td style={{ padding: '9px 12px', fontWeight: 'bold', color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{e.serialNo}</td>
+                            <td style={{ padding: '9px 12px', whiteSpace: 'nowrap', fontWeight: 600, color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{new Date(e.entryDate).toLocaleDateString('en-IN')}</td>
+                            <td style={{ padding: '9px 12px', fontWeight: 600, color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{e.brokerName}</td>
+                            <td style={{ padding: '9px 12px', fontWeight: 'bold', color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{e.partyName || '-'}</td>
+                            <td style={{ padding: '9px 12px', fontWeight: 'bold', color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>
+                              {inspections.length} Lorr{inspections.length === 1 ? 'y' : 'ies'}
+                            </td>
+                            <td style={{ padding: '9px 12px', fontWeight: 'bold', color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{e.variety}</td>
+                            <td style={{ padding: '9px 12px', fontWeight: 'bold', color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{e.bags}</td>
+                            <td style={{ padding: '9px 12px', fontWeight: 600, color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>🚚 {linkedCount}/{inspections.length}</td>
+                            <td style={{ padding: '9px 12px', fontWeight: 600, color: '#fff' }}>
+                              {linkedCount === inspections.length ? '✅ All Linked' : `🔗 ${linkedCount}/${inspections.length} Linked`}
+                            </td>
+                          </tr>
+                          {inspections.map((insp: any, lIdx: number) => {
+                            const bagsLoaded = insp.bags || insp.bagsLoaded || '-';
+                            const lorryNum = insp.lorryNumber || '-';
+                            const isPlaceholder = !insp.lorryNumber || ['LOT_AVG', 'BALANCED_LOT'].includes((insp.lorryNumber || '').toUpperCase().trim()) || (insp.lorryNumber || '').toLowerCase().includes('next loading');
+                            const isLinked = !!insp.linkedPattiRate;
+                            const isLastLorry = lIdx === inspections.length - 1;
+                            return (
+                              <tr key={`${e.id}-${insp.id || lIdx}`} style={{ 
+                                borderBottom: isLastLorry ? '2px solid #1565c0' : '1px solid #e2e8f0', 
+                                borderLeft: '2px solid #1565c0', 
+                                borderRight: '2px solid #1565c0',
+                                background: lIdx % 2 === 0 ? '#f8fafc' : '#ffffff' 
+                              }}>
+                                <td style={{ padding: '8px 12px 8px 28px', fontSize: '11px', color: '#64748b', borderRight: '1px solid #cbd5e1' }}>↳ {lIdx + 1}</td>
+                                <td style={{ padding: '8px 12px', fontSize: '11px', borderRight: '1px solid #cbd5e1' }}>{insp.inspectionDate ? new Date(insp.inspectionDate).toLocaleDateString('en-IN') : '-'}</td>
+                                <td style={{ padding: '8px 12px', fontSize: '11px', color: '#94a3b8', borderRight: '1px solid #cbd5e1' }}>-</td>
+                                <td style={{ padding: '8px 12px', fontSize: '11px', color: '#94a3b8', borderRight: '1px solid #cbd5e1' }}>-</td>
+                                <td style={{ padding: '8px 12px', color: isPlaceholder ? '#94a3b8' : '#0369a1', fontWeight: 'bold', fontSize: '11px', borderRight: '1px solid #cbd5e1' }}>
+                                  {isPlaceholder ? 'Pending Lorry' : lorryNum.toUpperCase()}
+                                </td>
+                                <td style={{ padding: '8px 12px', fontSize: '11px', borderRight: '1px solid #cbd5e1' }}>{e.variety}</td>
+                                <td style={{ padding: '8px 12px', fontSize: '11px', borderRight: '1px solid #cbd5e1' }}>{bagsLoaded}</td>
+                                <td style={{ padding: '8px 12px', fontSize: '11px', borderRight: '1px solid #cbd5e1' }}>{isLinked ? '✅' : '⏳'}</td>
+                                <td style={{ padding: '8px 12px', fontSize: '11px' }}>
+                                  {isLinked ? (
+                                    <span style={{ color: '#16a34a', fontWeight: 700, background: '#f0fdf4', padding: '2px 8px', borderRadius: '4px', border: '1px solid #bbf7d0', fontSize: '10px' }}>LINKED</span>
+                                  ) : (
+                                    <span style={{ color: '#d97706', fontWeight: 700, background: '#fffbeb', padding: '2px 8px', borderRadius: '4px', border: '1px solid #fde68a', fontSize: '10px' }}>PENDING</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination Footer: Load More + Stats */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', padding: '10px 14px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', flexWrap: 'wrap', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#64748b', fontWeight: 600 }}>
+                  <span style={{ background: '#dbeafe', color: '#1565c0', padding: '2px 8px', borderRadius: '10px', fontWeight: 700 }}>{transitTotalLoaded}</span>
+                  lots loaded
+                  {transitHasNextPage && <span style={{ color: '#94a3b8' }}>• more available</span>}
+                </div>
+                {transitHasNextPage && (
+                  <button
+                    onClick={handleLoadMore}
+                    disabled={loadingMore}
+                    style={{
+                      padding: '8px 24px',
+                      background: loadingMore ? '#94a3b8' : 'linear-gradient(135deg, #1565c0, #1e88e5)',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: loadingMore ? 'not-allowed' : 'pointer',
+                      fontWeight: 700,
+                      fontSize: '12px',
+                      boxShadow: loadingMore ? 'none' : '0 2px 8px rgba(21,101,192,0.25)',
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    {loadingMore ? (
+                      <>
+                        <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⏳</span> Loading...
+                      </>
+                    ) : (
+                      <>📥 Load More</>
+                    )}
+                  </button>
+                )}
+                {!transitHasNextPage && transitTotalLoaded > 0 && (
+                  <span style={{ fontSize: '12px', color: '#16a34a', fontWeight: 600 }}>✅ All records loaded</span>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Inline CSS animation for skeleton pulse and spinner */}
+          <style>{`
+            @keyframes pulse {
+              0%, 100% { opacity: 1; }
+              50% { opacity: 0.4; }
+            }
+            @keyframes spin {
+              from { transform: rotate(0deg); }
+              to { transform: rotate(360deg); }
+            }
+          `}</style>
+        </div>
+      ) : (
+        <MainGrid>
         <FormCard>
           <form onSubmit={handleSubmit}>
             {/* Form Header with Movement Type Toggle */}
@@ -1901,6 +2267,7 @@ const Arrivals: React.FC = () => {
           )}
         </InfoPanel>
       </MainGrid>
+      )}
     </Container>
   );
 };

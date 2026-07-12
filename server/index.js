@@ -1771,6 +1771,14 @@ const startServer = async () => {
         console.log('Migration 136 warning:', error.message);
       }
 
+      try {
+        const addLinkedPattiRate = require('./migrations/137_add_linked_patti_rate_to_physical_inspections');
+        await addLinkedPattiRate.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('Migration 137: linked_patti_rate and patti columns added to physical_inspections table');
+      } catch (error) {
+        console.log('Migration 137 warning:', error.message);
+      }
+
     // Default warehouses removed - users should create their own warehouses
 
     // Create default users if they don't exist

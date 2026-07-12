@@ -207,6 +207,7 @@ const AllottedSupervisors: React.FC = () => {
   const [isSavingValues, setIsSavingValues] = useState(false);
   const [detailModalEntry, setDetailModalEntry] = useState<SampleEntry | null>(null);
   const [selectedLorryForComparison, setSelectedLorryForComparison] = useState<any>(null);
+  const [targetLorryTripId, setTargetLorryTripId] = useState<string | null>(null);
 
   const resolveMediaUrl = (value?: string | null) => {
     const url = String(value || '').trim();
@@ -1579,20 +1580,63 @@ const AllottedSupervisors: React.FC = () => {
                                                 })()}
                                               </td>
                                               <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
-                                                <span
-                                                  onClick={() => handleOpenEditValues(entry, 'hmlf')}
-                                                  style={{ color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}
-                                                >
-                                                  Final Rate
-                                                </span>
+                                                {inspection.linkedPattiRate ? (
+                                                  <div style={{ fontSize: '11px', textAlign: 'left', lineHeight: '1.2' }}>
+                                                    <div><strong>Rate:</strong> {inspection.linkedPattiRate.rate || '-'} {inspection.linkedPattiRate.rateType || ''}</div>
+                                                    <div><strong>Sute:</strong> {inspection.linkedPattiRate.sute || '0'} {inspection.linkedPattiRate.suteUnit || ''}</div>
+                                                    <div><strong>Moi:</strong> {inspection.linkedPattiRate.moisture || '0'}%</div>
+                                                    <div style={{ marginTop: '2px', textAlign: 'center' }}>
+                                                      <span
+                                                        onClick={() => {
+                                                          setTargetLorryTripId(inspection.id);
+                                                          openDetailEntry(entry);
+                                                        }}
+                                                        style={{ color: '#16a34a', textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}
+                                                      >
+                                                        Edit
+                                                      </span>
+                                                    </div>
+                                                  </div>
+                                                ) : (
+                                                  <span
+                                                    onClick={() => {
+                                                      setTargetLorryTripId(inspection.id);
+                                                      openDetailEntry(entry);
+                                                    }}
+                                                    style={{ color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}
+                                                  >
+                                                    Final Rate
+                                                  </span>
+                                                )}
                                               </td>
                                               <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
-                                                <span
-                                                  onClick={() => handleOpenEditValues(entry, 'hmlf')}
-                                                  style={{ color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}
-                                                >
-                                                  Payment
-                                                </span>
+                                                {inspection.linkedPattiRate ? (
+                                                  <div style={{ fontSize: '11px', textAlign: 'left', lineHeight: '1.2' }}>
+                                                    <div><strong>Hml:</strong> {inspection.linkedPattiRate.hamali || '0'} {inspection.linkedPattiRate.hamaliUnit || ''}</div>
+                                                    <div><strong>LF:</strong> {inspection.linkedPattiRate.lf || '0'} {inspection.linkedPattiRate.lfUnit || ''}</div>
+                                                    <div style={{ marginTop: '2px', textAlign: 'center' }}>
+                                                      <span
+                                                        onClick={() => {
+                                                          setTargetLorryTripId(inspection.id);
+                                                          openDetailEntry(entry);
+                                                        }}
+                                                        style={{ color: '#16a34a', textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}
+                                                      >
+                                                        Edit
+                                                      </span>
+                                                    </div>
+                                                  </div>
+                                                ) : (
+                                                  <span
+                                                    onClick={() => {
+                                                      setTargetLorryTripId(inspection.id);
+                                                      openDetailEntry(entry);
+                                                    }}
+                                                    style={{ color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}
+                                                  >
+                                                    Payment
+                                                  </span>
+                                                )}
                                               </td>
                                               <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
                                                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center', justifyContent: 'center' }}>
@@ -1671,256 +1715,257 @@ const AllottedSupervisors: React.FC = () => {
         const revisedLfText = revisedLfVal ? ` | Revised: ₹${revisedLfVal}${origLfUnit}` : '';
         const origLfText = origLfVal ? ` (Original: ₹${origLfVal}${origLfUnit}${revisedLfText})` : '';
 
+        const isDisputeMode = editMode === 'dispute';
         return (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
             <div style={{ backgroundColor: 'white', padding: '24px', borderRadius: '12px', width: '90%', maxWidth: '450px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
               {editMode === 'dispute' ? (
-              <>
-                <h3 style={{ marginTop: 0, color: '#e74c3c', borderBottom: '2px solid #e74c3c', paddingBottom: '8px', fontSize: '14px', fontWeight: '800' }}>
-                  Dispute Rate — {editValuesEntry.brokerName} / {editValuesEntry.partyName}
-                </h3>
-                <div style={{ background: '#f8f9fa', padding: '6px 10px', borderRadius: '4px', marginBottom: '10px', fontSize: '11px', textAlign: 'center' }}>
-                  Bags: <b>{editValuesEntry.bags}</b> | Variety: <b>{editValuesEntry.variety}</b> | Location: <b>{editValuesEntry.location}</b>
+                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', padding: '10px', marginBottom: '14px', textAlign: 'center' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#dc2626' }}>⚖️ Dispute Rate Entry</span>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
-                  <div>
-                    <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Dispute Rate</label>
-                    <input type="number" step="0.01" value={editValuesData.disputeBaseRate}
-                      onChange={e => setEditValuesData({ ...editValuesData, disputeBaseRate: e.target.value })}
-                      style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box' }} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Type</label>
-                    <select value={editValuesData.disputeBaseRateType} onChange={e => setEditValuesData({ ...editValuesData, disputeBaseRateType: e.target.value })}
-                      style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box' }}>
-                      <option value="PD_LOOSE">PD/Loose</option>
-                      <option value="PD_WB">PD/WB</option>
-                      <option value="MD_WB">MD/WB</option>
-                      <option value="MD_LOOSE">MD/Loose</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Sute</label>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <input type="number" step="0.01" value={editValuesData.sute}
-                        onChange={e => setEditValuesData({ ...editValuesData, sute: e.target.value })}
-                        style={{ flex: 1, padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', minWidth: 0 }} />
-                      <select value={editValuesData.suteUnit} onChange={e => setEditValuesData({ ...editValuesData, suteUnit: e.target.value })}
-                        style={{ padding: '8px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', minWidth: '80px' }}>
-                        <option value="per_bag">/Bag</option>
-                        <option value="per_ton">/Ton</option>
+              ) : (
+                <div style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: '6px', padding: '10px', marginBottom: '14px', textAlign: 'center' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#7c3aed' }}>⚙️ Revised HM | LF Rate Entry</span>
+                </div>
+              )}
+
+              <div style={{ background: '#f8f9fa', padding: '6px 10px', borderRadius: '4px', marginBottom: '12px', fontSize: '11px', textAlign: 'center' }}>
+                Bags: <b>{editValuesEntry.bags}</b> | Variety: <b>{editValuesEntry.variety}</b> | Location: <b>{editValuesEntry.location}</b>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
+                {isDisputeMode ? (
+                  <>
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Dispute Rate</label>
+                      <input type="number" step="0.01" value={editValuesData.disputeBaseRate}
+                        onChange={e => setEditValuesData({ ...editValuesData, disputeBaseRate: e.target.value })}
+                        style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Type</label>
+                      <select value={editValuesData.disputeBaseRateType} onChange={e => setEditValuesData({ ...editValuesData, disputeBaseRateType: e.target.value })}
+                        style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box' }}>
+                        <option value="PD_LOOSE">PD/Loose</option>
+                        <option value="PD_WB">PD/WB</option>
+                        <option value="MD_WB">MD/WB</option>
+                        <option value="MD_LOOSE">MD/Loose</option>
                       </select>
                     </div>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Moisture %</label>
-                    <input type="number" step="0.01" value={editValuesData.moistureValue}
-                      onChange={e => setEditValuesData({ ...editValuesData, moistureValue: e.target.value })}
-                      style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box' }} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Hamali & LF Option</label>
-                    <select value={editValuesData.revisedRateOption} onChange={e => setEditValuesData({ ...editValuesData, revisedRateOption: e.target.value })}
-                      style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box' }}>
-                      <option value="final">Use Final Rate Hamali & LF</option>
-                      <option value="dispute">Use Existing Revised Rate</option>
-                    </select>
-                  </div>
-                  {editValuesData.revisedRateOption === 'dispute' && (() => {
-                    const offering = editValuesEntry ? (offeringCache[editValuesEntry.id] || {}) : {};
-                    const pendingQueue = String(offering.pendingManagerValueApprovalStatus || '').toLowerCase() === 'pending'
-                      ? normalizePendingManagerApprovalQueue(offering)
-                      : [];
-                    const pendingRevisions = pendingQueue.filter((request: any) => {
-                      const data = request?.data || {};
-                      return (data.revisedHamali !== undefined && data.revisedHamali !== null && data.revisedHamali !== '')
-                        || (data.revisedLf !== undefined && data.revisedLf !== null && data.revisedLf !== '');
-                    });
-                    
-                    const approvedRevisions = Array.isArray(offering.disputeVersions)
-                      ? offering.disputeVersions.filter((v: any) => v.type === 'revision' || (!v.type && ((v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== '') || (v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== ''))))
-                      : [];
-                    const hasLegacyRevision = (approvedRevisions.length === 0 && 
-                      ((offering.revisedHamali !== undefined && offering.revisedHamali !== null && offering.revisedHamali !== '') ||
-                       (offering.revisedLf !== undefined && offering.revisedLf !== null && offering.revisedLf !== '')));
-                    const legacyRevision = hasLegacyRevision ? [{ id: 'legacy-revision', revisedHamali: offering.revisedHamali, hamaliUnit: offering.hamaliUnit, revisedLf: offering.revisedLf, lfUnit: offering.lfUnit }] : [];
-                    const allApprovedRevisions = [...approvedRevisions, ...legacyRevision];
-
-                    const totalRevisions = allApprovedRevisions.length + pendingRevisions.length;
-
-                    if (totalRevisions === 0) {
-                      return (
-                        <div style={{ fontSize: '11px', color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', padding: '8px 10px' }}>
-                          No revised Hamali & LF rates exist yet for this lot. Please add a revised rate first.
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div>
-                        <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Select Revised Rate</label>
-                        <select
-                          value={editValuesData.linkedRevisionId || ''}
-                          onChange={e => setEditValuesData({ ...editValuesData, linkedRevisionId: e.target.value })}
-                          style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box' }}
-                        >
-                          <option value="">-- Select Revision --</option>
-                          {allApprovedRevisions.map((rev: any, index: number) => {
-                            const hVal = rev.revisedHamali || offering.revisedHamali || offering.hamali;
-                            const hUnit = rev.hamaliUnit || offering.hamaliUnit || 'per_bag';
-                            const lfVal = rev.revisedLf || offering.revisedLf || offering.lf;
-                            const lfUnit = rev.lfUnit || offering.lfUnit || 'per_bag';
-                            const labelText = `Revision ${index + 1} (Approved): Hamali ${hVal}/${hUnit === 'per_quintal' ? 'Qtl' : 'Bag'}, LF ${lfVal}/${lfUnit === 'per_quintal' ? 'Qtl' : 'Bag'}`;
-                            return (
-                              <option key={`approved-rev-${rev.id || index}`} value={rev.id || `approved-rev-${index}`}>
-                                {labelText}
-                              </option>
-                            );
-                          })}
-                          {pendingRevisions.map((request: any, index: number) => {
-                            const data = request?.data || {};
-                            const displayNum = allApprovedRevisions.length + index + 1;
-                            const hVal = data.revisedHamali || offering.hamali;
-                            const hUnit = data.hamaliUnit || offering.hamaliUnit || 'per_bag';
-                            const lfVal = data.revisedLf || offering.lf;
-                            const lfUnit = data.lfUnit || offering.lfUnit || 'per_bag';
-                            const labelText = `Revision ${displayNum} (Pending): Hamali ${hVal}/${hUnit === 'per_quintal' ? 'Qtl' : 'Bag'}, LF ${lfVal}/${lfUnit === 'per_quintal' ? 'Qtl' : 'Bag'}`;
-                            return (
-                              <option key={`pending-rev-${request.id || index}`} value={request.id}>
-                                {labelText}
-                              </option>
-                            );
-                          })}
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Sute</label>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <input type="number" step="0.01" value={editValuesData.sute}
+                          onChange={e => setEditValuesData({ ...editValuesData, sute: e.target.value })}
+                          style={{ flex: 1, padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', minWidth: 0 }} />
+                        <select value={editValuesData.suteUnit} onChange={e => setEditValuesData({ ...editValuesData, suteUnit: e.target.value })}
+                          style={{ padding: '8px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', minWidth: '80px' }}>
+                          <option value="per_bag">/Bag</option>
+                          <option value="per_ton">/Ton</option>
                         </select>
                       </div>
-                    );
-                  })()}
-                  <div>
-                    <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Dispute Reason</label>
-                    <input type="text" placeholder="Enter reason for dispute" value={editValuesData.disputeReason || ''}
-                      onChange={e => setEditValuesData({ ...editValuesData, disputeReason: e.target.value })}
-                      style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box' }} />
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <h3 style={{ marginTop: 0, color: '#8e44ad', borderBottom: '2px solid #8e44ad', paddingBottom: '8px', fontSize: '14px', fontWeight: '800' }}>
-                  HM | LF — {editValuesEntry.brokerName} / {editValuesEntry.partyName}
-                </h3>
-                <div style={{ background: '#f8f9fa', padding: '6px 10px', borderRadius: '4px', marginBottom: '10px', fontSize: '11px', textAlign: 'center' }}>
-                  Bags: <b>{editValuesEntry.bags}</b> | Variety: <b>{editValuesEntry.variety}</b> | Location: <b>{editValuesEntry.location}</b>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
-                  <div>
-                    <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Revised Hamali{origHamaliText}</label>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <input type="number" step="0.01" value={editValuesData.revisedHamali}
-                        onChange={e => setEditValuesData({ ...editValuesData, revisedHamali: e.target.value })}
-                        style={{ flex: 1, padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', minWidth: 0 }} />
-                      <select value={editValuesData.hamaliUnit} onChange={e => setEditValuesData({ ...editValuesData, hamaliUnit: e.target.value })}
-                        style={{ padding: '8px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', minWidth: '80px' }}>
-                        <option value="per_bag">/Bag</option>
-                        <option value="per_quintal">/Qtl</option>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Moisture %</label>
+                      <input type="number" step="0.01" value={editValuesData.moistureValue}
+                        onChange={e => setEditValuesData({ ...editValuesData, moistureValue: e.target.value })}
+                        style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Hamali & LF Option</label>
+                      <select value={editValuesData.revisedRateOption} onChange={e => setEditValuesData({ ...editValuesData, revisedRateOption: e.target.value })}
+                        style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box' }}>
+                        <option value="final">Use Final Rate Hamali & LF</option>
+                        <option value="dispute">Use Existing Revised Rate</option>
                       </select>
                     </div>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Revised LF{origLfText}</label>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <input type="number" step="0.01" value={editValuesData.revisedLf}
-                        onChange={e => setEditValuesData({ ...editValuesData, revisedLf: e.target.value })}
-                        style={{ flex: 1, padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', minWidth: 0 }} />
-                      <select value={editValuesData.lfUnit} onChange={e => setEditValuesData({ ...editValuesData, lfUnit: e.target.value })}
-                        style={{ padding: '8px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', minWidth: '80px' }}>
-                        <option value="per_bag">/Bag</option>
-                        <option value="per_quintal">/Qtl</option>
-                      </select>
+                    {editValuesData.revisedRateOption === 'dispute' && (() => {
+                      const offering = editValuesEntry ? (offeringCache[editValuesEntry.id] || {}) : {};
+                      const pendingQueue = String(offering.pendingManagerValueApprovalStatus || '').toLowerCase() === 'pending'
+                        ? normalizePendingManagerApprovalQueue(offering)
+                        : [];
+                      const pendingRevisions = pendingQueue.filter((request: any) => {
+                        const data = request?.data || {};
+                        return (data.revisedHamali !== undefined && data.revisedHamali !== null && data.revisedHamali !== '')
+                          || (data.revisedLf !== undefined && data.revisedLf !== null && data.revisedLf !== '');
+                      });
+                      
+                      const approvedRevisions = Array.isArray(offering.disputeVersions)
+                        ? offering.disputeVersions.filter((v: any) => v.type === 'revision' || (!v.type && ((v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== '') || (v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== ''))))
+                        : [];
+                      const hasLegacyRevision = (approvedRevisions.length === 0 && 
+                        ((offering.revisedHamali !== undefined && offering.revisedHamali !== null && offering.revisedHamali !== '') ||
+                         (offering.revisedLf !== undefined && offering.revisedLf !== null && offering.revisedLf !== '')));
+                      const legacyRevision = hasLegacyRevision ? [{ id: 'legacy-revision', revisedHamali: offering.revisedHamali, hamaliUnit: offering.hamaliUnit, revisedLf: offering.revisedLf, lfUnit: offering.lfUnit }] : [];
+                      const allApprovedRevisions = [...approvedRevisions, ...legacyRevision];
+
+                      const totalRevisions = allApprovedRevisions.length + pendingRevisions.length;
+
+                      if (totalRevisions === 0) {
+                        return (
+                          <div style={{ fontSize: '11px', color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', padding: '8px 10px' }}>
+                            No revised Hamali & LF rates exist yet for this lot. Please add a revised rate first.
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Select Revised Rate</label>
+                          <select
+                            value={editValuesData.linkedRevisionId || ''}
+                            onChange={e => setEditValuesData({ ...editValuesData, linkedRevisionId: e.target.value })}
+                            style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box' }}
+                          >
+                            <option value="">-- Select Revision --</option>
+                            {allApprovedRevisions.map((rev: any, index: number) => {
+                              const hVal = rev.revisedHamali || offering.revisedHamali || offering.hamali;
+                              const hUnit = rev.hamaliUnit || offering.hamaliUnit || 'per_bag';
+                              const lfVal = rev.revisedLf || offering.revisedLf || offering.lf;
+                              const lfUnit = rev.lfUnit || offering.lfUnit || 'per_bag';
+                              const labelText = `Revision ${index + 1} (Approved): Hamali ${hVal}/${hUnit === 'per_quintal' ? 'Qtl' : 'Bag'}, LF ${lfVal}/${lfUnit === 'per_quintal' ? 'Qtl' : 'Bag'}`;
+                              return (
+                                <option key={`approved-rev-${rev.id || index}`} value={rev.id || `approved-rev-${index}`}>
+                                  {labelText}
+                                </option>
+                              );
+                            })}
+                            {pendingRevisions.map((request: any, index: number) => {
+                              const data = request?.data || {};
+                              const displayNum = allApprovedRevisions.length + index + 1;
+                              const hVal = data.revisedHamali || offering.hamali;
+                              const hUnit = data.hamaliUnit || offering.hamaliUnit || 'per_bag';
+                              const lfVal = data.revisedLf || offering.lf;
+                              const lfUnit = data.lfUnit || offering.lfUnit || 'per_bag';
+                              const labelText = `Revision ${displayNum} (Pending): Hamali ${hVal}/${hUnit === 'per_quintal' ? 'Qtl' : 'Bag'}, LF ${lfVal}/${lfUnit === 'per_quintal' ? 'Qtl' : 'Bag'}`;
+                              return (
+                                <option key={`pending-rev-${request.id || index}`} value={request.id}>
+                                  {labelText}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+                      );
+                    })()}
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Dispute Reason</label>
+                      <input type="text" placeholder="Enter reason for dispute" value={editValuesData.disputeReason || ''}
+                        onChange={e => setEditValuesData({ ...editValuesData, disputeReason: e.target.value })}
+                        style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box' }} />
                     </div>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Rate Target</label>
-                    <select value={editValuesData.revisedRateOption} onChange={e => setEditValuesData({ ...editValuesData, revisedRateOption: e.target.value })}
-                      style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box' }}>
-                      <option value="dispute">Add for Dispute</option>
-                      <option value="final">Add for Final Rate</option>
-                    </select>
-                  </div>
-                  {editValuesData.revisedRateOption === 'dispute' && (() => {
-                    const offering = editValuesEntry ? (offeringCache[editValuesEntry.id] || {}) : {};
-                    const pendingDisputes = getPendingDisputeRequests(offering);
-                    
-                    const approvedDisputes = Array.isArray(offering.disputeVersions)
-                      ? offering.disputeVersions.filter((v: any) => v.type === 'dispute' || (!v.type && v.disputeBaseRate !== undefined && v.disputeBaseRate !== null && v.disputeBaseRate !== ''))
-                      : [];
-                    const hasLegacyApproved = approvedDisputes.length === 0 && (offering.disputeBaseRate !== undefined && offering.disputeBaseRate !== null && offering.disputeBaseRate !== '');
-                    const legacyApprovedDisputes = hasLegacyApproved
-                      ? [{ id: 'legacy-approved', disputeBaseRate: offering.disputeBaseRate, disputeBaseRateType: offering.disputeBaseRateType || 'PD/WB' }]
-                      : [];
-                    const allApprovedDisputes = [...approvedDisputes, ...legacyApprovedDisputes];
-
-                    const totalDisputes = allApprovedDisputes.length + pendingDisputes.length;
-
-                    if (totalDisputes === 0) {
-                      return (
-                        <div style={{ fontSize: '11px', color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', padding: '8px 10px' }}>
-                          No dispute exists yet for this lot. Please add a dispute rate first.
-                        </div>
-                      );
-                    }
-
-                    if (totalDisputes === 1) {
-                      const single = allApprovedDisputes.length === 1 ? allApprovedDisputes[0] : pendingDisputes[0].data;
-                      const rateVal = single.disputeBaseRate || single.data?.disputeBaseRate;
-                      const typeVal = single.disputeBaseRateType || single.data?.disputeBaseRateType || 'PD/WB';
-                      return (
-                        <div style={{ fontSize: '11px', color: '#475569', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px 10px' }}>
-                          Will apply to current dispute {rateVal} ({typeVal})
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div>
-                        <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Select Dispute</label>
-                        <select
-                          value={editValuesData.linkedDisputeRequestId || ''}
-                          onChange={e => setEditValuesData({ ...editValuesData, linkedDisputeRequestId: e.target.value })}
-                          style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box' }}
-                        >
-                          <option value="">-- Select Dispute --</option>
-                          {allApprovedDisputes.map((disp: any, index: number) => (
-                            <option key={`approved-${disp.id || index}`} value={disp.id || `approved-${index}`}>
-                              {`Dispute ${index + 1} (Approved): ${disp.disputeBaseRate} (${disp.disputeBaseRateType || 'PD/WB'})`}
-                            </option>
-                          ))}
-                          {pendingDisputes.map((request: any, index: number) => {
-                            const data = request?.data || {};
-                            const displayNum = allApprovedDisputes.length + index + 1;
-                            return (
-                              <option key={`pending-${request.id || index}`} value={request.id}>
-                                {`Dispute ${displayNum} (Pending): ${data.disputeBaseRate} (${data.disputeBaseRateType || 'PD/WB'})`}
-                              </option>
-                            );
-                          })}
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Revised Hamali{origHamaliText}</label>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <input type="number" step="0.01" value={editValuesData.revisedHamali}
+                          onChange={e => setEditValuesData({ ...editValuesData, revisedHamali: e.target.value })}
+                          style={{ flex: 1, padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', minWidth: 0 }} />
+                        <select value={editValuesData.hamaliUnit} onChange={e => setEditValuesData({ ...editValuesData, hamaliUnit: e.target.value })}
+                          style={{ padding: '8px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', minWidth: '80px' }}>
+                          <option value="per_bag">/Bag</option>
+                          <option value="per_quintal">/Qtl</option>
                         </select>
                       </div>
-                    );
-                  })()}
-                </div>
-              </>
-            )}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid #eee', paddingTop: '10px', marginTop: '14px' }}>
-              <button onClick={() => { setEditValuesEntry(null); setEditMode(null); }} disabled={isSavingValues}
-                style={{ padding: '6px 14px', border: '1px solid #ddd', borderRadius: '4px', background: 'white', cursor: 'pointer', fontSize: '12px' }}>Cancel</button>
-              <button onClick={handleSaveEditValues} disabled={isSavingValues}
-                style={{ padding: '6px 18px', border: 'none', borderRadius: '4px', background: isSavingValues ? '#95a5a6' : '#27ae60', color: 'white', fontWeight: 700, cursor: isSavingValues ? 'not-allowed' : 'pointer', fontSize: '12px' }}>
-                {isSavingValues ? 'Saving...' : 'Save Values'}
-              </button>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Revised LF{origLfText}</label>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <input type="number" step="0.01" value={editValuesData.revisedLf}
+                          onChange={e => setEditValuesData({ ...editValuesData, revisedLf: e.target.value })}
+                          style={{ flex: 1, padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', minWidth: 0 }} />
+                        <select value={editValuesData.lfUnit} onChange={e => setEditValuesData({ ...editValuesData, lfUnit: e.target.value })}
+                          style={{ padding: '8px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', minWidth: '80px' }}>
+                          <option value="per_bag">/Bag</option>
+                          <option value="per_quintal">/Qtl</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Rate Target</label>
+                      <select value={editValuesData.revisedRateOption} onChange={e => setEditValuesData({ ...editValuesData, revisedRateOption: e.target.value })}
+                        style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box' }}>
+                        <option value="final">Add for Final Rate</option>
+                        <option value="dispute">Add for Dispute</option>
+                      </select>
+                    </div>
+                    {editValuesData.revisedRateOption === 'dispute' && (() => {
+                      const offering = editValuesEntry ? (offeringCache[editValuesEntry.id] || {}) : {};
+                      const pendingDisputes = getPendingDisputeRequests(offering);
+                      
+                      const approvedDisputes = Array.isArray(offering.disputeVersions)
+                        ? offering.disputeVersions.filter((v: any) => v.type === 'dispute' || (!v.type && v.disputeBaseRate !== undefined && v.disputeBaseRate !== null && v.disputeBaseRate !== ''))
+                        : [];
+                      const hasLegacyApproved = approvedDisputes.length === 0 && (offering.disputeBaseRate !== undefined && offering.disputeBaseRate !== null && offering.disputeBaseRate !== '');
+                      const legacyApprovedDisputes = hasLegacyApproved
+                        ? [{ id: 'legacy-approved', disputeBaseRate: offering.disputeBaseRate, disputeBaseRateType: offering.disputeBaseRateType || 'PD/WB' }]
+                        : [];
+                      const allApprovedDisputes = [...approvedDisputes, ...legacyApprovedDisputes];
+
+                      const totalDisputes = allApprovedDisputes.length + pendingDisputes.length;
+
+                      if (totalDisputes === 0) {
+                        return (
+                          <div style={{ fontSize: '11px', color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', padding: '8px 10px' }}>
+                            No dispute exists yet for this lot. Please add a dispute rate first.
+                          </div>
+                        );
+                      }
+
+                      if (totalDisputes === 1) {
+                        const single = allApprovedDisputes.length === 1 ? allApprovedDisputes[0] : pendingDisputes[0].data;
+                        const rateVal = single.disputeBaseRate || single.data?.disputeBaseRate;
+                        const typeVal = single.disputeBaseRateType || single.data?.disputeBaseRateType || 'PD/WB';
+                        return (
+                          <div style={{ fontSize: '11px', color: '#475569', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px 10px' }}>
+                            Will apply to current dispute {rateVal} ({typeVal})
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px', color: '#334155' }}>Select Dispute</label>
+                          <select
+                            value={editValuesData.linkedDisputeRequestId || ''}
+                            onChange={e => setEditValuesData({ ...editValuesData, linkedDisputeRequestId: e.target.value })}
+                            style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box' }}
+                          >
+                            <option value="">-- Select Dispute --</option>
+                            {allApprovedDisputes.map((disp: any, index: number) => (
+                              <option key={`approved-${disp.id || index}`} value={disp.id || `approved-${index}`}>
+                                {`Dispute ${index + 1} (Approved): ${disp.disputeBaseRate} (${disp.disputeBaseRateType || 'PD/WB'})`}
+                              </option>
+                            ))}
+                            {pendingDisputes.map((request: any, index: number) => {
+                              const data = request?.data || {};
+                              const displayNum = allApprovedDisputes.length + index + 1;
+                              return (
+                                <option key={`pending-${request.id || index}`} value={request.id}>
+                                  {`Dispute ${displayNum} (Pending): ${data.disputeBaseRate} (${data.disputeBaseRateType || 'PD/WB'})`}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid #eee', paddingTop: '10px', marginTop: '14px' }}>
+                <button onClick={() => { setEditValuesEntry(null); setEditMode(null); }} disabled={isSavingValues}
+                  style={{ padding: '6px 14px', border: '1px solid #ddd', borderRadius: '4px', background: 'white', cursor: 'pointer', fontSize: '12px' }}>Cancel</button>
+                <button onClick={handleSaveEditValues} disabled={isSavingValues}
+                  style={{ padding: '6px 18px', border: 'none', borderRadius: '4px', background: isSavingValues ? '#95a5a6' : '#27ae60', color: 'white', fontWeight: 700, cursor: isSavingValues ? 'not-allowed' : 'pointer', fontSize: '12px' }}>
+                  {isSavingValues ? 'Saving...' : 'Save Values'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      ); })()}
+        ); })()}
       {closingEntryId && (
         <ConfirmationModal
           isOpen={isCloseModalOpen}
@@ -1967,6 +2012,7 @@ const AllottedSupervisors: React.FC = () => {
           progressiveMode={true}
           onClose={() => {
             setDetailModalEntry(null);
+            setTargetLorryTripId(null);
             loadEntries(true);
           }}
           showCollectorLoginPair={false}
@@ -1974,6 +2020,49 @@ const AllottedSupervisors: React.FC = () => {
           onTriggerDispute={(entry) => {
             setDetailModalEntry(null);
             handleOpenEditValues(entry, 'dispute');
+          }}
+          targetLorryTripId={targetLorryTripId || undefined}
+          targetRateLinkAction={async (rateInfo) => {
+            if (!targetLorryTripId) return;
+            try {
+              const token = localStorage.getItem('token');
+              // Settle/Link price configuration parameters back to final-price or update-trip endpoint
+              const payload = {
+                isFinalized: true,
+                finalBaseRate: rateInfo.rate,
+                finalBaseRateType: rateInfo.rateType,
+                finalSute: rateInfo.sute,
+                finalSuteUnit: rateInfo.suteUnit,
+                moistureValue: rateInfo.moisture,
+                revisedHamali: rateInfo.hamali || null,
+                hamaliUnit: rateInfo.hamaliUnit,
+                revisedLf: rateInfo.lf || null,
+                lfUnit: rateInfo.lfUnit,
+                revisedRateOption: rateInfo.isDispute ? 'dispute' : (rateInfo.isRevision ? 'revision' : 'final'),
+                isDispute: rateInfo.isDispute,
+                isRevision: rateInfo.isRevision,
+                linkedRevisionId: rateInfo.linkedRevisionId || null,
+                disputeReason: rateInfo.disputeReason || '',
+                targetLorryTripId: targetLorryTripId
+              };
+              
+              const res = await axios.post(
+                `${API_URL}/sample-entries/${detailModalEntry.id}/final-price`,
+                payload,
+                { headers: { Authorization: `Bearer ${token}` } }
+              );
+              
+              if (res.data?.pendingApproval) {
+                showNotification('⏳ Rate edit submitted for Admin approval!', 'warning');
+              } else {
+                showNotification('Patti Rate manually linked to lorry trip successfully!', 'success');
+              }
+              // Keep modal open, only load entries to update background calculations and trigger list refreshing
+              await loadEntries(true);
+            } catch (err: any) {
+              console.error(err);
+              showNotification(err.response?.data?.error || 'Failed to manually link patti rate details', 'error');
+            }
           }}
         />
       )}

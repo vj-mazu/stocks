@@ -967,6 +967,7 @@ class PhysicalInspectionService {
         reportedBy: inspection.reportedBy,
         samplingStages: inspection.samplingStages || {},
         lotAllotment: inspection.lotAllotment,
+        linkedPattiRate: inspection.linkedPattiRate || null,
         createdAt: inspection.createdAt
       }));
 

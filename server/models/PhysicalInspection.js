@@ -101,6 +101,57 @@ const PhysicalInspection = sequelize.define('PhysicalInspection', {
     allowNull: true,
     defaultValue: {},
     field: 'sampling_stages'
+  },
+  linkedPattiRate: {
+    type: DataTypes.JSONB,
+    allowNull: true,
+    defaultValue: null,
+    field: 'linked_patti_rate'
+  },
+  finalBaseRate: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    field: 'final_base_rate'
+  },
+  finalBaseRateType: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    field: 'final_base_rate_type'
+  },
+  finalSute: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    field: 'final_sute'
+  },
+  finalSuteUnit: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    field: 'final_sute_unit'
+  },
+  moisture: {
+    type: DataTypes.DECIMAL(5, 2),
+    allowNull: true,
+    field: 'moisture'
+  },
+  revisedHamali: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    field: 'revised_hamali'
+  },
+  hamaliUnit: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    field: 'hamali_unit'
+  },
+  revisedLf: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    field: 'revised_lf'
+  },
+  lfUnit: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    field: 'lf_unit'
   }
 }, {
   tableName: 'physical_inspections',

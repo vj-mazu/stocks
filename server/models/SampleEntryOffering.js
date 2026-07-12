@@ -349,6 +349,16 @@ const SampleEntryOffering = sequelize.define('SampleEntryOffering', {
         allowNull: true,
         field: 'pending_manager_value_approval_requested_at'
     },
+    pendingRateLinkingStatus: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+        field: 'pending_rate_linking_status'
+    },
+    pendingRateLinkingData: {
+        type: DataTypes.JSONB,
+        allowNull: true,
+        field: 'pending_rate_linking_data'
+    },
     pendingManagerValueApprovalApprovedBy: {
         type: DataTypes.INTEGER,
         allowNull: true,

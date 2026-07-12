@@ -1455,7 +1455,9 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             INVENTORY_ENTRY: { bg: '#f1f8e9', color: '#33691e', label: 'Inventory Entry' },
             COMPLETED: { bg: '#c8e6c9', color: '#1b5e20', label: 'Completed' },
             CANCELLED: { bg: '#f8bbd0', color: '#880e4f', label: 'Cancelled' },
-            FAILED: { bg: '#e74c3c', color: '#ffffff', label: 'Failed' }
+            FAILED: { bg: '#e74c3c', color: '#ffffff', label: 'Failed' },
+            RECHECK: { bg: '#fff8e1', color: '#f57f17', label: 'Pending' },
+            RECHECKING: { bg: '#fff8e1', color: '#f57f17', label: 'Pending' }
         };
         return colors[key] || {
             bg: '#f5f5f5',

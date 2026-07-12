@@ -323,6 +323,7 @@ const SampleEntryLedger: React.FC = () => {
 
   const openEditModal = (entry: any) => {
     const inspections = entry.lotAllotment?.physicalInspections || [];
+    const offering = entry.offering || {};
     setEditEntry(entry);
     setEditForm({
       // Sample entry fields
@@ -333,8 +334,31 @@ const SampleEntryLedger: React.FC = () => {
       bags: entry.bags || '',
       lorryNumber: entry.lorryNumber || '',
       offeringPrice: entry.offeringPrice || '',
-      finalPrice: entry.finalPrice || '',
+      finalPrice: entry.finalPrice || offering.finalPrice || '',
       priceType: entry.priceType || '',
+      // Patti fields
+      finalBaseRate: offering.finalBaseRate || '',
+      finalSute: offering.finalSute || '',
+      finalSuteUnit: offering.finalSuteUnit || 'per_ton',
+      baseRateType: offering.baseRateType || 'PD_WB',
+      baseRateUnit: offering.baseRateUnit || 'per_bag',
+      moistureValue: offering.moistureValue || '',
+      hamali: offering.hamali || '',
+      hamaliUnit: offering.hamaliUnit || 'per_bag',
+      brokerage: offering.brokerage || '',
+      brokerageUnit: offering.brokerageUnit || 'per_bag',
+      lf: offering.lf || '',
+      lfUnit: offering.lfUnit || 'per_bag',
+      egbValue: offering.egbValue || '',
+      egbType: offering.egbType || 'mill',
+      cdEnabled: offering.cdEnabled || false,
+      cdValue: offering.cdValue || '',
+      cdUnit: offering.cdUnit || 'percentage',
+      bankLoanEnabled: offering.bankLoanEnabled || false,
+      bankLoanValue: offering.bankLoanValue || '',
+      bankLoanUnit: offering.bankLoanUnit || 'per_bag',
+      paymentConditionValue: offering.paymentConditionValue || '',
+      paymentConditionUnit: offering.paymentConditionUnit || 'days',
       // Quality parameters
       moisture: entry.qualityParameters?.moisture || '',
       cutting1: entry.qualityParameters?.cutting1 || '',
@@ -399,7 +423,6 @@ const SampleEntryLedger: React.FC = () => {
     const headers = { Authorization: `Bearer ${token}` };
 
     try {
-      // 1. Update sample entry basic fields
       await axios.put(`${API_URL}/sample-entries/${editEntry.id}`, {
         partyName: editForm.partyName,
         brokerName: editForm.brokerName,
@@ -409,7 +432,30 @@ const SampleEntryLedger: React.FC = () => {
         lorryNumber: editForm.lorryNumber,
         offeringPrice: editForm.offeringPrice ? Number(editForm.offeringPrice) : null,
         finalPrice: editForm.finalPrice ? Number(editForm.finalPrice) : null,
-        priceType: editForm.priceType || null
+        priceType: editForm.priceType || null,
+        // Patti rates updates
+        finalBaseRate: editForm.finalBaseRate ? Number(editForm.finalBaseRate) : null,
+        finalSute: editForm.finalSute ? Number(editForm.finalSute) : null,
+        finalSuteUnit: editForm.finalSuteUnit || 'per_ton',
+        baseRateType: editForm.baseRateType || 'PD_WB',
+        baseRateUnit: editForm.baseRateUnit || 'per_bag',
+        moistureValue: editForm.moistureValue ? Number(editForm.moistureValue) : null,
+        hamali: editForm.hamali ? Number(editForm.hamali) : null,
+        hamaliUnit: editForm.hamaliUnit || 'per_bag',
+        brokerage: editForm.brokerage ? Number(editForm.brokerage) : null,
+        brokerageUnit: editForm.brokerageUnit || 'per_bag',
+        lf: editForm.lf ? Number(editForm.lf) : null,
+        lfUnit: editForm.lfUnit || 'per_bag',
+        egbValue: editForm.egbValue ? Number(editForm.egbValue) : null,
+        egbType: editForm.egbType || 'mill',
+        cdEnabled: editForm.cdEnabled || false,
+        cdValue: editForm.cdValue ? Number(editForm.cdValue) : null,
+        cdUnit: editForm.cdUnit || 'percentage',
+        bankLoanEnabled: editForm.bankLoanEnabled || false,
+        bankLoanValue: editForm.bankLoanValue ? Number(editForm.bankLoanValue) : null,
+        bankLoanUnit: editForm.bankLoanUnit || 'per_bag',
+        paymentConditionValue: editForm.paymentConditionValue ? Number(editForm.paymentConditionValue) : null,
+        paymentConditionUnit: editForm.paymentConditionUnit || 'days'
       }, { headers });
 
       // 2. Update quality parameters (if they exist)
@@ -796,6 +842,55 @@ const SampleEntryLedger: React.FC = () => {
                       <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: '#666', marginBottom: '2px' }}>{l}</label>
                       <input type={t || 'text'} value={editForm[f] || ''} onChange={e => handleEditFormChange(f, e.target.value)}
                         style={{ width: '100%', padding: '5px', fontSize: '12px', border: '1px solid #ddd', borderRadius: '3px', boxSizing: 'border-box' }} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Section 1.5: Patti Pricing & Rates */}
+              <div style={{ marginBottom: '15px' }}>
+                <h4 style={{ margin: '0 0 8px', fontSize: '13px', color: '#0369a1', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>💵 Patti Pricing & Rates</h4>
+                <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                  {[
+                    { l: 'Final Base Rate', f: 'finalBaseRate', t: 'number' },
+                    { l: 'Final Sute', f: 'finalSute', t: 'number' },
+                    { l: 'Final Sute Unit', f: 'finalSuteUnit', select: ['per_ton', 'per_bag'] },
+                    { l: 'Base Rate Type', f: 'baseRateType', select: ['PD_WB', 'PD_OB', 'RICE_WB', 'RICE_OB'] },
+                    { l: 'Base Rate Unit', f: 'baseRateUnit', select: ['per_bag', 'per_quintal', 'per_kg'] },
+                    { l: 'Moisture Value', f: 'moistureValue', t: 'number' },
+                    { l: 'Hamali', f: 'hamali', t: 'number' },
+                    { l: 'Hamali Unit', f: 'hamaliUnit', select: ['per_bag', 'per_quintal', 'per_kg'] },
+                    { l: 'Brokerage', f: 'brokerage', t: 'number' },
+                    { l: 'Brokerage Unit', f: 'brokerageUnit', select: ['per_bag', 'per_quintal', 'per_kg'] },
+                    { l: 'LF', f: 'lf', t: 'number' },
+                    { l: 'LF Unit', f: 'lfUnit', select: ['per_bag', 'per_quintal', 'per_kg'] },
+                    { l: 'EGB Value', f: 'egbValue', t: 'number' },
+                    { l: 'EGB Type', f: 'egbType', select: ['mill', 'purchase'] },
+                    { l: 'CD Enabled', f: 'cdEnabled', checkbox: true },
+                    { l: 'CD Value', f: 'cdValue', t: 'number' },
+                    { l: 'CD Unit', f: 'cdUnit', select: ['percentage', 'per_bag', 'per_quintal', 'per_kg'] },
+                    { l: 'Bank Loan Enabled', f: 'bankLoanEnabled', checkbox: true },
+                    { l: 'Bank Loan Value', f: 'bankLoanValue', t: 'number' },
+                    { l: 'Bank Loan Unit', f: 'bankLoanUnit', select: ['per_bag', 'per_quintal', 'per_kg'] },
+                    { l: 'Payment Cond Value', f: 'paymentConditionValue', t: 'number' },
+                    { l: 'Payment Cond Unit', f: 'paymentConditionUnit', select: ['days', 'months'] }
+                  ].map((field) => (
+                    <div key={field.f} style={{ gridColumn: field.checkbox ? 'span 1' : undefined }}>
+                      <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: '#666', marginBottom: '2px' }}>{field.l}</label>
+                      {field.checkbox ? (
+                        <input type="checkbox" checked={!!editForm[field.f]} onChange={e => handleEditFormChange(field.f, e.target.checked)}
+                          style={{ margin: '6px 0', cursor: 'pointer' }} />
+                      ) : field.select ? (
+                        <select value={editForm[field.f] || ''} onChange={e => handleEditFormChange(field.f, e.target.value)}
+                          style={{ width: '100%', padding: '5px', fontSize: '12px', border: '1px solid #ddd', borderRadius: '3px', boxSizing: 'border-box' }}>
+                          {field.select.map((opt) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input type={field.t || 'text'} value={editForm[field.f] || ''} onChange={e => handleEditFormChange(field.f, e.target.value)}
+                          style={{ width: '100%', padding: '5px', fontSize: '12px', border: '1px solid #ddd', borderRadius: '3px', boxSizing: 'border-box' }} />
+                      )}
                     </div>
                   ))}
                 </div>

@@ -194,6 +194,7 @@ const RiceStockVarietyDropdown: React.FC<RiceStockVarietyDropdownProps> = ({
         code: v.code || v.name?.substring(0, 10).toUpperCase(),
         standardized_variety: v.name,
         allotted_variety: v.name,
+        variety: v.name, // Add 'variety' field for backwards-compatibility with stock check lookups
         processing_type: 'Raw' // default fallback
       }));
       

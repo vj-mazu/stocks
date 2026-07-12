@@ -609,7 +609,7 @@ const getApprovedFullAvgBags = (stages: any, defaultBags: any) => {
     return defaultBags || '-';
 };
 
-export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpdate, showCollectorLoginPair = false, progressiveMode = false, onEditStage, onTriggerDispute, autoTriggerDisputeKey }: { detailEntry: SampleEntry, detailMode: 'quick' | 'history' | 'summary' | 'full', onClose: () => void, onUpdate?: (gpsCoordinates?: string) => void | Promise<void>, showCollectorLoginPair?: boolean, progressiveMode?: boolean, onEditStage?: (lorryNumber: string, stageKey: string) => void, onTriggerDispute?: (entry: SampleEntry) => void, autoTriggerDisputeKey?: { inspectionId: string; stageKey: string } }) => {
+export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpdate, showCollectorLoginPair = false, progressiveMode = false, onEditStage, onTriggerDispute, autoTriggerDisputeKey, targetRateLinkAction, targetLorryTripId }: { detailEntry: SampleEntry, detailMode: 'quick' | 'history' | 'summary' | 'full', onClose: () => void, onUpdate?: (gpsCoordinates?: string) => void | Promise<void>, showCollectorLoginPair?: boolean, progressiveMode?: boolean, onEditStage?: (lorryNumber: string, stageKey: string) => void, onTriggerDispute?: (entry: SampleEntry) => void, autoTriggerDisputeKey?: { inspectionId: string; stageKey: string }, targetRateLinkAction?: (rateInfo: { rate: number; rateType: string; sute: number; suteUnit: string; moisture: number; hamali: number; hamaliUnit: string; lf: number; lfUnit: string; disputeReason?: string; isDispute: boolean; isRevision: boolean; linkedRevisionId?: string | null }) => void | Promise<void>, targetLorryTripId?: string }) => {
     const { user } = useAuth();
     const buildMapHref = (value: any) => {
         const raw = typeof value === 'object' && value !== null
@@ -2738,12 +2738,13 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         });
     };
 
-    const buildPriceComparisonRows = () => {
+    const buildPriceComparisonRows = (rateInfoAction?: (rateInfo: any) => void) => {
         const o = detailEntry.offering;
         if (!o) return [];
 
         const rows: any[] = [];
         const versions = Array.isArray(o.offerVersions) ? o.offerVersions : [];
+        const showLinkAction = typeof rateInfoAction === 'function';
         
         // Add historical offers
         versions.forEach((v: any, i: number) => {
@@ -2752,6 +2753,28 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             const suteVal = v.sute ?? o.sute;
             const suteUnitVal = v.suteUnit ?? o.suteUnit;
             const egbTypeVal = v.egbType ?? o.egbType;
+            
+            const actionBtn = showLinkAction ? (
+                <button
+                    onClick={() => rateInfoAction({
+                        rate: Number(v.offerBaseRateValue || v.offeringPrice || 0),
+                        rateType: v.baseRateType || o.baseRateType || 'PD_LOOSE',
+                        sute: Number(suteVal || 0),
+                        suteUnit: suteUnitVal || 'per_ton',
+                        moisture: Number(v.moistureValue ?? o.moistureValue ?? 0),
+                        hamali: Number(v.hamali || o.hamali || 0),
+                        hamaliUnit: v.hamaliUnit || o.hamaliUnit || 'per_bag',
+                        lf: Number(v.lf || o.lf || 0),
+                        lfUnit: v.lfUnit || o.lfUnit || 'per_bag',
+                        isDispute: false,
+                        isRevision: false
+                    })}
+                    style={{ background: '#22c55e', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '10.5px', fontWeight: 'bold' }}
+                >
+                    Link Rate
+                </button>
+            ) : '-';
+
             rows.push([
                 <span style={{ color: '#2563eb', fontWeight: 600 }}>Offer {i + 1}</span>,
                 reporterName,
@@ -2767,7 +2790,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 v.cdValue ? formatFlexibleValue(v.cdValue) : '-',
                 v.bankLoanValue ? `Rs ${formatIndianCurrencyFlexible(v.bankLoanValue)}` : '-',
                 formatPaymentText(v.paymentConditionValue || o.paymentConditionValue || 15, v.paymentConditionUnit || o.paymentConditionUnit || 'Days'),
-                '-'
+                actionBtn
             ]);
         });
 
@@ -2775,6 +2798,28 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         if ((o as any).isFinalized || o.finalPrice || o.finalBaseRate) {
             const finalReporter = getCollectorWithRole((o as any).finalReportedBy || (o as any).updatedByFullName || o.updatedBy || o.createdBy);
             const finalDate = formatShortDateTime((o as any).finalReportedAt || (o as any).updatedAt || (o as any).createdAt) || '-';
+            
+            const finalActionBtn = showLinkAction ? (
+                <button
+                    onClick={() => rateInfoAction({
+                        rate: Number(o.finalPrice || o.finalBaseRate || 0),
+                        rateType: o.finalBaseRateType || o.baseRateType || 'PD_LOOSE',
+                        sute: Number(o.finalSute || o.sute || 0),
+                        suteUnit: o.finalSuteUnit || o.suteUnit || 'per_ton',
+                        moisture: Number(o.moistureValue || 0),
+                        hamali: Number(o.hamali || 0),
+                        hamaliUnit: o.hamaliUnit || 'per_bag',
+                        lf: Number(o.lf || 0),
+                        lfUnit: o.lfUnit || 'per_bag',
+                        isDispute: false,
+                        isRevision: false
+                    })}
+                    style={{ background: '#22c55e', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '10.5px', fontWeight: 'bold' }}
+                >
+                    Link Rate
+                </button>
+            ) : '-';
+
             rows.push([
                 <span style={{ color: '#16a34a', fontWeight: 700 }}>Final Rate</span>,
                 finalReporter,
@@ -2790,7 +2835,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 o.cdValue ? formatFlexibleValue(o.cdValue) : '-',
                 o.bankLoanValue ? `Rs ${formatIndianCurrencyFlexible(o.bankLoanValue)}` : '-',
                 <span style={{ fontWeight: 600 }}>{formatPaymentText(o.paymentConditionValue || 15, o.paymentConditionUnit || 'Days')}</span>,
-                '-'
+                finalActionBtn
             ]);
         }
 
@@ -3095,29 +3140,40 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                       )
                     : null;
 
-                const hamaliVal = isDispute
-                    ? (v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== '' 
-                        ? v.revisedHamali 
-                        : o.hamali)
-                    : (v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== '' ? v.revisedHamali : o.hamali);
-                const hasHamali = isDispute
-                    ? (v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== '')
-                    : (v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== '');
-                const hamaliUnitVal = isDispute
-                    ? (v.hamaliUnit || o.hamaliUnit || 'per_bag')
-                    : (v.hamaliUnit || o.hamaliUnit || 'per_bag');
+                const hamaliVal = v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== ''
+                    ? v.revisedHamali 
+                    : (o.revisedHamali !== undefined && o.revisedHamali !== null && o.revisedHamali !== '' ? o.revisedHamali : o.hamali);
+                const hasHamali = (v.revisedHamali !== undefined && v.revisedHamali !== null && v.revisedHamali !== '') || (o.revisedHamali !== undefined && o.revisedHamali !== null && o.revisedHamali !== '');
+                const hamaliUnitVal = v.hamaliUnit || o.hamaliUnit || 'per_bag';
 
-                const lfVal = isDispute
-                    ? (v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== ''
-                        ? v.revisedLf
-                        : o.lf)
-                    : (v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== '' ? v.revisedLf : o.lf);
-                const hasLf = isDispute
-                    ? (v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== '')
-                    : (v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== '');
-                const lfUnitVal = isDispute
-                    ? (v.lfUnit || o.lfUnit || 'per_bag')
-                    : (v.lfUnit || o.lfUnit || 'per_bag');
+                const lfVal = v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== ''
+                    ? v.revisedLf
+                    : (o.revisedLf !== undefined && o.revisedLf !== null && o.revisedLf !== '' ? o.revisedLf : o.lf);
+                const hasLf = (v.revisedLf !== undefined && v.revisedLf !== null && v.revisedLf !== '') || (o.revisedLf !== undefined && o.revisedLf !== null && o.revisedLf !== '');
+                const lfUnitVal = v.lfUnit || o.lfUnit || 'per_bag';
+
+                const disputeActionBtn = showLinkAction ? (
+                    <button
+                        onClick={() => rateInfoAction({
+                            rate: Number(displayDisputeRate || o.finalPrice || o.finalBaseRate || 0),
+                            rateType: displayDisputeType || o.finalBaseRateType || o.baseRateType || 'PD_LOOSE',
+                            sute: Number(v.finalSute !== undefined && v.finalSute !== null ? v.finalSute : (o.finalSute || o.sute || 0)),
+                            suteUnit: v.finalSuteUnit !== undefined && v.finalSuteUnit !== null ? v.finalSuteUnit : (o.suteUnit || 'per_ton'),
+                            moisture: Number(v.moistureValue !== undefined && v.moistureValue !== null ? v.moistureValue : (o.moistureValue || 0)),
+                            hamali: Number(hamaliVal || 0),
+                            hamaliUnit: hamaliUnitVal || 'per_bag',
+                            lf: Number(lfVal || 0),
+                            lfUnit: lfUnitVal || 'per_bag',
+                            disputeReason: v.disputeReason || v.reason || '',
+                            isDispute: Boolean(isDispute),
+                            isRevision: Boolean(isRevision),
+                            linkedRevisionId: isRevision ? (v.id || null) : null
+                        })}
+                        style={{ background: '#22c55e', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '10.5px', fontWeight: 'bold' }}
+                    >
+                        Link Rate
+                    </button>
+                ) : (v.disputeReason || v.reason || '-');
 
                 rows.push([
                     <span style={{ color: '#16a34a', fontWeight: 700 }}>{rowLabel}</span>,
@@ -3141,9 +3197,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         const currentSute = v.finalSute !== undefined && v.finalSute !== null ? v.finalSute : baseSute;
                         const isSuteChanged = isDispute && v.finalSute !== undefined && v.finalSute !== null && Number(v.finalSute) !== Number(baseSute);
                         return (
-                            <span style={isSuteChanged ? { color: '#16a34a', fontWeight: 700 } : undefined}>
-                                {`${toNumberText(currentSute, 2)} / ${formatRateUnitLabel(v.finalSuteUnit !== undefined && v.finalSuteUnit !== null ? v.finalSuteUnit : (o.suteUnit || 'per_ton'))}`}
-                            </span>
+                             <span style={isSuteChanged ? { color: '#16a34a', fontWeight: 700 } : undefined}>
+                                 {`${toNumberText(currentSute, 2)} / ${formatRateUnitLabel(v.finalSuteUnit !== undefined && v.finalSuteUnit !== null ? v.finalSuteUnit : (o.suteUnit || 'per_ton'))}`}
+                             </span>
                         );
                     })(),
                     // MOISTURE
@@ -3152,9 +3208,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         const currentMoisture = v.moistureValue !== undefined && v.moistureValue !== null ? v.moistureValue : baseMoisture;
                         const isMoistureChanged = isDispute && v.moistureValue !== undefined && v.moistureValue !== null && Number(v.moistureValue) !== Number(baseMoisture);
                         return currentMoisture ? (
-                            <span style={isMoistureChanged ? { color: '#16a34a', fontWeight: 700 } : undefined}>
-                                {formatMeasurementText(currentMoisture, '%')}
-                            </span>
+                             <span style={isMoistureChanged ? { color: '#16a34a', fontWeight: 700 } : undefined}>
+                                 {formatMeasurementText(currentMoisture, '%')}
+                             </span>
                         ) : '-';
                     })(),
                     // HAMALI
@@ -3183,7 +3239,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     v.bankLoanValue || o.bankLoanValue ? `Rs ${formatIndianCurrencyFlexible(v.bankLoanValue || o.bankLoanValue)}` : '-',
                     // PAYMENT
                     <span style={{ fontWeight: 600 }}>{formatPaymentText(v.paymentConditionValue || o.paymentConditionValue || 15, v.paymentConditionUnit || o.paymentConditionUnit || 'Days')}</span>,
-                    v.disputeReason || v.reason || '-'
+                    disputeActionBtn
                 ]);
             });
         } else {
@@ -3732,21 +3788,23 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 {/* Standardized Horizontal Tables Section */}
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
                                     {/* Quality Parameters */}
-                                    <div style={{ position: 'sticky', top: '0', zIndex: 20, backgroundColor: '#ffffff', paddingBottom: '10px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-                                        {renderHorizontalTable(
-                                            'Quality Parameters', 
-                                            '🔬', 
-                                            '#f97316', 
-                                            progressiveMode
-                                                ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', '', 'ACTIONS']
-                                                : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', ''],
-                                            buildInitialQualityRows(),
-                                            { isQuality: true }
-                                        )}
-                                    </div>
+                                    {!targetLorryTripId && (
+                                        <div style={{ position: 'sticky', top: '0', zIndex: 20, backgroundColor: '#ffffff', paddingBottom: '10px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+                                            {renderHorizontalTable(
+                                                'Quality Parameters', 
+                                                '🔬', 
+                                                '#f97316', 
+                                                progressiveMode
+                                                    ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', '', 'ACTIONS']
+                                                    : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', ''],
+                                                buildInitialQualityRows(),
+                                                { isQuality: true }
+                                            )}
+                                        </div>
+                                    )}
 
                                     {/* Progressive Loads */}
-                                    {progressiveMode && inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections) && (() => {
+                                    {!targetLorryTripId && progressiveMode && inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections) && (() => {
                                         const insps = inspectionsProgress.previousInspections;
                                         if (insps.length === 0) return null;
                                         
@@ -3784,7 +3842,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                     })()}
 
                                     {/* Cooking History */}
-                                    {!progressiveMode && renderHorizontalTable(
+                                    {!targetLorryTripId && !progressiveMode && renderHorizontalTable(
                                         'Cooking History',
                                         '🍳',
                                         '#2563eb',
@@ -3795,19 +3853,25 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
 
 
                                     {/* Pricing & Offers */}
-                                    {!isStaff && renderHorizontalTable(
-                                        'Price Details',
-                                        '💰',
-                                        '#2563eb',
-                                        ['TYPE', 'REPORTED BY', 'REPORTED AT', 'RATE', 'RATE TYPE', 'SUTE', 'MOISTURE', 'HAMALI', 'BROKERAGE', 'LF', 'EGB', 'CD', 'BANK LOAN', 'PAYMENT', 'REMARKS'],
-                                        buildPriceComparisonRows()
-                                    )}
+                                    {!isStaff && (() => {
+                                        const callback = (targetLorryTripId && targetRateLinkAction) ? async (rateInfo: any) => {
+                                            await targetRateLinkAction(rateInfo);
+                                            await refreshProgressData();
+                                        } : undefined;
+                                        return renderHorizontalTable(
+                                            'Price Details',
+                                            '💰',
+                                            '#2563eb',
+                                            ['TYPE', 'REPORTED BY', 'REPORTED AT', 'RATE', 'RATE TYPE', 'SUTE', 'MOISTURE', 'HAMALI', 'BROKERAGE', 'LF', 'EGB', 'CD', 'BANK LOAN', 'PAYMENT', 'REMARKS'],
+                                            buildPriceComparisonRows(callback)
+                                        );
+                                    })()}
                                 </div>
 
 
 
                                 {/* GPS & Photos for Location Sample */}
-                                {detailEntry.entryType === 'LOCATION_SAMPLE' && (
+                                {!targetLorryTripId && detailEntry.entryType === 'LOCATION_SAMPLE' && (
                                     <>
                                         <h4 style={{ margin: '12px 0 10px', fontSize: '13px', color: '#e67e22', borderBottom: '2px solid #e67e22', paddingBottom: '6px' }}>📍 Location Details</h4>
                                         {localGps ? (
@@ -3866,6 +3930,155 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         )}
                                     </>
                                 )}
+                                                       {/* Patti Rate Linking Details */}
+                                {!isStaff && (() => {
+                                    const rawInspections = inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections)
+                                        ? inspectionsProgress.previousInspections
+                                        : (Array.isArray((detailEntry as any).physicalInspections) ? (detailEntry as any).physicalInspections : []);
+                                    
+                                    // Filter to linked trips only
+                                    const inspections = rawInspections.filter((insp: any) => !!insp.linkedPattiRate);
+
+                                    // If not in rate linking flow (Party Name click), hide if no linked trips
+                                    if (!targetLorryTripId && inspections.length === 0) {
+                                        return null;
+                                    }
+
+                                    const patti = detailEntry.offering || {};
+                                    return (
+                                        <div style={{ marginTop: '16px' }}>
+                                            <div style={{
+                                                backgroundColor: '#1a237e',
+                                                color: '#ffffff',
+                                                padding: '8px 12px',
+                                                fontWeight: '800',
+                                                fontSize: '12px',
+                                                borderTopLeftRadius: '6px',
+                                                borderTopRightRadius: '6px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '6px'
+                                            }}>
+                                                <span>📋</span> Patti Rate Linking Details
+                                            </div>
+                                            <div style={{ overflowX: 'auto' }}>
+                                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #cbd5e1' }}>
+                                                    <thead>
+                                                        <tr style={{ background: '#f1f5f9', color: '#334155', borderBottom: '2px solid #cbd5e1' }}>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>SL NO</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>DATE</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'left', border: '1px solid #cbd5e1' }}>LORRY NUMBER</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BASE RATE</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>SUTE</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>MOISTURE</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>HAMALI</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BROKERAGE</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>LF</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>EGB</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>CD</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BANK LOAN</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PAYMENT</th><th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '75px' }}>STATUS</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {inspections.length > 0 ? (
+                                                            inspections.map((insp: any, idx: number) => {
+                                                                const tripRate = insp.linkedPattiRate || null;
+                                                                return (
+                                                                    <tr key={insp.id || idx} style={{ borderBottom: '1px solid #cbd5e1', backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', fontWeight: '700', border: '1px solid #cbd5e1' }}>{idx + 1}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1', whiteSpace: 'nowrap' }}>{insp.inspectionDate ? new Date(insp.inspectionDate).toLocaleDateString('en-GB') : '-'}</td>
+                                                                        <td style={{ padding: '8px', fontWeight: '700', border: '1px solid #cbd5e1' }}>{insp.lorryNumber?.toUpperCase() || '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', fontWeight: '700', border: '1px solid #cbd5e1' }}>
+                                                                            {tripRate ? (
+                                                                                `Rs ${toNumberText(tripRate.rate)} / ${(tripRate.rateType || 'PD/WB').replace(/_/g, '/')}`
+                                                                            ) : (
+                                                                                '-'
+                                                                            )}
+                                                                        </td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
+                                                                            {tripRate ? (
+                                                                                `${toNumberText(tripRate.sute || 0)} / ${formatRateUnitLabel(tripRate.suteUnit || 'per_ton')}`
+                                                                            ) : (
+                                                                                '-'
+                                                                            )}
+                                                                        </td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
+                                                                            {tripRate ? (
+                                                                                `${tripRate.moisture}%`
+                                                                            ) : (
+                                                                                '-'
+                                                                            )}
+                                                                        </td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
+                                                                            {tripRate ? (
+                                                                                `Rs ${formatFlexibleValue(tripRate.hamali)} / ${formatToggleUnitLabel(tripRate.hamaliUnit || 'per_bag')}`
+                                                                            ) : (
+                                                                                '-'
+                                                                            )}
+                                                                        </td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
+                                                                            {tripRate ? (
+                                                                                patti.brokerage ? `Rs ${formatFlexibleValue(patti.brokerage)} / ${formatToggleUnitLabel(patti.brokerageUnit || 'per_bag')}` : '-'
+                                                                            ) : (
+                                                                                '-'
+                                                                            )}
+                                                                        </td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
+                                                                            {tripRate ? (
+                                                                                `Rs ${formatFlexibleValue(tripRate.lf)} / ${formatToggleUnitLabel(tripRate.lfUnit || 'per_bag')}`
+                                                                            ) : (
+                                                                                '-'
+                                                                            )}
+                                                                        </td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
+                                                                            {tripRate ? (
+                                                                                patti.egbValue ? `${formatFlexibleValue(patti.egbValue)} / ${toTitleCase(patti.egbType || 'Mill')}` : '-'
+                                                                            ) : (
+                                                                                '-'
+                                                                            )}
+                                                                        </td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
+                                                                            {tripRate ? (
+                                                                                patti.cdEnabled && patti.cdValue ? `${formatFlexibleValue(patti.cdValue)} / ${formatToggleUnitLabel(patti.cdUnit || 'percentage')}` : '-'
+                                                                            ) : (
+                                                                                '-'
+                                                                            )}
+                                                                        </td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
+                                                                            {tripRate ? (
+                                                                                patti.bankLoanEnabled && patti.bankLoanValue ? `Rs ${formatIndianCurrencyFlexible(patti.bankLoanValue)} / ${formatToggleUnitLabel(patti.bankLoanUnit || 'per_bag')}` : '-'
+                                                                            ) : (
+                                                                                '-'
+                                                                            )}
+                                                                        </td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
+                                                                            {/* PAYMENT column */}
+                                                                            {patti.paymentConditionValue ? `${patti.paymentConditionValue} ${patti.paymentConditionUnit === 'month' ? 'Month' : 'Days'}` : '-'}
+                                                                        </td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1', fontWeight: '600' }}>
+                                                                            {tripRate ? (
+                                                                                <span style={{ color: '#16a34a', background: '#f0fdf4', padding: '2px 8px', borderRadius: '4px', border: '1px solid #bbf7d0' }}>Linked</span>
+                                                                            ) : (
+                                                                                '-'
+                                                                            )}
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })
+                                                        ) : (
+                                                            <tr>
+                                                                <td colSpan={14} style={{ padding: '12px', textAlign: 'center', color: '#64748b', fontStyle: 'italic', border: '1px solid #cbd5e1' }}>
+                                                                    No inspection lorry trips linked to this lot yet.
+                                                                </td>
+                                                            </tr>
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
 
                                 <button onClick={() => setDetailEntry(null)}
                                     style={{ marginTop: '16px', width: '100%', padding: '8px', backgroundColor: '#e74c3c', color: 'white', border: 'none', borderRadius: '4px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
