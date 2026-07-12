@@ -3852,6 +3852,42 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                     )}
 
 
+                                    {/* Lorry Number Banner — shown only when linking rate to a specific lorry trip */}
+                                    {targetLorryTripId && (() => {
+                                        const allInspections: any[] = detailEntry.physicalInspections || (detailEntry as any).lotAllotment?.physicalInspections || [];
+                                        const targetInsp = allInspections.find((i: any) => String(i.id) === String(targetLorryTripId));
+                                        const lorryNo = targetInsp?.lorryNumber?.toUpperCase() || '';
+                                        const bagsLoaded = targetInsp?.bags ?? '';
+                                        const isValidLorry = lorryNo && lorryNo !== 'LOT_AVG' && lorryNo !== 'BALANCED_LOT';
+                                        return (
+                                            <div style={{
+                                                background: 'linear-gradient(135deg, #1e40af, #1d4ed8)',
+                                                borderRadius: '8px',
+                                                padding: '12px 16px',
+                                                marginBottom: '4px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '12px',
+                                                boxShadow: '0 2px 8px rgba(30,64,175,0.25)'
+                                            }}>
+                                                <div style={{ fontSize: '22px' }}>🚛</div>
+                                                <div>
+                                                    <div style={{ fontSize: '11px', color: '#93c5fd', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+                                                        Linking Rate To Lorry
+                                                    </div>
+                                                    <div style={{ fontSize: '18px', fontWeight: '800', color: '#ffffff', letterSpacing: '0.04em' }}>
+                                                        {isValidLorry ? lorryNo : '—'}
+                                                        {bagsLoaded !== '' && (
+                                                            <span style={{ fontSize: '13px', fontWeight: '600', color: '#bfdbfe', marginLeft: '10px' }}>
+                                                                ({bagsLoaded} bags)
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+
                                     {/* Pricing & Offers */}
                                     {!isStaff && (() => {
                                         const callback = (targetLorryTripId && targetRateLinkAction) ? async (rateInfo: any) => {
