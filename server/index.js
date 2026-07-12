@@ -1779,6 +1779,14 @@ const startServer = async () => {
         console.log('Migration 137 warning:', error.message);
       }
 
+      try {
+        const addRateLinkingApprovalFields = require('./migrations/95_add_rate_linking_approval_fields');
+        await addRateLinkingApprovalFields.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('Migration 138: pending_rate_linking_status and pending_rate_linking_data added to sample_entry_offerings');
+      } catch (error) {
+        console.log('Migration 138 warning:', error.message);
+      }
+
     // Default warehouses removed - users should create their own warehouses
 
     // Create default users if they don't exist
