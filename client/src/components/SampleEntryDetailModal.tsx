@@ -2018,9 +2018,10 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         );
                         const stageRow = makeRow(labelElement, stageObj, key);
                         if (stageRow) {
-                            (stageRow as any).hasSmell = stageObj.smellHas === true 
+                            const isBalanced = String(key || '').toLowerCase().includes('balanced_lot');
+                            (stageRow as any).hasSmell = !isBalanced && (stageObj.smellHas === true 
                                 || String(stageObj.smellHas).trim().toUpperCase() === 'YES'
-                                || (stageObj.smellType && String(stageObj.smellType).trim() !== '' && String(stageObj.smellType).trim() !== '-' && String(stageObj.smellType).trim().toLowerCase() !== 'no');
+                                || (stageObj.smellType && String(stageObj.smellType).trim() !== '' && String(stageObj.smellType).trim() !== '-' && String(stageObj.smellType).trim().toLowerCase() !== 'no'));
                             rows.push(stageRow);
                         }
                     }
@@ -2752,65 +2753,67 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         const targetInsp = allInsps.find((i: any) => String(i.id) === String(targetLorryTripId));
         const linkedPattiRate = targetInsp?.linkedPattiRate;
 
-        // Add historical offers
-        versions.forEach((v: any, i: number) => {
-            const reporterName = getCollectorWithRole(v.updatedByFullName || v.createdByFullName || v.updatedBy || v.createdBy || o.updatedBy || o.createdBy);
-            const reporterDate = formatShortDateTime(v.updatedAt || v.createdAt || (o as any).updatedAt || (o as any).createdAt) || '-';
-            const suteVal = v.sute ?? o.sute;
-            const suteUnitVal = v.suteUnit ?? o.suteUnit;
-            const egbTypeVal = v.egbType ?? o.egbType;
-            
-            const actionBtn = showLinkAction ? (
-                <button
-                    onClick={() => rateInfoAction({
-                        rate: Number(v.offerBaseRateValue || v.offeringPrice || 0),
-                        rateType: v.baseRateType || o.baseRateType || 'PD_LOOSE',
-                        sute: Number(suteVal || 0),
-                        suteUnit: suteUnitVal || 'per_ton',
-                        moisture: Number(v.moistureValue ?? o.moistureValue ?? 0),
-                        hamali: Number(v.hamali || o.hamali || 0),
-                        hamaliUnit: v.hamaliUnit || o.hamaliUnit || 'per_bag',
-                        lf: Number(v.lf || o.lf || 0),
-                        lfUnit: v.lfUnit || o.lfUnit || 'per_bag',
-                        isDispute: false,
-                        isRevision: false
-                    })}
-                    style={{ background: '#22c55e', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '10.5px', fontWeight: 'bold' }}
-                >
-                    Link Rate
-                </button>
-            ) : '-';
+        // Add historical offers (exclude when linking final rate, only show final, dispute, and revised rates)
+        if (!showLinkAction) {
+            versions.forEach((v: any, i: number) => {
+                const reporterName = getCollectorWithRole(v.updatedByFullName || v.createdByFullName || v.updatedBy || v.createdBy || o.updatedBy || o.createdBy);
+                const reporterDate = formatShortDateTime(v.updatedAt || v.createdAt || (o as any).updatedAt || (o as any).createdAt) || '-';
+                const suteVal = v.sute ?? o.sute;
+                const suteUnitVal = v.suteUnit ?? o.suteUnit;
+                const egbTypeVal = v.egbType ?? o.egbType;
+                
+                const actionBtn = showLinkAction ? (
+                    <button
+                        onClick={() => rateInfoAction({
+                            rate: Number(v.offerBaseRateValue || v.offeringPrice || 0),
+                            rateType: v.baseRateType || o.baseRateType || 'PD_LOOSE',
+                            sute: Number(suteVal || 0),
+                            suteUnit: suteUnitVal || 'per_ton',
+                            moisture: Number(v.moistureValue ?? o.moistureValue ?? 0),
+                            hamali: Number(v.hamali || o.hamali || 0),
+                            hamaliUnit: v.hamaliUnit || o.hamaliUnit || 'per_bag',
+                            lf: Number(v.lf || o.lf || 0),
+                            lfUnit: v.lfUnit || o.lfUnit || 'per_bag',
+                            isDispute: false,
+                            isRevision: false
+                        })}
+                        style={{ background: '#22c55e', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '10.5px', fontWeight: 'bold' }}
+                    >
+                        Link Rate
+                    </button>
+                ) : '-';
 
-            const isMatch = linkedPattiRate && 
-                !linkedPattiRate.isDispute && !linkedPattiRate.isRevision &&
-                Number(v.offerBaseRateValue || v.offeringPrice || 0) === Number(linkedPattiRate.rate) &&
-                (v.baseRateType || o.baseRateType || 'PD_LOOSE') === (linkedPattiRate.rateType || 'PD_LOOSE') &&
-                Number(suteVal || 0) === Number(linkedPattiRate.sute || 0);
+                const isMatch = linkedPattiRate && 
+                    !linkedPattiRate.isDispute && !linkedPattiRate.isRevision &&
+                    Number(v.offerBaseRateValue || v.offeringPrice || 0) === Number(linkedPattiRate.rate) &&
+                    (v.baseRateType || o.baseRateType || 'PD_LOOSE') === (linkedPattiRate.rateType || 'PD_LOOSE') &&
+                    Number(suteVal || 0) === Number(linkedPattiRate.sute || 0);
 
-            const rowArray: any = [
-                <span style={{ color: '#2563eb', fontWeight: 600 }}>Offer {i + 1}</span>,
-                reporterName,
-                reporterDate,
-                `Rs ${toNumberText(v.offerBaseRateValue || v.offeringPrice || 0, 0)}`,
-                `${(v.baseRateType || o.baseRateType || 'PD/WB').replace(/_/g, '/')} / ${formatRateUnitLabel(v.baseRateUnit || o.baseRateUnit)}`,
-                suteVal ? `${toNumberText(suteVal, 2)} / ${formatRateUnitLabel(suteUnitVal || 'per_ton')}` : '-',
-                v.moistureValue ?? o.moistureValue ? formatMeasurementText(v.moistureValue ?? o.moistureValue, '%') : '-',
-                v.hamali ? `${formatFlexibleValue(v.hamali)} / ${formatToggleUnitLabel(v.hamaliUnit || o.hamaliUnit || 'per_bag')}` : '-',
-                v.brokerage ? `${formatFlexibleValue(v.brokerage)} / ${formatToggleUnitLabel(v.brokerageUnit || o.brokerageUnit || 'per_bag')}` : '-',
-                v.lf ? `${formatFlexibleValue(v.lf)} / ${formatToggleUnitLabel(v.lfUnit || o.lfUnit || 'per_bag')}` : '-',
-                formatUnitValueText(v.egbValue ?? o.egbValue ?? 0, toTitleCase(egbTypeVal || 'Mill')),
-                v.cdValue ? formatFlexibleValue(v.cdValue) : '-',
-                v.bankLoanValue ? `Rs ${formatIndianCurrencyFlexible(v.bankLoanValue)}` : '-',
-                formatPaymentText(v.paymentConditionValue || o.paymentConditionValue || 15, v.paymentConditionUnit || o.paymentConditionUnit || 'Days'),
-                actionBtn
-            ];
+                const rowArray: any = [
+                    <span style={{ color: '#2563eb', fontWeight: 600 }}>Offer {i + 1}</span>,
+                    reporterName,
+                    reporterDate,
+                    `Rs ${toNumberText(v.offerBaseRateValue || v.offeringPrice || 0, 0)}`,
+                    `${(v.baseRateType || o.baseRateType || 'PD/WB').replace(/_/g, '/')} / ${formatRateUnitLabel(v.baseRateUnit || o.baseRateUnit)}`,
+                    suteVal ? `${toNumberText(suteVal, 2)} / ${formatRateUnitLabel(suteUnitVal || 'per_ton')}` : '-',
+                    v.moistureValue ?? o.moistureValue ? formatMeasurementText(v.moistureValue ?? o.moistureValue, '%') : '-',
+                    v.hamali ? `${formatFlexibleValue(v.hamali)} / ${formatToggleUnitLabel(v.hamaliUnit || o.hamaliUnit || 'per_bag')}` : '-',
+                    v.brokerage ? `${formatFlexibleValue(v.brokerage)} / ${formatToggleUnitLabel(v.brokerageUnit || o.brokerageUnit || 'per_bag')}` : '-',
+                    v.lf ? `${formatFlexibleValue(v.lf)} / ${formatToggleUnitLabel(v.lfUnit || o.lfUnit || 'per_bag')}` : '-',
+                    formatUnitValueText(v.egbValue ?? o.egbValue ?? 0, toTitleCase(egbTypeVal || 'Mill')),
+                    v.cdValue ? formatFlexibleValue(v.cdValue) : '-',
+                    v.bankLoanValue ? `Rs ${formatIndianCurrencyFlexible(v.bankLoanValue)}` : '-',
+                    formatPaymentText(v.paymentConditionValue || o.paymentConditionValue || 15, v.paymentConditionUnit || o.paymentConditionUnit || 'Days'),
+                    actionBtn
+                ];
 
-            if (isMatch) {
-                rowArray.isHighlighted = true;
-            }
+                if (isMatch) {
+                    rowArray.isHighlighted = true;
+                }
 
-            rows.push(rowArray);
-        });
+                rows.push(rowArray);
+            });
+        }
 
         // Add Final Rate row if finalized
         if ((o as any).isFinalized || o.finalPrice || o.finalBaseRate) {
