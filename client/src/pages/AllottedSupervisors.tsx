@@ -1481,6 +1481,7 @@ const AllottedSupervisors: React.FC = () => {
                                           const moistureVal = getValueWithFallback('moisture', idx);
                                           const cuttingVal = getValueWithFallback('cutting', idx);
                                           const bendVal = getValueWithFallback('bend', idx);
+                                          const o = offeringCache[entry.id] || {};
                                           const stages = inspection.samplingStages || {};
                                           // Calculate trip-level smell highlighting (ignore balanced lot smell on outer trip row)
                                           let hasTripSmell = false;
