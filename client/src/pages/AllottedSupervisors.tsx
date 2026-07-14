@@ -1482,25 +1482,25 @@ const AllottedSupervisors: React.FC = () => {
                                           const cuttingVal = getValueWithFallback('cutting', idx);
                                           const bendVal = getValueWithFallback('bend', idx);
                                           const stages = inspection.samplingStages || {};
-                                          const o = offeringCache[entry.id] || {};
-
-                                           // Calculate trip-level smell highlighting
-                                           const tripStages = Object.values(stages || {});
-                                           let hasTripSmell = false;
-                                           let tripSmellType = '';
-                                           for (const stageObj of tripStages as any[]) {
-                                             if (stageObj && (stageObj.smellHas === true || String(stageObj.smellHas).trim().toUpperCase() === 'YES')) {
-                                               hasTripSmell = true;
-                                               const typeNormalized = String(stageObj.smellType || '').trim().toUpperCase();
-                                               if (typeNormalized === 'DARK') {
-                                                 tripSmellType = 'DARK';
-                                               } else if (typeNormalized === 'MEDIUM' && tripSmellType !== 'DARK') {
-                                                 tripSmellType = 'MEDIUM';
-                                               } else if (typeNormalized === 'LIGHT' && tripSmellType !== 'DARK' && tripSmellType !== 'MEDIUM') {
-                                                 tripSmellType = 'LIGHT';
-                                               }
-                                             }
-                                           }
+                                          // Calculate trip-level smell highlighting (ignore balanced lot smell on outer trip row)
+                                          let hasTripSmell = false;
+                                          let tripSmellType = '';
+                                          if (stages) {
+                                            for (const [key, stageObj] of Object.entries(stages) as any[]) {
+                                              if (key.toLowerCase().includes('balanced_lot')) continue;
+                                              if (stageObj && (stageObj.smellHas === true || String(stageObj.smellHas).trim().toUpperCase() === 'YES')) {
+                                                hasTripSmell = true;
+                                                const typeNormalized = String(stageObj.smellType || '').trim().toUpperCase();
+                                                if (typeNormalized === 'DARK') {
+                                                  tripSmellType = 'DARK';
+                                                } else if (typeNormalized === 'MEDIUM' && tripSmellType !== 'DARK') {
+                                                  tripSmellType = 'MEDIUM';
+                                                } else if (typeNormalized === 'LIGHT' && tripSmellType !== 'DARK' && tripSmellType !== 'MEDIUM') {
+                                                  tripSmellType = 'LIGHT';
+                                                }
+                                              }
+                                            }
+                                          }
 
                                            let rowStyle: React.CSSProperties = { borderBottom: '1px solid #000' };
                                            if (hasTripSmell) {

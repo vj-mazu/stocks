@@ -2753,8 +2753,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         const targetInsp = allInsps.find((i: any) => String(i.id) === String(targetLorryTripId));
         const linkedPattiRate = targetInsp?.linkedPattiRate;
 
-        // Add historical offers (exclude when linking final rate, only show final, dispute, and revised rates)
-        if (!showLinkAction) {
+        // Add historical offers (exclude when linking final rate or viewing a specific lorry trip rate details)
+        if (!targetLorryTripId) {
             versions.forEach((v: any, i: number) => {
                 const reporterName = getCollectorWithRole(v.updatedByFullName || v.createdByFullName || v.updatedBy || v.createdBy || o.updatedBy || o.createdBy);
                 const reporterDate = formatShortDateTime(v.updatedAt || v.createdAt || (o as any).updatedAt || (o as any).createdAt) || '-';
