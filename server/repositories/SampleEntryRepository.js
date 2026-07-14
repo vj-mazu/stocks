@@ -370,18 +370,6 @@ class SampleEntryRepository {
           where.workflowStatus = {
             [Op.in]: ['PHYSICAL_INSPECTION', 'INVENTORY_ENTRY', 'OWNER_FINANCIAL', 'MANAGER_FINANCIAL', 'FINAL_REVIEW', 'COMPLETED']
           };
-          // OPTIMIZATION: Exclude closed allotments directly in database query unless in-transit tab is active
-          if (filters.includeInventory !== 'true') {
-            where[Op.and] = [
-              ...(where[Op.and] || []),
-              {
-                [Op.or]: [
-                  { '$lotAllotment.closedAt$': null },
-                  { '$lotAllotment.id$': null }
-                ]
-              }
-            ];
-          }
         } else {
           where.workflowStatus = requestedStatus;
         }
@@ -609,8 +597,26 @@ class SampleEntryRepository {
     if ((role === 'physical_supervisor' || role === 'paddy_supervisor' || isAssignedLocationStaffView) && userId) {
       const lotAllotmentInclude = include.find(i => i.as === 'lotAllotment');
       if (lotAllotmentInclude) {
-        lotAllotmentInclude.where = { allottedToSupervisorId: userId };
+        lotAllotmentInclude.where = { 
+          ...(lotAllotmentInclude.where || {}),
+          allottedToSupervisorId: userId 
+        };
         lotAllotmentInclude.required = true;
+      }
+    }
+
+    // Exclude closed allotments at DB level unless includeInventory is true
+    if (requestedStatus === 'PHYSICAL_INSPECTION' && filters.includeInventory !== 'true') {
+      const lotAllotmentInclude = include.find(i => i.as === 'lotAllotment');
+      if (lotAllotmentInclude) {
+        lotAllotmentInclude.where = {
+          ...(lotAllotmentInclude.where || {}),
+          closedAt: null
+        };
+        // Ensure it stays outer join (required: false) unless supervisor role requires it
+        if (!(role === 'physical_supervisor' || role === 'paddy_supervisor' || isAssignedLocationStaffView)) {
+          lotAllotmentInclude.required = false;
+        }
       }
     }
 
