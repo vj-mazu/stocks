@@ -2018,10 +2018,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         );
                         const stageRow = makeRow(labelElement, stageObj, key);
                         if (stageRow) {
-                            const isBalanced = String(key || '').toLowerCase().includes('balanced_lot');
-                            (stageRow as any).hasSmell = !isBalanced && (stageObj.smellHas === true 
+                            (stageRow as any).hasSmell = stageObj.smellHas === true 
                                 || String(stageObj.smellHas).trim().toUpperCase() === 'YES'
-                                || (stageObj.smellType && String(stageObj.smellType).trim() !== '' && String(stageObj.smellType).trim() !== '-' && String(stageObj.smellType).trim().toLowerCase() !== 'no'));
+                                || (stageObj.smellType && String(stageObj.smellType).trim() !== '' && String(stageObj.smellType).trim() !== '-' && String(stageObj.smellType).trim().toLowerCase() !== 'no');
                             rows.push(stageRow);
                         }
                     }
