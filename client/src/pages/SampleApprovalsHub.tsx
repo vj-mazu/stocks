@@ -179,7 +179,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
       const response = await axios.get(`${API_URL}/sample-entries/by-role?status=PHYSICAL_INSPECTION`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const entries = response.data.entries || [];
+      const entries = (response.data.entries || []).filter((entry: any) => !entry.lotAllotment?.closedAt);
       setPendingLorryInspections(entries);
       setLoadingQualityApprovalCount(entries.length);
     } catch (error) {
@@ -203,7 +203,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     try {
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const editRes = await axios.get('/sample-entries/tabs/edit-approvals', { headers });
+      const editRes = await axios.get(`${API_URL}/sample-entries/tabs/edit-approvals`, { headers });
       const editEntries = editRes.data?.entries || [];
       setEditApprovalCount(editEntries.length);
 
@@ -1532,17 +1532,25 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
           detailEntry={detailModalEntry}
           detailMode="full"
           progressiveMode={true}
-          onClose={() => {
+          onClose={async () => {
             setDetailModalEntry(null);
             setAutoDisputeStage(null);
             setRefreshKey(prev => prev + 1);
-            fetchLoadingQuality();
-            fetchCounts();
+            try {
+              await fetchLoadingQuality();
+              await fetchCounts();
+            } catch (err) {
+              console.error("Error reloading quality after modal close:", err);
+            }
           }}
-          onUpdate={() => {
+          onUpdate={async () => {
             setRefreshKey(prev => prev + 1);
-            fetchLoadingQuality();
-            fetchCounts();
+            try {
+              await fetchLoadingQuality();
+              await fetchCounts();
+            } catch (err) {
+              console.error("Error reloading quality after modal update:", err);
+            }
           }}
           autoTriggerDisputeKey={autoDisputeStage || undefined}
         />

@@ -701,7 +701,7 @@ class SampleEntryService {
       if (requestedStatus === 'PHYSICAL_INSPECTION') {
         result.entries = result.entries.filter((entry) => {
           const wStatus = String(entry.workflowStatus || '').toUpperCase();
-          if (wStatus === 'PHYSICAL_INSPECTION') {
+          if (wStatus === 'PHYSICAL_INSPECTION' || (filters.includeInventory && wStatus === 'INVENTORY_ENTRY')) {
             return true;
           }
           const isLoose = ['PD_LOOSE', 'MD_LOOSE'].includes(entry.entryType) || 

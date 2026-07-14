@@ -401,8 +401,11 @@ const AllottedSupervisors: React.FC = () => {
       [...lotAllotmentEntries, ...physicalInspectionEntries, ...inventoryEntries, ...ownerFinancialEntries, ...managerFinancialEntries, ...finalReviewEntries, ...completedEntries].forEach((entry: any) => {
         allMap.set(entry.id, entry);
       });
-      // Filter out entries that do not have an allotted supervisor
-      let allEntries = Array.from(allMap.values()).filter((entry: any) => entry.lotAllotment && entry.lotAllotment.allottedToSupervisorId);
+      let allEntries = Array.from(allMap.values()).filter((entry: any) => 
+        entry.lotAllotment && 
+        entry.lotAllotment.allottedToSupervisorId && 
+        !entry.lotAllotment.closedAt
+      );
 
       // Extract unique broker and variety options for dropdowns
       const brokerSet = new Set(allEntries.map((e: any) => e.brokerName).filter(Boolean));
@@ -493,7 +496,8 @@ const AllottedSupervisors: React.FC = () => {
               bend2: (inspection as any).bend2,
               samplingStages: (inspection as any).samplingStages || {},
               reportedBy: inspection.reportedBy || { username: 'System' },
-              createdAt: (inspection as any).createdAt
+              createdAt: (inspection as any).createdAt,
+              linkedPattiRate: (inspection as any).linkedPattiRate
             }));
 
             if (mapped.length > 1) {
@@ -1599,29 +1603,34 @@ const AllottedSupervisors: React.FC = () => {
                                                     }
                                                   }
 
-                                                  if (stages.lot_avg?.approvalStatus === 'approved') return 'Approved: Lot Avg';
+                                               if (stages.lot_avg?.approvalStatus === 'approved') return 'Approved: Lot Avg';
                                                   if (stages.lot_avg?.approvalStatus === 'pending') return 'Pending: Lot Avg';
                                                   return 'Pending';
                                                 })()}
                                               </td>
                                               <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
                                                 {inspection.linkedPattiRate ? (
-                                                  <div style={{ fontSize: '11px', textAlign: 'left', lineHeight: '1.2' }}>
-                                                    <div><strong>Rate:</strong> {inspection.linkedPattiRate.rate || '-'} {inspection.linkedPattiRate.rateType || ''}</div>
-                                                    <div><strong>Sute:</strong> {inspection.linkedPattiRate.sute || '0'} {inspection.linkedPattiRate.suteUnit || ''}</div>
-                                                    <div><strong>Moi:</strong> {inspection.linkedPattiRate.moisture || '0'}%</div>
-                                                    <div style={{ marginTop: '2px', textAlign: 'center' }}>
-                                                      <span
-                                                        onClick={() => {
-                                                          setTargetLorryTripId(inspection.id);
-                                                          openDetailEntry(entry);
-                                                        }}
-                                                        style={{ color: '#16a34a', textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}
-                                                      >
-                                                        Edit
-                                                      </span>
-                                                    </div>
-                                                  </div>
+                                                  <button
+                                                    onClick={() => {
+                                                      setTargetLorryTripId(inspection.id);
+                                                      openDetailEntry(entry);
+                                                    }}
+                                                    style={{
+                                                      background: '#e8f5e9',
+                                                      border: '1px solid #c8e6c9',
+                                                      color: '#2e7d32',
+                                                      fontWeight: 'bold',
+                                                      cursor: 'pointer',
+                                                      padding: '3px 8px',
+                                                      fontSize: '10px',
+                                                      borderRadius: '4px',
+                                                      display: 'inline-flex',
+                                                      alignItems: 'center',
+                                                      gap: '3px'
+                                                    }}
+                                                  >
+                                                    ✅ Completed
+                                                  </button>
                                                 ) : (
                                                   <span
                                                     onClick={() => {
@@ -1630,38 +1639,20 @@ const AllottedSupervisors: React.FC = () => {
                                                     }}
                                                     style={{ color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}
                                                   >
-                                                    Final Rate
+                                                    Add Final Rate
                                                   </span>
                                                 )}
                                               </td>
                                               <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
-                                                {inspection.linkedPattiRate ? (
-                                                  <div style={{ fontSize: '11px', textAlign: 'left', lineHeight: '1.2' }}>
-                                                    <div><strong>Hml:</strong> {inspection.linkedPattiRate.hamali || '0'} {inspection.linkedPattiRate.hamaliUnit || ''}</div>
-                                                    <div><strong>LF:</strong> {inspection.linkedPattiRate.lf || '0'} {inspection.linkedPattiRate.lfUnit || ''}</div>
-                                                    <div style={{ marginTop: '2px', textAlign: 'center' }}>
-                                                      <span
-                                                        onClick={() => {
-                                                          setTargetLorryTripId(inspection.id);
-                                                          openDetailEntry(entry);
-                                                        }}
-                                                        style={{ color: '#16a34a', textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}
-                                                      >
-                                                        Edit
-                                                      </span>
-                                                    </div>
-                                                  </div>
-                                                ) : (
-                                                  <span
-                                                    onClick={() => {
-                                                      setTargetLorryTripId(inspection.id);
-                                                      openDetailEntry(entry);
-                                                    }}
-                                                    style={{ color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}
-                                                  >
-                                                    Payment
-                                                  </span>
-                                                )}
+                                                <span
+                                                  onClick={() => {
+                                                    setTargetLorryTripId(inspection.id);
+                                                    openDetailEntry(entry);
+                                                  }}
+                                                  style={{ color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}
+                                                >
+                                                  Payment
+                                                </span>
                                               </td>
                                               <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
                                                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center', justifyContent: 'center' }}>
@@ -2084,6 +2075,9 @@ const AllottedSupervisors: React.FC = () => {
               }
               // Keep modal open, only load entries to update background calculations and trigger list refreshing
               await loadEntries(true);
+              if (detailModalEntry) {
+                await openDetailEntry(detailModalEntry);
+              }
             } catch (err: any) {
               console.error(err);
               showNotification(err.response?.data?.error || 'Failed to manually link patti rate details', 'error');

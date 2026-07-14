@@ -1,0 +1,175 @@
+﻿diff --git a/scratch/integration-repo/server/routes/riceStockManagement.js b/server/routes/riceStockManagement.js
+index 5860640..0bc462f 100644
+--- a/scratch/integration-repo/server/routes/riceStockManagement.js
++++ b/server/routes/riceStockManagement.js
+@@ -1,7 +1,7 @@
+ const express = require('express');
+ const { Op } = require('sequelize');
+ const { sequelize } = require('../config/database');
+-const { auth } = require('../middleware/auth');
++const { auth, authorize } = require('../middleware/auth');
+ const LocationBifurcationService = require('../services/LocationBifurcationService');
+ 
+ const router = express.Router();
+@@ -1265,7 +1265,7 @@ router.post('/movements', auth, async (req, res) => {
+ 
+         // ΓÜí PERFORMANCE: Cache rice stock locations in memory (eliminates 41ms query)
+         if (!global.riceStockLocationsCache) {
+-            const locations = await sequelize.query(
++            const [locations] = await sequelize.query(
+                 `SELECT code, is_direct_load FROM rice_stock_locations`,
+                 { type: sequelize.QueryTypes.SELECT }
+             );
+@@ -1872,16 +1872,6 @@ router.post('/movements', auth, async (req, res) => {
+ 
+         console.log('Γ£à Rice stock movement created successfully:', { newId, result });
+ 
+-        // Invalidate cache so new purchases/movements reflect immediately
+-        try {
+-            await cacheService.delPattern('rice*');
+-            await cacheService.delPattern('production*');
+-            await cacheService.delPattern('byProduct*');
+-            await cacheService.delPattern('outturn*');
+-        } catch (cacheErr) {
+-            console.error('ΓÜá∩╕Å Error clearing cache:', cacheErr);
+-        }
+-
+         res.status(201).json({
+             success: true,
+             data: {
+@@ -1975,7 +1965,7 @@ router.put('/movements/:id', auth, async (req, res) => {
+         const finalMovementType = movementType || currentMovement.movement_type;
+         const finalProductType = productType || currentMovement.product_type;
+         const finalLocationCode = locationCode || currentMovement.location_code;
+-        const finalBags = bags !== undefined ? parseInt(bags) : currentMovement.bags;
++        const finalBags = bags || currentMovement.bags;
+         const finalVariety = variety || currentMovement.variety;
+         const finalPackagingId = packagingId || currentMovement.packaging_id;
+         const finalSourcePackagingId = sourcePackagingId || currentMovement.source_packaging_id;
+@@ -2354,11 +2344,9 @@ router.delete('/movements/:id', auth, async (req, res) => {
+     try {
+         const { id } = req.params;
+ 
+-        // Check if movement exists and fetch its details
++        // Check if movement exists
+         const existing = await sequelize.query(`
+-            SELECT id, status, movement_type, location_code, product_type, variety, 
+-                   packaging_id, target_packaging_id, to_location, quantity_quintals
+-            FROM rice_stock_movements WHERE id = :id
++            SELECT id FROM rice_stock_movements WHERE id = :id
+         `, {
+             replacements: { id },
+             type: sequelize.QueryTypes.SELECT
+@@ -2371,59 +2359,6 @@ router.delete('/movements/:id', auth, async (req, res) => {
+             });
+         }
+ 
+-        const current = existing[0];
+-
+-        // Cannot delete approved entries unless admin/manager
+-        if (current.status === 'approved' && req.user.role !== 'admin' && req.user.role !== 'manager') {
+-            return res.status(400).json({
+-                success: false,
+-                error: 'Only admins and managers can delete approved entries'
+-            });
+-        }
+-
+-        // Validate stock if deleting an approved stock-adding movement (Purchase, Palti target)
+-        if (current.status === 'approved') {
+-            const isPurchase = current.movement_type === 'purchase';
+-            const isPalti = current.movement_type === 'palti';
+-
+-            if (isPurchase || isPalti) {
+-                try {
+-                    const packagingId = isPalti ? current.target_packaging_id : current.packaging_id;
+-                    const locationToCheck = isPalti ? current.to_location : current.location_code;
+-                    const qtlsToCheck = parseFloat(current.quantity_quintals || 0);
+-
+-                    if (packagingId && locationToCheck) {
+-                        const [packaging] = await sequelize.query(`
+-                            SELECT "allottedKg" FROM packagings WHERE id = :packagingId
+-                        `, {
+-                            replacements: { packagingId },
+-                            type: sequelize.QueryTypes.SELECT
+-                        });
+-
+-                        const bagSizeKg = packaging ? parseFloat(packaging.allottedKg || 26) : 26;
+-                        const { getAvailableStock } = require('../services/riceStockValidationService');
+-                        const available = await getAvailableStock({
+-                            locationCode: locationToCheck,
+-                            productType: current.product_type,
+-                            variety: current.variety,
+-                            packagingId: packagingId,
+-                            bagSizeKg
+-                        });
+-
+-                        if (available < qtlsToCheck) {
+-                            return res.status(400).json({
+-                                success: false,
+-                                error: `Cannot delete: Insufficient stock remaining at ${locationToCheck}. Current stock: ${available.toFixed(2)} qtls, deleting this requires ${qtlsToCheck.toFixed(2)} qtls.`
+-                            });
+-                        }
+-                    }
+-                } catch (validationError) {
+-                    console.error('ΓÜá∩╕Å Delete validation error:', validationError.message);
+-                    // Continue deletion if verification fails to avoid blocking admins
+-                }
+-            }
+-        }
+-
+         // Delete movement
+         await sequelize.query(`
+             DELETE FROM rice_stock_movements WHERE id = :id
+@@ -2432,18 +2367,6 @@ router.delete('/movements/:id', auth, async (req, res) => {
+             type: sequelize.QueryTypes.DELETE
+         });
+ 
+-        // CRITICAL: Clear all related caches to ensure fresh data on refresh
+-        try {
+-            const cacheService = require('../services/cacheService');
+-            await cacheService.delPattern('rice*');
+-            await cacheService.delPattern('production*');
+-            await cacheService.delPattern('byProduct*');
+-            await cacheService.delPattern('outturn*');
+-            console.log('Γ£à All related caches cleared after movement deletion');
+-        } catch (cacheError) {
+-            console.warn('ΓÜá∩╕Å Failed to clear cache:', cacheError.message);
+-        }
+-
+         res.json({
+             success: true,
+             data: {
+@@ -2568,16 +2491,6 @@ router.post('/movements/batch', auth, async (req, res) => {
+             }
+         });
+ 
+-        // Invalidate cache so batch movements reflect immediately
+-        try {
+-            await cacheService.delPattern('rice*');
+-            await cacheService.delPattern('production*');
+-            await cacheService.delPattern('byProduct*');
+-            await cacheService.delPattern('outturn*');
+-        } catch (cacheErr) {
+-            console.error('ΓÜá∩╕Å Error clearing cache:', cacheErr);
+-        }
+-
+         res.status(201).json({
+             success: true,
+             data: {
+@@ -3396,16 +3309,6 @@ router.post('/palti-with-location', auth, async (req, res) => {
+ 
+         const responseTime = Date.now() - startTime;
+ 
+-        // Invalidate cache so palti operations reflect immediately
+-        try {
+-            await cacheService.delPattern('rice*');
+-            await cacheService.delPattern('production*');
+-            await cacheService.delPattern('byProduct*');
+-            await cacheService.delPattern('outturn*');
+-        } catch (cacheErr) {
+-            console.error('ΓÜá∩╕Å Error clearing cache:', cacheErr);
+-        }
+-
+         res.status(201).json({
+             success: true,
+             data: {

@@ -1293,10 +1293,12 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 }
                                 return (
                                     <tr key={i} style={{
-                                        backgroundColor: row.hasSmell 
-                                            ? '#ffebee' 
-                                            : (i % 2 === 0 ? '#ffffff' : '#f8fafb'),
-                                        borderBottom: row.hasSmell ? '2px solid #ef5350' : '1px solid #000000',
+                                        backgroundColor: row.isHighlighted
+                                            ? '#fef9c3'
+                                            : (row.hasSmell 
+                                                ? '#ffebee' 
+                                                : (i % 2 === 0 ? '#ffffff' : '#f8fafb')),
+                                        borderBottom: row.isHighlighted ? '2px solid #eab308' : (row.hasSmell ? '2px solid #ef5350' : '1px solid #000000'),
                                         transition: 'background-color 0.2s'
                                     }}>
                                         {row.map((cell: any, j: number) => {
@@ -2746,6 +2748,10 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         const versions = Array.isArray(o.offerVersions) ? o.offerVersions : [];
         const showLinkAction = typeof rateInfoAction === 'function';
         
+        const allInsps = detailEntry.physicalInspections || (detailEntry as any).lotAllotment?.physicalInspections || [];
+        const targetInsp = allInsps.find((i: any) => String(i.id) === String(targetLorryTripId));
+        const linkedPattiRate = targetInsp?.linkedPattiRate;
+
         // Add historical offers
         versions.forEach((v: any, i: number) => {
             const reporterName = getCollectorWithRole(v.updatedByFullName || v.createdByFullName || v.updatedBy || v.createdBy || o.updatedBy || o.createdBy);
@@ -2775,7 +2781,13 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 </button>
             ) : '-';
 
-            rows.push([
+            const isMatch = linkedPattiRate && 
+                !linkedPattiRate.isDispute && !linkedPattiRate.isRevision &&
+                Number(v.offerBaseRateValue || v.offeringPrice || 0) === Number(linkedPattiRate.rate) &&
+                (v.baseRateType || o.baseRateType || 'PD_LOOSE') === (linkedPattiRate.rateType || 'PD_LOOSE') &&
+                Number(suteVal || 0) === Number(linkedPattiRate.sute || 0);
+
+            const rowArray: any = [
                 <span style={{ color: '#2563eb', fontWeight: 600 }}>Offer {i + 1}</span>,
                 reporterName,
                 reporterDate,
@@ -2791,7 +2803,13 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 v.bankLoanValue ? `Rs ${formatIndianCurrencyFlexible(v.bankLoanValue)}` : '-',
                 formatPaymentText(v.paymentConditionValue || o.paymentConditionValue || 15, v.paymentConditionUnit || o.paymentConditionUnit || 'Days'),
                 actionBtn
-            ]);
+            ];
+
+            if (isMatch) {
+                rowArray.isHighlighted = true;
+            }
+
+            rows.push(rowArray);
         });
 
         // Add Final Rate row if finalized
@@ -2820,7 +2838,13 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 </button>
             ) : '-';
 
-            rows.push([
+            const isFinalMatch = linkedPattiRate && 
+                !linkedPattiRate.isDispute && !linkedPattiRate.isRevision &&
+                Number(o.finalPrice || o.finalBaseRate || 0) === Number(linkedPattiRate.rate) &&
+                (o.finalBaseRateType || o.baseRateType || 'PD_LOOSE') === (linkedPattiRate.rateType || 'PD_LOOSE') &&
+                Number(o.finalSute || o.sute || 0) === Number(linkedPattiRate.sute || 0);
+
+            const finalRowArray: any = [
                 <span style={{ color: '#16a34a', fontWeight: 700 }}>Final Rate</span>,
                 finalReporter,
                 finalDate,
@@ -2836,7 +2860,13 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 o.bankLoanValue ? `Rs ${formatIndianCurrencyFlexible(o.bankLoanValue)}` : '-',
                 <span style={{ fontWeight: 600 }}>{formatPaymentText(o.paymentConditionValue || 15, o.paymentConditionUnit || 'Days')}</span>,
                 finalActionBtn
-            ]);
+            ];
+
+            if (isFinalMatch) {
+                finalRowArray.isHighlighted = true;
+            }
+
+            rows.push(finalRowArray);
         }
 
         // Check for approved or pending dispute rates or revised Hamali/LF as separate entries
@@ -3175,7 +3205,20 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     </button>
                 ) : (v.disputeReason || v.reason || '-');
 
-                rows.push([
+                const rateToCompare = Number(displayDisputeRate || o.finalPrice || o.finalBaseRate || 0);
+                const typeToCompare = displayDisputeType || o.finalBaseRateType || o.baseRateType || 'PD_LOOSE';
+                const suteToCompare = Number(v.finalSute !== undefined && v.finalSute !== null ? v.finalSute : (o.finalSute || o.sute || 0));
+
+                const isMatch = linkedPattiRate && 
+                    Number(linkedPattiRate.rate) === rateToCompare &&
+                    (linkedPattiRate.rateType || 'PD_LOOSE') === (typeToCompare || 'PD_LOOSE') &&
+                    Number(linkedPattiRate.sute || 0) === suteToCompare &&
+                    (isRevision
+                        ? (linkedPattiRate.isRevision && Number(linkedPattiRate.hamali || 0) === Number(hamaliVal || 0) && Number(linkedPattiRate.lf || 0) === Number(lfVal || 0))
+                        : (linkedPattiRate.isDispute && !linkedPattiRate.isRevision)
+                    );
+
+                const rowArray: any = [
                     <span style={{ color: '#16a34a', fontWeight: 700 }}>{rowLabel}</span>,
                     approvedReporter,
                     approvedDate,
@@ -3240,7 +3283,13 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     // PAYMENT
                     <span style={{ fontWeight: 600 }}>{formatPaymentText(v.paymentConditionValue || o.paymentConditionValue || 15, v.paymentConditionUnit || o.paymentConditionUnit || 'Days')}</span>,
                     disputeActionBtn
-                ]);
+                ];
+
+                if (isMatch) {
+                    rowArray.isHighlighted = true;
+                }
+
+                rows.push(rowArray);
             });
         } else {
             // Fallback: Add already approved dispute base rate if it exists in older single fields
@@ -3788,20 +3837,18 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 {/* Standardized Horizontal Tables Section */}
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
                                     {/* Quality Parameters */}
-                                    {!targetLorryTripId && (
-                                        <div style={{ position: 'sticky', top: '0', zIndex: 20, backgroundColor: '#ffffff', paddingBottom: '10px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-                                            {renderHorizontalTable(
-                                                'Quality Parameters', 
-                                                '🔬', 
-                                                '#f97316', 
-                                                progressiveMode
-                                                    ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', '', 'ACTIONS']
-                                                    : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', ''],
-                                                buildInitialQualityRows(),
-                                                { isQuality: true }
-                                            )}
-                                        </div>
-                                    )}
+                                    <div style={{ position: 'sticky', top: '0', zIndex: 20, backgroundColor: '#ffffff', paddingBottom: '10px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+                                        {renderHorizontalTable(
+                                            'Quality Parameters', 
+                                            '🔬', 
+                                            '#f97316', 
+                                            progressiveMode
+                                                ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', '', 'ACTIONS']
+                                                : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', ''],
+                                            buildInitialQualityRows(),
+                                            { isQuality: true }
+                                        )}
+                                    </div>
 
                                     {/* Progressive Loads */}
                                     {!targetLorryTripId && progressiveMode && inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections) && (() => {
@@ -3852,37 +3899,106 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                     )}
 
 
-                                    {/* Lorry Number Banner — shown only when linking rate to a specific lorry trip */}
                                     {targetLorryTripId && (() => {
                                         const allInspections: any[] = detailEntry.physicalInspections || (detailEntry as any).lotAllotment?.physicalInspections || [];
-                                        const targetInsp = allInspections.find((i: any) => String(i.id) === String(targetLorryTripId));
+                                        const targetIdx = allInspections.findIndex((i: any) => String(i.id) === String(targetLorryTripId));
+                                        const targetInsp = targetIdx !== -1 ? allInspections[targetIdx] : null;
+                                        if (!targetInsp) return null;
                                         const lorryNo = targetInsp?.lorryNumber?.toUpperCase() || '';
                                         const bagsLoaded = targetInsp?.bags ?? '';
                                         const isValidLorry = lorryNo && lorryNo !== 'LOT_AVG' && lorryNo !== 'BALANCED_LOT';
+                                        
+                                        const stages = targetInsp.samplingStages || {};
+                                        const findValue = (field: 'moisture' | 'cutting' | 'bend') => {
+                                            const keys = ['balanced_lot', 'full_avg', 'half_lorry', 'lot_avg'];
+                                            Object.keys(stages).forEach(k => {
+                                                if (k.startsWith('nit_avg')) keys.push(k);
+                                            });
+                                            for (const key of keys) {
+                                                const stg = stages[key];
+                                                if (!stg) continue;
+                                                if (field === 'moisture') {
+                                                    if (stg.moistureRaw) return `${stg.moistureRaw}%`;
+                                                    if (stg.moisture !== undefined && stg.moisture !== null && String(stg.moisture) !== '0') return `${stg.moisture}%`;
+                                                } else if (field === 'cutting') {
+                                                    if (stg.cutting1Raw) return `${stg.cutting1Raw}x${stg.cutting2Raw || 0}`;
+                                                    if (stg.cutting1 !== undefined && stg.cutting1 !== null && String(stg.cutting1) !== '0') return `${stg.cutting1}x${stg.cutting2 || 0}`;
+                                                } else if (field === 'bend') {
+                                                    if (stg.bend1Raw) return `${stg.bend1Raw}x${stg.bend2Raw || 0}`;
+                                                    if (stg.bend1 !== undefined && stg.bend1 !== null && String(stg.bend1) !== '0') return `${stg.bend1}x${stg.bend2 || 0}`;
+                                                }
+                                            }
+                                            return '-';
+                                        };
+
+                                        const isNewRulesMode = inspectionsProgress?.samplingRulesMode === 'new' || detailEntry?.lotAllotment?.samplingRulesMode === 'new';
+
                                         return (
-                                            <div style={{
-                                                background: 'linear-gradient(135deg, #1e40af, #1d4ed8)',
-                                                borderRadius: '8px',
-                                                padding: '12px 16px',
-                                                marginBottom: '4px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '12px',
-                                                boxShadow: '0 2px 8px rgba(30,64,175,0.25)'
-                                            }}>
-                                                <div style={{ fontSize: '22px' }}>🚛</div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
+                                                {/* Blue Lorry Header */}
+                                                <div style={{
+                                                    background: 'linear-gradient(135deg, #1e40af, #1d4ed8)',
+                                                    borderRadius: '8px',
+                                                    padding: '12px 16px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '12px',
+                                                    boxShadow: '0 2px 8px rgba(30,64,175,0.25)'
+                                                }}>
+                                                    <div style={{ fontSize: '22px' }}>🚛</div>
+                                                    <div>
+                                                        <div style={{ fontSize: '11px', color: '#93c5fd', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+                                                            Linking Rate To Lorry
+                                                        </div>
+                                                        <div style={{ fontSize: '18px', fontWeight: '800', color: '#ffffff', letterSpacing: '0.04em' }}>
+                                                            {isValidLorry ? lorryNo : '—'}
+                                                            {bagsLoaded !== '' && (
+                                                                <span style={{ fontSize: '13px', fontWeight: '600', color: '#bfdbfe', marginLeft: '10px' }}>
+                                                                    ({bagsLoaded} bags)
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Lorry Trip Details Table (matching outside display) */}
+                                                 <div style={{ overflowX: 'auto', border: '1px solid #cbd5e1', borderRadius: '8px', backgroundColor: '#fff', padding: '1px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+                                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', textAlign: 'center', border: '1px solid #000000' }}>
+                                                         <thead>
+                                                             <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '2px solid #000000', height: '26px' }}>
+                                                                 <th style={{ padding: '6px 4px', fontWeight: 800, color: '#495057', border: '1px solid #000000', textTransform: 'uppercase' }}>Trip #</th>
+                                                                 <th style={{ padding: '6px 4px', fontWeight: 800, color: '#495057', border: '1px solid #000000', textTransform: 'uppercase' }}>Date</th>
+                                                                 <th style={{ padding: '6px 4px', fontWeight: 800, color: '#495057', border: '1px solid #000000', textTransform: 'uppercase' }}>Lorry No</th>
+                                                                 <th style={{ padding: '6px 4px', fontWeight: 800, color: '#495057', border: '1px solid #000000', textTransform: 'uppercase' }}>Bags</th>
+                                                                 <th style={{ padding: '6px 4px', fontWeight: 800, color: '#495057', border: '1px solid #000000', textTransform: 'uppercase' }}>Moisture</th>
+                                                                 <th style={{ padding: '6px 4px', fontWeight: 800, color: '#495057', border: '1px solid #000000', textTransform: 'uppercase' }}>Cutting</th>
+                                                                 <th style={{ padding: '6px 4px', fontWeight: 800, color: '#495057', border: '1px solid #000000', textTransform: 'uppercase' }}>Bend</th>
+                                                             </tr>
+                                                         </thead>
+                                                         <tbody>
+                                                             <tr style={{ height: '32px' }}>
+                                                                 <td style={{ padding: '6px 4px', color: '#1e293b', border: '1px solid #000000', fontWeight: 500 }}>{targetIdx + 1}</td>
+                                                                 <td style={{ padding: '6px 4px', color: '#1e293b', border: '1px solid #000000', fontWeight: 500 }}>{new Date(targetInsp.inspectionDate).toLocaleDateString('en-GB')}</td>
+                                                                 <td style={{ padding: '6px 4px', fontWeight: 700, color: '#1e40af', border: '1px solid #000000' }}>{lorryNo || '-'}</td>
+                                                                 <td style={{ padding: '6px 4px', fontWeight: 700, color: '#1e293b', border: '1px solid #000000' }}>{getApprovedFullAvgBags(stages, targetInsp.bags)}</td>
+                                                                 <td style={{ padding: '6px 4px', fontWeight: 700, color: '#0f766e', border: '1px solid #000000' }}>{findValue('moisture')}</td>
+                                                                 <td style={{ padding: '6px 4px', fontWeight: 700, color: '#1e293b', border: '1px solid #000000' }}>{findValue('cutting')}</td>
+                                                                 <td style={{ padding: '6px 4px', fontWeight: 700, color: '#1e293b', border: '1px solid #000000' }}>{findValue('bend')}</td>
+                                                             </tr>
+                                                         </tbody>
+                                                     </table>
+                                                 </div>
+
+                                                {/* Quality Parameters Table */}
                                                 <div>
-                                                    <div style={{ fontSize: '11px', color: '#93c5fd', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
-                                                        Linking Rate To Lorry
-                                                    </div>
-                                                    <div style={{ fontSize: '18px', fontWeight: '800', color: '#ffffff', letterSpacing: '0.04em' }}>
-                                                        {isValidLorry ? lorryNo : '—'}
-                                                        {bagsLoaded !== '' && (
-                                                            <span style={{ fontSize: '13px', fontWeight: '600', color: '#bfdbfe', marginLeft: '10px' }}>
-                                                                ({bagsLoaded} bags)
-                                                            </span>
-                                                        )}
-                                                    </div>
+                                                    {renderHorizontalTable(
+                                                        `Lorry Trip ${targetIdx + 1} Quality Parameters`,
+                                                        '🔬',
+                                                        isNewRulesMode ? '#2563eb' : '#f97316',
+                                                        ['STAGE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'P COLOR', 'ACTIONS'],
+                                                        buildTripQualityRows(targetInsp, targetIdx),
+                                                        { isQuality: true }
+                                                    )}
                                                 </div>
                                             </div>
                                         );
@@ -4013,15 +4129,21 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                              <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>EGB</th>
                                                              <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>CD</th>
                                                              <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BANK LOAN</th>
-                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PAYMENT</th><th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '75px' }}>STATUS</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PAYMENT</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '75px' }}>STATUS</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
                                                         {inspections.length > 0 ? (
                                                             inspections.map((insp: any, idx: number) => {
                                                                 const tripRate = insp.linkedPattiRate || null;
+                                                                const isCurrentTrip = targetLorryTripId && String(insp.id) === String(targetLorryTripId);
                                                                 return (
-                                                                    <tr key={insp.id || idx} style={{ borderBottom: '1px solid #cbd5e1', backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
+                                                                    <tr key={insp.id || idx} style={{ 
+                                                                        borderBottom: '1px solid #cbd5e1', 
+                                                                        backgroundColor: isCurrentTrip ? '#fef9c3' : (idx % 2 === 0 ? '#ffffff' : '#f8fafc'),
+                                                                        borderLeft: isCurrentTrip ? '4px solid #eab308' : 'none'
+                                                                    }}>
                                                                         <td style={{ padding: '8px', textAlign: 'center', fontWeight: '700', border: '1px solid #cbd5e1' }}>{idx + 1}</td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1', whiteSpace: 'nowrap' }}>{insp.inspectionDate ? new Date(insp.inspectionDate).toLocaleDateString('en-GB') : '-'}</td>
                                                                         <td style={{ padding: '8px', fontWeight: '700', border: '1px solid #cbd5e1' }}>{insp.lorryNumber?.toUpperCase() || '-'}</td>
@@ -4089,12 +4211,11 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                             )}
                                                                         </td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
-                                                                            {/* PAYMENT column */}
                                                                             {patti.paymentConditionValue ? `${patti.paymentConditionValue} ${patti.paymentConditionUnit === 'month' ? 'Month' : 'Days'}` : '-'}
                                                                         </td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1', fontWeight: '600' }}>
                                                                             {tripRate ? (
-                                                                                <span style={{ color: '#16a34a', background: '#f0fdf4', padding: '2px 8px', borderRadius: '4px', border: '1px solid #bbf7d0' }}>Linked</span>
+                                                                                <span style={{ color: '#16a34a', background: '#f0fdf4', padding: '2px 8px', borderRadius: '4px', border: '1px solid #bbf7d0' }}>Completed</span>
                                                                             ) : (
                                                                                 '-'
                                                                             )}

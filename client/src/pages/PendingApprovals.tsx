@@ -744,7 +744,8 @@ const PendingApprovals: React.FC = () => {
                 const response = await axios.get(`${API_URL}/sample-entries/by-role?status=PHYSICAL_INSPECTION`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-                setPendingLorryInspections(response.data.entries || []);
+                const activeEntries = (response.data.entries || []).filter((entry: any) => !entry.lotAllotment?.closedAt);
+                setPendingLorryInspections(activeEntries);
             }
         } catch (error) {
             console.error('Error fetching pending data:', error);

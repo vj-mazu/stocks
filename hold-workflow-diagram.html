@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>New Crop (PD/Loose & MD/Loose) — Hold Workflow</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f0f4f8;
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+    color: #1a202c;
+  }
+  .container { max-width: 1100px; width: 100%; }
+
+  h1 {
+    text-align: center;
+    font-size: 28px;
+    margin-bottom: 4px;
+    color: #1a202c;
+  }
+  .subtitle {
+    text-align: center;
+    color: #4a5568;
+    font-size: 14px;
+    margin-bottom: 28px;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 16px;
+  }
+
+  .section-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 32px 0 16px;
+    color: #2d3748;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title .badge {
+    font-size: 11px;
+    background: #3182ce;
+    color: white;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+
+  /* --- Flowchart --- */
+  .flow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    background: white;
+    border-radius: 12px;
+    padding: 20px 18px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    margin-bottom: 24px;
+    justify-content: center;
+  }
+  .step {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 120px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    border: 2px solid;
+    position: relative;
+  }
+  .step .sub {
+    font-size: 10px;
+    font-weight: 400;
+    margin-top: 3px;
+    opacity: 0.75;
+  }
+  .step .num {
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #4a5568;
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .arrow { font-size: 20px; color: #a0aec0; font-weight: 300; }
+
+  /* Colors for stages */
+  .s-lot      { border-color: #e67e22; background: #fef3e7; }
+  .s-half     { border-color: #3498db; background: #ebf5fb; }
+  .s-full     { border-color: #27ae60; background: #e8f5e9; }
+  .s-balance  { border-color: #8e44ad; background: #f0e6f6; }
+  .s-pending  { border-color: #f39c12; background: #fef9e7; }
+  .s-hold     { border-color: #d97706; background: #fffbeb; }
+  .s-approved { border-color: #16a34a; background: #f0fdf4; }
+  .s-rejected { border-color: #dc2626; background: #fef2f2; }
+
+  .status-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .st-pending  { background: #fef3cd; color: #856404; }
+  .st-hold     { background: #fff3cd; color: #d97706; }
+  .st-approved { background: #d4edda; color: #155724; }
+  .st-superseded { background: #e2e3e5; color: #383d41; }
+
+  /* --- Hold explanation --- */
+  .hold-visual {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .hold-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .hold-row .icon {
+    font-size: 28px;
+    min-width: 40px;
+    text-align: center;
+    padding-top: 2px;
+  }
+  .hold-row .content { flex: 1; }
+  .hold-row .title {
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+  .hold-row .desc {
+    font-size: 13px;
+    color: #4a5568;
+    line-height: 1.5;
+  }
+  .key-label {
+    font-family: 'SF Mono', 'Courier New', monospace;
+    font-size: 12px;
+    background: #edf2f7;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    color: #2d3748;
+  }
+
+  /* --- Attempts box --- */
+  .attempts-box {
+    background: white;
+    border: 2px solid #d97706;
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 24px;
+  }
+  .attempts-box h3 {
+    font-size: 15px;
+    margin-bottom: 12px;
+    color: #92400e;
+  }
+  .attempt-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .attempt-card {
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+    font-size: 12px;
+  }
+  .attempt-card .attempt-num {
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+  .attempt-card .key-example {
+    font-family: monospace;
+    font-size: 11px;
+    color: #4a5568;
+    background: #f7fafc;
+    padding: 3px 6px;
+    border-radius: 4px;
+    margin: 6px 0;
+    word-break: break-all;
+  }
+  .attempt-card .btn-approve {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 4px 16px;
+    background: #27ae60;
+    color: white;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 11px;
+    border: none;
+    cursor: default;
+  }
+  .attempt-card.approved {
+    border-color: #16a34a;
+    background: #f0fdf4;
+  }
+  .attempt-card.approved .btn-approve {
+    background: #16a34a;
+  }
+  .attempt-card.hold {
+    border-color: #d97706;
+    background: #fffbeb;
+  }
+  .attempt-card.superseded {
+    border-color: #9ca3af;
+    background: #f3f4f6;
+    opacity: 0.7;
+  }
+  .attempt-card.superseded .status-tag {
+    background: #e2e3e5;
+    color: #383d41;
+  }
+
+  /* Rate type info */
+  .rate-info {
+    background: #ebf8ff;
+    border: 1px solid #bee3f8;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 24px;
+  }
+  .rate-info table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .rate-info th, .rate-info td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid #bee3f8;
+  }
+  .rate-info th { font-weight: 700; color: #2b6cb0; }
+  .rate-info td:last-child { text-align: center; }
+
+  @media (max-width: 700px) {
+    .attempt-grid { grid-template-columns: repeat(2, 1fr); }
+    .flow { flex-direction: column; }
+    .arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>New Crop (PD/Loose &amp; MD/Loose) — Hold Workflow</h1>
+<p class="subtitle">How hold, re-attempts, and multi-attempt approval work</p>
+
+<!-- Section 1: Rate Types -->
+<div class="section-title">📋 Which varieties can use New Crop?</div>
+<div class="rate-info">
+  <table>
+    <tr><th>Rate Type</th><th>Full Name</th><th>Can use New Crop?</th></tr>
+    <tr><td><strong>PD/Loose</strong></td><td>Paddy Loose</td><td>✅ Yes</td></tr>
+    <tr><td><strong>MD/Loose</strong></td><td>Mill Dhan Loose</td><td>✅ Yes</td></tr>
+    <tr><td><strong>PD/WB</strong></td><td>Paddy With Bags</td><td>❌ No → Forces Old Crop</td></tr>
+    <tr><td><strong>MD/WB</strong></td><td>Mill Dhan With Bags</td><td>❌ No → Forces Old Crop</td></tr>
+  </table>
+  <p style="margin-top:10px; font-size:12px; color:#2b6cb0;">
+    <strong>New Crop workflow only applies to PD/Loose and MD/Loose.</strong> 
+    WB varieties automatically use the Old Crop workflow (with Nit Avg stage).
+  </p>
+</div>
+
+<!-- Section 2: Normal New Crop Flow -->
+<div class="section-title">🟢 Normal New Crop Workflow (No Hold)</div>
+<div class="flow">
+  <div class="step s-lot"><span class="num">1</span>Lot Avg <span class="sub">(LOT_AVG)</span></div>
+  <span class="arrow">→</span>
+  <div class="step s-pending"><span class="num">2</span>⏳ Pending <span class="sub">Manager Reviews</span></div>
+  <span class="arrow">→</span>
+  <div class="step s-approved">✅ Approved</div>
+  <span class="arrow">→</span>
+  <div class="step s-half">Half Lorry <span class="sub">(Real Lorry No)</span></div>
+  <span class="arrow">→</span>
+  <div class="step s-full">Full Avg Lorry <span class="sub">(Enter bags)</span></div>
+  <span class="arrow">→</span>
+  <div class="step s-balance">Balanced Lot <span class="sub">(Skip allowed)</span></div>
+</div>
+
+<!-- Section 3: Hold Flow -->
+<div class="section-title">🟡 Hold Feature — How Re-attempts Work</div>
+
+<div class="hold-visual">
+  <div class="hold-row">
+    <div class="icon">1️⃣</div>
+    <div class="content">
+      <div class="title">Supervisor submits Lot Avg</div>
+      <div class="desc">
+        Data saved as <span class="key-label">stages['lot_avg']</span> with 
+        <span class="status-tag st-pending">pending</span> status.
+        Manager sees this in their Approvals page.
+      </div>
+    </div>
+  </div>
+
+  <div class="hold-row">
+    <div class="icon">2️⃣</div>
+    <div class="content">
+      <div class="title">Manager puts it on HOLD</div>
+      <div class="desc">
+        Status changes to <span class="status-tag st-hold">hold</span>. 
+        A snapshot is saved in <span class="key-label">holdHistory['lot_avg']</span>.
+        The supervisor is notified — they need to re-submit with corrected data.
+      </div>
+    </div>
+  </div>
+
+  <div class="hold-row">
+    <div class="icon">3️⃣</div>
+    <div class="content">
+      <div class="title">Supervisor re-submits (Attempt 2)</div>
+      <div class="desc">
+        <strong>✅ NEW BEHAVIOR:</strong> Instead of overwriting the original, the system creates a 
+        <strong>separate key</strong> — <span class="key-label">stages['lot_avg_reattempt_2']</span> — 
+        with <span class="status-tag st-pending">pending</span> status.
+        The original <span class="key-label">stages['lot_avg']</span> stays as 
+        <span class="status-tag st-hold">hold</span>.
+        <br><span style="color:#64748b; font-size:11px;">(All data preserved — nothing is lost!)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="hold-row">
+    <div class="icon">4️⃣</div>
+    <div class="content">
+      <div class="title">Repeat up to 4 times</div>
+      <div class="desc">
+        Each re-submission creates a new key:<br>
+        <span class="key-label">lot_avg_reattempt_2</span> → 
+        <span class="key-label">lot_avg_reattempt_3</span> → 
+        <span class="key-label">lot_avg_reattempt_4</span><br>
+        All <strong>4 attempts preserved</strong> with their own data and status.
+        Max 4 attempts per stage.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Section 4: Manager Decision -->
+<div class="section-title">🎯 Manager Picks WHICH Attempt to Approve</div>
+
+<div class="attempts-box">
+  <h3>After 4 attempts, the manager sees ALL of them:</h3>
+  <div class="attempt-grid">
+    <div class="attempt-card hold">
+      <div class="attempt-num">Attempt 1</div>
+      <div class="key-example">lot_avg</div>
+      <div><span class="status-tag st-hold">HOLD</span></div>
+      <div style="margin-top:4px; font-size:10px;">Moisture: 15%<br>Cutting: 2×50</div>
+      <div style="margin-top:8px;"><button class="btn-approve" style="background:#d97706;" disabled>On Hold</button></div>
+    </div>
+
+    <div class="attempt-card">
+      <div class="attempt-num">Attempt 2</div>
+      <div class="key-example">lot_avg_reattempt_2</div>
+      <div><span class="status-tag st-pending">PENDING</span></div>
+      <div style="margin-top:4px; font-size:10px;">Moisture: 14%<br>Cutting: 3×48</div>
+      <div style="margin-top:8px;"><button class="btn-approve" onclick="void(0)">✅ Approve</button></div>
+    </div>
+
+    <div class="attempt-card">
+      <div class="attempt-num">Attempt 3</div>
+      <div class="key-example">lot_avg_reattempt_3</div>
+      <div><span class="status-tag st-pending">PENDING</span></div>
+      <div style="margin-top:4px; font-size:10px;">Moisture: 16%<br>Cutting: 2×45</div>
+      <div style="margin-top:8px;"><button class="btn-approve" onclick="void(0)">✅ Approve</button></div>
+    </div>
+
+    <div class="attempt-card">
+      <div class="attempt-num">Attempt 4</div>
+      <div class="key-example">lot_avg_reattempt_4</div>
+      <div><span class="status-tag st-pending">PENDING</span></div>
+      <div style="margin-top:4px; font-size:10px;">Moisture: 13%<br>Cutting: 2×52</div>
+      <div style="margin-top:8px;"><button class="btn-approve" onclick="void(0)">✅ Approve</button></div>
+    </div>
+  </div>
+
+  <div style="margin-top:14px; padding:12px; background:#f0fdf4; border-radius:8px; border:1px solid #bbf7d0; font-size:13px; line-height:1.5;">
+    <strong>👆 Manager can Approve ANY attempt</strong> — not just the latest!<br>
+    Once one is approved, all others are automatically marked as 
+    <span class="status-tag st-superseded">superseded</span>.
+  </div>
+</div>
+
+<!-- Section 5: After Approval -->
+<div class="section-title">📌 After Approval — What Happens to Other Attempts</div>
+<div class="flow">
+  <div class="step s-lot" style="border-color:#9ca3af; background:#f3f4f6; opacity:0.6;">
+    Attempt 1<br><span class="status-tag st-hold">HOLD</span>
+  </div>
+  <span class="arrow" style="opacity:0.4;">→</span>
+  <div class="step s-approved" style="border-width:3px;">
+    ✅ Attempt 2 APPROVED<br><span class="status-tag st-approved">APPROVED</span>
+    <span class="sub">(Manager chose this one)</span>
+  </div>
+  <span class="arrow">→</span>
+  <div class="step" style="border-color:#9ca3af; background:#f3f4f6; opacity:0.6;">
+    Attempt 3<br><span class="status-tag st-superseded">SUPERSEDED</span>
+  </div>
+  <span class="arrow" style="opacity:0.4;">→</span>
+  <div class="step" style="border-color:#9ca3af; background:#f3f4f6; opacity:0.6;">
+    Attempt 4<br><span class="status-tag st-superseded">SUPERSEDED</span>
+  </div>
+  <span class="arrow">→</span>
+  <div class="step s-half">Continue to<br>Half Lorry → Full Avg → Balanced Lot</div>
+</div>
+
+</div>
+</body>
+</html>

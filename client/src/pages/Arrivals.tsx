@@ -11,7 +11,7 @@ import { API_URL } from '../config/api';
 
 const Container = styled.div`
   animation: fadeIn 0.5s ease-in;
-  max-width: 1400px;
+  max-width: 98%;
   margin: 0 auto;
 `;
 
@@ -835,7 +835,8 @@ const Arrivals: React.FC = () => {
       const token = localStorage.getItem('token');
       const params: any = {
         status: 'PHYSICAL_INSPECTION',
-        pageSize: transitPageSize
+        pageSize: transitPageSize,
+        includeInventory: 'true'
       };
       if (cursor) params.cursor = cursor;
       if (transitDebouncedSearch.trim()) {
@@ -1016,7 +1017,14 @@ const Arrivals: React.FC = () => {
                   </thead>
                   <tbody>
                     {inTransitEntries.map((e, idx) => {
-                      const inspections = e.lotAllotment?.physicalInspections || e.physicalInspections || [];
+                      const inspections = (e.lotAllotment?.physicalInspections || e.physicalInspections || [])
+                        .filter((insp: any) => (insp.lorryNumber || '').trim().toUpperCase() !== 'LOT_AVG')
+                        .sort((a: any, b: any) => {
+                          const dateA = new Date(a.inspectionDate || 0).getTime();
+                          const dateB = new Date(b.inspectionDate || 0).getTime();
+                          if (dateA !== dateB) return dateA - dateB;
+                          return Number(a.id || 0) - Number(b.id || 0);
+                        });
                       if (inspections.length === 0) {
                         return (
                           <React.Fragment key={e.id}>
@@ -1075,7 +1083,7 @@ const Arrivals: React.FC = () => {
                             <td style={{ padding: '9px 12px', fontWeight: 'bold', color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{e.bags}</td>
                             <td style={{ padding: '9px 12px', fontWeight: 600, color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>🚚 {linkedCount}/{inspections.length}</td>
                             <td style={{ padding: '9px 12px', fontWeight: 600, color: '#fff' }}>
-                              {linkedCount === inspections.length ? '✅ All Linked' : `🔗 ${linkedCount}/${inspections.length} Linked`}
+                              {e.workflowStatus === 'INVENTORY_ENTRY' ? '✅ Completed (In Transit)' : (linkedCount === inspections.length ? '✅ All Linked' : `🔗 ${linkedCount}/${inspections.length} Linked`)}
                             </td>
                           </tr>
                           {inspections.map((insp: any, lIdx: number) => {

@@ -370,6 +370,18 @@ class SampleEntryRepository {
           where.workflowStatus = {
             [Op.in]: ['PHYSICAL_INSPECTION', 'INVENTORY_ENTRY', 'OWNER_FINANCIAL', 'MANAGER_FINANCIAL', 'FINAL_REVIEW', 'COMPLETED']
           };
+          // OPTIMIZATION: Exclude closed allotments directly in database query unless in-transit tab is active
+          if (filters.includeInventory !== 'true') {
+            where[Op.and] = [
+              ...(where[Op.and] || []),
+              {
+                [Op.or]: [
+                  { '$lotAllotment.closedAt$': null },
+                  { '$lotAllotment.id$': null }
+                ]
+              }
+            ];
+          }
         } else {
           where.workflowStatus = requestedStatus;
         }

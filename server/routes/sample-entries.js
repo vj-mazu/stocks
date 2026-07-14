@@ -901,7 +901,7 @@ router.post('/', authenticateToken, async (req, res) => {
 // Get sample entries by role
 router.get('/by-role', authenticateToken, async (req, res) => {
   try {
-    const { status, startDate, endDate, broker, variety, party, location, collectedBy, page, pageSize, cursor, entryType, excludeEntryType, sampleType } = req.query;
+    const { status, startDate, endDate, broker, variety, party, location, collectedBy, page, pageSize, cursor, entryType, excludeEntryType, sampleType, includeInventory } = req.query;
 
     const filters = {
       status,
@@ -919,7 +919,8 @@ router.get('/by-role', authenticateToken, async (req, res) => {
       staffType: req.user.staffType || null,
       staffUsername: req.user.username || null,
       entryType,
-      excludeEntryType
+      excludeEntryType,
+      includeInventory
     };
 
     // Keep sample-book visibility for all staff users (mill/location).
@@ -3818,17 +3819,20 @@ router.post('/:id/complete-loading', authenticateToken, async (req, res) => {
       await entry.save();
     }
 
-    await WorkflowEngine.transitionTo(
-      sampleEntryId,
-      'INVENTORY_ENTRY',
-      req.user.userId,
-      getWorkflowRole(req.user),
-      {
-        completedByManager: true,
-        inspectedBags: finalBags,
-        reason: `Manually completed by ${req.user.role}`
-      }
-    );
+    // Only transition if not already at INVENTORY_ENTRY (avoid self-transition error)
+    if (!entry || entry.workflowStatus !== 'INVENTORY_ENTRY') {
+      await WorkflowEngine.transitionTo(
+        sampleEntryId,
+        'INVENTORY_ENTRY',
+        req.user.userId,
+        getWorkflowRole(req.user),
+        {
+          completedByManager: true,
+          inspectedBags: finalBags,
+          reason: `Manually completed by ${req.user.role}`
+        }
+      );
+    }
 
     invalidateSampleEntryTabCaches();
 
