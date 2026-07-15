@@ -4090,6 +4090,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         ? inspectionsProgress.previousInspections
                                         : (Array.isArray((detailEntry as any).physicalInspections) ? (detailEntry as any).physicalInspections : []);
                                     
+                                    const patti = detailEntry.offering || {};
+
                                     // Filter to linked trips or trips with pending rate linking requests
                                     const inspections = rawInspections.filter((insp: any) => {
                                         const isPendingRate = patti?.pendingRateLinkingStatus === 'pending' && String(patti?.pendingRateLinkingData?.targetLorryTripId) === String(insp.id);
@@ -4101,7 +4103,6 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         return null;
                                     }
 
-                                    const patti = detailEntry.offering || {};
                                     return (
                                         <div style={{ marginTop: '16px' }}>
                                             <div style={{
