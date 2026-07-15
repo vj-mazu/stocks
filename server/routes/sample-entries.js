@@ -1991,23 +1991,10 @@ router.get('/tabs/completed-lots', authenticateToken, cacheMiddleware(30), async
       }
     });
 
-    // Filter to only include lots that actually have pending patti linkings
-    const pendingPattiEntries = result.entries.filter(entry => {
-      const inspections = (entry.lotAllotment?.physicalInspections || [])
-        .filter((insp) => {
-          const num = (insp.lorryNumber || '').trim().toUpperCase();
-          return num !== 'LOT_AVG' && num !== 'BALANCED_LOT';
-        });
-      // If there are no inspections, show it (as it represents a lot not loaded/started but closed)
-      if (inspections.length === 0) return true;
-      // If any trip does not have a linked patti rate, then patti linking is still pending
-      return inspections.some(insp => !insp.linkedPattiRate);
-    });
-
     if (result.pagination) {
-      res.json({ entries: pendingPattiEntries, pagination: result.pagination });
+      res.json({ entries: result.entries, pagination: result.pagination });
     } else {
-      res.json({ entries: pendingPattiEntries, total: pendingPattiEntries.length, page: parseInt(page, 10), pageSize: parseInt(pageSize, 10) });
+      res.json({ entries: result.entries, total: result.entries.length, page: parseInt(page, 10), pageSize: parseInt(pageSize, 10) });
     }
   } catch (error) {
     console.error('Error getting completed lots:', error);
