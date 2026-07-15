@@ -4090,10 +4090,13 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         ? inspectionsProgress.previousInspections
                                         : (Array.isArray((detailEntry as any).physicalInspections) ? (detailEntry as any).physicalInspections : []);
                                     
-                                    // Filter to linked trips only
-                                    const inspections = rawInspections.filter((insp: any) => !!insp.linkedPattiRate);
+                                    // Filter to linked trips or trips with pending rate linking requests
+                                    const inspections = rawInspections.filter((insp: any) => {
+                                        const isPendingRate = patti?.pendingRateLinkingStatus === 'pending' && String(patti?.pendingRateLinkingData?.targetLorryTripId) === String(insp.id);
+                                        return !!insp.linkedPattiRate || isPendingRate;
+                                    });
 
-                                    // If not in rate linking flow (Party Name click), hide if no linked trips
+                                    // If not in rate linking flow (Party Name click), hide if no linked or pending trips
                                     if (!targetLorryTripId && inspections.length === 0) {
                                         return null;
                                     }
@@ -4140,6 +4143,43 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                             inspections.map((insp: any, idx: number) => {
                                                                 const tripRate = insp.linkedPattiRate || null;
                                                                 const isCurrentTrip = targetLorryTripId && String(insp.id) === String(targetLorryTripId);
+                                                                const isPendingRate = patti?.pendingRateLinkingStatus === 'pending' && String(patti?.pendingRateLinkingData?.targetLorryTripId) === String(insp.id);
+
+                                                                const getPendingRateLabel = (p: any, pendingData: any) => {
+                                                                    if (!pendingData) return 'Rate';
+                                                                    const pendingRate = Number(pendingData.finalPrice || pendingData.finalBaseRate || pendingData.rateInfo?.rate || 0);
+                                                                    const finalRate = Number(p.finalPrice || p.finalBaseRate || 0);
+                                                                    
+                                                                    const disputeVersions = Array.isArray(p.disputeVersions) ? p.disputeVersions : [];
+                                                                    const isDispute = pendingData.rateInfo?.isDispute || pendingData.isDispute;
+                                                                    const isRevision = pendingData.rateInfo?.isRevision || pendingData.isRevision;
+                                                                    
+                                                                    if (isDispute) {
+                                                                        const matchedDisputeIdx = disputeVersions.findIndex((d: any) => Number(d.disputeBaseRate) === pendingRate);
+                                                                        if (matchedDisputeIdx !== -1) return `Dispute ${matchedDisputeIdx + 1}`;
+                                                                        return 'Dispute';
+                                                                    }
+                                                                    if (isRevision) return 'Revision';
+                                                                    if (pendingRate === finalRate) return 'Final Rate';
+                                                                    
+                                                                    const offerVersions = Array.isArray(p.offerVersions) ? p.offerVersions : [];
+                                                                    const matchedOfferIdx = offerVersions.findIndex((v: any) => Number(v.offerBaseRateValue || v.offeringPrice || 0) === pendingRate);
+                                                                    if (matchedOfferIdx !== -1) return `Offer ${matchedOfferIdx + 1}`;
+                                                                    
+                                                                    return `Rs ${pendingRate}`;
+                                                                };
+
+                                                                const activeRateInfo = tripRate ? tripRate : (isPendingRate ? (patti.pendingRateLinkingData.rateInfo || patti.pendingRateLinkingData) : null);
+                                                                const rRate = activeRateInfo?.rate;
+                                                                const rRateType = activeRateInfo?.rateType || activeRateInfo?.baseRateType;
+                                                                const rSute = activeRateInfo?.sute;
+                                                                const rSuteUnit = activeRateInfo?.suteUnit;
+                                                                const rMoisture = activeRateInfo?.moisture || activeRateInfo?.moistureValue;
+                                                                const rHamali = activeRateInfo?.hamali;
+                                                                const rHamaliUnit = activeRateInfo?.hamaliUnit;
+                                                                const rLf = activeRateInfo?.lf;
+                                                                const rLfUnit = activeRateInfo?.lfUnit;
+
                                                                 return (
                                                                     <tr key={insp.id || idx} style={{ 
                                                                         borderBottom: '1px solid #cbd5e1', 
@@ -4150,63 +4190,63 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1', whiteSpace: 'nowrap' }}>{insp.inspectionDate ? new Date(insp.inspectionDate).toLocaleDateString('en-GB') : '-'}</td>
                                                                         <td style={{ padding: '8px', fontWeight: '700', border: '1px solid #cbd5e1' }}>{insp.lorryNumber?.toUpperCase() || '-'}</td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', fontWeight: '700', border: '1px solid #cbd5e1' }}>
-                                                                            {tripRate ? (
-                                                                                `Rs ${toNumberText(tripRate.rate)} / ${(tripRate.rateType || 'PD/WB').replace(/_/g, '/')}`
+                                                                            {activeRateInfo ? (
+                                                                                `Rs ${toNumberText(rRate)} / ${(rRateType || 'PD/WB').replace(/_/g, '/')}`
                                                                             ) : (
                                                                                 '-'
                                                                             )}
                                                                         </td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
-                                                                            {tripRate ? (
-                                                                                `${toNumberText(tripRate.sute || 0)} / ${formatRateUnitLabel(tripRate.suteUnit || 'per_ton')}`
+                                                                            {activeRateInfo ? (
+                                                                                `${toNumberText(rSute || 0)} / ${formatRateUnitLabel(rSuteUnit || 'per_ton')}`
                                                                             ) : (
                                                                                 '-'
                                                                             )}
                                                                         </td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
-                                                                            {tripRate ? (
-                                                                                `${tripRate.moisture}%`
+                                                                            {activeRateInfo ? (
+                                                                                `${rMoisture}%`
                                                                             ) : (
                                                                                 '-'
                                                                             )}
                                                                         </td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
-                                                                            {tripRate ? (
-                                                                                `Rs ${formatFlexibleValue(tripRate.hamali)} / ${formatToggleUnitLabel(tripRate.hamaliUnit || 'per_bag')}`
+                                                                            {activeRateInfo ? (
+                                                                                `Rs ${formatFlexibleValue(rHamali)} / ${formatToggleUnitLabel(rHamaliUnit || 'per_bag')}`
                                                                             ) : (
                                                                                 '-'
                                                                             )}
                                                                         </td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
-                                                                            {tripRate ? (
+                                                                            {activeRateInfo ? (
                                                                                 patti.brokerage ? `Rs ${formatFlexibleValue(patti.brokerage)} / ${formatToggleUnitLabel(patti.brokerageUnit || 'per_bag')}` : '-'
                                                                             ) : (
                                                                                 '-'
                                                                             )}
                                                                         </td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
-                                                                            {tripRate ? (
-                                                                                `Rs ${formatFlexibleValue(tripRate.lf)} / ${formatToggleUnitLabel(tripRate.lfUnit || 'per_bag')}`
+                                                                            {activeRateInfo ? (
+                                                                                `Rs ${formatFlexibleValue(rLf)} / ${formatToggleUnitLabel(rLfUnit || 'per_bag')}`
                                                                             ) : (
                                                                                 '-'
                                                                             )}
                                                                         </td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
-                                                                            {tripRate ? (
+                                                                            {activeRateInfo ? (
                                                                                 patti.egbValue ? `${formatFlexibleValue(patti.egbValue)} / ${toTitleCase(patti.egbType || 'Mill')}` : '-'
                                                                             ) : (
                                                                                 '-'
                                                                             )}
                                                                         </td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
-                                                                            {tripRate ? (
+                                                                            {activeRateInfo ? (
                                                                                 patti.cdEnabled && patti.cdValue ? `${formatFlexibleValue(patti.cdValue)} / ${formatToggleUnitLabel(patti.cdUnit || 'percentage')}` : '-'
                                                                             ) : (
                                                                                 '-'
                                                                             )}
                                                                         </td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
-                                                                            {tripRate ? (
+                                                                            {activeRateInfo ? (
                                                                                 patti.bankLoanEnabled && patti.bankLoanValue ? `Rs ${formatIndianCurrencyFlexible(patti.bankLoanValue)} / ${formatToggleUnitLabel(patti.bankLoanUnit || 'per_bag')}` : '-'
                                                                             ) : (
                                                                                 '-'
@@ -4215,8 +4255,12 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
                                                                             {patti.paymentConditionValue ? `${patti.paymentConditionValue} ${patti.paymentConditionUnit === 'month' ? 'Month' : 'Days'}` : '-'}
                                                                         </td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1', fontWeight: '600' }}>
-                                                                            {tripRate ? (
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1', fontWeight: '700' }}>
+                                                                            {isPendingRate ? (
+                                                                                <span style={{ color: '#d97706', background: '#fffbeb', padding: '2px 8px', borderRadius: '4px', border: '1px solid #fef3c7', whiteSpace: 'nowrap' }}>
+                                                                                    Pending ({getPendingRateLabel(patti, patti.pendingRateLinkingData)})
+                                                                                </span>
+                                                                            ) : tripRate ? (
                                                                                 <span style={{ color: '#16a34a', background: '#f0fdf4', padding: '2px 8px', borderRadius: '4px', border: '1px solid #bbf7d0' }}>Completed</span>
                                                                             ) : (
                                                                                 '-'
