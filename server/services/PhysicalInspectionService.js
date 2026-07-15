@@ -1157,22 +1157,23 @@ class PhysicalInspectionService {
                        ['PD_LOOSE', 'MD_LOOSE'].includes(entry.offering?.baseRateType) ||
                        ['PD_LOOSE', 'MD_LOOSE'].includes(entry.offering?.finalBaseRateType);
 
-      if (totalInspected >= totalAllottedBags || (isReadyLorry && cleanStage === 'return_bags_report')) {
-        if (!isLoose) {
-          updates.isComplete = true;
-          
-          // Transition workflow to INVENTORY_ENTRY only if not already in that status
-          if (entry.workflowStatus !== 'INVENTORY_ENTRY') {
-            await WorkflowEngine.transitionTo(
-              sampleEntryId,
-              'INVENTORY_ENTRY',
-              userId,
-              userRole,
-              { reason: 'Physical inspection completed and approved' }
-            );
-          }
-        }
-      }
+       // Disable automatic transition on max bags. Transition ONLY happens when user manually clicks Completed,
+       // or if it's a ready lorry with return_bags_report stage.
+       if (isReadyLorry && cleanStage === 'return_bags_report') {
+         if (!isLoose) {
+           updates.isComplete = true;
+           
+           if (entry.workflowStatus !== 'INVENTORY_ENTRY') {
+             await WorkflowEngine.transitionTo(
+               sampleEntryId,
+               'INVENTORY_ENTRY',
+               userId,
+               userRole,
+               { reason: 'Physical inspection completed and approved (Ready Lorry)' }
+             );
+           }
+         }
+       }
     }
 
     inspection.changed('samplingStages', true);

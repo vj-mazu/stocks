@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import axios from 'axios';
+import { API_URL } from '../config/api';
 import { toast } from '../utils/toast';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -343,7 +344,7 @@ const AddPurchaseRate: React.FC = () => {
         setLoading(true);
 
         // Fetch arrival details
-        const arrivalResponse = await axios.get<{ arrival: Arrival }>(`/arrivals/${arrivalId}`);
+        const arrivalResponse = await axios.get<{ arrival: Arrival }>(`${API_URL}/arrivals/${arrivalId}`);
         const arrivalData = arrivalResponse.data.arrival;
 
         if (arrivalData.movementType !== 'purchase') {
@@ -355,7 +356,7 @@ const AddPurchaseRate: React.FC = () => {
         setArrival(arrivalData);
 
         // Fetch existing rate if any
-        const rateResponse = await axios.get<{ purchaseRate: any }>(`/purchase-rates/${arrivalId}`);
+        const rateResponse = await axios.get<{ purchaseRate: any }>(`${API_URL}/purchase-rates/${arrivalId}`);
         if (rateResponse.data.purchaseRate) {
           const rate = rateResponse.data.purchaseRate;
           setFormData({
@@ -561,7 +562,7 @@ const AddPurchaseRate: React.FC = () => {
     try {
       setSaving(true);
 
-      await axios.post('/purchase-rates', {
+      await axios.post(`${API_URL}/purchase-rates`, {
         arrivalId: parseInt(arrivalId!),
         sute: parseFloat(formData.sute),
         suteCalculationMethod: formData.suteCalculationMethod,

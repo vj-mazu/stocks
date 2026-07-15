@@ -651,6 +651,20 @@ const AllottedSupervisors: React.FC = () => {
 
   const handleCompleteLot = async (entryId: string) => {
     try {
+      const entry = entries.find(e => e.id === entryId);
+      if (entry && entry.lotAllotment) {
+        const inspections = (entry.lotAllotment.physicalInspections || [])
+          .filter((insp: any) => {
+            const num = (insp.lorryNumber || '').trim().toUpperCase();
+            return num !== 'LOT_AVG' && num !== 'BALANCED_LOT';
+          });
+        const hasUnlinked = inspections.some(insp => !insp.linkedPattiRate);
+        if (hasUnlinked) {
+          showNotification('Cannot complete lot: One or more lorry trips are not linked with a rate.', 'error');
+          return;
+        }
+      }
+
       const token = localStorage.getItem('token');
       const response = await axios.post(
         `${API_URL}/sample-entries/${entryId}/complete-loading`,

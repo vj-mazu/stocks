@@ -1941,7 +1941,15 @@ router.get('/tabs/completed-lots', authenticateToken, cacheMiddleware(30), async
   try {
     const { page = 1, pageSize = 50, broker, variety, party, location, startDate, endDate, entryType, excludeEntryType } = req.query;
 
-    const where = { workflowStatus: 'COMPLETED' };
+    const LotAllotment = require('../models/LotAllotment');
+    const PhysicalInspection = require('../models/PhysicalInspection');
+    const User = require('../models/User');
+
+    const where = {
+      workflowStatus: {
+        [Op.in]: ['INVENTORY_ENTRY', 'OWNER_FINANCIAL', 'MANAGER_FINANCIAL', 'FINAL_REVIEW', 'COMPLETED']
+      }
+    };
     if (broker) where.brokerName = { [Op.iLike]: `%${broker}%` };
     if (variety) where.variety = { [Op.iLike]: `%${variety}%` };
     if (party) where.partyName = { [Op.iLike]: `%${party}%` };
@@ -1963,15 +1971,43 @@ router.get('/tabs/completed-lots', authenticateToken, cacheMiddleware(30), async
         include: [
           { model: QualityParameters, as: 'qualityParameters' },
           { model: SampleEntryOffering, as: 'offering' },
-          { model: User, as: 'creator', attributes: ['id', 'username'] }
+          { model: User, as: 'creator', attributes: ['id', 'username'] },
+          {
+            model: LotAllotment,
+            as: 'lotAllotment',
+            include: [
+              {
+                model: PhysicalInspection,
+                as: 'physicalInspections'
+              },
+              {
+                model: User,
+                as: 'supervisor',
+                attributes: ['id', 'username', 'fullName']
+              }
+            ]
+          }
         ]
       }
     });
 
+    // Filter to only include lots that actually have pending patti linkings
+    const pendingPattiEntries = result.entries.filter(entry => {
+      const inspections = (entry.lotAllotment?.physicalInspections || [])
+        .filter((insp) => {
+          const num = (insp.lorryNumber || '').trim().toUpperCase();
+          return num !== 'LOT_AVG' && num !== 'BALANCED_LOT';
+        });
+      // If there are no inspections, show it (as it represents a lot not loaded/started but closed)
+      if (inspections.length === 0) return true;
+      // If any trip does not have a linked patti rate, then patti linking is still pending
+      return inspections.some(insp => !insp.linkedPattiRate);
+    });
+
     if (result.pagination) {
-      res.json({ entries: result.entries, pagination: result.pagination });
+      res.json({ entries: pendingPattiEntries, pagination: result.pagination });
     } else {
-      res.json({ entries: result.entries, total: result.total, page: parseInt(page, 10), pageSize: parseInt(pageSize, 10) });
+      res.json({ entries: pendingPattiEntries, total: pendingPattiEntries.length, page: parseInt(page, 10), pageSize: parseInt(pageSize, 10) });
     }
   } catch (error) {
     console.error('Error getting completed lots:', error);
@@ -3799,6 +3835,22 @@ router.post('/:id/complete-loading', authenticateToken, async (req, res) => {
     const progress = await PhysicalInspectionService.getInspectionProgress(sampleEntryId);
     const inspectedBags = progress.inspectedBags || 0;
     const finalBags = inspectedBags > 0 ? inspectedBags : (existingAllotment.allottedBags || 0);
+
+    // Validate that all lorry trips are linked with a rate before completing
+    const PhysicalInspection = require('../models/PhysicalInspection');
+    const inspections = await PhysicalInspection.findAll({
+      where: {
+        lotAllotmentId: existingAllotment.id
+      }
+    });
+    const lorryTrips = inspections.filter(insp => {
+      const num = (insp.lorryNumber || '').trim().toUpperCase();
+      return num !== 'LOT_AVG' && num !== 'BALANCED_LOT';
+    });
+    const hasUnlinked = lorryTrips.some(insp => !insp.linkedPattiRate);
+    if (hasUnlinked) {
+      return res.status(400).json({ error: 'Cannot complete lot: One or more lorry trips are not linked with a rate.' });
+    }
 
     // Update lot allotment with close/complete info
     await LotAllotmentService.updateLotAllotment(

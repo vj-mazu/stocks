@@ -978,7 +978,7 @@ const RecordsManagementPage: React.FC = () => {
       });
 
       try {
-        const response = await axios.get<{ purchaseRate: any }>(`/purchase-rates/${recordId}`);
+        const response = await axios.get<{ purchaseRate: any }>(`${API_URL}/purchase-rates/${recordId}`);
         if (response.data.purchaseRate) {
           const rate = response.data.purchaseRate;
           // Only update form if rate exists
@@ -1037,7 +1037,7 @@ const RecordsManagementPage: React.FC = () => {
       // Wrap in try-catch so GET failure doesn't block the save operation
       let isUpdate = false;
       try {
-        const checkResponse = await axios.get<{ purchaseRate: any }>(`/purchase-rates/${recordId}`);
+        const checkResponse = await axios.get<{ purchaseRate: any }>(`${API_URL}/purchase-rates/${recordId}`);
         isUpdate = !!checkResponse.data.purchaseRate;
       } catch (checkError) {
         // If check fails, assume it's a new rate (will still save correctly)
@@ -1045,7 +1045,7 @@ const RecordsManagementPage: React.FC = () => {
         isUpdate = false;
       }
 
-      await axios.post('/purchase-rates', {
+      await axios.post(`${API_URL}/purchase-rates`, {
         arrivalId: recordId,
         sute: parseFloat(rateFormData.sute),
         suteCalculationMethod: rateFormData.suteCalculationMethod,

@@ -1004,124 +1004,123 @@ const Arrivals: React.FC = () => {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
                   <thead>
                     <tr style={{ background: 'linear-gradient(135deg, #1565c0, #1e88e5)', color: '#fff', borderBottom: '2px solid #0d47a1' }}>
-                      <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>SL No</th>
                       <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Date</th>
                       <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Broker</th>
                       <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Party</th>
                       <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Lorry Number</th>
                       <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Variety</th>
+                      <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Moisture</th>
                       <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Bags</th>
-                      <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Loads</th>
+                      <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Linked</th>
                       <th style={{ padding: '10px 12px', fontWeight: '700' }}>STATUS</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {inTransitEntries.map((e, idx) => {
-                      const inspections = (e.lotAllotment?.physicalInspections || e.physicalInspections || [])
-                        .filter((insp: any) => (insp.lorryNumber || '').trim().toUpperCase() !== 'LOT_AVG')
-                        .sort((a: any, b: any) => {
+                    {(() => {
+                      const flatTrips: any[] = [];
+                      inTransitEntries.forEach((e) => {
+                        const inspections = (e.lotAllotment?.physicalInspections || e.physicalInspections || [])
+                          .filter((insp: any) => {
+                            const num = (insp.lorryNumber || '').trim().toUpperCase();
+                            return num !== 'LOT_AVG' && num !== 'BALANCED_LOT';
+                          });
+
+                        // Group inspections by normalized lorry number to deduplicate when multiple stages/updates exist
+                        const lorryGroups: { [key: string]: any[] } = {};
+                        inspections.forEach((insp: any) => {
+                          const key = (insp.lorryNumber || '').trim().toUpperCase();
+                          if (!lorryGroups[key]) {
+                            lorryGroups[key] = [];
+                          }
+                          lorryGroups[key].push(insp);
+                        });
+
+                        // For each lorry group, decide which one to keep
+                        const filteredInspections: any[] = [];
+                        Object.keys(lorryGroups).forEach((lorryKey) => {
+                          const group = lorryGroups[lorryKey];
+                          if (group.length === 1) {
+                            filteredInspections.push(group[0]);
+                          } else {
+                            // Find the one that has a full lorry average (full_avg) or is complete
+                            const fullLorryInsp = group.find((insp) => 
+                              insp.isComplete || 
+                              (insp.samplingStages && (insp.samplingStages.full_avg || insp.samplingStages.lot_avg))
+                            );
+                            if (fullLorryInsp) {
+                              filteredInspections.push(fullLorryInsp);
+                            } else {
+                              // Fallback to the latest one
+                              const sortedGroup = [...group].sort((a, b) => {
+                                const timeA = new Date(a.createdAt || a.inspectionDate || 0).getTime();
+                                const timeB = new Date(b.createdAt || b.inspectionDate || 0).getTime();
+                                return timeB - timeA;
+                              });
+                              filteredInspections.push(sortedGroup[0]);
+                            }
+                          }
+                        });
+
+                        // Sort the filtered inspections chronologically
+                        filteredInspections.sort((a, b) => {
                           const dateA = new Date(a.inspectionDate || 0).getTime();
                           const dateB = new Date(b.inspectionDate || 0).getTime();
                           if (dateA !== dateB) return dateA - dateB;
                           return Number(a.id || 0) - Number(b.id || 0);
                         });
-                      if (inspections.length === 0) {
+
+                        // Only show trips if inspections have actually started
+                        filteredInspections.forEach((insp: any) => {
+                          flatTrips.push({
+                            entry: e,
+                            inspection: insp,
+                            isPlaceholder: false,
+                          });
+                        });
+                      });
+
+                      return flatTrips.map((trip, idx) => {
+                        const { entry, inspection, isPlaceholder } = trip;
+                        const dateVal = isPlaceholder ? entry.entryDate : (inspection.inspectionDate || entry.entryDate);
+                        const lorryNum = isPlaceholder ? (entry.lorryNumber || 'Pending Lorry') : (inspection.lorryNumber || 'Pending Lorry');
+                        const bagsLoaded = isPlaceholder ? entry.bags : (inspection.bags || inspection.bagsLoaded || '-');
+                        const isLinked = !isPlaceholder && !!inspection.linkedPattiRate;
+
                         return (
-                          <React.Fragment key={e.id}>
+                          <React.Fragment key={isPlaceholder ? `p-${entry.id}` : `i-${inspection.id}`}>
                             {idx > 0 && (
-                              <tr>
-                                <td colSpan={9} style={{ 
-                                  padding: '0', 
-                                  height: '14px', 
-                                  backgroundColor: '#f3f4f6', 
-                                  borderLeft: 'none',
-                                  borderRight: 'none',
-                                  borderTop: '1px solid #cbd5e1',
-                                  borderBottom: '1px solid #cbd5e1'
-                                }}></td>
+                              <tr key={`spacer-${idx}`} style={{ height: '20px', backgroundColor: '#e2e8f0' }}>
+                                <td colSpan={9} style={{ padding: 0, height: '20px', backgroundColor: '#f1f5f9', border: 'none' }} />
                               </tr>
                             )}
-                            <tr style={{ background: 'linear-gradient(135deg, #1565c0, #1e88e5)', color: '#fff', borderLeft: '1px solid #1565c0', borderRight: '1px solid #1565c0' }}>
-                              <td style={{ padding: '9px 12px', fontWeight: 'bold', color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{e.serialNo}</td>
-                              <td style={{ padding: '9px 12px', whiteSpace: 'nowrap', fontWeight: 600, color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{new Date(e.entryDate).toLocaleDateString('en-IN')}</td>
-                              <td style={{ padding: '9px 12px', fontWeight: 600, color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{e.brokerName}</td>
-                              <td style={{ padding: '9px 12px', fontWeight: 'bold', color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{e.partyName || '-'}</td>
-                              <td style={{ padding: '9px 12px', fontWeight: 'bold', color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{e.lorryNumber || '-'}</td>
-                              <td style={{ padding: '9px 12px', fontWeight: 'bold', color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{e.variety}</td>
-                              <td style={{ padding: '9px 12px', fontWeight: 'bold', color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{e.bags}</td>
-                              <td style={{ padding: '9px 12px', fontWeight: 600, color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>⏳</td>
-                              <td style={{ padding: '9px 12px', fontWeight: 600, color: '#fff' }}>In Transit</td>
+                            <tr style={{
+                              borderBottom: '1px solid #cbd5e1',
+                              background: idx % 2 === 0 ? '#f1f5f9' : '#ffffff'
+                            }}>
+                              <td style={{ padding: '9px 12px', whiteSpace: 'nowrap', fontWeight: '700', color: '#111827', borderRight: '1px solid #cbd5e1' }}>{new Date(dateVal).toLocaleDateString('en-IN')}</td>
+                              <td style={{ padding: '9px 12px', fontWeight: '700', color: '#111827', borderRight: '1px solid #cbd5e1' }}>{entry.brokerName}</td>
+                              <td style={{ padding: '9px 12px', fontWeight: '800', color: '#111827', borderRight: '1px solid #cbd5e1' }}>{entry.partyName || '-'}</td>
+                              <td style={{ padding: '9px 12px', color: '#0369a1', fontWeight: '900', borderRight: '1px solid #cbd5e1' }}>
+                                {lorryNum.toUpperCase()}
+                              </td>
+                              <td style={{ padding: '9px 12px', fontWeight: '800', color: '#111827', borderRight: '1px solid #cbd5e1' }}>{entry.variety}</td>
+                              <td style={{ padding: '9px 12px', fontWeight: '800', color: '#b91c1c', borderRight: '1px solid #cbd5e1', textAlign: 'left' }}>
+                                {isPlaceholder ? '-' : (inspection.moisture ? `${Number(inspection.moisture)}%` : '-')}
+                              </td>
+                              <td style={{ padding: '9px 12px', fontWeight: '800', color: '#111827', borderRight: '1px solid #cbd5e1' }}>{bagsLoaded}</td>
+                              <td style={{ padding: '9px 12px', fontWeight: '800', borderRight: '1px solid #cbd5e1', textAlign: 'center', color: '#111827' }}>{isLinked ? '✅' : '⏳'}</td>
+                              <td style={{ padding: '9px 12px' }}>
+                                {isLinked ? (
+                                  <span style={{ color: '#16a34a', fontWeight: '800', background: '#f0fdf4', padding: '2px 8px', borderRadius: '4px', border: '1px solid #bbf7d0', fontSize: '10px' }}>LINKED</span>
+                                ) : (
+                                  <span style={{ color: '#d97706', fontWeight: '800', background: '#fffbeb', padding: '2px 8px', borderRadius: '4px', border: '1px solid #fde68a', fontSize: '10px' }}>PENDING</span>
+                                )}
+                              </td>
                             </tr>
                           </React.Fragment>
                         );
-                      }
-                      const linkedCount = inspections.filter((i: any) => !!i.linkedPattiRate).length;
-                      return (
-                        <React.Fragment key={e.id}>
-                          {idx > 0 && (
-                            <tr>
-                              <td colSpan={9} style={{ 
-                                padding: '0', 
-                                height: '14px', 
-                                backgroundColor: '#f3f4f6', 
-                                borderLeft: 'none',
-                                borderRight: 'none',
-                                borderTop: '1px solid #cbd5e1',
-                                borderBottom: '1px solid #cbd5e1'
-                              }}></td>
-                            </tr>
-                          )}
-                          <tr style={{ background: 'linear-gradient(135deg, #1565c0, #1e88e5)', color: '#fff', borderLeft: '1px solid #1565c0', borderRight: '1px solid #1565c0' }}>
-                            <td style={{ padding: '9px 12px', fontWeight: 'bold', color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{e.serialNo}</td>
-                            <td style={{ padding: '9px 12px', whiteSpace: 'nowrap', fontWeight: 600, color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{new Date(e.entryDate).toLocaleDateString('en-IN')}</td>
-                            <td style={{ padding: '9px 12px', fontWeight: 600, color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{e.brokerName}</td>
-                            <td style={{ padding: '9px 12px', fontWeight: 'bold', color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{e.partyName || '-'}</td>
-                            <td style={{ padding: '9px 12px', fontWeight: 'bold', color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>
-                              {inspections.length} Lorr{inspections.length === 1 ? 'y' : 'ies'}
-                            </td>
-                            <td style={{ padding: '9px 12px', fontWeight: 'bold', color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{e.variety}</td>
-                            <td style={{ padding: '9px 12px', fontWeight: 'bold', color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>{e.bags}</td>
-                            <td style={{ padding: '9px 12px', fontWeight: 600, color: '#fff', borderRight: '1px solid rgba(255,255,255,0.2)' }}>🚚 {linkedCount}/{inspections.length}</td>
-                            <td style={{ padding: '9px 12px', fontWeight: 600, color: '#fff' }}>
-                              {e.workflowStatus === 'INVENTORY_ENTRY' ? '✅ Completed (In Transit)' : (linkedCount === inspections.length ? '✅ All Linked' : `🔗 ${linkedCount}/${inspections.length} Linked`)}
-                            </td>
-                          </tr>
-                          {inspections.map((insp: any, lIdx: number) => {
-                            const bagsLoaded = insp.bags || insp.bagsLoaded || '-';
-                            const lorryNum = insp.lorryNumber || '-';
-                            const isPlaceholder = !insp.lorryNumber || ['LOT_AVG', 'BALANCED_LOT'].includes((insp.lorryNumber || '').toUpperCase().trim()) || (insp.lorryNumber || '').toLowerCase().includes('next loading');
-                            const isLinked = !!insp.linkedPattiRate;
-                            const isLastLorry = lIdx === inspections.length - 1;
-                            return (
-                              <tr key={`${e.id}-${insp.id || lIdx}`} style={{ 
-                                borderBottom: isLastLorry ? '2px solid #1565c0' : '1px solid #e2e8f0', 
-                                borderLeft: '2px solid #1565c0', 
-                                borderRight: '2px solid #1565c0',
-                                background: lIdx % 2 === 0 ? '#f8fafc' : '#ffffff' 
-                              }}>
-                                <td style={{ padding: '8px 12px 8px 28px', fontSize: '11px', color: '#64748b', borderRight: '1px solid #cbd5e1' }}>↳ {lIdx + 1}</td>
-                                <td style={{ padding: '8px 12px', fontSize: '11px', borderRight: '1px solid #cbd5e1' }}>{insp.inspectionDate ? new Date(insp.inspectionDate).toLocaleDateString('en-IN') : '-'}</td>
-                                <td style={{ padding: '8px 12px', fontSize: '11px', color: '#94a3b8', borderRight: '1px solid #cbd5e1' }}>-</td>
-                                <td style={{ padding: '8px 12px', fontSize: '11px', color: '#94a3b8', borderRight: '1px solid #cbd5e1' }}>-</td>
-                                <td style={{ padding: '8px 12px', color: isPlaceholder ? '#94a3b8' : '#0369a1', fontWeight: 'bold', fontSize: '11px', borderRight: '1px solid #cbd5e1' }}>
-                                  {isPlaceholder ? 'Pending Lorry' : lorryNum.toUpperCase()}
-                                </td>
-                                <td style={{ padding: '8px 12px', fontSize: '11px', borderRight: '1px solid #cbd5e1' }}>{e.variety}</td>
-                                <td style={{ padding: '8px 12px', fontSize: '11px', borderRight: '1px solid #cbd5e1' }}>{bagsLoaded}</td>
-                                <td style={{ padding: '8px 12px', fontSize: '11px', borderRight: '1px solid #cbd5e1' }}>{isLinked ? '✅' : '⏳'}</td>
-                                <td style={{ padding: '8px 12px', fontSize: '11px' }}>
-                                  {isLinked ? (
-                                    <span style={{ color: '#16a34a', fontWeight: 700, background: '#f0fdf4', padding: '2px 8px', borderRadius: '4px', border: '1px solid #bbf7d0', fontSize: '10px' }}>LINKED</span>
-                                  ) : (
-                                    <span style={{ color: '#d97706', fontWeight: 700, background: '#fffbeb', padding: '2px 8px', borderRadius: '4px', border: '1px solid #fde68a', fontSize: '10px' }}>PENDING</span>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </React.Fragment>
-                      );
-                    })}
+                      });
+                    })()}
                   </tbody>
                 </table>
               </div>
