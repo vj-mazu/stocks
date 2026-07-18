@@ -38,13 +38,67 @@ async function runAllMigrations() {
             'SELECT name FROM "SequelizeMeta" ORDER BY name',
             { type: sequelize.QueryTypes.SELECT }
         );
-        const executedNames = executedMigrations.map(m => m.name);
+        let executedNames = executedMigrations.map(m => m.name);
+
+        const tableExists = async (tableName) => {
+            const [rows] = await sequelize.query(
+                "SELECT to_regclass(:tableName) AS table_name",
+                {
+                    replacements: { tableName: `public.${tableName}` },
+                    type: sequelize.QueryTypes.SELECT
+                }
+            );
+            return Boolean(rows && rows.table_name);
+        };
+
+        const removeStaleMigrationMarkers = async (migrationNames, reason) => {
+            const staleNames = migrationNames.filter(name => executedNames.includes(name));
+            if (staleNames.length === 0) {
+                return;
+            }
+
+            console.warn(`⚠️  Removing stale migration markers (${reason}): ${staleNames.join(', ')}`);
+            await sequelize.query(
+                'DELETE FROM "SequelizeMeta" WHERE name IN (:names)',
+                { replacements: { names: staleNames } }
+            );
+            executedNames = executedNames.filter(name => !staleNames.includes(name));
+        };
+
+        if (!(await tableExists('lorry_transit_details'))) {
+            await removeStaleMigrationMarkers([
+                '142_create_lorry_transit_details.js',
+                '143_add_place_wb_approver_tracking.js',
+                '144_update_existing_place_approved_at.js',
+                '145_create_inventory_quality_parameters.js'
+            ], 'lorry_transit_details table is missing');
+        }
+
+        if (!(await tableExists('inventory_quality_parameters'))) {
+            await removeStaleMigrationMarkers([
+                '145_create_inventory_quality_parameters.js'
+            ], 'inventory_quality_parameters table is missing');
+        }
+
+        const getMigrationOrderKey = (file) => {
+            const numericPrefix = file.match(/^(\d+)/);
+            if (numericPrefix) {
+                return [0, Number(numericPrefix[1]), file];
+            }
+            return [1, Number.MAX_SAFE_INTEGER, file];
+        };
+
+        const compareMigrations = (a, b) => {
+            const left = getMigrationOrderKey(a);
+            const right = getMigrationOrderKey(b);
+            return left[0] - right[0] || left[1] - right[1] || left[2].localeCompare(right[2]);
+        };
 
         // Get all migration files
         const migrationsDir = path.join(__dirname, 'migrations');
         const files = fs.readdirSync(migrationsDir)
             .filter(file => file.endsWith('.js') && file !== 'migrate.js')
-            .sort();
+            .sort(compareMigrations);
 
         let executed = 0;
         let skipped = 0;
@@ -78,9 +132,9 @@ async function runAllMigrations() {
                 executed++;
             } catch (error) {
                 console.error(`  ❌ Error running ${file}:`, error.message);
-                console.error(`\n⛔ Migration failed on startup. Server will continue but may have issues.\n`);
-                // Don't exit on startup - let server continue
-                break;
+                console.error(error);
+                console.error(`\n⛔ Migration failed on startup. Server will not start with a partial schema.\n`);
+                process.exit(1);
             }
         }
 

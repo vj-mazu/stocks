@@ -10,25 +10,36 @@ module.exports = {
     console.log('🔄 Updating existing place approved entries with missing timestamps...');
     
     try {
-      // Update LorryTransitDetail records where placeStatus is approved but placeApprovedAt is NULL
+      // Update LorryTransitDetail records where placeStatus is approved but place_approved_at is NULL
       const [affectedRows] = await queryInterface.sequelize.query(`
         UPDATE lorry_transit_details 
-        SET "placeApprovedAt" = COALESCE("placeApprovedAt", "updatedAt", "createdAt")
+        SET place_approved_at = COALESCE(place_approved_at, updated_at, created_at)
         WHERE "placeStatus" = 'approved' 
-          AND "placeApprovedAt" IS NULL;
+          AND place_approved_at IS NULL;
       `);
       
       console.log(`✅ Updated ${affectedRows} lorry transit detail records with placeApprovedAt`);
       
-      // Also update Arrival records if they exist (for backward compatibility)
-      const [affectedArrivals] = await queryInterface.sequelize.query(`
-        UPDATE arrivals 
-        SET "placeApprovedAt" = COALESCE("placeApprovedAt", "updatedAt", "createdAt")
-        WHERE "placeStatus" = 'approved' 
-          AND "placeApprovedAt" IS NULL;
+      const [arrivalColumns] = await queryInterface.sequelize.query(`
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'arrivals'
+          AND column_name = 'placeApprovedAt';
       `);
-      
-      console.log(`✅ Updated ${affectedArrivals} arrival records with placeApprovedAt`);
+
+      if (arrivalColumns.length > 0) {
+        const [affectedArrivals] = await queryInterface.sequelize.query(`
+          UPDATE arrivals
+          SET "placeApprovedAt" = COALESCE("placeApprovedAt", "updatedAt", "createdAt")
+          WHERE "placeStatus" = 'approved'
+            AND "placeApprovedAt" IS NULL;
+        `);
+
+        console.log(`✅ Updated ${affectedArrivals} arrival records with placeApprovedAt`);
+      } else {
+        console.log('ℹ️ arrivals.placeApprovedAt does not exist; skipped legacy arrivals timestamp backfill');
+      }
       console.log('✅ Migration completed successfully!');
     } catch (error) {
       console.error('❌ Migration failed:', error);
