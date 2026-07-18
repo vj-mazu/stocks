@@ -155,7 +155,14 @@ router.get('/users', auth, authorize('admin', 'manager', 'staff'), async (req, r
         });
 
         const usersWithDataFlag = await Promise.all(users.map(async (user) => {
-            const hasData = await hasUserCreatedData(user.id);
+            let hasData = false;
+            try {
+                hasData = await hasUserCreatedData(user.id);
+            } catch (error) {
+                console.warn(`⚠️ Could not check data for user ${user.id}:`, error.message);
+                // If check fails, assume no data (safe default for new database)
+                hasData = false;
+            }
             return {
                 id: user.id,
                 username: user.username,
