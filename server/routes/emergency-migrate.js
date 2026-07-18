@@ -10,6 +10,115 @@ const { sequelize } = require('../config/database');
 
 router.post('/run-142-migration', async (req, res) => {
     try {
+        console.log('🚨 EMERGENCY: Running migration 142...');
+
+        // Use raw SQL to avoid Sequelize issues
+        await sequelize.query(`
+            CREATE TABLE IF NOT EXISTS lorry_transit_details (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                physical_inspection_id UUID NOT NULL,
+                sample_entry_id UUID NOT NULL,
+                "wbInputType" VARCHAR(50),
+                "millWbId" INTEGER,
+                "partyWbName" VARCHAR(255),
+                "wbNo" VARCHAR(100),
+                "grossWeight" DECIMAL(15, 2),
+                "tareWeight" DECIMAL(15, 2),
+                "netWeight" DECIMAL(15, 2),
+                "wbStatus" VARCHAR(50) NOT NULL DEFAULT 'none',
+                "wbRejectReason" TEXT,
+                "placeType" VARCHAR(50),
+                "placeWarehouseId" INTEGER,
+                "placeKunchinittuId" INTEGER,
+                "placeDate" DATE,
+                "placeStatus" VARCHAR(50) NOT NULL DEFAULT 'none',
+                "placeRejectReason" TEXT,
+                "outturnId" INTEGER,
+                "wbApprovedBy" INTEGER,
+                "wbApprovedAt" TIMESTAMP,
+                "wbRejectedBy" INTEGER,
+                "wbRejectedAt" TIMESTAMP,
+                "placeApprovedBy" INTEGER,
+                "placeApprovedAt" TIMESTAMP,
+                "placeRejectedBy" INTEGER,
+                "placeRejectedAt" TIMESTAMP,
+                created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+            );
+        `);
+
+        console.log('✅ lorry_transit_details table created');
+
+        // Create indexes
+        await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_lorry_transit_physical_inspection ON lorry_transit_details(physical_inspection_id)`);
+        await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_lorry_transit_sample_entry ON lorry_transit_details(sample_entry_id)`);
+
+        console.log('✅ Indexes created');
+
+        // Create inventory_quality_parameters table
+        await sequelize.query(`
+            CREATE TABLE IF NOT EXISTS inventory_quality_parameters (
+                id SERIAL PRIMARY KEY,
+                transit_detail_id UUID NOT NULL,
+                type VARCHAR(50) NOT NULL CHECK (type IN ('lot_avg', 'full_lorry_avg')),
+                moisture VARCHAR(50),
+                dry_moisture VARCHAR(50),
+                cutting VARCHAR(50),
+                bend VARCHAR(50),
+                grains VARCHAR(50),
+                mix VARCHAR(50),
+                s_mix VARCHAR(50),
+                l_mix VARCHAR(50),
+                kandu VARCHAR(50),
+                oil VARCHAR(50),
+                sk VARCHAR(50),
+                wb_r VARCHAR(50),
+                wb_bk VARCHAR(50),
+                wb_t VARCHAR(50),
+                smell VARCHAR(50),
+                paddy_wb VARCHAR(50),
+                p_color VARCHAR(50),
+                remarks TEXT,
+                reported_by INTEGER NOT NULL,
+                status VARCHAR(50) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+                approved_by INTEGER,
+                approved_at TIMESTAMP,
+                rejected_by INTEGER,
+                rejected_at TIMESTAMP,
+                reject_reason TEXT,
+                created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+            );
+        `);
+
+        console.log('✅ inventory_quality_parameters table created');
+
+        // Create indexes for inventory_quality_parameters
+        await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_inventory_quality_transit_detail ON inventory_quality_parameters(transit_detail_id)`);
+        await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_inventory_quality_status ON inventory_quality_parameters(status)`);
+        await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_inventory_quality_type ON inventory_quality_parameters(type)`);
+
+        console.log('✅ inventory_quality_parameters indexes created');
+
+        res.json({
+            success: true,
+            message: '✅ Migration 142, 143, 145 completed successfully! Tables created.',
+            tables: ['lorry_transit_details', 'inventory_quality_parameters']
+        });
+
+    } catch (error) {
+        console.error('❌ Emergency migration failed:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
+    }
+});
+
+// OLD CODE BELOW - KEEPING FOR REFERENCE
+router.post('/run-142-migration-OLD', async (req, res) => {
+    try {
         const queryInterface = sequelize.getQueryInterface();
         
         console.log('🚨 EMERGENCY: Running migration 142...');
