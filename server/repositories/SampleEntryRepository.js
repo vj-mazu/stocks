@@ -1,4 +1,5 @@
 const { SampleEntry, User, QualityParameters, CookingReport, LotAllotment, PhysicalInspection, InventoryData, FinancialCalculation, Kunchinittu, Outturn, Warehouse, WeightBridge } = require('../models');
+const { sequelize } = require('../config/database');
 const { Variety } = require('../models/Location');
 const SampleEntryOffering = require('../models/SampleEntryOffering');
 const { Op } = require('sequelize');
@@ -25,6 +26,29 @@ const buildNonResampleMarkerClause = () => ({
 });
 
 class SampleEntryRepository {
+  constructor() {
+    this.lorryTransitTableAvailable = null;
+  }
+
+  async _hasLorryTransitTable() {
+    if (this.lorryTransitTableAvailable !== null) {
+      return this.lorryTransitTableAvailable;
+    }
+
+    try {
+      const [row] = await sequelize.query(
+        "SELECT to_regclass('public.lorry_transit_details') AS table_name",
+        { type: sequelize.QueryTypes.SELECT }
+      );
+      this.lorryTransitTableAvailable = Boolean(row?.table_name);
+    } catch (error) {
+      console.warn('[SampleEntryRepository] Unable to verify lorry_transit_details table:', error.message);
+      this.lorryTransitTableAvailable = false;
+    }
+
+    return this.lorryTransitTableAvailable;
+  }
+
   async create(entryData) {
     const entry = await SampleEntry.create(entryData);
     return entry.toJSON();
@@ -92,7 +116,7 @@ class SampleEntryRepository {
    * Build role-appropriate includes to avoid unnecessary JOINs
    * PERFORMANCE: Only load deep associations when the workflow status actually needs them
    */
-  _buildIncludesForRole(role, status, staffType) {
+  _buildIncludesForRole(role, status, staffType, options = {}) {
     // Core includes - always lightweight
     const baseIncludes = [
       { model: User, as: 'creator', attributes: ['id', 'username', 'fullName'] }
@@ -115,7 +139,7 @@ class SampleEntryRepository {
       && assignedLocationStaffStatuses.has(status);
 
     if (isAssignedLocationStaffView) {
-      return this._buildFullIncludes(role);
+      return this._buildFullIncludes(role, null, options);
     }
 
     // Staff needs quality parameters for Sample Book tab (to show 100gms / quality badges)
@@ -175,13 +199,51 @@ class SampleEntryRepository {
     }
 
     // Full depth for LOT_ALLOTMENT, PHYSICAL_INSPECTION, INVENTORY_ENTRY, etc.
-    return this._buildFullIncludes(role);
+    return this._buildFullIncludes(role, null, options);
   }
 
   /**
    * Full depth includes for deep workflow statuses
    */
-  _buildFullIncludes(role, userId) {
+  _buildFullIncludes(role, userId, options = {}) {
+    const physicalInspectionIncludes = [
+      { model: User, as: 'reportedBy', attributes: ['id', 'username', 'fullName'] }
+    ];
+
+    if (options.includeLorryTransitDetail) {
+      physicalInspectionIncludes.push({
+        model: require('../models/LorryTransitDetail'),
+        as: 'lorryTransitDetail',
+        required: false,
+        include: [
+          { model: Warehouse, as: 'placeWarehouse', attributes: ['id', 'name', 'code'] },
+          { model: Kunchinittu, as: 'placeKunchinittuData', attributes: ['id', 'name', 'code'] },
+          { model: Outturn, as: 'outturn', attributes: ['id', 'code', 'allottedVariety'] },
+          { model: WeightBridge, as: 'millWeightBridge', attributes: ['id', 'name'] }
+        ]
+      });
+    }
+
+    physicalInspectionIncludes.push({
+      model: InventoryData,
+      as: 'inventoryData',
+      required: false,
+      include: [
+        { model: User, as: 'recordedBy', attributes: ['id', 'username', 'fullName'] },
+        {
+          model: FinancialCalculation,
+          as: 'financialCalculation',
+          required: false,
+          include: [
+            { model: User, as: 'owner', attributes: ['id', 'username', 'fullName'] },
+            { model: User, as: 'manager', attributes: ['id', 'username', 'fullName'] }
+          ]
+        },
+        { model: Kunchinittu, as: 'kunchinittu', required: false, include: [{ model: Variety, as: 'variety', attributes: ['id', 'name'] }] },
+        { model: Outturn, as: 'outturn', required: false }
+      ]
+    });
+
     return [
       { model: User, as: 'creator', attributes: ['id', 'username', 'fullName'] },
       { model: SampleEntryOffering, as: 'offering', required: false },
@@ -205,39 +267,7 @@ class SampleEntryRepository {
             model: PhysicalInspection,
             as: 'physicalInspections',
             required: false,
-            include: [
-              { model: User, as: 'reportedBy', attributes: ['id', 'username', 'fullName'] },
-              {
-                model: require('../models/LorryTransitDetail'),
-                as: 'lorryTransitDetail',
-                required: false,
-                include: [
-                  { model: Warehouse, as: 'placeWarehouse', attributes: ['id', 'name', 'code'] },
-                  { model: Kunchinittu, as: 'placeKunchinittuData', attributes: ['id', 'name', 'code'] },
-                  { model: Outturn, as: 'outturn', attributes: ['id', 'code', 'allottedVariety'] },
-                  { model: WeightBridge, as: 'millWeightBridge', attributes: ['id', 'name'] }
-                ]
-              },
-              {
-                model: InventoryData,
-                as: 'inventoryData',
-                required: false,
-                include: [
-                  { model: User, as: 'recordedBy', attributes: ['id', 'username', 'fullName'] },
-                  {
-                    model: FinancialCalculation,
-                    as: 'financialCalculation',
-                    required: false,
-                    include: [
-                      { model: User, as: 'owner', attributes: ['id', 'username', 'fullName'] },
-                      { model: User, as: 'manager', attributes: ['id', 'username', 'fullName'] }
-                    ]
-                  },
-                  { model: Kunchinittu, as: 'kunchinittu', required: false, include: [{ model: Variety, as: 'variety', attributes: ['id', 'name'] }] },
-                  { model: Outturn, as: 'outturn', required: false }
-                ]
-              }
-            ]
+            include: physicalInspectionIncludes
           }
         ]
       }
@@ -585,7 +615,24 @@ class SampleEntryRepository {
               ? ['QUALITY_CHECK', 'LOT_SELECTION']
               : (activeStatus ? [activeStatus] : [])));
 
-    const include = this._buildIncludesForRole(role, statusesToInclude.length > 0 ? statusesToInclude[0] : null, filters.staffType);
+    const lorryTransitTableAvailable = await this._hasLorryTransitTable();
+    const include = this._buildIncludesForRole(
+      role,
+      statusesToInclude.length > 0 ? statusesToInclude[0] : null,
+      filters.staffType,
+      { includeLorryTransitDetail: lorryTransitTableAvailable }
+    );
+    if (!lorryTransitTableAvailable) {
+      const stripLorryTransitInclude = (items = []) => {
+        items.forEach((item) => {
+          if (!Array.isArray(item.include)) return;
+          item.include = item.include.filter((child) => child.as !== 'lorryTransitDetail');
+          stripLorryTransitInclude(item.include);
+        });
+      };
+
+      stripLorryTransitInclude(include);
+    }
 
     if (requestedStatus === 'COOKING_BOOK' || requestedStatus === 'RESAMPLE_COOKING_BOOK' || (requestedStatus === 'QUALITY_CHECK' && filters.entryType === 'RICE_SAMPLE')) {
       const crInclude = include.find(i => i.as === 'cookingReport');
