@@ -12,28 +12,32 @@ router.post('/run-142-migration', async (req, res) => {
     try {
         console.log('🚨 EMERGENCY: Running Band Malal schema repair...');
 
-        // Use raw SQL to avoid Sequelize queryInterface issues on Render.
+        // Step 1: Add missing columns to sample_entries
+        console.log('Step 1: Adding columns to sample_entries...');
         await sequelize.query(`
-            CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
             ALTER TABLE sample_entries
                 ADD COLUMN IF NOT EXISTS "wbInputType" VARCHAR(50),
                 ADD COLUMN IF NOT EXISTS "millWbId" INTEGER,
                 ADD COLUMN IF NOT EXISTS "partyWbName" VARCHAR(255),
-                ADD COLUMN IF NOT EXISTS "wbStatus" VARCHAR(50) NOT NULL DEFAULT 'none',
+                ADD COLUMN IF NOT EXISTS "wbStatus" VARCHAR(50) DEFAULT 'none',
                 ADD COLUMN IF NOT EXISTS "wbRejectReason" TEXT,
                 ADD COLUMN IF NOT EXISTS "placeType" VARCHAR(50),
                 ADD COLUMN IF NOT EXISTS "placeWarehouseId" INTEGER,
                 ADD COLUMN IF NOT EXISTS "placeKunchinittuId" INTEGER,
                 ADD COLUMN IF NOT EXISTS "placeDate" DATE,
-                ADD COLUMN IF NOT EXISTS "placeStatus" VARCHAR(50) NOT NULL DEFAULT 'none',
+                ADD COLUMN IF NOT EXISTS "placeStatus" VARCHAR(50) DEFAULT 'none',
                 ADD COLUMN IF NOT EXISTS "placeRejectReason" TEXT,
                 ADD COLUMN IF NOT EXISTS "outturnId" INTEGER,
                 ADD COLUMN IF NOT EXISTS "wbNo" VARCHAR(100),
                 ADD COLUMN IF NOT EXISTS "grossWeight" DECIMAL(15, 2),
                 ADD COLUMN IF NOT EXISTS "tareWeight" DECIMAL(15, 2),
                 ADD COLUMN IF NOT EXISTS "netWeight" DECIMAL(15, 2);
+        `);
+        console.log('✅ sample_entries columns added');
 
+        // Step 2: Create lorry_transit_details table
+        console.log('Step 2: Creating lorry_transit_details table...');
+        await sequelize.query(`
             CREATE TABLE IF NOT EXISTS lorry_transit_details (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 physical_inspection_id UUID NOT NULL,
@@ -61,26 +65,20 @@ router.post('/run-142-migration', async (req, res) => {
                 created_at TIMESTAMP NOT NULL DEFAULT NOW(),
                 updated_at TIMESTAMP NOT NULL DEFAULT NOW()
             );
-
-            ALTER TABLE lorry_transit_details
-                ADD COLUMN IF NOT EXISTS place_approved_by INTEGER,
-                ADD COLUMN IF NOT EXISTS place_approved_at TIMESTAMP,
-                ADD COLUMN IF NOT EXISTS wb_approved_by INTEGER,
-                ADD COLUMN IF NOT EXISTS wb_approved_at TIMESTAMP;
         `);
+        console.log('✅ lorry_transit_details table created');
 
-        console.log('✅ lorry_transit_details table repaired');
-
-        // Create indexes
+        // Step 3: Create indexes for lorry_transit_details
+        console.log('Step 3: Creating indexes for lorry_transit_details...');
         await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_lorry_transit_physical_inspection ON lorry_transit_details(physical_inspection_id)`);
         await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_lorry_transit_sample_entry ON lorry_transit_details(sample_entry_id)`);
+        console.log('✅ lorry_transit_details indexes created');
 
-        console.log('✅ Indexes created');
-
-        // Create inventory_quality_parameters table
+        // Step 4: Create inventory_quality_parameters table
+        console.log('Step 4: Creating inventory_quality_parameters table...');
         await sequelize.query(`
             CREATE TABLE IF NOT EXISTS inventory_quality_parameters (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                id SERIAL PRIMARY KEY,
                 lorry_transit_detail_id UUID NOT NULL,
                 type VARCHAR(50) NOT NULL,
                 status VARCHAR(50) NOT NULL DEFAULT 'pending',
@@ -108,61 +106,25 @@ router.post('/run-142-migration', async (req, res) => {
                 created_at TIMESTAMP NOT NULL DEFAULT NOW(),
                 updated_at TIMESTAMP NOT NULL DEFAULT NOW()
             );
-
-            ALTER TABLE inventory_quality_parameters
-                ADD COLUMN IF NOT EXISTS lorry_transit_detail_id UUID,
-                ADD COLUMN IF NOT EXISTS reported_by_user_id INTEGER,
-                ADD COLUMN IF NOT EXISTS approved_by_user_id INTEGER,
-                ADD COLUMN IF NOT EXISTS reject_reason TEXT;
-
-            DO $$
-            BEGIN
-                IF EXISTS (
-                    SELECT 1 FROM information_schema.columns
-                    WHERE table_name = 'inventory_quality_parameters'
-                      AND column_name = 'transit_detail_id'
-                ) THEN
-                    UPDATE inventory_quality_parameters
-                    SET lorry_transit_detail_id = COALESCE(lorry_transit_detail_id, transit_detail_id)
-                    WHERE lorry_transit_detail_id IS NULL;
-                END IF;
-
-                IF EXISTS (
-                    SELECT 1 FROM information_schema.columns
-                    WHERE table_name = 'inventory_quality_parameters'
-                      AND column_name = 'reported_by'
-                ) THEN
-                    UPDATE inventory_quality_parameters
-                    SET reported_by_user_id = COALESCE(reported_by_user_id, reported_by)
-                    WHERE reported_by_user_id IS NULL;
-                END IF;
-
-                IF EXISTS (
-                    SELECT 1 FROM information_schema.columns
-                    WHERE table_name = 'inventory_quality_parameters'
-                      AND column_name = 'approved_by'
-                ) THEN
-                    UPDATE inventory_quality_parameters
-                    SET approved_by_user_id = COALESCE(approved_by_user_id, approved_by)
-                    WHERE approved_by_user_id IS NULL;
-                END IF;
-            END $$;
         `);
+        console.log('✅ inventory_quality_parameters table created');
 
-        console.log('✅ inventory_quality_parameters table repaired');
-
-        // Create indexes for inventory_quality_parameters
+        // Step 5: Create indexes for inventory_quality_parameters
+        console.log('Step 5: Creating indexes for inventory_quality_parameters...');
         await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_inventory_quality_transit_detail ON inventory_quality_parameters(lorry_transit_detail_id)`);
         await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_inventory_quality_status ON inventory_quality_parameters(status)`);
         await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_inventory_quality_type ON inventory_quality_parameters(type)`);
-
         console.log('✅ inventory_quality_parameters indexes created');
 
+        // Step 6: Track migrations
+        console.log('Step 6: Tracking migrations...');
         await sequelize.query(`
             CREATE TABLE IF NOT EXISTS "SequelizeMeta" (
                 name VARCHAR(255) PRIMARY KEY
             );
-
+        `);
+        
+        await sequelize.query(`
             INSERT INTO "SequelizeMeta" (name)
             VALUES
                 ('139_add_transit_approval_fields_to_sample_entries.js'),
@@ -174,26 +136,41 @@ router.post('/run-142-migration', async (req, res) => {
                 ('145_create_inventory_quality_parameters.js')
             ON CONFLICT (name) DO NOTHING;
         `);
+        console.log('✅ Migrations tracked');
 
+        // Step 7: Verify tables exist
+        console.log('Step 7: Verifying tables...');
         const [verification] = await sequelize.query(`
             SELECT table_name
             FROM information_schema.tables
             WHERE table_schema = 'public'
-              AND table_name IN ('lorry_transit_details', 'inventory_quality_parameters')
+              AND table_name IN ('lorry_transit_details', 'inventory_quality_parameters', 'sample_entries')
             ORDER BY table_name;
         `);
+        
+        const tableNames = verification.map(row => row.table_name);
+        console.log('✅ Tables verified:', tableNames);
 
         res.json({
             success: true,
-            message: '✅ Band Malal schema repaired successfully.',
-            tables: verification.map(row => row.table_name)
+            message: '✅ Band Malal schema repaired successfully. All tables and columns created.',
+            tables: tableNames,
+            timestamp: new Date().toISOString()
         });
 
     } catch (error) {
         console.error('❌ Emergency migration failed:', error);
+        console.error('Error details:', {
+            message: error.message,
+            code: error.code,
+            name: error.name
+        });
+        
         res.status(500).json({
             success: false,
             error: error.message,
+            errorCode: error.code,
+            errorName: error.name,
             stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     }
