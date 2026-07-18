@@ -10,10 +10,12 @@ const { sequelize } = require('../config/database');
 
 router.post('/run-142-migration', async (req, res) => {
     try {
-        console.log('🚨 EMERGENCY: Running migration 142...');
+        console.log('🚨 EMERGENCY: Running Band Malal schema repair...');
 
-        // Use raw SQL to avoid Sequelize issues
+        // Use raw SQL to avoid Sequelize queryInterface issues on Render.
         await sequelize.query(`
+            CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
             CREATE TABLE IF NOT EXISTS lorry_transit_details (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 physical_inspection_id UUID NOT NULL,
@@ -34,20 +36,22 @@ router.post('/run-142-migration', async (req, res) => {
                 "placeStatus" VARCHAR(50) NOT NULL DEFAULT 'none',
                 "placeRejectReason" TEXT,
                 "outturnId" INTEGER,
-                "wbApprovedBy" INTEGER,
-                "wbApprovedAt" TIMESTAMP,
-                "wbRejectedBy" INTEGER,
-                "wbRejectedAt" TIMESTAMP,
-                "placeApprovedBy" INTEGER,
-                "placeApprovedAt" TIMESTAMP,
-                "placeRejectedBy" INTEGER,
-                "placeRejectedAt" TIMESTAMP,
+                place_approved_by INTEGER,
+                place_approved_at TIMESTAMP,
+                wb_approved_by INTEGER,
+                wb_approved_at TIMESTAMP,
                 created_at TIMESTAMP NOT NULL DEFAULT NOW(),
                 updated_at TIMESTAMP NOT NULL DEFAULT NOW()
             );
+
+            ALTER TABLE lorry_transit_details
+                ADD COLUMN IF NOT EXISTS place_approved_by INTEGER,
+                ADD COLUMN IF NOT EXISTS place_approved_at TIMESTAMP,
+                ADD COLUMN IF NOT EXISTS wb_approved_by INTEGER,
+                ADD COLUMN IF NOT EXISTS wb_approved_at TIMESTAMP;
         `);
 
-        console.log('✅ lorry_transit_details table created');
+        console.log('✅ lorry_transit_details table repaired');
 
         // Create indexes
         await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_lorry_transit_physical_inspection ON lorry_transit_details(physical_inspection_id)`);
@@ -58,52 +62,110 @@ router.post('/run-142-migration', async (req, res) => {
         // Create inventory_quality_parameters table
         await sequelize.query(`
             CREATE TABLE IF NOT EXISTS inventory_quality_parameters (
-                id SERIAL PRIMARY KEY,
-                transit_detail_id UUID NOT NULL,
-                type VARCHAR(50) NOT NULL CHECK (type IN ('lot_avg', 'full_lorry_avg')),
-                moisture VARCHAR(50),
-                dry_moisture VARCHAR(50),
-                cutting VARCHAR(50),
-                bend VARCHAR(50),
-                grains VARCHAR(50),
-                mix VARCHAR(50),
-                s_mix VARCHAR(50),
-                l_mix VARCHAR(50),
-                kandu VARCHAR(50),
-                oil VARCHAR(50),
-                sk VARCHAR(50),
-                wb_r VARCHAR(50),
-                wb_bk VARCHAR(50),
-                wb_t VARCHAR(50),
-                smell VARCHAR(50),
-                paddy_wb VARCHAR(50),
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                lorry_transit_detail_id UUID NOT NULL,
+                type VARCHAR(50) NOT NULL,
+                status VARCHAR(50) NOT NULL DEFAULT 'pending',
+                moisture VARCHAR(30),
+                dry_moisture VARCHAR(30),
+                cutting VARCHAR(30),
+                bend VARCHAR(30),
+                grains VARCHAR(30),
+                mix VARCHAR(30),
+                s_mix VARCHAR(30),
+                l_mix VARCHAR(30),
+                kandu VARCHAR(30),
+                oil VARCHAR(30),
+                sk VARCHAR(30),
+                wb_r VARCHAR(30),
+                wb_bk VARCHAR(30),
+                wb_t VARCHAR(30),
+                smell VARCHAR(30),
+                paddy_wb VARCHAR(30),
                 p_color VARCHAR(50),
                 remarks TEXT,
-                reported_by INTEGER NOT NULL,
-                status VARCHAR(50) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
-                approved_by INTEGER,
-                approved_at TIMESTAMP,
-                rejected_by INTEGER,
-                rejected_at TIMESTAMP,
+                reported_by_user_id INTEGER NOT NULL,
+                approved_by_user_id INTEGER,
                 reject_reason TEXT,
                 created_at TIMESTAMP NOT NULL DEFAULT NOW(),
                 updated_at TIMESTAMP NOT NULL DEFAULT NOW()
             );
+
+            ALTER TABLE inventory_quality_parameters
+                ADD COLUMN IF NOT EXISTS lorry_transit_detail_id UUID,
+                ADD COLUMN IF NOT EXISTS reported_by_user_id INTEGER,
+                ADD COLUMN IF NOT EXISTS approved_by_user_id INTEGER,
+                ADD COLUMN IF NOT EXISTS reject_reason TEXT;
+
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'inventory_quality_parameters'
+                      AND column_name = 'transit_detail_id'
+                ) THEN
+                    UPDATE inventory_quality_parameters
+                    SET lorry_transit_detail_id = COALESCE(lorry_transit_detail_id, transit_detail_id)
+                    WHERE lorry_transit_detail_id IS NULL;
+                END IF;
+
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'inventory_quality_parameters'
+                      AND column_name = 'reported_by'
+                ) THEN
+                    UPDATE inventory_quality_parameters
+                    SET reported_by_user_id = COALESCE(reported_by_user_id, reported_by)
+                    WHERE reported_by_user_id IS NULL;
+                END IF;
+
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'inventory_quality_parameters'
+                      AND column_name = 'approved_by'
+                ) THEN
+                    UPDATE inventory_quality_parameters
+                    SET approved_by_user_id = COALESCE(approved_by_user_id, approved_by)
+                    WHERE approved_by_user_id IS NULL;
+                END IF;
+            END $$;
         `);
 
-        console.log('✅ inventory_quality_parameters table created');
+        console.log('✅ inventory_quality_parameters table repaired');
 
         // Create indexes for inventory_quality_parameters
-        await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_inventory_quality_transit_detail ON inventory_quality_parameters(transit_detail_id)`);
+        await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_inventory_quality_transit_detail ON inventory_quality_parameters(lorry_transit_detail_id)`);
         await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_inventory_quality_status ON inventory_quality_parameters(status)`);
         await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_inventory_quality_type ON inventory_quality_parameters(type)`);
 
         console.log('✅ inventory_quality_parameters indexes created');
 
+        await sequelize.query(`
+            CREATE TABLE IF NOT EXISTS "SequelizeMeta" (
+                name VARCHAR(255) PRIMARY KEY
+            );
+
+            INSERT INTO "SequelizeMeta" (name)
+            VALUES
+                ('142_create_lorry_transit_details.js'),
+                ('143_add_place_wb_approver_tracking.js'),
+                ('144_update_existing_place_approved_at.js'),
+                ('145_create_inventory_quality_parameters.js')
+            ON CONFLICT (name) DO NOTHING;
+        `);
+
+        const [verification] = await sequelize.query(`
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+              AND table_name IN ('lorry_transit_details', 'inventory_quality_parameters')
+            ORDER BY table_name;
+        `);
+
         res.json({
             success: true,
-            message: '✅ Migration 142, 143, 145 completed successfully! Tables created.',
-            tables: ['lorry_transit_details', 'inventory_quality_parameters']
+            message: '✅ Band Malal schema repaired successfully.',
+            tables: verification.map(row => row.table_name)
         });
 
     } catch (error) {
