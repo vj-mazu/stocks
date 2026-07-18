@@ -1,17 +1,17 @@
 /**
- * Run All Migrations with Proper Tracking
+ * Migration Runner with Proper Tracking
  * 
- * This script runs pending migrations on server startup.
- * Uses SequelizeMeta table to track which migrations have been executed.
+ * This script runs pending migrations and tracks which ones have been executed.
+ * Uses a SequelizeMeta table to track migration status.
  */
 
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
-const { sequelize } = require('./config/database');
+const { sequelize } = require('../config/database');
 
-async function runAllMigrations() {
-    console.log('🚀 Starting Migration System on Startup...\n');
+async function migrate() {
+    console.log('🚀 Starting Migration System...\n');
 
     try {
         await sequelize.authenticate();
@@ -40,22 +40,27 @@ async function runAllMigrations() {
         );
         const executedNames = executedMigrations.map(m => m.name);
 
+        console.log(`📊 Found ${executedNames.length} previously executed migrations\n`);
+
         // Get all migration files
-        const migrationsDir = path.join(__dirname, 'migrations');
+        const migrationsDir = path.join(__dirname);
         const files = fs.readdirSync(migrationsDir)
             .filter(file => file.endsWith('.js') && file !== 'migrate.js')
             .sort();
+
+        console.log(`📁 Found ${files.length} total migration files\n`);
 
         let executed = 0;
         let skipped = 0;
 
         for (const file of files) {
             if (executedNames.includes(file)) {
+                console.log(`⏭️  Skipping ${file} (already executed)`);
                 skipped++;
                 continue;
             }
 
-            console.log(`📋 Running pending migration: ${file}`);
+            console.log(`📋 Running migration: ${file}`);
             try {
                 const migration = require(path.join(migrationsDir, file));
 
@@ -78,17 +83,15 @@ async function runAllMigrations() {
                 executed++;
             } catch (error) {
                 console.error(`  ❌ Error running ${file}:`, error.message);
-                console.error(`\n⛔ Migration failed on startup. Server will continue but may have issues.\n`);
-                // Don't exit on startup - let server continue
-                break;
+                console.error(`\n⛔ Migration failed. Please fix the error and run again.\n`);
+                process.exit(1);
             }
         }
 
-        if (executed > 0) {
-            console.log(`\n✅ Migration complete! Executed ${executed} new migrations.\n`);
-        } else {
-            console.log(`\n✅ All migrations up to date (${skipped} already executed).\n`);
-        }
+        console.log(`\n✅ Migration complete!`);
+        console.log(`   • Executed: ${executed}`);
+        console.log(`   • Skipped: ${skipped}`);
+        console.log(`   • Total: ${files.length}\n`);
         
         process.exit(0);
     } catch (error) {
@@ -97,4 +100,4 @@ async function runAllMigrations() {
     }
 }
 
-runAllMigrations();
+migrate();
