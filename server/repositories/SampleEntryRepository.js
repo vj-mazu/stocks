@@ -1,4 +1,4 @@
-const { SampleEntry, User, QualityParameters, CookingReport, LotAllotment, PhysicalInspection, InventoryData, FinancialCalculation, Kunchinittu, Outturn } = require('../models');
+const { SampleEntry, User, QualityParameters, CookingReport, LotAllotment, PhysicalInspection, InventoryData, FinancialCalculation, Kunchinittu, Outturn, Warehouse, WeightBridge } = require('../models');
 const { Variety } = require('../models/Location');
 const SampleEntryOffering = require('../models/SampleEntryOffering');
 const { Op } = require('sequelize');
@@ -31,7 +31,12 @@ class SampleEntryRepository {
   }
 
   async findById(id, options = {}) {
-    const include = [];
+    const include = [
+      { model: Warehouse, as: 'placeWarehouse', required: false },
+      { model: Kunchinittu, as: 'placeKunchinittuData', required: false },
+      { model: WeightBridge, as: 'millWeightBridge', required: false },
+      { model: Outturn, as: 'outturn', required: false }
+    ];
 
     if (options.includeQuality) {
       include.push({ model: QualityParameters, as: 'qualityParameters' });
@@ -202,6 +207,17 @@ class SampleEntryRepository {
             required: false,
             include: [
               { model: User, as: 'reportedBy', attributes: ['id', 'username', 'fullName'] },
+              {
+                model: require('../models/LorryTransitDetail'),
+                as: 'lorryTransitDetail',
+                required: false,
+                include: [
+                  { model: Warehouse, as: 'placeWarehouse', attributes: ['id', 'name', 'code'] },
+                  { model: Kunchinittu, as: 'placeKunchinittuData', attributes: ['id', 'name', 'code'] },
+                  { model: Outturn, as: 'outturn', attributes: ['id', 'code', 'allottedVariety'] },
+                  { model: WeightBridge, as: 'millWeightBridge', attributes: ['id', 'name'] }
+                ]
+              },
               {
                 model: InventoryData,
                 as: 'inventoryData',
@@ -781,6 +797,10 @@ class SampleEntryRepository {
       { model: User, as: 'lotSelectionByUser', attributes: ['id', 'username'] },
       { model: CookingReport, as: 'cookingReport', required: false },
       { model: SampleEntryOffering, as: 'offering', required: false },
+      { model: Warehouse, as: 'placeWarehouse', required: false },
+      { model: Kunchinittu, as: 'placeKunchinittuData', required: false },
+      { model: WeightBridge, as: 'millWeightBridge', required: false },
+      { model: Outturn, as: 'outturn', required: false },
       {
         model: LotAllotment, as: 'lotAllotment', required: false,
         include: [

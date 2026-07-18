@@ -309,6 +309,88 @@ const SampleEntry = sequelize.define('SampleEntry', {
     type: DataTypes.TEXT,
     allowNull: true,
     field: 'fail_remarks'
+  },
+  wbInputType: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+    field: 'wbInputType'
+  },
+  millWbId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'millWbId'
+  },
+  partyWbName: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+    field: 'partyWbName'
+  },
+  wbStatus: {
+    type: DataTypes.STRING(50),
+    allowNull: false,
+    defaultValue: 'none',
+    field: 'wbStatus'
+  },
+  wbRejectReason: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    field: 'wbRejectReason'
+  },
+  placeType: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+    field: 'placeType'
+  },
+  placeWarehouseId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'placeWarehouseId'
+  },
+  placeKunchinittuId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'placeKunchinittuId'
+  },
+  placeDate: {
+    type: DataTypes.DATEONLY,
+    allowNull: true,
+    field: 'placeDate'
+  },
+  placeStatus: {
+    type: DataTypes.STRING(50),
+    allowNull: false,
+    defaultValue: 'none',
+    field: 'placeStatus'
+  },
+  placeRejectReason: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    field: 'placeRejectReason'
+  },
+  outturnId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'outturnId'
+  },
+  wbNo: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    field: 'wbNo'
+  },
+  grossWeight: {
+    type: DataTypes.DECIMAL(15, 2),
+    allowNull: true,
+    field: 'grossWeight'
+  },
+  tareWeight: {
+    type: DataTypes.DECIMAL(15, 2),
+    allowNull: true,
+    field: 'tareWeight'
+  },
+  netWeight: {
+    type: DataTypes.DECIMAL(15, 2),
+    allowNull: true,
+    field: 'netWeight'
   }
 }, {
   tableName: 'sample_entries',
@@ -366,6 +448,23 @@ SampleEntry.associate = (models) => {
   SampleEntry.hasOne(models.SampleEntryOffering, {
     foreignKey: 'sampleEntryId',
     as: 'offering'
+  });
+
+  SampleEntry.belongsTo(models.Warehouse, {
+    foreignKey: 'placeWarehouseId',
+    as: 'placeWarehouse'
+  });
+  SampleEntry.belongsTo(models.Kunchinittu, {
+    foreignKey: 'placeKunchinittuId',
+    as: 'placeKunchinittuData'
+  });
+  SampleEntry.belongsTo(models.WeightBridge, {
+    foreignKey: 'millWbId',
+    as: 'millWeightBridge'
+  });
+  SampleEntry.belongsTo(models.Outturn, {
+    foreignKey: 'outturnId',
+    as: 'outturn'
   });
 };
 

@@ -5,6 +5,7 @@ import { toast } from '../utils/toast';
 import SampleEditApprovals from './SampleEditApprovals';
 import ManagerValueApprovals from './ManagerValueApprovals';
 import { SampleEntryDetailModal } from '../components/SampleEntryDetailModal';
+import TransitApprovalsTab from '../components/TransitApprovalsTab';
 
 interface SampleApprovalsHubProps {
   entryType?: string;
@@ -12,7 +13,7 @@ interface SampleApprovalsHubProps {
   onPendingCountChange?: (count: number) => void;
 }
 
-type ApprovalTabKey = 'approval-for-edits' | 'approval-for-manager' | 'lorry-approvals' | 'loading-quality-approvals' | 'rate-linking-approvals';
+type ApprovalTabKey = 'approval-for-edits' | 'approval-for-manager' | 'lorry-approvals' | 'loading-quality-approvals' | 'rate-linking-approvals' | 'transit-approvals';
 
 interface ApprovalTabConfig {
   key: ApprovalTabKey;
@@ -151,6 +152,9 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     if (canAccessLoadingQuality) {
       baseTabs.push({ key: 'loading-quality-approvals', label: 'Loading Quality Approvals', color: '#1565c0' });
     }
+    if (canAccessManagerApprovals) {
+      baseTabs.push({ key: 'transit-approvals', label: 'In Transit Approvals', color: '#d97706' });
+    }
     return baseTabs;
   }, [canAccessManagerApprovals, canAccessLoadingQuality]);
 
@@ -158,7 +162,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     const saved = localStorage.getItem('sample_approvals_hub_active_tab');
     const allowedKeys = ['approval-for-edits'];
     if (canAccessManagerApprovals) {
-      allowedKeys.push('approval-for-manager', 'lorry-approvals', 'rate-linking-approvals');
+      allowedKeys.push('approval-for-manager', 'lorry-approvals', 'rate-linking-approvals', 'transit-approvals');
     }
     if (canAccessLoadingQuality) {
       allowedKeys.push('loading-quality-approvals');
@@ -790,7 +794,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                       <tr style={{ backgroundColor: index % 2 === 0 ? '#f9f9f9' : 'white', borderBottom: '1px solid #ddd' }}>
                         <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>{index + 1}</td>
                         <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>{formatDate(entry.entryDate)}</td>
-                        <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>{toTitleCase(entry.brokerName)}</td>
+                        <td style={{ border: '1px solid #ddd', padding: '10px 12px', wordBreak: 'break-word', overflowWrap: 'break-word' }}>{toTitleCase(entry.brokerName)}</td>
                         {loadingSubTab === 'paddy' && (
                           <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>
                             {entry.lotAllotment?.supervisor
@@ -798,14 +802,16 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                               : '-'}
                           </td>
                         )}
-                        <td style={{ border: '1px solid #ddd', padding: '10px 12px' }}>
+                        <td style={{ border: '1px solid #ddd', padding: '10px 12px', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                           <span
                             onClick={() => openDetailEntry(entry)}
                             style={{
                               color: '#4a90e2',
                               textDecoration: 'underline',
                               cursor: 'pointer',
-                              fontWeight: 'bold'
+                              fontWeight: 'bold',
+                              wordBreak: 'break-word',
+                              overflowWrap: 'break-word'
                             }}
                           >
                             {entry.partyName && entry.partyName.trim() && entry.partyName.toUpperCase() !== 'DIRECT LOADED VEHICLE'
@@ -1099,17 +1105,48 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
           <tbody>
             {rateLinkingEntries.map((e, index) => {
               const pending = e.offering?.pendingRateLinkingData || {};
+              const getPendingRateLabel = (p: any, pendingData: any) => {
+                if (!pendingData) return '';
+                const pendingRate = Number(pendingData.finalPrice || pendingData.finalBaseRate || pendingData.rateInfo?.rate || 0);
+                const finalRate = Number(p.finalPrice || p.finalBaseRate || 0);
+                
+                const disputeVersions = Array.isArray(p.disputeVersions) ? p.disputeVersions : [];
+                const isDispute = pendingData.rateInfo?.isDispute || pendingData.isDispute;
+                const isRevision = pendingData.rateInfo?.isRevision || pendingData.isRevision;
+                
+                if (isDispute) {
+                  const matchedDisputeIdx = disputeVersions.findIndex((d: any) => Number(d.disputeBaseRate) === pendingRate);
+                  if (matchedDisputeIdx !== -1) return `Dispute ${matchedDisputeIdx + 1}`;
+                  return 'Dispute';
+                }
+                if (isRevision) return 'Revision';
+                if (pendingRate === finalRate) return 'Final Rate';
+                
+                const offerVersions = Array.isArray(p.offerVersions) ? p.offerVersions : [];
+                const matchedOfferIdx = offerVersions.findIndex((v: any) => Number(v.offerBaseRateValue || v.offeringPrice || 0) === pendingRate);
+                if (matchedOfferIdx !== -1) return `Offer ${matchedOfferIdx + 1}`;
+                
+                return '';
+              };
+              const rateLabel = getPendingRateLabel(e.offering || {}, pending);
 
               return (
                 <tr key={e.id} style={{ borderBottom: '1px solid #e2e8f0', background: index % 2 === 0 ? '#fff' : '#f8fafc' }}>
                   <td style={{ padding: '10px 12px', fontWeight: 'bold', borderRight: '1px solid #e2e8f0' }}>{index + 1}</td>
                   <td style={{ padding: '10px 12px', whiteSpace: 'nowrap', borderRight: '1px solid #e2e8f0' }}>{new Date(e.entryDate).toLocaleDateString('en-IN')}</td>
-                  <td style={{ padding: '10px 12px', borderRight: '1px solid #e2e8f0' }}>{e.brokerName}</td>
-                  <td style={{ padding: '10px 12px', borderRight: '1px solid #e2e8f0' }}>
+                  <td style={{ padding: '10px 12px', borderRight: '1px solid #e2e8f0', wordBreak: 'break-word', overflowWrap: 'break-word' }}>{e.brokerName}</td>
+                  <td style={{ padding: '10px 12px', borderRight: '1px solid #e2e8f0', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                     <div style={{ fontWeight: 'bold', color: '#1e40af' }}>{e.partyName || e.lorryNumber || '-'}</div>
                     {pending.targetLorryNumber ? (
-                      <div style={{ fontSize: '11px', color: '#7c3aed', fontWeight: 'bold', marginTop: '3px', background: '#faf5ff', border: '1px solid #e9d5ff', padding: '2px 6px', borderRadius: '4px', display: 'inline-block' }}>
-                        🚚 Lorry: {pending.targetLorryNumber.toUpperCase()}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '3px' }}>
+                        <div style={{ fontSize: '11px', color: '#7c3aed', fontWeight: 'bold', background: '#faf5ff', border: '1px solid #e9d5ff', padding: '2px 6px', borderRadius: '4px', display: 'inline-block', width: 'max-content' }}>
+                          🚚 Lorry: {pending.targetLorryNumber.toUpperCase()}
+                        </div>
+                        {rateLabel && (
+                          <div style={{ fontSize: '10px', color: '#b45309', fontWeight: 'bold', background: '#fffbeb', border: '1px solid #fef3c7', padding: '2px 6px', borderRadius: '4px', display: 'inline-block', width: 'max-content' }}>
+                            ⚠️ {rateLabel}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       e.lorryNumber && e.partyName && <div style={{ fontSize: '10px', color: '#64748b' }}>{e.lorryNumber}</div>
@@ -1261,6 +1298,9 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
           <div key={`loading-quality-${refreshKey}`}>
             {renderLorryQualityTable()}
           </div>
+        )}
+        {canAccessManagerApprovals && activeTab === 'transit-approvals' && (
+          <TransitApprovalsTab key={`transit-${refreshKey}`} />
         )}
       </div>
 

@@ -43,6 +43,13 @@ router.get('/arrivals', auth, async (req, res) => {
 
     const where = {};
 
+    // CRITICAL FIX: Band Malal Book vs Records separation
+    // Band Malal Book shows entries where placeStatus='approved' (Place decided but not finalized)
+    // Records should NOT show these entries - only show finalized entries
+    // Exclude entries with placeStatus='approved' OR placeStatus='pending'
+    // Only show entries where placeStatus is null (old entries) or explicitly finalized
+    where.placeStatus = { [Op.not]: 'approved' };
+
     // Filter by movement type if provided
     if (movementType) {
       where.movementType = movementType;
@@ -252,7 +259,10 @@ router.get('/purchase', auth, async (req, res) => {
 
     const where = {
       movementType: 'purchase',
-      status: 'approved'
+      status: 'approved',
+      // CRITICAL FIX: Exclude Band Malal Book entries (placeStatus='approved')
+      // Only show finalized purchase records in this view
+      placeStatus: { [Op.not]: 'approved' }
     };
 
     // Search functionality

@@ -32,6 +32,7 @@ interface SampleEntry {
         };
         physicalInspections?: any[];
     };
+    createdAt?: string;
 }
 
 interface InspectionProgress {
@@ -78,6 +79,12 @@ const getDisplayedEntryTypeCode = (entry: any) => {
     if (type === 'DIRECT_LOADED_VEHICLE') return 'DV';
     if (type === 'READY_LORRY') return 'RL';
     return 'MS';
+};
+
+const getProgressColor = (percentage: number) => {
+    if (percentage >= 100) return '#4caf50'; // Green
+    if (percentage >= 50) return '#ff9800';  // Orange
+    return '#f44336';                         // Red
 };
 
 const getEntryTypeTextColor = (code: string) => {
@@ -140,7 +147,7 @@ const CompletedLots: React.FC<CompletedLotsProps> = ({ excludeEntryType }) => {
     const pageSize = 50;
 
     // State for opening the detail patti modal
-    const [selectedEntryForDetail, setSelectedEntryForDetail] = useState<SampleEntry | null>(null);
+    const [selectedEntryForDetail, setSelectedEntryForDetail] = useState<any | null>(null);
     const [targetLorryTripId, setTargetLorryTripId] = useState<string | null>(null);
 
     const fetchEntries = useCallback(async () => {
@@ -164,7 +171,7 @@ const CompletedLots: React.FC<CompletedLotsProps> = ({ excludeEntryType }) => {
                 headers: { Authorization: `Bearer ${token}` }
             });
             
-            const data = res.data;
+            const data = res.data as any;
             const fetchedEntries = data.entries || [];
             setEntries(fetchedEntries);
             setHasNextPage(data.pagination?.hasNextPage || false);
@@ -172,10 +179,10 @@ const CompletedLots: React.FC<CompletedLotsProps> = ({ excludeEntryType }) => {
 
             // Compute inspection progress details locally
             const progressCache: { [key: string]: InspectionProgress } = {};
-            fetchedEntries.forEach(entry => {
+            fetchedEntries.forEach((entry: any) => {
                 const totalBags = entry.lotAllotment?.allottedBags || entry.bags || 0;
                 const inspections = entry.lotAllotment?.physicalInspections || [];
-                const inspectedBags = inspections.reduce((sum, inspection) => sum + (inspection.bags || 0), 0);
+                const inspectedBags = inspections.reduce((sum: number, inspection: any) => sum + (inspection.bags || 0), 0);
                 const remainingBags = entry.lotAllotment?.closedAt ? 0 : Math.max(0, totalBags - inspectedBags);
                 const progressPercentage = entry.lotAllotment?.closedAt ? 100 : Math.min(100, (totalBags > 0 ? (inspectedBags / totalBags) * 100 : 0));
                 
@@ -184,7 +191,7 @@ const CompletedLots: React.FC<CompletedLotsProps> = ({ excludeEntryType }) => {
                     inspectedBags,
                     remainingBags,
                     progressPercentage,
-                    previousInspections: [...inspections].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+                    previousInspections: [...inspections].sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
                 };
             });
             setInspectionProgress(progressCache);
@@ -278,429 +285,425 @@ const CompletedLots: React.FC<CompletedLotsProps> = ({ excludeEntryType }) => {
                     <button onClick={() => { setFilters({ broker: '', variety: '', party: '', location: '', startDate: '', endDate: '' }); setActiveCursor(null); setCursorStack([null]); }} style={{ padding: '6px 14px', background: '#95a5a6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '13px', fontWeight: '700' }}>Clear</button>
                 </div>
             )}
+            {(() => {
+                const groupedEntries: { [date: string]: { [broker: string]: SampleEntry[] } } = {};
+                entries.forEach((entry) => {
+                    const d = new Date(entry.entryDate);
+                    const dateKey = entry.entryDate
+                        ? `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`
+                        : 'No Date';
+                    const brokerKey = entry.brokerName || 'Unknown';
+                    if (!groupedEntries[dateKey]) groupedEntries[dateKey] = {};
+                    if (!groupedEntries[dateKey][brokerKey]) groupedEntries[dateKey][brokerKey] = [];
+                    groupedEntries[dateKey][brokerKey].push(entry);
+                });
 
-            <div style={{ overflowX: 'auto', borderRadius: '6px', border: '1px solid #94a3b8' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                    <thead>
-                        <tr style={{ background: '#1e3a8a', color: 'white', borderBottom: '2px solid #0f172a' }}>
-                            <th style={{ border: '1px solid #94a3b8', padding: '8px 5px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '3%' }}>SL No</th>
-                            <th style={{ border: '1px solid #94a3b8', padding: '8px 5px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '4%' }}>Type</th>
-                            <th style={{ border: '1px solid #94a3b8', padding: '8px 5px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '4.5%' }}>Bags</th>
-                            <th style={{ border: '1px solid #94a3b8', padding: '8px 5px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '4%' }}>Pkg</th>
-                            <th style={{ border: '1px solid #94a3b8', padding: '8px 5px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '16%' }}>Party Name</th>
-                            <th style={{ border: '1px solid #94a3b8', padding: '8px 5px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '12%' }}>Paddy Location</th>
-                            <th style={{ border: '1px solid #94a3b8', padding: '8px 5px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '12%' }}>Variety</th>
-                            <th style={{ border: '1px solid #94a3b8', padding: '8px 5px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '6%' }}>Loaded</th>
-                            <th style={{ border: '1px solid #94a3b8', padding: '8px 5px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '6%' }}>Balance</th>
-                            <th style={{ border: '1px solid #94a3b8', padding: '8px 5px', fontWeight: '700', fontSize: '12px', textAlign: 'center', width: '10%' }}>Progress</th>
-                            <th style={{ border: '1px solid #94a3b8', padding: '8px 5px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '11%' }}>Allotted Supervisor</th>
-                            <th style={{ border: '1px solid #94a3b8', padding: '8px 5px', fontWeight: '700', fontSize: '12px', textAlign: 'left', width: '11%' }}>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {loading ? (
-                            <tr><td colSpan={12} style={{ textAlign: 'center', padding: '30px', color: '#888', fontWeight: '600' }}>Loading...</td></tr>
-                        ) : entries.length === 0 ? (
-                            <tr><td colSpan={12} style={{ textAlign: 'center', padding: '30px', color: '#888', fontWeight: '600' }}>No completed lots with pending patti found</td></tr>
-                        ) : entries.map((entry, idx) => {
-                            const progress = inspectionProgress[entry.id];
-                            const progressPercentage = progress?.progressPercentage || 0;
-                            const hasPreviousInspections = progress && progress.previousInspections && progress.previousInspections.length > 0;
-                            const currentSupervisor = entry.lotAllotment?.supervisor;
-                            const supervisorName = currentSupervisor ? (currentSupervisor.fullName || currentSupervisor.username) : '-';
+                if (loading) {
+                    return <div style={{ textAlign: 'center', padding: '30px', color: '#888', fontWeight: '600' }}>Loading...</div>;
+                }
+                if (entries.length === 0) {
+                    return <div style={{ textAlign: 'center', padding: '30px', color: '#888', fontWeight: '600' }}>No completed lots with pending patti found</div>;
+                }
 
-                            const isRLEntry = entry.entryType === 'DIRECT_LOADED_VEHICLE' || 
-                                              entry.entryType === 'READY_LORRY' || 
-                                              (entry as any).originalEntryType === 'DIRECT_LOADED_VEHICLE' || 
-                                              (entry as any).originalEntryType === 'READY_LORRY';
-                            const partyLabel = isRLEntry ? (entry.lorryNumber?.toUpperCase() || toTitleCase(entry.partyName) || '-') : (toTitleCase(entry.partyName) || entry.lorryNumber?.toUpperCase() || '-');
-
+                return Object.entries(groupedEntries).map(([dateKey, brokerGroups]) => (
+                    <div key={dateKey} style={{ marginBottom: '15px' }}>
+                        {Object.entries(brokerGroups).sort(([a], [b]) => a.localeCompare(b)).map(([brokerName, brokerEntries], brokerIdx) => {
                             return (
-                                <React.Fragment key={entry.id}>
-                                    <tr style={{ backgroundColor: idx % 2 === 0 ? '#f1f5f9' : '#ffffff', borderBottom: '1px solid #94a3b8' }}>
-                                        <td style={{ border: '1px solid #94a3b8', padding: '8px 4px', textAlign: 'center', fontSize: '12px', fontWeight: '700' }}>
-                                            {(idx + 1 + (cursorStack.length - 1) * pageSize)}
-                                        </td>
-                                        <td style={{ border: '1px solid #94a3b8', padding: '8px 4px', textAlign: 'center', fontWeight: '700' }}>
-                                            {(() => {
-                                                const typeCode = getDisplayedEntryTypeCode(entry);
-                                                const isResample = isConvertedResampleType(entry);
-                                                if (isResample) {
-                                                    const orig = getOriginalEntryTypeCode(entry);
-                                                    const conv = getConvertedEntryTypeCode(entry);
-                                                    return (
-                                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px' }}>
-                                                            <span style={{ fontSize: '9px', fontWeight: 800, color: getEntryTypeTextColor(orig) }}>{orig}</span>
-                                                            <span style={{
-                                                                display: 'inline-block',
-                                                                minWidth: '28px',
-                                                                padding: '1px 4px',
-                                                                borderRadius: '3px',
-                                                                fontSize: '11px',
-                                                                fontWeight: 800,
-                                                                textAlign: 'center',
-                                                                color: conv === 'RL' || conv === 'LS' ? '#fff' : '#166534',
-                                                                backgroundColor: conv === 'RL' ? '#1565c0' : conv === 'LS' ? '#c2410c' : '#fff',
-                                                                border: conv === 'MS' ? '1px solid #166534' : 'none'
-                                                            }}>{conv}</span>
-                                                        </div>
-                                                    );
-                                                }
-                                                return (
-                                                    <span style={{
-                                                        display: 'inline-block',
-                                                        minWidth: '28px',
-                                                        padding: '1px 4px',
-                                                        borderRadius: '3px',
-                                                        fontSize: '11px',
-                                                        fontWeight: 800,
-                                                        textAlign: 'center',
-                                                        color: typeCode === 'RL' || typeCode === 'LS' ? '#fff' : '#166534',
-                                                        backgroundColor: typeCode === 'RL' ? '#1565c0' : typeCode === 'LS' ? '#c2410c' : '#fff',
-                                                        border: typeCode === 'MS' ? '1px solid #166534' : 'none'
-                                                    }}>{typeCode}</span>
-                                                );
-                                            })()}
-                                        </td>
-                                        <td style={{ border: '1px solid #94a3b8', padding: '8px 4px', textAlign: 'center', fontSize: '12px', fontWeight: '700' }}>
-                                            {progress?.totalBags || entry.bags}
-                                        </td>
-                                        <td style={{ border: '1px solid #94a3b8', padding: '8px 4px', textAlign: 'center', fontSize: '12px', fontWeight: '700' }}>
-                                            {formatPackagingLabel(entry.packaging)}
-                                        </td>
-                                        <td style={{ border: '1px solid #94a3b8', padding: '8px 4px', fontSize: '12px', fontWeight: '600' }}>
-                                            <div style={{ color: '#1565c0', fontWeight: '700', textDecoration: 'underline', cursor: 'pointer' }} onClick={() => handleOpenDetailModal(entry)}>
-                                                {partyLabel}
-                                            </div>
-                                            {isRLEntry && entry.lorryNumber && entry.partyName && (
-                                                <div style={{ fontSize: '9.5px', color: '#666', marginTop: '2px', fontWeight: '500' }}>
-                                                    Party: {toTitleCase(entry.partyName)}
-                                                </div>
-                                            )}
-                                        </td>
-                                        <td style={{ border: '1px solid #94a3b8', padding: '8px 4px', fontSize: '12px', fontWeight: '600' }}>
-                                            {entry.location}
-                                        </td>
-                                        <td style={{ border: '1px solid #94a3b8', padding: '8px 4px', fontSize: '12px', fontWeight: '600' }}>
-                                            {entry.variety}
-                                        </td>
-                                        <td style={{ border: '1px solid #94a3b8', padding: '8px 4px', textAlign: 'center', fontSize: '12px', fontWeight: '700', color: '#2e7d32' }}>
-                                            {progress?.inspectedBags || 0}
-                                        </td>
-                                        <td style={{
-                                            border: '1px solid #94a3b8',
-                                            padding: '8px 4px',
-                                            textAlign: 'center',
-                                            fontSize: '12px',
+                                <div key={brokerName} style={{ marginBottom: '5px' }}>
+                                    {brokerIdx === 0 && (
+                                        <div style={{
+                                            background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+                                            color: 'white',
+                                            padding: '6px 10px',
                                             fontWeight: '700',
-                                            color: (progress?.totalBags - progress?.inspectedBags) <= 0 ? '#1565c0' : '#c62828'
+                                            fontSize: '14px',
+                                            textAlign: 'center',
+                                            letterSpacing: '0.5px'
                                         }}>
-                                            {(() => {
-                                                const diff = progress?.inspectedBags - progress?.totalBags;
-                                                return diff > 0 ? `+${diff}` : diff === 0 ? '0' : `${diff}`;
-                                            })()}
-                                        </td>
-                                        <td style={{ border: '1px solid #94a3b8', padding: '8px 4px', textAlign: 'center' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
-                                                <div style={{ width: '100%', height: '10px', backgroundColor: '#e0e0e0', borderRadius: '4px', overflow: 'hidden', border: '1px solid #999', display: 'flex' }}>
-                                                    <div style={{
-                                                        width: `${progressPercentage}%`,
-                                                        height: '100%',
-                                                        backgroundColor: progressPercentage >= 100 ? '#2e7d32' : progressPercentage >= 50 ? '#f39c12' : '#c62828',
-                                                        transition: 'width 0.3s ease'
-                                                    }} />
-                                                </div>
-                                                <span style={{ fontSize: '9px', fontWeight: '800', color: '#333' }}>
-                                                    {progressPercentage.toFixed(0)}%
-                                                </span>
-                                                {hasPreviousInspections && (
-                                                    <button 
-                                                        onClick={() => toggleExpand(entry.id)}
-                                                        style={{
-                                                            marginTop: '4px',
-                                                            padding: '2px 8px',
-                                                            border: '1px solid #94a3b8',
-                                                            borderRadius: '4px',
-                                                            background: '#fff',
-                                                            cursor: 'pointer',
-                                                            fontSize: '11px',
-                                                            fontWeight: '700',
-                                                            color: '#1565c0',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            gap: '4px'
-                                                        }}
-                                                    >
-                                                        {expandedEntries[entry.id] === true ? '▲ Hide Details' : '▼ Show Details'}
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td style={{ border: '1px solid #94a3b8', padding: '8px 4px', fontSize: '12px', fontWeight: '700', color: '#333' }}>
-                                            {supervisorName}
-                                        </td>
-                                        <td style={{ border: '1px solid #94a3b8', padding: '8px 4px', textAlign: 'center' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%' }}>
-                                                <button
-                                                    onClick={handleActionClick}
-                                                    style={{
-                                                        width: '100%',
-                                                        padding: '4px 6px',
-                                                        fontSize: '10px',
-                                                        fontWeight: '700',
-                                                        backgroundColor: '#27ae60',
-                                                        color: 'white',
-                                                        border: 'none',
-                                                        borderRadius: '4px',
-                                                        cursor: 'pointer',
-                                                        textAlign: 'center'
-                                                    }}
-                                                >
-                                                    Patti
-                                                </button>
-                                                <button
-                                                    onClick={handleActionClick}
-                                                    style={{
-                                                        width: '100%',
-                                                        padding: '4px 6px',
-                                                        fontSize: '10px',
-                                                        fontWeight: '700',
-                                                        backgroundColor: '#27ae60',
-                                                        color: 'white',
-                                                        border: 'none',
-                                                        borderRadius: '4px',
-                                                        cursor: 'pointer',
-                                                        textAlign: 'center'
-                                                    }}
-                                                >
-                                                    + Advance
-                                                </button>
-                                                <button
-                                                    onClick={handleActionClick}
-                                                    style={{
-                                                        width: '100%',
-                                                        padding: '4px 6px',
-                                                        fontSize: '10px',
-                                                        fontWeight: '700',
-                                                        backgroundColor: '#27ae60',
-                                                        color: 'white',
-                                                        border: 'none',
-                                                        borderRadius: '4px',
-                                                        cursor: 'pointer',
-                                                        textAlign: 'center'
-                                                    }}
-                                                >
-                                                    - Broker Advance
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
+                                            {dateKey}
+                                        </div>
+                                    )}
+                                    <div style={{
+                                        background: '#e8eaf6',
+                                        color: '#000',
+                                        padding: '3px 10px',
+                                        fontWeight: '700',
+                                        fontSize: '12px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        borderBottom: '1px solid #c5cae9'
+                                    }}>
+                                        <span style={{ fontSize: '12px', fontWeight: '800' }}>{brokerIdx + 1}.</span> {brokerName}
+                                    </div>
+                                    <div style={{ overflowX: 'auto', border: '1px solid #000' }}>
+                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', border: '1px solid #000' }}>
+                                            <thead>
+                                                <tr style={{ background: '#1a237e', color: 'white', borderBottom: '1px solid #000' }}>
+                                                    <th style={{ border: '1px solid #000', padding: '4px 3px', fontWeight: '700', textAlign: 'center', width: '3%' }}>SL No</th>
+                                                    <th style={{ border: '1px solid #000', padding: '4px 3px', fontWeight: '700', textAlign: 'center', width: '4%' }}>Type</th>
+                                                    <th style={{ border: '1px solid #000', padding: '4px 3px', fontWeight: '700', textAlign: 'center', width: '4.5%' }}>Bags</th>
+                                                    <th style={{ border: '1px solid #000', padding: '4px 3px', fontWeight: '700', textAlign: 'center', width: '4%' }}>Pkg</th>
+                                                    <th style={{ border: '1px solid #000', padding: '4px 3px', fontWeight: '700', textAlign: 'left', width: '16%' }}>Party Name</th>
+                                                    <th style={{ border: '1px solid #000', padding: '4px 3px', fontWeight: '700', textAlign: 'left', width: '12%' }}>Paddy Location</th>
+                                                    <th style={{ border: '1px solid #000', padding: '4px 3px', fontWeight: '700', textAlign: 'left', width: '12%' }}>Variety</th>
+                                                    <th style={{ border: '1px solid #000', padding: '4px 3px', fontWeight: '700', textAlign: 'center', width: '6%' }}>Loaded</th>
+                                                    <th style={{ border: '1px solid #000', padding: '4px 3px', fontWeight: '700', textAlign: 'center', width: '6%' }}>Balance</th>
+                                                    <th style={{ border: '1px solid #000', padding: '4px 3px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Progress</th>
+                                                    <th style={{ border: '1px solid #000', padding: '4px 3px', fontWeight: '700', textAlign: 'left', width: '11%' }}>Allotted Supervisor</th>
+                                                    <th style={{ border: '1px solid #000', padding: '4px 3px', fontWeight: '700', textAlign: 'left', width: '11%' }}>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {brokerEntries.map((entry, idx) => {
+                                                    const progress = inspectionProgress[entry.id];
+                                                    const progressPercentage = progress?.progressPercentage || 0;
+                                                    const hasPreviousInspections = progress && progress.previousInspections && progress.previousInspections.length > 0;
+                                                    const currentSupervisor = entry.lotAllotment?.supervisor;
+                                                    const supervisorName = currentSupervisor ? (currentSupervisor.fullName || currentSupervisor.username) : '-';
 
-                                    {/* Expanded Lorry Trips table block (Collapsible manually) */}
-                                    {expandedEntries[entry.id] === true && hasPreviousInspections && (
-                                        <tr>
-                                            <td colSpan={12} style={{ padding: '12px', backgroundColor: '#fdf6f0', border: '1px solid #000' }}>
-                                                {(() => {
-                                                    const getValueWithFallback = (field: 'moisture' | 'cutting' | 'bend', currentIdx: number) => {
-                                                        const currentLorry = (progress.previousInspections[currentIdx]?.lorryNumber || '').trim().toUpperCase();
-                                                        const hasSameLorryPrevious = progress.previousInspections.some((insp: any, i: number) => 
-                                                            i < currentIdx && (insp.lorryNumber || '').trim().toUpperCase() === currentLorry
-                                                        );
-                                                        
-                                                        const collectStages = (insp: any) => {
-                                                            const stgList = insp.samplingStages || {};
-                                                            const stagesToCheck: any[] = [];
-                                                            const balancedLotKey = Object.keys(stgList).find(key => key === 'balanced_lot' || key.startsWith('balanced_lot_hold_'));
-                                                            const balancedLotStage = balancedLotKey ? stgList[balancedLotKey] : null;
-                                                            if (balancedLotStage?.reportedBy) stagesToCheck.push(balancedLotStage);
-                                                            if (stgList.full_avg?.reportedBy) stagesToCheck.push(stgList.full_avg);
-                                                            if (stgList.half_lorry?.reportedBy) stagesToCheck.push(stgList.half_lorry);
-                                                            const nitKeys = Object.keys(stgList)
-                                                                .filter(k => k.startsWith('nit_avg') && stgList[k]?.reportedBy)
-                                                                .sort((a, b) => {
-                                                                    if (a === 'nit_avg') return -1;
-                                                                    if (b === 'nit_avg') return 1;
-                                                                    const numA = parseInt(a.replace('nit_avg_', '')) || 0;
-                                                                    const numB = parseInt(b.replace('nit_avg_', '')) || 0;
-                                                                    return numB - numA;
-                                                                });
-                                                            nitKeys.forEach(k => stagesToCheck.push(stgList[k]));
-                                                            const lotAvgKey = Object.keys(stgList).find(key => key === 'lot_avg' || key.startsWith('lot_avg_hold_'));
-                                                            const lotAvgStage = lotAvgKey ? stgList[lotAvgKey] : null;
-                                                            if (lotAvgStage?.reportedBy) stagesToCheck.push(lotAvgStage);
-                                                            return stagesToCheck;
-                                                        };
-                                                        
-                                                        const extractNonZero = (stg: any) => {
-                                                            if (!stg) return null;
-                                                            if (field === 'moisture') {
-                                                                if (stg.moistureRaw) return `${stg.moistureRaw}%`;
-                                                                if (stg.moisture !== undefined && stg.moisture !== null && String(stg.moisture).trim() !== '' && String(stg.moisture).trim() !== '-') {
-                                                                    return `${stg.moisture}%`;
-                                                                }
-                                                            } else if (field === 'cutting') {
-                                                                if (stg.cutting1 !== undefined && stg.cutting1 !== null && String(stg.cutting1).trim() !== '' && String(stg.cutting1).trim() !== '-') {
-                                                                    const c1 = parseFloat(stg.cutting1);
-                                                                    const c2 = parseFloat(stg.cutting2) || 0;
-                                                                    if (!isNaN(c1) && c2 > 0) return `${isNaN(c1) || c1 === 0 ? 1 : c1}×${c2}`;
-                                                                }
-                                                            } else if (field === 'bend') {
-                                                                if (stg.bend1 !== undefined && stg.bend1 !== null && String(stg.bend1).trim() !== '' && String(stg.bend1).trim() !== '-') {
-                                                                    const b1 = parseFloat(stg.bend1);
-                                                                    const b2 = parseFloat(stg.bend2) || 0;
-                                                                    if (!isNaN(b1) && b2 > 0) return `${isNaN(b1) || b1 === 0 ? 1 : b1}×${b2}`;
-                                                                }
-                                                            }
-                                                            return null;
-                                                        };
-                                                        
-                                                        const extractAny = (stg: any) => {
-                                                            if (!stg) return null;
-                                                            if (field === 'cutting') {
-                                                                if (stg.cutting1 !== undefined && stg.cutting1 !== null && String(stg.cutting1).trim() !== '' && String(stg.cutting1).trim() !== '-') {
-                                                                    const c1 = parseFloat(stg.cutting1);
-                                                                    const c2 = parseFloat(stg.cutting2) || 0;
-                                                                    return `${isNaN(c1) || c1 === 0 ? 1 : c1}×${c2}`;
-                                                                }
-                                                            } else if (field === 'bend') {
-                                                                if (stg.bend1 !== undefined && stg.bend1 !== null && String(stg.bend1).trim() !== '' && String(stg.bend1).trim() !== '-') {
-                                                                    const b1 = parseFloat(stg.bend1);
-                                                                    const b2 = parseFloat(stg.bend2) || 0;
-                                                                    return `${isNaN(b1) || b1 === 0 ? 1 : b1}×${b2}`;
-                                                                }
-                                                            }
-                                                            return null;
-                                                        };
-                                                        
-                                                        // Pass 1: Non-zero values
-                                                        for (let i = currentIdx; i >= 0; i--) {
-                                                            const insp = progress.previousInspections[i];
-                                                            if (!insp) continue;
-                                                            if (i !== currentIdx && hasSameLorryPrevious) {
-                                                                const prevLorry = (insp.lorryNumber || '').trim().toUpperCase();
-                                                                if (prevLorry !== currentLorry) continue;
-                                                            }
-                                                            for (const stg of collectStages(insp)) {
-                                                                const val = extractNonZero(stg);
-                                                                if (val) return val;
-                                                            }
-                                                        }
-                                                        
-                                                        // Pass 2: Any values (even zero)
-                                                        for (let i = currentIdx; i >= 0; i--) {
-                                                            const insp = progress.previousInspections[i];
-                                                            if (!insp) continue;
-                                                            if (i !== currentIdx && hasSameLorryPrevious) {
-                                                                const prevLorry = (insp.lorryNumber || '').trim().toUpperCase();
-                                                                if (prevLorry !== currentLorry) continue;
-                                                            }
-                                                            for (const stg of collectStages(insp)) {
-                                                                const val = extractAny(stg);
-                                                                if (val) return val;
-                                                            }
-                                                        }
-                                                        
-                                                        // Fallback to inspection root properties
-                                                        const inspRoot = progress.previousInspections[currentIdx];
-                                                        if (field === 'moisture' && inspRoot?.moisture) {
-                                                            return `${Number(inspRoot.moisture)}%`;
-                                                        } else if (field === 'cutting' && inspRoot?.cutting1) {
-                                                            return `${Number(inspRoot.cutting1)}×${Number(inspRoot.cutting2 || inspRoot.cutting1)}`;
-                                                        } else if (field === 'bend' && inspRoot?.bend) {
-                                                            return `${Number(inspRoot.bend)}×${Number(inspRoot.bend2 || inspRoot.bend)}`;
-                                                        }
-                                                        
-                                                        return '-';
-                                                    };
+                                                    const isRLEntry = entry.entryType === 'DIRECT_LOADED_VEHICLE' || 
+                                                                      entry.entryType === 'READY_LORRY' || 
+                                                                      (entry as any).originalEntryType === 'DIRECT_LOADED_VEHICLE' || 
+                                                                      (entry as any).originalEntryType === 'READY_LORRY';
+                                                    const partyLabel = isRLEntry ? (entry.lorryNumber?.toUpperCase() || toTitleCase(entry.partyName) || '-') : (toTitleCase(entry.partyName) || entry.lorryNumber?.toUpperCase() || '-');
 
                                                     return (
-                                                        <>
-                                                            <div style={{ fontSize: '13px', fontWeight: '800', marginBottom: '8px', color: '#1a237e' }}>
-                                                                📋 Lorry Loaded ({progress.previousInspections.length}) — {progress.inspectedBags} of {progress.totalBags} bags inspected
-                                                            </div>
-                                                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', border: '1px solid #000', backgroundColor: '#ffffff' }}>
-                                                                <thead>
-                                                                    <tr style={{ backgroundColor: '#f5f5f5', color: '#000', borderBottom: '1px solid #000' }}>
-                                                                        <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '3%' }}>#</th>
-                                                                        <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Date</th>
-                                                                        <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'left', width: '14%' }}>Lorry No</th>
-                                                                        <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Bags</th>
-                                                                        <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Moisture</th>
-                                                                        <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Cutting</th>
-                                                                        <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Bend</th>
-                                                                        <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Status</th>
-                                                                        <th style={{ border: '1px solid #000', padding: '6px', fontWeight: '700', textAlign: 'center', width: '21%' }}>Linked Rate</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                    {progress.previousInspections.map((insp, tripIdx) => {
-                                                                        const isLinked = !!insp.linkedPattiRate;
-                                                                        const isPendingApproval = entry.offering?.pendingRateLinkingStatus === 'pending' && entry.offering?.pendingRateLinkingData?.targetLorryTripId === insp.id;
-                                                                        
-                                                                        const moistureVal = getValueWithFallback('moisture', tripIdx);
-                                                                        const cuttingVal = getValueWithFallback('cutting', tripIdx);
-                                                                        const bendVal = getValueWithFallback('bend', tripIdx);
-                                                                        
-                                                                        return (
-                                                                            <tr key={insp.id} style={{ borderBottom: '1px solid #ccc' }}>
-                                                                                <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>{tripIdx + 1}</td>
-                                                                                <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>{formatShortDate(insp.inspectionDate)}</td>
-                                                                                <td style={{ border: '1px solid #ccc', padding: '6px', fontWeight: '700', color: '#1565c0' }}>{insp.lorryNumber?.toUpperCase()}</td>
-                                                                                <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{insp.bags || '-'}</td>
-                                                                                <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center', fontWeight: '600', color: '#b91c1c' }}>
-                                                                                    {moistureVal}
-                                                                                </td>
-                                                                                <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center', fontWeight: '600' }}>
-                                                                                    {cuttingVal}
-                                                                                </td>
-                                                                                <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center', fontWeight: '600' }}>
-                                                                                    {bendVal}
-                                                                                </td>
+                                                        <React.Fragment key={entry.id}>
+                                                            <tr style={{ backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f9f9f9', borderBottom: '1px solid #000' }}>
+                                                                <td style={{ border: '1px solid #000', padding: '4px 3px', textAlign: 'center', fontWeight: '700' }}>
+                                                                    {idx + 1}
+                                                                </td>
+                                                                <td style={{ border: '1px solid #000', padding: '4px 3px', textAlign: 'center', fontWeight: '700' }}>
+                                                                    {(() => {
+                                                                        const typeCode = getDisplayedEntryTypeCode(entry);
+                                                                        const isResample = isConvertedResampleType(entry);
+                                                                        if (isResample) {
+                                                                            const orig = getOriginalEntryTypeCode(entry);
+                                                                            const conv = getConvertedEntryTypeCode(entry);
+                                                                            return (
+                                                                                <span style={{ color: getEntryTypeTextColor(orig) }}>
+                                                                                    {orig}➡️<span style={{ color: getEntryTypeTextColor(conv) }}>{conv}</span>
+                                                                                </span>
+                                                                            );
+                                                                        }
+                                                                        return <span style={{ color: getEntryTypeTextColor(typeCode) }}>{typeCode}</span>;
+                                                                    })()}
+                                                                </td>
+                                                                <td style={{ border: '1px solid #000', padding: '4px 3px', textAlign: 'center', fontWeight: '700' }}>{entry.bags}</td>
+                                                                <td style={{ border: '1px solid #000', padding: '4px 3px', textAlign: 'center' }}>{formatPackagingLabel(entry.packaging)}</td>
+                                                                <td style={{ border: '1px solid #000', padding: '4px 3px', fontWeight: '700' }}>
+                                                                    <div style={{ color: '#1e3a8a', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => handleOpenDetailModal(entry)}>
+                                                                        {partyLabel}
+                                                                    </div>
+                                                                </td>
+                                                                <td style={{ border: '1px solid #000', padding: '4px 3px' }}>{toTitleCase(entry.location)}</td>
+                                                                <td style={{ border: '1px solid #000', padding: '4px 3px' }}>{entry.variety}</td>
+                                                                <td style={{ border: '1px solid #000', padding: '4px 3px', textAlign: 'center', fontWeight: '700', color: '#1e3a8a' }}>
+                                                                    {progress?.inspectedBags || 0}
+                                                                </td>
+                                                                <td style={{ border: '1px solid #000', padding: '4px 3px', textAlign: 'center', fontWeight: '700', color: (progress?.remainingBags || 0) > 0 ? '#b91c1c' : '#1e293b' }}>
+                                                                    {progress?.remainingBags || 0}
+                                                                </td>
+                                                                <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center' }}>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', justifyContent: 'center' }}>
+                                                                        <div style={{
+                                                                            flex: 1,
+                                                                            height: '18px',
+                                                                            backgroundColor: '#e0e0e0',
+                                                                            borderRadius: '9px',
+                                                                            overflow: 'hidden',
+                                                                            minWidth: '70px'
+                                                                        }}>
+                                                                            <div style={{
+                                                                                height: '100%',
+                                                                                width: `${progressPercentage}%`,
+                                                                                backgroundColor: getProgressColor(progressPercentage),
+                                                                                transition: 'width 0.3s ease',
+                                                                                borderRadius: '9px'
+                                                                            }} />
+                                                                        </div>
+                                                                        <span style={{ fontSize: '10px', fontWeight: '600', minWidth: '45px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                                                            {`${progressPercentage.toFixed(0)}%`}
+                                                                        </span>
+                                                                    </div>
+                                                                    {hasPreviousInspections && (
+                                                                        <button onClick={() => toggleExpand(entry.id)} style={{ fontSize: '9px', padding: '2px 6px', marginTop: '3px', border: '1px solid #94a3b8', borderRadius: '3px', background: '#f8fafc', cursor: 'pointer', fontWeight: 600, width: '100%' }}>
+                                                                            {expandedEntries[entry.id] === true ? '🔼 Hide Lorry' : '🔽 Show Lorry'}
+                                                                        </button>
+                                                                    )}
+                                                                </td>
+                                                                <td style={{ border: '1px solid #000', padding: '4px 3px', fontSize: '11px', fontWeight: '700', color: '#333' }}>
+                                                                    {supervisorName}
+                                                                </td>
+                                                                <td style={{ border: '1px solid #000', padding: '4px 3px', textAlign: 'center' }}>
+                                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: '100%' }}>
+                                                                        <button
+                                                                            onClick={handleActionClick}
+                                                                            style={{
+                                                                                width: '100%',
+                                                                                padding: '3px 4px',
+                                                                                fontSize: '10px',
+                                                                                fontWeight: '700',
+                                                                                backgroundColor: '#27ae60',
+                                                                                color: 'white',
+                                                                                border: 'none',
+                                                                                borderRadius: '3px',
+                                                                                cursor: 'pointer',
+                                                                                textAlign: 'center'
+                                                                            }}
+                                                                        >
+                                                                            Patti
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={handleActionClick}
+                                                                            style={{
+                                                                                width: '100%',
+                                                                                padding: '3px 4px',
+                                                                                fontSize: '10px',
+                                                                                fontWeight: '700',
+                                                                                backgroundColor: '#27ae60',
+                                                                                color: 'white',
+                                                                                border: 'none',
+                                                                                borderRadius: '3px',
+                                                                                cursor: 'pointer',
+                                                                                textAlign: 'center'
+                                                                            }}
+                                                                        >
+                                                                            - Advance
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={handleActionClick}
+                                                                            style={{
+                                                                                width: '100%',
+                                                                                padding: '3px 4px',
+                                                                                fontSize: '10px',
+                                                                                fontWeight: '700',
+                                                                                backgroundColor: '#27ae60',
+                                                                                color: 'white',
+                                                                                border: 'none',
+                                                                                borderRadius: '3px',
+                                                                                cursor: 'pointer',
+                                                                                textAlign: 'center'
+                                                                            }}
+                                                                        >
+                                                                            + Broker Advance
+                                                                        </button>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
 
-                                                                                <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>
-                                                                                    <span style={{
-                                                                                        padding: '2px 6px',
-                                                                                        borderRadius: '4px',
-                                                                                        backgroundColor: '#e8f5e9',
-                                                                                        color: '#2e7d32',
-                                                                                        fontWeight: '700',
-                                                                                        fontSize: '11px'
-                                                                                    }}>
-                                                                                        Pass
-                                                                                    </span>
-                                                                                </td>
-                                                                    <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>
-                                                                        {isPendingApproval ? (
-                                                                            <span style={{ color: '#d97706', fontWeight: '700' }}>
-                                                                                Pending Approval (Rs {entry.offering?.pendingRateLinkingData?.rateInfo?.rate || entry.offering?.pendingRateLinkingData?.finalPrice})
-                                                                            </span>
-                                                                        ) : isLinked ? (
-                                                                            <span style={{ fontWeight: '700', color: '#2e7d32' }}>
-                                                                                Rs {insp.linkedPattiRate.rate} ({insp.linkedPattiRate.rateType === 'PD_LOOSE' ? 'Loose' : insp.linkedPattiRate.rateType || 'WB'})
-                                                                            </span>
-                                                                        ) : (
-                                                                            <span style={{ color: '#d97706', fontWeight: '700' }}>Pending</span>
-                                                                        )}
+                                                            {/* Expanded Lorry Trips table block (Collapsible manually) */}
+                                                            {expandedEntries[entry.id] === true && hasPreviousInspections && (
+                                                                <tr>
+                                                                    <td colSpan={12} style={{ padding: '8px', backgroundColor: '#fdf6f0', border: '1px solid #000' }}>
+                                                                        {(() => {
+                                                                            const getValueWithFallback = (field: 'moisture' | 'cutting' | 'bend', currentIdx: number) => {
+                                                                                const currentLorry = (progress.previousInspections[currentIdx]?.lorryNumber || '').trim().toUpperCase();
+                                                                                const hasSameLorryPrevious = progress.previousInspections.some((insp: any, i: number) => 
+                                                                                    i < currentIdx && (insp.lorryNumber || '').trim().toUpperCase() === currentLorry
+                                                                                );
+                                                                                
+                                                                                const collectStages = (insp: any) => {
+                                                                                    const stgList = insp.samplingStages || {};
+                                                                                    const stagesToCheck: any[] = [];
+                                                                                    const balancedLotKey = Object.keys(stgList).find(key => key === 'balanced_lot' || key.startsWith('balanced_lot_hold_'));
+                                                                                    const balancedLotStage = balancedLotKey ? stgList[balancedLotKey] : null;
+                                                                                    if (balancedLotStage?.reportedBy) stagesToCheck.push(balancedLotStage);
+                                                                                    if (stgList.full_avg?.reportedBy) stagesToCheck.push(stgList.full_avg);
+                                                                                    if (stgList.half_lorry?.reportedBy) stagesToCheck.push(stgList.half_lorry);
+                                                                                    const nitKeys = Object.keys(stgList)
+                                                                                        .filter(k => k.startsWith('nit_avg') && stgList[k]?.reportedBy)
+                                                                                        .sort((a, b) => {
+                                                                                            if (a === 'nit_avg') return -1;
+                                                                                            if (b === 'nit_avg') return 1;
+                                                                                            const numA = parseInt(a.replace('nit_avg_', '')) || 0;
+                                                                                            const numB = parseInt(b.replace('nit_avg_', '')) || 0;
+                                                                                            return numB - numA;
+                                                                                        });
+                                                                                    nitKeys.forEach(k => stagesToCheck.push(stgList[k]));
+                                                                                    const lotAvgKey = Object.keys(stgList).find(key => key === 'lot_avg' || key.startsWith('lot_avg_hold_'));
+                                                                                    const lotAvgStage = lotAvgKey ? stgList[lotAvgKey] : null;
+                                                                                    if (lotAvgStage?.reportedBy) stagesToCheck.push(lotAvgStage);
+                                                                                    return stagesToCheck;
+                                                                                };
+                                                                                
+                                                                                const extractNonZero = (stg: any) => {
+                                                                                    if (!stg) return null;
+                                                                                    if (field === 'moisture') {
+                                                                                        if (stg.moistureRaw) return `${stg.moistureRaw}%`;
+                                                                                        if (stg.moisture !== undefined && stg.moisture !== null && String(stg.moisture).trim() !== '' && String(stg.moisture).trim() !== '-') {
+                                                                                            return `${stg.moisture}%`;
+                                                                                        }
+                                                                                    } else if (field === 'cutting') {
+                                                                                        if (stg.cutting1 !== undefined && stg.cutting1 !== null && String(stg.cutting1).trim() !== '' && String(stg.cutting1).trim() !== '-') {
+                                                                                            const c1 = parseFloat(stg.cutting1);
+                                                                                            const c2 = parseFloat(stg.cutting2) || 0;
+                                                                                            if (!isNaN(c1) && c2 > 0) return `${isNaN(c1) || c1 === 0 ? 1 : c1}×${c2}`;
+                                                                                        }
+                                                                                    } else if (field === 'bend') {
+                                                                                        if (stg.bend1 !== undefined && stg.bend1 !== null && String(stg.bend1).trim() !== '' && String(stg.bend1).trim() !== '-') {
+                                                                                            const b1 = parseFloat(stg.bend1);
+                                                                                            const b2 = parseFloat(stg.bend2) || 0;
+                                                                                            if (!isNaN(b1) && b2 > 0) return `${isNaN(b1) || b1 === 0 ? 1 : b1}×${b2}`;
+                                                                                        }
+                                                                                    }
+                                                                                    return null;
+                                                                                };
+                                                                                
+                                                                                const extractAny = (stg: any) => {
+                                                                                    if (!stg) return null;
+                                                                                    if (field === 'cutting') {
+                                                                                        if (stg.cutting1 !== undefined && stg.cutting1 !== null && String(stg.cutting1).trim() !== '' && String(stg.cutting1).trim() !== '-') {
+                                                                                            const c1 = parseFloat(stg.cutting1);
+                                                                                            const c2 = parseFloat(stg.cutting2) || 0;
+                                                                                            return `${isNaN(c1) || c1 === 0 ? 1 : c1}×${c2}`;
+                                                                                        }
+                                                                                    } else if (field === 'bend') {
+                                                                                        if (stg.bend1 !== undefined && stg.bend1 !== null && String(stg.bend1).trim() !== '' && String(stg.bend1).trim() !== '-') {
+                                                                                            const b1 = parseFloat(stg.bend1);
+                                                                                            const b2 = parseFloat(stg.bend2) || 0;
+                                                                                            return `${isNaN(b1) || b1 === 0 ? 1 : b1}×${b2}`;
+                                                                                        }
+                                                                                    }
+                                                                                    return null;
+                                                                                };
+                                                                                
+                                                                                // Pass 1: Non-zero values — same lorry first, then any if no same lorry exists
+                                                                                for (let i = currentIdx; i >= 0; i--) {
+                                                                                    const insp = progress.previousInspections[i];
+                                                                                    if (!insp) continue;
+                                                                                    if (i !== currentIdx && hasSameLorryPrevious) {
+                                                                                        const prevLorry = (insp.lorryNumber || '').trim().toUpperCase();
+                                                                                        if (prevLorry !== currentLorry) continue;
+                                                                                    }
+                                                                                    for (const stg of collectStages(insp)) {
+                                                                                        const val = extractNonZero(stg);
+                                                                                        if (val) return val;
+                                                                                    }
+                                                                                }
+                                                                                
+                                                                                // Pass 2: Any values (even zero) for cutting/bend — same lorry first, then any
+                                                                                for (let i = currentIdx; i >= 0; i--) {
+                                                                                    const insp = progress.previousInspections[i];
+                                                                                    if (!insp) continue;
+                                                                                    if (i !== currentIdx && hasSameLorryPrevious) {
+                                                                                        const prevLorry = (insp.lorryNumber || '').trim().toUpperCase();
+                                                                                        if (prevLorry !== currentLorry) continue;
+                                                                                    }
+                                                                                    for (const stg of collectStages(insp)) {
+                                                                                        const val = extractAny(stg);
+                                                                                        if (val) return val;
+                                                                                    }
+                                                                                }
+                                                                                
+                                                                                return '-';
+                                                                            };
+
+                                                                            const getApprovedFullAvgBags = (stages: any, defaultBags: number) => {
+                                                                                if (stages.balanced_lot?.approvalStatus === 'approved') return stages.balanced_lot.actualBags || defaultBags;
+                                                                                if (stages.full_avg?.approvalStatus === 'approved') return stages.full_avg.actualBags || defaultBags;
+                                                                                if (stages.half_lorry?.approvalStatus === 'approved') return stages.half_lorry.actualBags || defaultBags;
+                                                                                const keys = Object.keys(stages).filter(k => k.startsWith('nit_avg'));
+                                                                                for (const k of keys) {
+                                                                                    if (stages[k]?.approvalStatus === 'approved') return stages[k].actualBags || defaultBags;
+                                                                                }
+                                                                                if (stages.lot_avg?.approvalStatus === 'approved') return stages.lot_avg.actualBags || defaultBags;
+                                                                                return defaultBags;
+                                                                            };
+
+                                                                            return (
+                                                                                <>
+                                                                                    <div style={{ fontSize: '12px', fontWeight: '800', marginBottom: '4px', color: '#1a237e' }}>
+                                                                                        🚚 LORRY TRIP FINAL RATE DETAILS ({progress.previousInspections.length})
+                                                                                    </div>
+                                                                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', border: '1px solid #000', backgroundColor: '#ffffff' }}>
+                                                                                        <thead>
+                                                                                            <tr style={{ backgroundColor: '#f1f5f9', color: '#000', borderBottom: '1px solid #000' }}>
+                                                                                                <th style={{ border: '1px solid #000', padding: '4px 3px', fontWeight: '700', textAlign: 'center', width: '4%' }}>SL No</th>
+                                                                                                <th style={{ border: '1px solid #000', padding: '4px 3px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Date</th>
+                                                                                                <th style={{ border: '1px solid #000', padding: '4px 3px', fontWeight: '700', textAlign: 'left', width: '15%' }}>Lorry No</th>
+                                                                                                <th style={{ border: '1px solid #000', padding: '4px 3px', fontWeight: '700', textAlign: 'center', width: '9%' }}>Bags</th>
+                                                                                                <th style={{ border: '1px solid #000', padding: '4px 3px', fontWeight: '700', textAlign: 'center', width: '9%' }}>Moisture</th>
+                                                                                                <th style={{ border: '1px solid #000', padding: '4px 3px', fontWeight: '700', textAlign: 'center', width: '9%' }}>Cutting</th>
+                                                                                                <th style={{ border: '1px solid #000', padding: '4px 3px', fontWeight: '700', textAlign: 'center', width: '9%' }}>Bend</th><th style={{ border: '1px solid #000', padding: '4px 3px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Sute</th>
+                      <th style={{ border: '1px solid #000', padding: '4px 3px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Payment Days</th>
+                      <th style={{ border: '1px solid #000', padding: '4px 3px', fontWeight: '700', textAlign: 'center', width: '20%' }}>Final Rate</th>
+                                                                                            </tr>
+                                                                                        </thead>
+                                                                                        <tbody>
+                                                                                            {progress.previousInspections.map((insp: any, iIdx: number) => {
+                                                                                                const stages = insp.samplingStages || {};
+                                                                                                const moistureVal = getValueWithFallback('moisture', iIdx);
+                                                                                                const cuttingVal = getValueWithFallback('cutting', iIdx);
+                                                                                                const bendVal = getValueWithFallback('bend', iIdx);
+ 
+                                                                                                return (
+                                                                                                    <tr key={insp.id || iIdx} style={{ borderBottom: '1px solid #000', backgroundColor: iIdx % 2 === 0 ? '#ffffff' : '#f9f9f9' }}>
+                                                                                                        <td style={{ border: '1px solid #000', padding: '4px 3px', textAlign: 'center', fontWeight: '600' }}>{iIdx + 1}</td>
+                                                                                                        <td style={{ border: '1px solid #000', padding: '4px 3px', textAlign: 'center' }}>
+                                                                                                            {new Date(insp.inspectionDate).toLocaleDateString('en-GB')}
+                                                                                                        </td>
+                                                                                                        <td style={{ border: '1px solid #000', padding: '4px 3px', fontWeight: '700' }}>
+                                                                                                            {insp.lorryNumber?.toUpperCase() || '-'}
+                                                                                                        </td>
+                                                                                                        <td style={{ border: '1px solid #000', padding: '4px 3px', textAlign: 'center', fontWeight: '600' }}>{getApprovedFullAvgBags(stages, insp.bags) || '-'}</td>
+                                                                                                        <td style={{ border: '1px solid #000', padding: '4px 3px', textAlign: 'center', fontWeight: '600' }}>{moistureVal}</td>
+                                                                                                        <td style={{ border: '1px solid #000', padding: '4px 3px', textAlign: 'center', fontWeight: '600' }}>{cuttingVal}</td>
+                                                                                                        <td style={{ border: '1px solid #000', padding: '4px 3px', textAlign: 'center', fontWeight: '600' }}>{bendVal}</td><td style={{ border: '1px solid #000', padding: '4px 3px', textAlign: 'center', fontWeight: '600' }}>
+                    {insp.linkedPattiRate ? (
+                        insp.linkedPattiRate.sute !== undefined && insp.linkedPattiRate.sute !== null
+                            ? `Rs ${toNumberText(insp.linkedPattiRate.sute)} / ${insp.linkedPattiRate.suteUnit === 'per_bag' ? 'Bag' : 'Ton'}`
+                            : '0'
+                    ) : (
+                        '-'
+                    )}
+                </td>
+                <td style={{ border: '1px solid #000', padding: '4px 3px', textAlign: 'center', fontWeight: '600' }}>
+                    {insp.linkedPattiRate ? (
+                        (() => {
+                            // Payment condition comes from the entry's offering/patti that was linked to this trip
+                            const payVal = entry.offering?.paymentConditionValue;
+                            const payUnit = entry.offering?.paymentConditionUnit || 'Days';
+                            return payVal != null && payVal !== '' ? `${payVal} ${payUnit === 'month' ? 'Month' : 'Days'}` : '-';
+                        })()
+                    ) : (
+                        '-'
+                    )}
+                </td>
+                <td style={{ border: '1px solid #000', padding: '4px 3px', textAlign: 'center' }}>
+                    {insp.linkedPattiRate ? (
+                        <span style={{ color: '#16a34a', fontWeight: '700' }}>
+                            Rs {insp.linkedPattiRate.rate} ({insp.linkedPattiRate.rateType === 'PD_LOOSE' ? 'Loose' : insp.linkedPattiRate.rateType || 'WB'})
+                        </span>
+                    ) : (
+                        <span style={{ color: '#d97706', fontWeight: '700' }}>Pending</span>
+                    )}
+                </td>
+                                                                                                    </tr>
+                                                                                                );
+                                                                                            })}
+                                                                                        </tbody>
+                                                                                    </table>
+                                                                                </>
+                                                                            );
+                                                                        })()}
                                                                     </td>
                                                                 </tr>
-                                                            );
-                                                                    })}
-                                                                </tbody>
-                                                            </table>
-                                                        </>
+                                                            )}
+                                                        </React.Fragment>
                                                     );
-                                                })()}
-                                            </td>
-                                        </tr>
-                                    )}
-                                </React.Fragment>
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             );
                         })}
-                    </tbody>
-                </table>
-            </div>
- 
+                    </div>
+                ));
+            })()}
+
             {/* Cursor Pagination Controls */}
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '12px' }}>
                 <button 
@@ -744,6 +747,7 @@ const CompletedLots: React.FC<CompletedLotsProps> = ({ excludeEntryType }) => {
                     detailEntry={selectedEntryForDetail}
                     detailMode="history"
                     progressiveMode={true}
+                    completedLotsOrder={true}
                     onClose={() => setSelectedEntryForDetail(null)}
                     showCollectorLoginPair={true}
                     targetLorryTripId={targetLorryTripId || undefined}

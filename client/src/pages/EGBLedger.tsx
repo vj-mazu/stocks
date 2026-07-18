@@ -179,8 +179,8 @@ const EGBLedger: React.FC = () => {
                                     return (
                                         <tr key={e.id} style={{ background: i % 2 === 0 ? '#fff' : '#faf5ff', borderBottom: '1px solid #eee' }}>
                                             <td style={{ padding: '6px', textAlign: 'center', fontWeight: '600', fontSize: '11px' }}>{globalSlNo}</td>
-                                            <td style={{ padding: '6px', textAlign: 'center', fontSize: '11px' }}>{e.brokerName}</td>
-                                            <td style={{ padding: '6px', textAlign: 'center', fontSize: '11px' }}>{e.partyName}</td>
+                                            <td style={{ padding: '6px', textAlign: 'center', fontSize: '11px', wordBreak: 'break-word', overflowWrap: 'break-word' }}>{e.brokerName}</td>
+                                            <td style={{ padding: '6px', textAlign: 'center', fontSize: '11px', wordBreak: 'break-word', overflowWrap: 'break-word' }}>{e.partyName}</td>
                                             <td style={{ padding: '6px', textAlign: 'center', fontSize: '11px' }}>{e.location || '-'}</td>
                                             <td style={{ padding: '6px', textAlign: 'center', fontSize: '11px' }}>{e.variety}</td>
                                             <td style={{ padding: '6px', textAlign: 'center', fontWeight: '600', fontSize: '11px' }}>{e.bags}</td>

@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import BulkApprovalModal from './BulkApprovalModal';
+import NotificationBadge from './NotificationBadge';
 import { API_URL } from '../config/api';
 import { toast } from '../utils/toast';
 
@@ -231,7 +232,7 @@ const DropdownDivider = styled.hr`
   margin: 0.4rem 0;
 `;
 
-const NotificationBadge = styled.span`
+const InlineBadge = styled.span`
   background: #ef4444;
   color: white;
   font-size: 0.7rem;
@@ -243,7 +244,7 @@ const NotificationBadge = styled.span`
   margin-left: 4px;
 `;
 
-const ResampleBadge = styled(NotificationBadge)`
+const ResampleBadge = styled(InlineBadge)`
   background: #f97316;
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.18);
 `;
@@ -624,7 +625,13 @@ const Navbar: React.FC = () => {
               .mobile-close-btn { display: flex !important; }
             }
           `}</style>
-          {user?.role !== 'staff' && <NavLink to="/dashboard" $active={isActive('/dashboard')}>Dashboard</NavLink>}
+          {user?.role !== 'staff' && user?.role !== 'inventory_staff' && user?.role !== 'inventory_head' && <NavLink to="/dashboard" $active={isActive('/dashboard')}>Dashboard</NavLink>}
+          
+          {/* inventory_staff and inventory_head role: Only sees Arrivals */}
+          {(user?.role === 'inventory_staff' || user?.role === 'inventory_head') && (
+            <NavLink to="/arrivals" $active={isActive('/arrivals')}>Arrivals</NavLink>
+          )}
+          
           {user && (user.role === 'staff' || user.role === 'paddy_supervisor') && (
             <>
               <NavLink to="/sample-entry" $active={isActive('/sample-entry')}>Paddy Sample Entry</NavLink>
@@ -640,7 +647,7 @@ const Navbar: React.FC = () => {
               <NavLink to="/paddy-sample-reports" $active={isActive('/paddy-sample-reports') || isActive('/owner-sample-reports')} style={{ whiteSpace: 'normal', textAlign: 'center', lineHeight: 1.1 }}>
                 Paddy Sample<br />Reports
                 {resampleCount > 0 && <ResampleBadge>{resampleCount}</ResampleBadge>}
-                {editApprovalCount > 0 && <NotificationBadge>{editApprovalCount}</NotificationBadge>}
+                {editApprovalCount > 0 && <InlineBadge>{editApprovalCount}</InlineBadge>}
               </NavLink>
               <NavLink to="/rice-sample-reports" $active={isActive('/rice-sample-reports')} style={{ whiteSpace: 'normal', textAlign: 'center', lineHeight: 1.1 }}>Rice Sample<br />Reports</NavLink>
               <NavLink to="/arrivals" $active={isActive('/arrivals')}>Arrivals</NavLink>
@@ -652,7 +659,7 @@ const Navbar: React.FC = () => {
               <NavLink to="/paddy-sample-reports" $active={isActive('/paddy-sample-reports') || isActive('/owner-sample-reports')} style={{ whiteSpace: 'normal', textAlign: 'center', lineHeight: 1.1 }}>
                 Paddy Sample<br />Reports
                 {resampleCount > 0 && <ResampleBadge>{resampleCount}</ResampleBadge>}
-                {editApprovalCount > 0 && <NotificationBadge>{editApprovalCount}</NotificationBadge>}
+                {editApprovalCount > 0 && <InlineBadge>{editApprovalCount}</InlineBadge>}
               </NavLink>
               <NavLink to="/rice-sample-reports" $active={isActive('/rice-sample-reports')} style={{ whiteSpace: 'normal', textAlign: 'center', lineHeight: 1.1 }}>Rice Sample<br />Reports</NavLink>
               <NavLink to="/arrivals" $active={isActive('/arrivals')}>Arrivals</NavLink>
@@ -660,7 +667,7 @@ const Navbar: React.FC = () => {
             </>
           )}
 
-          {/* Ledgers Dropdown - for Manager, CEO and Admin */}
+          {/* Ledgers Dropdown - for Manager, CEO and Admin only (NOT inventory_staff) */}
           {(user?.role === 'manager' || user?.role === 'ceo' || user?.role === 'admin') && (
             <DropdownWrapper ref={ledgersRef}>
               <DropdownTrigger
@@ -683,16 +690,20 @@ const Navbar: React.FC = () => {
             </DropdownWrapper>
           )}
 
-          {/* Show Arrivals/Records for staff too */}
+          {/* Show Arrivals/Records for staff too (NOT inventory_staff) */}
           {user?.role === 'staff' && (
             <>
               <NavLink to="/arrivals" $active={isActive('/arrivals')}>Arrivals</NavLink>
               <NavLink to="/records" $active={isActive('/records')}>Records Management</NavLink>
             </>
           )}
-          <NavLink to="/hamali" $active={isActive('/hamali')}>Hamali</NavLink>
+          
+          {/* Hamali link - hide from inventory_staff and inventory_head */}
+          {user?.role !== 'inventory_staff' && user?.role !== 'inventory_head' && (
+            <NavLink to="/hamali" $active={isActive('/hamali')}>Hamali</NavLink>
+          )}
 
-          {/* Master Creation Dropdown - for Manager, CEO and Admin */}
+          {/* Master Creation Dropdown - for Manager, CEO and Admin only (NOT inventory_staff) */}
           {(user?.role === 'manager' || user?.role === 'ceo' || user?.role === 'admin') && (
             <DropdownWrapper ref={masterRef}>
               <DropdownTrigger
@@ -713,6 +724,7 @@ const Navbar: React.FC = () => {
                   <DropdownLink to="/admin/warehouses" $active={isActive('/admin/warehouses')}>Warehouse</DropdownLink>
                   <DropdownLink to="/admin/rice-stock-locations" $active={isActive('/admin/rice-stock-locations')}>Rice Stock Location</DropdownLink>
                   <DropdownLink to="/admin/kunchinittus" $active={isActive('/admin/kunchinittus')}>Kunchinintu</DropdownLink>
+                  <DropdownLink to="/admin/weight-bridges" $active={isActive('/admin/weight-bridges')}>Weigh Bridge</DropdownLink>
                   <DropdownLink to="/admin/production" $active={isActive('/admin/production')}>Production (Outturn)</DropdownLink>
                   <DropdownLink to="/admin/packaging" $active={isActive('/admin/packaging')}>Brand Management</DropdownLink>
                   <DropdownLink to="/admin/paddy-hamali" $active={isActive('/admin/paddy-hamali')}>Paddy Hamali</DropdownLink>
@@ -723,7 +735,7 @@ const Navbar: React.FC = () => {
           )}
 
           {/* Workflow Dropdown */}
-          {user && user.role !== 'admin' && user.role !== 'manager' && user.role !== 'staff' && (
+          {user && user.role !== 'admin' && user.role !== 'manager' && user.role !== 'staff' && user.role !== 'inventory_staff' && user.role !== 'inventory_head' && (
             <DropdownWrapper ref={workflowRef}>
               <DropdownTrigger
                 $active={isWorkflowActive}
@@ -734,7 +746,7 @@ const Navbar: React.FC = () => {
               >
                 Workflow ▾
                 {pendingCount > 0 && (user.role === 'manager' || user.role === 'ceo' || user.role === 'admin') && (
-                  <NotificationBadge>{pendingCount}</NotificationBadge>
+                  <InlineBadge>{pendingCount}</InlineBadge>
                 )}
               </DropdownTrigger>
               {workflowDropdownOpen && (
@@ -847,3 +859,5 @@ const Navbar: React.FC = () => {
 };
 
 export default Navbar;
+
+

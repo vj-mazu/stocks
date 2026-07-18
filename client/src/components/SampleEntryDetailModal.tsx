@@ -609,7 +609,7 @@ const getApprovedFullAvgBags = (stages: any, defaultBags: any) => {
     return defaultBags || '-';
 };
 
-export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpdate, showCollectorLoginPair = false, progressiveMode = false, onEditStage, onTriggerDispute, autoTriggerDisputeKey, targetRateLinkAction, targetLorryTripId }: { detailEntry: SampleEntry, detailMode: 'quick' | 'history' | 'summary' | 'full', onClose: () => void, onUpdate?: (gpsCoordinates?: string) => void | Promise<void>, showCollectorLoginPair?: boolean, progressiveMode?: boolean, onEditStage?: (lorryNumber: string, stageKey: string) => void, onTriggerDispute?: (entry: SampleEntry) => void, autoTriggerDisputeKey?: { inspectionId: string; stageKey: string }, targetRateLinkAction?: (rateInfo: { rate: number; rateType: string; sute: number; suteUnit: string; moisture: number; hamali: number; hamaliUnit: string; lf: number; lfUnit: string; disputeReason?: string; isDispute: boolean; isRevision: boolean; linkedRevisionId?: string | null }) => void | Promise<void>, targetLorryTripId?: string }) => {
+export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpdate, showCollectorLoginPair = false, progressiveMode = false, completedLotsOrder = false, onEditStage, onTriggerDispute, autoTriggerDisputeKey, targetRateLinkAction, targetLorryTripId }: { detailEntry: SampleEntry, detailMode: 'quick' | 'history' | 'summary' | 'full', onClose: () => void, onUpdate?: (gpsCoordinates?: string) => void | Promise<void>, showCollectorLoginPair?: boolean, progressiveMode?: boolean, completedLotsOrder?: boolean, onEditStage?: (lorryNumber: string, stageKey: string) => void, onTriggerDispute?: (entry: SampleEntry) => void, autoTriggerDisputeKey?: { inspectionId: string; stageKey: string }, targetRateLinkAction?: (rateInfo: { rate: number; rateType: string; sute: number; suteUnit: string; moisture: number; hamali: number; hamaliUnit: string; lf: number; lfUnit: string; disputeReason?: string; isDispute: boolean; isRevision: boolean; linkedRevisionId?: string | null }) => void | Promise<void>, targetLorryTripId?: string }) => {
     const { user } = useAuth();
     const buildMapHref = (value: any) => {
         const raw = typeof value === 'object' && value !== null
@@ -728,7 +728,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 revisedRateOption: disputeModalData.revisedRateOption,
                 linkedRevisionId: disputeModalData.revisedRateOption === 'dispute' ? disputeModalData.linkedRevisionId : null,
                 disputeReason: disputeModalData.disputeReason,
-                __requestType: 'dispute'
+                __requestType: 'dispute',
+                inspectionId: disputeModalData.inspectionId,
+                stageKey: disputeModalData.stageKey
             };
             await axios.post(
                 `${API_URL}/sample-entries/${detailEntry.id}/final-price`,
@@ -3069,6 +3071,27 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         }
 
         // Add approved disputes and revisions from history (disputeVersions)
+        // In progressive mode (Paddy Approvals), build a time-ordered list of inspections that had hold→dispute flow
+        // Each inspection with a stage that was on hold and later approved gets its lorry number and hold time
+        const disputeLorriesByTime: Array<{ lorry: string; holdTime: number }> = [];
+        if (progressiveMode && inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections)) {
+            inspectionsProgress.previousInspections.forEach((insp: any) => {
+                const lorry = String(insp.lorryNumber || '').trim().toUpperCase();
+                if (!lorry || ['LOT_AVG', 'BALANCED_LOT'].includes(lorry) || lorry.includes('NEXT LOADING')) return;
+                const stages = insp.samplingStages || {};
+                Object.keys(stages).forEach((key: string) => {
+                    const stage = stages[key];
+                    if (stage && stage.holdAt) {
+                        const holdTime = new Date(stage.holdAt).getTime();
+                        if (Number.isFinite(holdTime)) {
+                            disputeLorriesByTime.push({ lorry: String(insp.lorryNumber || '').trim().toUpperCase(), holdTime });
+                        }
+                    }
+                });
+            });
+            // Sort by hold time ascending (oldest first)
+            disputeLorriesByTime.sort((a, b) => a.holdTime - b.holdTime);
+        }
         if (disputeVersions.length > 0) {
             let disputeCount = 0;
             let revisionCount = 0;
@@ -3081,9 +3104,41 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 if (!isDispute && !isRevision) return;
 
                 let rowLabel = '';
+                let disputeLorryNumber = '';
                 if (isDispute) {
                     disputeCount++;
                     rowLabel = `Dispute ${disputeCount}`;
+                    // In progressive mode, find the correct lorry for this dispute
+                    if (progressiveMode && inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections)) {
+                        // 1) Try direct match by inspectionId (for new disputes that store it)
+                        if (v.inspectionId) {
+                            const matchedInsp = inspectionsProgress.previousInspections.find(
+                                (insp: any) => String(insp.id) === String(v.inspectionId)
+                            );
+                            if (matchedInsp && matchedInsp.lorryNumber) {
+                                disputeLorryNumber = matchedInsp.lorryNumber;
+                            }
+                        }
+                        // 2) Fallback: match by timing - find the inspection with the closest hold time to this dispute's approval
+                        if (!disputeLorryNumber && disputeLorriesByTime.length > 0) {
+                            const disputeTime = new Date(v.approvedAt || v.requestedAt || v.updatedAt || 0).getTime();
+                            if (Number.isFinite(disputeTime) && disputeTime > 0) {
+                                // Find the inspection whose hold time is closest to this dispute's time
+                                let bestMatch: any = null;
+                                let bestDiff = Infinity;
+                                for (const entry of disputeLorriesByTime) {
+                                    const diff = Math.abs(entry.holdTime - disputeTime);
+                                    if (diff < bestDiff) {
+                                        bestDiff = diff;
+                                        bestMatch = entry;
+                                    }
+                                }
+                                if (bestMatch) {
+                                    disputeLorryNumber = bestMatch.lorry;
+                                }
+                            }
+                        }
+                    }
                 } else if (isRevision) {
                     revisionCount++;
                     let targetLabel = '(Final)';
@@ -3221,7 +3276,14 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     );
 
                 const rowArray: any = [
-                    <span style={{ color: '#16a34a', fontWeight: 700 }}>{rowLabel}</span>,
+                    <span style={{ color: '#16a34a', fontWeight: 700 }}>
+                        {rowLabel}
+                        {disputeLorryNumber && progressiveMode ? (
+                            <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 600, marginTop: '2px', display: 'block' }}>
+                                🚛 {disputeLorryNumber.toUpperCase()}
+                            </span>
+                        ) : null}
+                    </span>,
                     approvedReporter,
                     approvedDate,
                     // RATE
@@ -3844,17 +3906,330 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             'Quality Parameters', 
                                             '🔬', 
                                             '#f97316', 
-                                            progressiveMode
+                                                                        progressiveMode
                                                 ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', '', 'ACTIONS']
                                                 : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', ''],
                                             buildInitialQualityRows(),
                                             { isQuality: true }
                                         )}
                                     </div>
+                                    {/* Weight Bridge & Place Details for Band Mall Book */}
+                                    {(detailEntry as any).isBandMalalBook && (() => {
+                                        const hasPartyWb = !!((detailEntry as any).sampleEntry?.partyWbName || (detailEntry as any).partyWbName);
+                                        return (
+                                            <div style={{ display: 'grid', gridTemplateColumns: hasPartyWb ? '1fr 1fr 1fr' : '1fr 1fr', gap: '16px', marginTop: '16px' }}>
+                                                {/* Mill Weight Bridge Card */}
+                                                <div style={{ background: '#f0fdf4', padding: '16px', borderRadius: '12px', border: '1.5px solid #bbf7d0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                                                    <div style={{ fontSize: '13px', color: '#15803d', marginBottom: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        <span>🏢</span> Mill Weight Bridge Details
+                                                    </div>
+                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                                        <div>
+                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>WB Name</div>
+                                                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
+                                                                {(detailEntry as any).millWb?.name || '-'}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>WB Number</div>
+                                                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
+                                                                {(detailEntry as any).wbNo || 'PENDING'}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Gross Weight</div>
+                                                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
+                                                                {(detailEntry as any).grossWeight ? `${(detailEntry as any).grossWeight} Kg` : '-'}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Tare Weight</div>
+                                                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
+                                                                {(detailEntry as any).tareWeight ? `${(detailEntry as any).tareWeight} Kg` : '-'}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Net Weight</div>
+                                                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
+                                                                {(detailEntry as any).netWeight ? `${(detailEntry as any).netWeight} Kg` : '-'}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>WB Status</div>
+                                                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
+                                                                {(detailEntry as any).wbStatus ? toTitleCase((detailEntry as any).wbStatus) : '-'}
+                                                            </div>
+                                                        </div>
+                                                        <div style={{ gridColumn: 'span 2' }}>
+                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Approved By</div>
+                                                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
+                                                                {(detailEntry as any).wbApprover?.username || (detailEntry as any).wbApprover?.fullName || '-'}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
 
-                                    {/* Progressive Loads */}
-                                    {!targetLorryTripId && progressiveMode && inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections) && (() => {
-                                        const insps = inspectionsProgress.previousInspections;
+                                                {/* Party Weight Bridge Card (Optional) */}
+                                                {hasPartyWb && (
+                                                    <div style={{ background: '#eff6ff', padding: '16px', borderRadius: '12px', border: '1.5px solid #bfdbfe', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                                                        <div style={{ fontSize: '13px', color: '#1d4ed8', marginBottom: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                            <span>⚖️</span> Party Weight Bridge Details
+                                                        </div>
+                                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                                            <div>
+                                                                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>WB Name</div>
+                                                                <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
+                                                                    {(detailEntry as any).sampleEntry?.partyWbName || (detailEntry as any).partyWbName || '-'}
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>WB Number</div>
+                                                                <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
+                                                                    {(detailEntry as any).sampleEntry?.wbNo || '-'}
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Gross Weight</div>
+                                                                <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
+                                                                    {(detailEntry as any).sampleEntry?.grossWeight ? `${(detailEntry as any).sampleEntry?.grossWeight} Kg` : '-'}
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Tare Weight</div>
+                                                                <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
+                                                                    {(detailEntry as any).sampleEntry?.tareWeight ? `${(detailEntry as any).sampleEntry?.tareWeight} Kg` : '-'}
+                                                                </div>
+                                                            </div>
+                                                            <div style={{ gridColumn: 'span 2' }}>
+                                                                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Net Weight</div>
+                                                                <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
+                                                                    {(detailEntry as any).sampleEntry?.netWeight ? `${(detailEntry as any).sampleEntry?.netWeight} Kg` : '-'}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Place Card */}
+                                                <div style={{ background: '#faf5ff', padding: '16px', borderRadius: '12px', border: '1.5px solid #e9d5ff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                                                    <div style={{ fontSize: '13px', color: '#6d28d9', marginBottom: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        <span>📍</span> Place Details
+                                                    </div>
+                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                                        <div>
+                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Destination Type</div>
+                                                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
+                                                                {(detailEntry as any).placeType === 'production' ? 'Production' : (detailEntry as any).placeType === 'kunchinittu' ? 'Kunchinittu' : '-'}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Location Name</div>
+                                                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
+                                                                {(() => {
+                                                                    if ((detailEntry as any).placeType === 'production' && (detailEntry as any).outturn) {
+                                                                        return `Outturn: ${(detailEntry as any).outturn.code}`;
+                                                                    } else if ((detailEntry as any).placeType === 'kunchinittu') {
+                                                                        const kc = (detailEntry as any).placeKunchinittuData?.name || (detailEntry as any).toKunchinittu?.name || '';
+                                                                        const wh = (detailEntry as any).placeWarehouse?.name || (detailEntry as any).toWarehouse?.name || '';
+                                                                        return kc && wh ? `${kc} (${wh})` : (kc || wh || '-');
+                                                                    }
+                                                                    return '-';
+                                                                })()}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Place Status</div>
+                                                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
+                                                                {(detailEntry as any).placeStatus ? toTitleCase((detailEntry as any).placeStatus) : '-'}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Approved By</div>
+                                                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
+                                                                {(detailEntry as any).placeApprover?.username || (detailEntry as any).placeApproverUser?.username || (detailEntry as any).placeApproverUser?.fullName || (detailEntry as any).placeApprover?.fullName || '-'}
+                                                            </div>
+                                                        </div>
+                                                        <div style={{ gridColumn: 'span 2' }}>
+                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Place Date</div>
+                                                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
+                                                                {(detailEntry as any).placeDate ? new Date((detailEntry as any).placeDate).toLocaleDateString('en-GB') : '-'}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+                                    {/* Pricing & Patti - shown first for Completed Lots Pending Patti */}
+                                    {!isStaff && completedLotsOrder && (() => {
+                                        const callback = (targetLorryTripId && targetRateLinkAction) ? async (rateInfo: any) => {
+                                            await targetRateLinkAction(rateInfo);
+                                            await refreshProgressData();
+                                        } : undefined;
+                                        return renderHorizontalTable(
+                                            'Price Details',
+                                            '💰',
+                                            '#2563eb',
+                                            ['TYPE', 'REPORTED BY', 'REPORTED AT', 'RATE', 'RATE TYPE', 'SUTE', 'MOISTURE', 'HAMALI', 'BROKERAGE', 'LF', 'EGB', 'CD', 'BANK LOAN', 'PAYMENT', 'REMARKS'],
+                                            buildPriceComparisonRows(callback)
+                                        );
+                                    })()}
+
+                                    {/* Patti Rate Linking Details - for Completed Lots Pending Patti */}
+                                    {!isStaff && completedLotsOrder && (() => {
+                                        const rawInspections = inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections)
+                                            ? inspectionsProgress.previousInspections
+                                            : (Array.isArray((detailEntry as any).physicalInspections) ? (detailEntry as any).physicalInspections : []);
+
+                                        const patti = detailEntry.offering || {};
+
+                                        const inspections = rawInspections.filter((insp: any) => {
+                                            const isPendingRate = patti?.pendingRateLinkingStatus === 'pending' && String(patti?.pendingRateLinkingData?.targetLorryTripId) === String(insp.id);
+                                            return !!insp.linkedPattiRate || isPendingRate;
+                                        });
+
+                                        if (inspections.length === 0) {
+                                            return null;
+                                        }
+
+                                        return (
+                                            <div style={{ marginTop: '16px' }}>
+                                                <div style={{
+                                                    backgroundColor: '#1a237e',
+                                                    color: '#ffffff',
+                                                    padding: '8px 12px',
+                                                    fontWeight: '800',
+                                                    fontSize: '12px',
+                                                    borderTopLeftRadius: '6px',
+                                                    borderTopRightRadius: '6px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '6px'
+                                                }}>
+                                                    <span>📋</span> Patti Rate Linking Details
+                                                </div>
+                                                <div style={{ overflowX: 'auto' }}>
+                                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #cbd5e1' }}>
+                                                        <thead>
+                                                            <tr style={{ background: '#f1f5f9', color: '#334155', borderBottom: '2px solid #cbd5e1' }}>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>SL NO</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>DATE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'left', border: '1px solid #cbd5e1' }}>LORRY NUMBER</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BASE RATE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>SUTE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>MOISTURE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>HAMALI</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BROKERAGE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>LF</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>EGB</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>CD</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BANK LOAN</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PAYMENT</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '75px' }}>STATUS</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {inspections.map((insp: any, idx: number) => {
+                                                                const tripRate = insp.linkedPattiRate || null;
+                                                                const isPendingRate = patti?.pendingRateLinkingStatus === 'pending' && String(patti?.pendingRateLinkingData?.targetLorryTripId) === String(insp.id);
+
+                                                                const getPendingRateLabel = (p: any, pendingData: any) => {
+                                                                    if (!pendingData) return 'Rate';
+                                                                    const pendingRate = Number(pendingData.finalPrice || pendingData.finalBaseRate || pendingData.rateInfo?.rate || 0);
+                                                                    const finalRate = Number(p.finalPrice || p.finalBaseRate || 0);
+                                                                    const disputeVersions = Array.isArray(p.disputeVersions) ? p.disputeVersions : [];
+                                                                    const isDispute = pendingData.rateInfo?.isDispute || pendingData.isDispute;
+                                                                    const isRevision = pendingData.rateInfo?.isRevision || pendingData.isRevision;
+                                                                    if (isDispute) {
+                                                                        const matchedDisputeIdx = disputeVersions.findIndex((d: any) => Number(d.disputeBaseRate) === pendingRate);
+                                                                        if (matchedDisputeIdx !== -1) return `Dispute ${matchedDisputeIdx + 1}`;
+                                                                        return 'Dispute';
+                                                                    }
+                                                                    if (isRevision) return 'Revision';
+                                                                    if (pendingRate === finalRate) return 'Final Rate';
+                                                                    const offerVersions = Array.isArray(p.offerVersions) ? p.offerVersions : [];
+                                                                    const matchedOfferIdx = offerVersions.findIndex((v: any) => Number(v.offerBaseRateValue || v.offeringPrice || 0) === pendingRate);
+                                                                    if (matchedOfferIdx !== -1) return `Offer ${matchedOfferIdx + 1}`;
+                                                                    return `Rs ${pendingRate}`;
+                                                                };
+
+                                                                const activeRateInfo = tripRate ? tripRate : (isPendingRate ? (patti.pendingRateLinkingData.rateInfo || patti.pendingRateLinkingData) : null);
+                                                                const rRate = activeRateInfo?.rate;
+                                                                const rRateType = activeRateInfo?.rateType || activeRateInfo?.baseRateType;
+                                                                const rSute = activeRateInfo?.sute;
+                                                                const rSuteUnit = activeRateInfo?.suteUnit;
+                                                                const rMoisture = activeRateInfo?.moisture || activeRateInfo?.moistureValue;
+                                                                const rHamali = activeRateInfo?.hamali;
+                                                                const rHamaliUnit = activeRateInfo?.hamaliUnit;
+                                                                const rLf = activeRateInfo?.lf;
+                                                                const rLfUnit = activeRateInfo?.lfUnit;
+
+                                                                return (
+                                                                    <tr key={insp.id || idx} style={{
+                                                                        borderBottom: '1px solid #cbd5e1',
+                                                                        backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f8fafc'
+                                                                    }}>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', fontWeight: '700', border: '1px solid #cbd5e1' }}>{idx + 1}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1', whiteSpace: 'nowrap' }}>{insp.inspectionDate ? new Date(insp.inspectionDate).toLocaleDateString('en-GB') : '-'}</td>
+                                                                        <td style={{ padding: '8px', fontWeight: '700', border: '1px solid #cbd5e1' }}>{insp.lorryNumber?.toUpperCase() || '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', fontWeight: '700', border: '1px solid #cbd5e1' }}>
+                                                                            {activeRateInfo ? `Rs ${toNumberText(rRate)} / ${(rRateType || 'PD/WB').replace(/_/g, '/')}` : '-'}
+                                                                        </td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
+                                                                            {activeRateInfo ? `${toNumberText(rSute || 0)} / ${formatRateUnitLabel(rSuteUnit || 'per_ton')}` : '-'}
+                                                                        </td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
+                                                                            {activeRateInfo ? `${rMoisture}%` : '-'}
+                                                                        </td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
+                                                                            {activeRateInfo ? `Rs ${formatFlexibleValue(rHamali)} / ${formatToggleUnitLabel(rHamaliUnit || 'per_bag')}` : '-'}
+                                                                        </td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
+                                                                            {activeRateInfo ? (patti.brokerage ? `Rs ${formatFlexibleValue(patti.brokerage)} / ${formatToggleUnitLabel(patti.brokerageUnit || 'per_bag')}` : '-') : '-'}
+                                                                        </td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
+                                                                            {activeRateInfo ? `Rs ${formatFlexibleValue(rLf)} / ${formatToggleUnitLabel(rLfUnit || 'per_bag')}` : '-'}
+                                                                        </td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
+                                                                            {activeRateInfo ? (patti.egbValue ? `${formatFlexibleValue(patti.egbValue)} / ${toTitleCase(patti.egbType || 'Mill')}` : '-') : '-'}
+                                                                        </td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
+                                                                            {activeRateInfo ? (patti.cdEnabled && patti.cdValue ? `${formatFlexibleValue(patti.cdValue)} / ${formatToggleUnitLabel(patti.cdUnit || 'percentage')}` : '-') : '-'}
+                                                                        </td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
+                                                                            {activeRateInfo ? (patti.bankLoanEnabled && patti.bankLoanValue ? `Rs ${formatIndianCurrencyFlexible(patti.bankLoanValue)} / ${formatToggleUnitLabel(patti.bankLoanUnit || 'per_bag')}` : '-') : '-'}
+                                                                        </td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
+                                                                            {patti.paymentConditionValue ? `${patti.paymentConditionValue} ${patti.paymentConditionUnit === 'month' ? 'Month' : 'Days'}` : '-'}
+                                                                        </td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1', fontWeight: '700' }}>
+                                                                            {isPendingRate ? (
+                                                                                <span style={{ color: '#d97706', background: '#fffbeb', padding: '2px 8px', borderRadius: '4px', border: '1px solid #fef3c7', whiteSpace: 'nowrap' }}>
+                                                                                    Pending ({getPendingRateLabel(patti, patti.pendingRateLinkingData)})
+                                                                                </span>
+                                                                            ) : tripRate ? (
+                                                                                <span style={{ color: '#16a34a', background: '#f0fdf4', padding: '2px 8px', borderRadius: '4px', border: '1px solid #bbf7d0' }}>Completed</span>
+                                                                            ) : (
+                                                                                '-'
+                                                                            )}
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+
+                                    {/* Progressive Loads - for original progressiveMode (not completedLotsOrder) */}
+                                    {!targetLorryTripId && progressiveMode && !completedLotsOrder && inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections) && (() => {
+                                        const activeLorryNumber = (detailEntry as any).clickedLorryNumber || (detailEntry as any).lorryNumber || (detailEntry as any).sampleEntry?.lorryNumber;
+                                        const insps = inspectionsProgress.previousInspections.filter((insp: any) => {
+                                            if (!activeLorryNumber) return true;
+                                            return (insp.lorryNumber || '').trim().toLowerCase() === activeLorryNumber.trim().toLowerCase();
+                                        });
                                         if (insps.length === 0) return null;
                                         
                                         const renderTripTable = (insp: any, tripIdx: number) => {
@@ -3866,8 +4241,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             const title = isLorryNotAdded
                                                 ? <span style={{ color: 'white', fontWeight: 'bold' }}>Next Loading Lorry Sampling: Lot Avg Sampling or Balance Lot Sampling</span>
                                                 : tripIdx === 0
-                                                    ? `Load 1 - Loading Sample Details : ${insp.lorryNumber?.toUpperCase() || 'Lorry'} | Bags Loaded: ${bagsLoaded}`
-                                                    : `Load ${tripIdx + 1} - Lorry Number: ${insp.lorryNumber?.toUpperCase() || 'Lorry'} | Bags Loaded: ${bagsLoaded}`;
+                                                    ? `Load 1 - Loading Sample Details | Bags Loaded: ${bagsLoaded}`
+                                                    : `Load ${tripIdx + 1} - Loading Sample Details | Bags Loaded: ${bagsLoaded}`;
                                             const isNewRulesMode = inspectionsProgress?.samplingRulesMode === 'new' || detailEntry?.lotAllotment?.samplingRulesMode === 'new';
                                             return renderHorizontalTable(
                                                 title,
@@ -3891,7 +4266,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                     })()}
 
                                     {/* Cooking History */}
-                                    {!targetLorryTripId && !progressiveMode && renderHorizontalTable(
+                                    {!targetLorryTripId && (!progressiveMode || completedLotsOrder) && renderHorizontalTable(
                                         'Cooking History',
                                         '🍳',
                                         '#2563eb',
@@ -3900,6 +4275,47 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         { compact: true }
                                     )}
 
+                                    {/* Progressive Loads (Lorry) - shown last in Completed Lots Pending Patti */}
+                                    {!targetLorryTripId && progressiveMode && completedLotsOrder && inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections) && (() => {
+                                        const activeLorryNumber = (detailEntry as any).clickedLorryNumber || (detailEntry as any).lorryNumber || (detailEntry as any).sampleEntry?.lorryNumber;
+                                        const insps = inspectionsProgress.previousInspections.filter((insp: any) => {
+                                            if (!activeLorryNumber) return true;
+                                            return (insp.lorryNumber || '').trim().toLowerCase() === activeLorryNumber.trim().toLowerCase();
+                                        });
+                                        if (insps.length === 0) return null;
+                                        
+                                        const renderTripTable = (insp: any, tripIdx: number) => {
+                                            const isLorryNotAdded = !insp.lorryNumber || 
+                                                ['LOT_AVG', 'BALANCED_LOT'].includes(insp.lorryNumber.toUpperCase().trim()) ||
+                                                insp.lorryNumber.toLowerCase().includes('next loading lorry');
+                                            const stages = insp.samplingStages || {};
+                                            const bagsLoaded = getApprovedFullAvgBags(stages, insp.bags);
+                                            const title = isLorryNotAdded
+                                                ? <span style={{ color: 'white', fontWeight: 'bold' }}>Next Loading Lorry Sampling: Lot Avg Sampling or Balance Lot Sampling</span>
+                                                : tripIdx === 0
+                                                    ? `Load 1 - Loading Sample Details | Bags Loaded: ${bagsLoaded}`
+                                                    : `Load ${tripIdx + 1} - Loading Sample Details | Bags Loaded: ${bagsLoaded}`;
+                                            const isNewRulesMode = inspectionsProgress?.samplingRulesMode === 'new' || detailEntry?.lotAllotment?.samplingRulesMode === 'new';
+                                            return renderHorizontalTable(
+                                                title,
+                                                '🚚',
+                                                isNewRulesMode ? '#2563eb' : '#f97316',
+                                                ['STAGE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'P COLOR', 'ACTIONS'],
+                                                buildTripQualityRows(insp, tripIdx),
+                                                { isQuality: true }
+                                            );
+                                        };
+
+                                        return (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '10px' }}>
+                                                {insps.map((insp, idx) => (
+                                                    <div key={idx}>
+                                                        {renderTripTable(insp, idx)}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        );
+                                    })()}
 
                                     {targetLorryTripId && (() => {
                                         const allInspections: any[] = detailEntry.physicalInspections || (detailEntry as any).lotAllotment?.physicalInspections || [];
@@ -4006,8 +4422,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         );
                                     })()}
 
-                                    {/* Pricing & Offers */}
-                                    {!isStaff && (() => {
+                                    {/* Pricing & Offers - hidden for Completed Lots Pending Patti (shown earlier) */}
+                                    {!isStaff && !completedLotsOrder && (() => {
                                         const callback = (targetLorryTripId && targetRateLinkAction) ? async (rateInfo: any) => {
                                             await targetRateLinkAction(rateInfo);
                                             await refreshProgressData();
@@ -4084,8 +4500,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         )}
                                     </>
                                 )}
-                                                       {/* Patti Rate Linking Details */}
-                                {!isStaff && (() => {
+                                                       {/* Patti Rate Linking Details - hidden for Completed Lots Pending Patti (shown earlier) */}
+                                {!isStaff && !completedLotsOrder && (() => {
                                     const rawInspections = inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections)
                                         ? inspectionsProgress.previousInspections
                                         : (Array.isArray((detailEntry as any).physicalInspections) ? (detailEntry as any).physicalInspections : []);

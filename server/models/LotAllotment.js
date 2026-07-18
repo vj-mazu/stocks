@@ -87,6 +87,12 @@ const LotAllotment = sequelize.define('LotAllotment', {
     allowNull: true,
     field: 'sampling_rules_mode',
     comment: 'Selection rule mode chosen on first trip: old or new'
+  },
+  completionType: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+    field: 'completion_type',
+    comment: 'COMPLETED or CLOSED_EARLY'
   }
 }, {
   tableName: 'lot_allotments',

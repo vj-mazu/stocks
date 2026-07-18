@@ -36,6 +36,8 @@ const yieldRoutes = require('./routes/yield');
 const adminUsersRoutes = require('./routes/admin-users');
 const unifiedVarietiesRoutes = require('./routes/unified-varieties');
 const sampleEntriesRoutes = require('./routes/sample-entries');
+const weightBridgesRoutes = require('./routes/weight-bridges');
+const approvalsRoutes = require('./routes/approvals');
 
 const compression = require('compression');
 const performanceMonitor = require('./middleware/performanceMonitor');
@@ -175,7 +177,9 @@ app.use('/api', riceStockVarietiesRoutes); // Rice stock varieties API endpoints
 app.use('/api/yield', yieldRoutes);
 app.use('/api/admin', adminUsersRoutes);
 app.use('/api/unified-varieties', unifiedVarietiesRoutes);
+app.use('/api/weight-bridges', weightBridgesRoutes);
 app.use('/api/sample-entries', sampleEntriesRoutes);
+app.use('/api/approvals', approvalsRoutes);
 
 
 const { execFile } = require('child_process');
@@ -275,6 +279,13 @@ const startServer = async () => {
     } catch (syncError) {
       console.log('⚠️ Schema check warning:', syncError.message);
       console.log('✅ Proceeding with migrations...');
+    }
+
+    // Ensure completion_type column exists
+    try {
+      await sequelize.query('ALTER TABLE lot_allotments ADD COLUMN IF NOT EXISTS completion_type VARCHAR(50);');
+    } catch (e) {
+      console.warn('⚠️ Column alteration warning:', e.message);
     }
 
     // Run migrations automatically

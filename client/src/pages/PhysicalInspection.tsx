@@ -3005,14 +3005,13 @@ const PhysicalInspection: React.FC = () => {
                       <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '10px 12px', fontSize: '13px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
                         {new Date(entry.entryDate).toLocaleDateString('en-GB')}
                       </td>
-                      <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '10px 12px', fontSize: '13px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>{entry.brokerName}</td>
-                      <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '10px 12px', fontSize: '13px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}>
-                        <div 
-                          onClick={() => setDetailModalEntry(entry)}
-                          style={{ fontWeight: '700', color: '#1565c0', fontSize: '14px', cursor: 'pointer', textDecoration: 'underline' }}
-                        >
-                          {entry.partyName && entry.partyName.trim() ? toTitleCase(entry.partyName) : (entry.lorryNumber ? entry.lorryNumber.toUpperCase() : 'Lorry Details')}
-                        </div>
+                      <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '10px 12px', fontSize: '13px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500', wordBreak: 'break-word', overflowWrap: 'break-word' }}>{entry.brokerName}</td>
+                      <td style={{ border: '1px solid #666', borderBottom: '3px solid #666', padding: '10px 12px', fontSize: '13px', textAlign: 'left', color: '#1a1a1a', fontWeight: '500' }}><div
+        onClick={() => setDetailModalEntry(entry)}
+        style={{ fontWeight: '700', color: '#1565c0', fontSize: '14px', cursor: 'pointer', textDecoration: 'underline', wordBreak: 'break-word', overflowWrap: 'break-word' }}
+      >
+        {entry.partyName && entry.partyName.trim() ? toTitleCase(entry.partyName) : (entry.lorryNumber ? entry.lorryNumber.toUpperCase() : 'Lorry Details')}
+      </div>
                         {entry.lorryNumber && entry.partyName && entry.partyName.trim() && (
                           <div 
                             onClick={() => setDetailModalEntry(entry)}

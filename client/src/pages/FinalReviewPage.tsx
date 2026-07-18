@@ -298,13 +298,11 @@ const FinalReviewPage: React.FC = () => {
                                     ) : (
                                         entries.map(e => (
                                             <tr key={e.id}>
-                                                <td>{new Date(e.entryDate).toLocaleDateString()}</td>
-                                                <td>
-                                                    <div style={{ fontWeight: 600, color: '#1565c0' }}>{toTitleCase(e.partyName) || (e.entryType === 'DIRECT_LOADED_VEHICLE' ? e.lorryNumber?.toUpperCase() : '')}</div>
+                                                <td>{new Date(e.entryDate).toLocaleDateString()}</td><td><div style={{ fontWeight: 600, color: '#1565c0', wordBreak: 'break-word', overflowWrap: 'break-word' }}>{toTitleCase(e.partyName) || (e.entryType === 'DIRECT_LOADED_VEHICLE' ? e.lorryNumber?.toUpperCase() : '')}</div>
                                                     {e.entryType === 'DIRECT_LOADED_VEHICLE' && e.lorryNumber && e.partyName && <div style={{ fontSize: '10px', color: '#1565c0', fontWeight: '600' }}>{e.lorryNumber.toUpperCase()}</div>}
                                                     <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{e.variety}</div>
                                                 </td>
-                                                <td>{e.brokerName}</td>
+                                                <td style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>{e.brokerName}</td>
                                                 <td>{e.bags?.toLocaleString('en-IN')}</td>
                                                 <td><PrimaryButton style={{ padding: '0.4rem 1rem', fontSize: '0.8rem' }} onClick={() => setSelectedEntry(e)}>Review Audit</PrimaryButton></td>
                                             </tr>
@@ -368,9 +366,9 @@ const FinalReviewPage: React.FC = () => {
                             <tbody>
                                 <tr>
                                     <td>{new Date(selectedEntry.entryDate).toLocaleDateString()}</td>
-                                    <td>{selectedEntry.brokerName}</td>
+                                    <td style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>{selectedEntry.brokerName}</td>
                                     <td style={{ fontWeight: 700 }}>{selectedEntry.variety}</td>
-                                    <td style={{ fontWeight: 700 }}>{toTitleCase(selectedEntry.partyName) || selectedEntry.lorryNumber?.toUpperCase()}</td>
+                                    <td style={{ fontWeight: 700, wordBreak: 'break-word', overflowWrap: 'break-word' }}>{toTitleCase(selectedEntry.partyName) || selectedEntry.lorryNumber?.toUpperCase()}</td>
                                     <td>{selectedEntry.location}</td>
                                     <td>{selectedEntry.bags?.toLocaleString('en-IN')}</td>
                                     <td>{selectedEntry.lorryNumber || '-'}</td>

@@ -198,6 +198,8 @@ const AllottedSupervisors: React.FC = () => {
   const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
   const [completingEntryId, setCompletingEntryId] = useState<string | null>(null);
+  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
+  const [resumingEntryId, setResumingEntryId] = useState<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [offeringCache, setOfferingCache] = useState<{ [key: string]: any }>({});
   const [editingInspection, setEditingInspection] = useState<{ entryId: string; inspectionId: string; data: any } | null>(null);
@@ -401,11 +403,7 @@ const AllottedSupervisors: React.FC = () => {
       [...lotAllotmentEntries, ...physicalInspectionEntries, ...inventoryEntries, ...ownerFinancialEntries, ...managerFinancialEntries, ...finalReviewEntries, ...completedEntries].forEach((entry: any) => {
         allMap.set(entry.id, entry);
       });
-      let allEntries = Array.from(allMap.values()).filter((entry: any) => 
-        entry.lotAllotment && 
-        entry.lotAllotment.allottedToSupervisorId && 
-        !entry.lotAllotment.closedAt
-      );
+      let allEntries = Array.from(allMap.values()).filter((entry: any) => { if (!entry.lotAllotment || !entry.lotAllotment.allottedToSupervisorId) return false; const isCompleted = entry.lotAllotment.closedAt && ((entry.lotAllotment as any).completionType === "COMPLETED" || (!(entry.lotAllotment as any).completionType && String(entry.lotAllotment.closedReason || "").toLowerCase().includes("completed"))); return !isCompleted; });
 
       // Extract unique broker and variety options for dropdowns
       const brokerSet = new Set(allEntries.map((e: any) => e.brokerName).filter(Boolean));
@@ -685,6 +683,27 @@ const AllottedSupervisors: React.FC = () => {
   const triggerCompleteLot = (entryId: string, partyName: string) => {
     setCompletingEntryId(entryId);
     setIsCompleteModalOpen(true);
+  };
+
+  const triggerResumeLot = (entryId: string) => {
+    setResumingEntryId(entryId);
+    setIsResumeModalOpen(true);
+  };
+
+  const executeResumeLot = async () => {
+    if (!resumingEntryId) return;
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API_URL}/sample-entries/${resumingEntryId}/resume-lot`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      showNotification('Lot resumed successfully', 'success');
+      loadEntries();
+      setIsResumeModalOpen(false);
+      setResumingEntryId(null);
+    } catch (error: any) {
+      showNotification(error.response?.data?.error || 'Failed to resume lot', 'error');
+    }
   };
 
   const toggleExpand = (entryId: string) => {
@@ -1337,13 +1356,42 @@ const AllottedSupervisors: React.FC = () => {
                                         ❌ Close Lot ({progress?.remainingBags || 0} bags left)
                                       </button>
                                     )}
-                                    {['admin', 'manager', 'ceo'].includes(user?.role) && !entry.lotAllotment?.closedAt && (
+                                    {['admin', 'manager', 'ceo'].includes(user?.role) && !entry.lotAllotment?.closedAt && (() => {
+                                      const prog = inspectionProgress[entry.id];
+                                      if (!prog) return null;
+                                      const trips = prog.previousInspections || [];
+                                      if (trips.length === 0) return null;
+                                      // Every row in the trips table must have its rate linked
+                                      const hasUnlinked = trips.some((t: any) => !t.linkedPattiRate);
+                                      if (hasUnlinked) return null;
+                                      
+                                      return (
+                                        <button
+                                          onClick={() => triggerCompleteLot(entry.id, entry.partyName)}
+                                          style={{
+                                            fontSize: '10px',
+                                            padding: '4px 8px',
+                                            backgroundColor: '#2e7d32',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '3px',
+                                            cursor: 'pointer',
+                                            width: '100%',
+                                            marginTop: '4px',
+                                            fontWeight: '700'
+                                          }}
+                                        >
+                                          ✔️ Completed
+                                        </button>
+                                      );
+                                    })()}
+                                    {['admin', 'manager', 'ceo'].includes(user?.role) && entry.lotAllotment?.closedAt && (
                                       <button
-                                        onClick={() => triggerCompleteLot(entry.id, entry.partyName)}
+                                        onClick={() => triggerResumeLot(entry.id)}
                                         style={{
                                           fontSize: '10px',
                                           padding: '4px 8px',
-                                          backgroundColor: '#2e7d32',
+                                          backgroundColor: '#ff9800',
                                           color: 'white',
                                           border: 'none',
                                           borderRadius: '3px',
@@ -1353,7 +1401,7 @@ const AllottedSupervisors: React.FC = () => {
                                           fontWeight: '700'
                                         }}
                                       >
-                                        ✔️ Completed
+                                        🔄 Resume Lot
                                       </button>
                                     )}
                                   </div>
@@ -2036,6 +2084,22 @@ const AllottedSupervisors: React.FC = () => {
           }}
         />
       )}
+      {resumingEntryId && (
+        <ConfirmationModal
+          isOpen={isResumeModalOpen}
+          title="Confirm Resume Lot"
+          message={`Are you sure you want to resume this closed lot? This will reopen it for supervisor entries.`}
+          type="confirm"
+          showInput={false}
+          confirmText="Resume Lot"
+          cancelText="Cancel"
+          onConfirm={executeResumeLot}
+          onCancel={() => {
+            setIsResumeModalOpen(false);
+            setResumingEntryId(null);
+          }}
+        />
+      )}
       {detailModalEntry && (
         <SampleEntryDetailModal
           detailEntry={detailModalEntry as any}
@@ -2370,3 +2434,5 @@ const AllottedSupervisors: React.FC = () => {
   );
 };
 export default AllottedSupervisors;
+
+

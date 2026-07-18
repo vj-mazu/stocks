@@ -128,19 +128,23 @@ const Arrival = sequelize.define('Arrival', {
   },
   wbNo: {
     type: DataTypes.STRING(50),
-    allowNull: false
+    allowNull: true,
+    defaultValue: 'PENDING'
   },
   grossWeight: {
     type: DataTypes.DECIMAL(10, 2),
-    allowNull: false
+    allowNull: true,
+    defaultValue: 0
   },
   tareWeight: {
     type: DataTypes.DECIMAL(10, 2),
-    allowNull: false
+    allowNull: true,
+    defaultValue: 0
   },
   netWeight: {
     type: DataTypes.DECIMAL(10, 2),
-    allowNull: false
+    allowNull: true,
+    defaultValue: 0
   },
   lorryNumber: {
     type: DataTypes.STRING(20),
@@ -203,6 +207,55 @@ const Arrival = sequelize.define('Arrival', {
     allowNull: true
   },
   remarks: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  wbInputType: {
+    type: DataTypes.ENUM('mill', 'party'),
+    allowNull: true
+  },
+  millWbId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: { model: 'weight_bridges', key: 'id' }
+  },
+  partyWbName: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
+  wbStatus: {
+    type: DataTypes.ENUM('none', 'pending', 'approved', 'rejected'),
+    defaultValue: 'none',
+    allowNull: false
+  },
+  wbRejectReason: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  placeType: {
+    type: DataTypes.ENUM('production', 'kunchinittu'),
+    allowNull: true
+  },
+  placeWarehouseId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: { model: 'warehouses', key: 'id' }
+  },
+  placeKunchinittuId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: { model: 'kunchinittus', key: 'id' }
+  },
+  placeDate: {
+    type: DataTypes.DATEONLY,
+    allowNull: true
+  },
+  placeStatus: {
+    type: DataTypes.ENUM('none', 'pending', 'approved', 'rejected'),
+    defaultValue: 'none',
+    allowNull: false
+  },
+  placeRejectReason: {
     type: DataTypes.TEXT,
     allowNull: true
   }
@@ -272,11 +325,15 @@ Arrival.belongsTo(User, { foreignKey: 'adminApprovedBy', as: 'adminApprover' });
 // Purchase destination (chain-linked)
 Arrival.belongsTo(Kunchinittu, { foreignKey: 'toKunchinintuId', as: 'toKunchinittu' });
 Arrival.belongsTo(Warehouse, { foreignKey: 'toWarehouseId', as: 'toWarehouse' });
+const WeightBridge = require('./WeightBridge');
+Arrival.belongsTo(WeightBridge, { foreignKey: 'millWbId', as: 'millWeightBridge' });
 
 // Shifting locations
 Arrival.belongsTo(Warehouse, { foreignKey: 'fromWarehouseId', as: 'fromWarehouse' });
 Arrival.belongsTo(Warehouse, { foreignKey: 'toWarehouseShiftId', as: 'toWarehouseShift' });
 Arrival.belongsTo(Kunchinittu, { foreignKey: 'fromKunchinintuId', as: 'fromKunchinittu' });
+Arrival.belongsTo(Warehouse, { foreignKey: 'placeWarehouseId', as: 'placeWarehouse' });
+Arrival.belongsTo(Kunchinittu, { foreignKey: 'placeKunchinittuId', as: 'placeKunchinittu' });
 
 // Production shifting link (self-referencing)
 Arrival.belongsTo(Arrival, { foreignKey: 'linkedShiftingId', as: 'linkedShifting' });

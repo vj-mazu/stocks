@@ -191,6 +191,11 @@ PhysicalInspection.associate = (models) => {
     foreignKey: 'physicalInspectionId',
     as: 'inventoryData'
   });
+
+  PhysicalInspection.hasOne(models.LorryTransitDetail, {
+    foreignKey: 'physicalInspectionId',
+    as: 'lorryTransitDetail'
+  });
 };
 
 module.exports = PhysicalInspection;

@@ -8,6 +8,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { useLocation } from '../contexts/LocationContext';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
+import { SampleEntryDetailModal } from '../components/SampleEntryDetailModal';
 
 const Container = styled.div`
   animation: fadeIn 0.5s ease-in;
@@ -347,12 +348,122 @@ interface VarietyAllocation {
   warehouseCode: string;
 }
 
+const cleanDecimal = (val: any) => {
+  if (val === null || val === undefined || val === '') return '';
+  const num = parseFloat(val);
+  if (!isNaN(num)) {
+    return String(Number(num.toFixed(2))); // e.g. "1.00" -> "1", "1.50" -> "1.5"
+  }
+  return String(val).trim();
+};
+
+const formatCuttingClean = (cuttingStr: any) => {
+  if (!cuttingStr || cuttingStr === '-') return '-';
+  const str = String(cuttingStr).trim();
+  if (!str || str === '-') return '-';
+  const parts = str.toLowerCase().split(/x|\*/);
+  if (parts.length === 2) {
+    const c1 = cleanDecimal(parts[0]);
+    const c2 = cleanDecimal(parts[1]);
+    if (c1 && c2) return `${c1}x${c2}`;
+  }
+  return str;
+};
+
+const getCuttingValue = (entry: any, currentInspection: any) => {
+  let rawCutting = '';
+  
+  const isZeroCutting = (val: any) => {
+    if (!val) return true;
+    const clean = String(val).replace(/\s+/g, '').toLowerCase();
+    return clean === '0' || clean === '0x0' || clean === '0x' || clean === 'x0' || clean === '0-0' || clean === '0*0' || clean === '-' || clean === 'none';
+  };
+
+  // 1. Check current inspection (for In-Transit)
+  if (currentInspection) {
+    let temp = '';
+    if (currentInspection.cutting) {
+      temp = currentInspection.cutting;
+    } else if (currentInspection.cutting1) {
+      temp = `${currentInspection.cutting1}x${currentInspection.cutting2 || ''}`;
+    }
+    if (!isZeroCutting(temp)) {
+      rawCutting = temp;
+    }
+  }
+
+  // 2. Check entry.cutting directly (for Band Mall Book)
+  if (isZeroCutting(rawCutting) && entry && entry.cutting) {
+    if (!isZeroCutting(entry.cutting)) {
+      rawCutting = entry.cutting;
+    }
+  }
+
+  // 3. Check quality parameters
+  if (isZeroCutting(rawCutting) && entry && entry.qualityParameters) {
+    const qp = entry.qualityParameters;
+    if (qp.cutting1 || qp.cutting2) {
+      let temp = `${qp.cutting1 || ''}x${qp.cutting2 || ''}`;
+      if (!isZeroCutting(temp)) {
+        rawCutting = temp;
+      }
+    }
+  }
+
+  // 4. Check other inspections in the same entry
+  if (isZeroCutting(rawCutting) && entry) {
+    const inspections = entry.lotAllotment?.physicalInspections || 
+                        entry.physicalInspections || 
+                        entry.sampleEntry?.physicalInspections || 
+                        entry.sampleEntry?.lotAllotment?.physicalInspections || 
+                        [];
+    for (const insp of inspections) {
+      let temp = '';
+      if (insp.cutting) {
+        temp = insp.cutting;
+      } else if (insp.cutting1) {
+        temp = `${insp.cutting1}x${insp.cutting2 || ''}`;
+      }
+      if (!isZeroCutting(temp)) {
+        rawCutting = temp;
+        break;
+      }
+    }
+  }
+
+  // 5. Fallback: check from the parent sample entry inside Band Mall Book
+  if (isZeroCutting(rawCutting) && entry && entry.sampleEntry) {
+    const se = entry.sampleEntry;
+    if (se.cutting) {
+      if (!isZeroCutting(se.cutting)) {
+        rawCutting = se.cutting;
+      }
+    }
+    if (isZeroCutting(rawCutting) && se.qualityParameters) {
+      const qp = se.qualityParameters;
+      if (qp.cutting1 || qp.cutting2) {
+        let temp = `${qp.cutting1 || ''}x${qp.cutting2 || ''}`;
+        if (!isZeroCutting(temp)) {
+          rawCutting = temp;
+        }
+      }
+    }
+  }
+
+  if (isZeroCutting(rawCutting)) return '-';
+  return formatCuttingClean(rawCutting);
+};
+
 const Arrivals: React.FC = () => {
   const { user } = useAuth();
   const { warehouses, kunchinittus, varieties, fetchWarehouses, fetchKunchinittus, fetchVarieties } = useLocation();
 
-  // Form state
   const [slNo, setSlNo] = useState('');
+  const [selectedDetailEntry, setSelectedDetailEntry] = useState<any>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
+  const [selectedTransitDetail, setSelectedTransitDetail] = useState<any>(null);
+  const [isTransitDetailOpen, setIsTransitDetailOpen] = useState(false);
   const [date, setDate] = useState<Date>(new Date());
   const [dateInput, setDateInput] = useState('');
   const [movementType, setMovementType] = useState<'purchase' | 'shifting'>('purchase');
@@ -402,6 +513,22 @@ const Arrivals: React.FC = () => {
   // Stock locations state
   const [stockLocations, setStockLocations] = useState<any[]>([]);
   const [loadingStockLocations, setLoadingStockLocations] = useState(false);
+
+  // Fetch Mill Weight Bridges list from backend on mount
+  useEffect(() => {
+    const fetchBridges = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.get(`${API_URL}/weight-bridges`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setMillWBList((res.data as any).bridges || []);
+      } catch (err) {
+        console.error('Error fetching weight bridges:', err);
+      }
+    };
+    fetchBridges();
+  }, []);
 
   // Filter out closed kunchinittus for dropdowns
   const activeKunchinittus = useMemo(() => {
@@ -804,7 +931,7 @@ const Arrivals: React.FC = () => {
     }
   };
 
-  const [arrivalsActiveSubTab, setArrivalsActiveSubTab] = useState<'entry' | 'transit'>('transit');
+
   const [inTransitEntries, setInTransitEntries] = useState<any[]>([]);
   const [loadingTransit, setLoadingTransit] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -814,7 +941,43 @@ const Arrivals: React.FC = () => {
   const [transitTotalLoaded, setTransitTotalLoaded] = useState(0);
   const [transitSearchQuery, setTransitSearchQuery] = useState('');
   const [transitDebouncedSearch, setTransitDebouncedSearch] = useState('');
+  const [selectedLorryForWB, setSelectedLorryForWB] = useState<string | null>(null);
+  const [selectedLorryForPlace, setSelectedLorryForPlace] = useState<string | null>(null);
+  const [selectedLorryEntries, setSelectedLorryEntries] = useState<any[]>([]);
+  
+  // Weight bridge form inputs
+  const [wbInputType, setWbInputType] = useState<'mill' | 'party'>('mill');
+  const [millWbId, setMillWbId] = useState('');
+  const [partyWbName, setPartyWbName] = useState('');
+  const [wbNumber, setWbNumber] = useState('');
+  const [wbGrossWeight, setWbGrossWeight] = useState('');
+  const [wbTareWeight, setWbTareWeight] = useState('');
+  const [wbNetWeight, setWbNetWeight] = useState('');
+  const [millWBList, setMillWBList] = useState<any[]>([]);
+  
+  // Place form inputs
+  const [placeType, setPlaceType] = useState<'production' | 'kunchinittu'>('production');
+  const [placeWarehouseId, setPlaceWarehouseId] = useState('');
+  const [placeKunchinittuId, setPlaceKunchinittuId] = useState('');
+  const [placeDate, setPlaceDate] = useState(new Date().toISOString().split('T')[0]);
+  const [placeOutturnId, setPlaceOutturnId] = useState('');
+  const [selectedLorryInspection, setSelectedLorryInspection] = useState<any>(null);
+  
+  const [arrivalsActiveSubTab, setArrivalsActiveSubTab] = useState<'entry' | 'transit' | 'bandmalal' | 'approvals'>('transit');
+  const [bandMalalEntries, setBandMalalEntries] = useState<any[]>([]);
+  const [approvalEntries, setApprovalEntries] = useState<any[]>([]);
   const searchTimerRef = useRef<any>(null);
+
+  // Inventory Quality Parameters State
+  const [expandedInventoryQuality, setExpandedInventoryQuality] = useState<string | null>(null);
+  const [inventoryQualityType, setInventoryQualityType] = useState<'lot_avg' | 'full_lorry_avg'>('lot_avg');
+  const [inventoryQualityForm, setInventoryQualityForm] = useState({
+    moisture: '', dryMoisture: '', cutting: '', bend: '', grains: '',
+    mix: '', sMix: '', lMix: '', kandu: '', oil: '', sk: '',
+    wbR: '', wbBk: '', wbT: '', smell: '', paddyWb: '', pColor: '', remarks: ''
+  });
+  const [rejectInventoryQualityId, setRejectInventoryQualityId] = useState<string | null>(null);
+  const [rejectInventoryQualityReason, setRejectInventoryQualityReason] = useState('');
 
   // Debounce search input
   useEffect(() => {
@@ -867,12 +1030,171 @@ const Arrivals: React.FC = () => {
     }
   }, [transitPageSize, transitDebouncedSearch]);
 
+  const handleApprovePlace = async (id: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API_URL}/arrivals/${id}/approve-place`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Place approved!');
+      fetchInTransitEntries();
+      fetchBandMalalEntries();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to approve place');
+    }
+  };
+
+  const handleRejectPlace = async (id: string) => {
+    const reason = prompt('Enter rejection reason:');
+    if (reason === null) return;
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API_URL}/arrivals/${id}/reject-place`, { reason }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Place rejected!');
+      fetchInTransitEntries();
+      fetchBandMalalEntries();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to reject place');
+    }
+  };
+
+  const handleApproveWb = async (id: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API_URL}/arrivals/${id}/approve-wb`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Weigh Bridge approved!');
+      fetchInTransitEntries();
+      fetchBandMalalEntries();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to approve WB');
+    }
+  };
+
+  const handleRejectWb = async (id: string) => {
+    const reason = prompt('Enter rejection reason:');
+    if (reason === null) return;
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API_URL}/arrivals/${id}/reject-wb`, { reason }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Weigh Bridge rejected!');
+      fetchInTransitEntries();
+      fetchBandMalalEntries();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to reject WB');
+    }
+  };
+
+  // Fetch Band Mall entries from the NEW dedicated Band Mall Book API
+  // Band Mall Book shows LorryTransitDetail entries with placeStatus='approved'
+  // These have NOT yet been finalized into Arrival records (stock)
+  const fetchBandMalalEntries = useCallback(async () => {
+    try {
+      setLoadingTransit(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/arrivals/band-malal-book`, {
+        params: { limit: 200 },
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setBandMalalEntries(response.data.arrivals || []);
+    } catch (err) {
+      console.error('Error fetching Band Mall entries:', err);
+    } finally {
+      setLoadingTransit(false);
+    }
+  }, []);
+
+  // Inventory Quality Parameters Authorization
+  const canAddInventoryQuality = user && (
+    (user.role === 'staff' && ['mill', 'location', 'inventory'].includes(user.staffType)) ||
+    user.role === 'inventory_head' ||
+    user.effectiveRole === 'inventory_head'
+  );
+
+  const canApproveInventoryQuality = user && ['admin', 'owner', 'manager', 'ceo'].includes(user.role);
+
+  // Inventory Quality Parameters Handlers
+  const handleSubmitInventoryQuality = async (transitDetailId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `${API_URL}/arrivals/bmb/${transitDetailId}/inventory-quality`,
+        {
+          type: inventoryQualityType,
+          ...inventoryQualityForm
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      toast.success('Inventory quality parameters submitted successfully');
+      setExpandedInventoryQuality(null);
+      // Reset form
+      setInventoryQualityForm({
+        moisture: '', dryMoisture: '', cutting: '', bend: '', grains: '',
+        mix: '', sMix: '', lMix: '', kandu: '', oil: '', sk: '',
+        wbR: '', wbBk: '', wbT: '', smell: '', paddyWb: '', pColor: '', remarks: ''
+      });
+      fetchBandMalalEntries();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to submit inventory quality parameters');
+    }
+  };
+
+  const handleApproveInventoryQuality = async (qualityId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `${API_URL}/arrivals/bmb/inventory-quality/${qualityId}/approve`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      toast.success('Inventory quality parameters approved successfully');
+      fetchBandMalalEntries();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to approve inventory quality parameters');
+    }
+  };
+
+  const handleRejectInventoryQuality = async () => {
+    if (!rejectInventoryQualityId) return;
+    if (!rejectInventoryQualityReason.trim()) {
+      toast.error('Please enter a rejection reason');
+      return;
+    }
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `${API_URL}/arrivals/bmb/inventory-quality/${rejectInventoryQualityId}/reject`,
+        { rejectReason: rejectInventoryQualityReason },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      toast.success('Inventory quality parameters rejected');
+      setRejectInventoryQualityId(null);
+      setRejectInventoryQualityReason('');
+      fetchBandMalalEntries();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to reject inventory quality parameters');
+    }
+  };
+
   // Reset and refetch when search or pageSize changes
   useEffect(() => {
     if (arrivalsActiveSubTab === 'transit') {
       setTransitNextCursor(null);
       setTransitTotalLoaded(0);
       fetchInTransitEntries(null, false);
+    } else if (arrivalsActiveSubTab === 'bandmalal') {
+      fetchBandMalalEntries();
     }
   }, [arrivalsActiveSubTab, transitDebouncedSearch, transitPageSize]);
 
@@ -912,6 +1234,20 @@ const Arrivals: React.FC = () => {
           }}
         >
           In Transit
+        </button>
+        <button
+          onClick={() => setArrivalsActiveSubTab('bandmalal')}
+          style={{
+            padding: '8px 16px',
+            border: 'none',
+            borderRadius: '4px',
+            background: arrivalsActiveSubTab === 'bandmalal' ? '#10b981' : '#f1f5f9',
+            color: arrivalsActiveSubTab === 'bandmalal' ? '#fff' : '#475569',
+            fontWeight: 'bold',
+            cursor: 'pointer'
+          }}
+        >
+          Band Mall Book
         </button>
         <button
           onClick={() => setArrivalsActiveSubTab('entry')}
@@ -1003,16 +1339,22 @@ const Arrivals: React.FC = () => {
               <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid #1565c0', boxShadow: '0 2px 8px rgba(21,101,192,0.12)' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
                   <thead>
-                    <tr style={{ background: 'linear-gradient(135deg, #1565c0, #1e88e5)', color: '#fff', borderBottom: '2px solid #0d47a1' }}>
-                      <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Date</th>
-                      <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Broker</th>
-                      <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Party</th>
-                      <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Lorry Number</th>
-                      <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Variety</th>
-                      <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Moisture</th>
-                      <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Bags</th>
-                      <th style={{ padding: '10px 12px', fontWeight: '700', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Linked</th>
-                      <th style={{ padding: '10px 12px', fontWeight: '700' }}>STATUS</th>
+                    <tr style={{ background: '#1a237e', color: '#fff', borderBottom: '1px solid #000' }}>
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '3%' }}>SL No</th>
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '7%' }}>Date</th>
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '10%' }}>Broker</th>
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '12%' }}>Party Name</th>
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>No. of Bags</th>
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '10%' }}>Variety</th>
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '6%' }}>Moisture</th>
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '6%' }}>Cutting</th>
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>WB Number</th>
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Place</th>
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Net Weight</th>
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '12%' }}>Lorry Number</th>
+                      {(((user as any)?.role === 'owner' || (user as any)?.role === 'staff' || (user as any)?.role === 'inventory_staff' || (user as any)?.role === 'financial_account' || (user as any)?.role === 'ceo' || (user as any)?.effectiveRole === 'ceo' || (user as any)?.role === 'inventory_head' || (user as any)?.effectiveRole === 'inventory_head' || (user as any)?.role === 'admin' || (user as any)?.role === 'manager') && !(user?.staffType === 'mill')) && (
+                        <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Actions</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -1071,11 +1413,13 @@ const Arrivals: React.FC = () => {
 
                         // Only show trips if inspections have actually started
                         filteredInspections.forEach((insp: any) => {
-                          flatTrips.push({
-                            entry: e,
-                            inspection: insp,
-                            isPlaceholder: false,
-                          });
+                          if (!insp.lorryTransitDetail || insp.lorryTransitDetail.placeStatus !== 'approved') {
+                            flatTrips.push({
+                              entry: e,
+                              inspection: insp,
+                              isPlaceholder: false,
+                            });
+                          }
                         });
                       });
 
@@ -1086,6 +1430,20 @@ const Arrivals: React.FC = () => {
                         const bagsLoaded = isPlaceholder ? entry.bags : (inspection.bags || inspection.bagsLoaded || '-');
                         const isLinked = !isPlaceholder && !!inspection.linkedPattiRate;
 
+                        const transitDetail = isPlaceholder ? null : inspection?.lorryTransitDetail;
+                        const placeStatus = transitDetail?.placeStatus || 'none';
+                        const wbStatus = transitDetail?.wbStatus || 'none';
+                        const wbNoVal = transitDetail?.wbNo || '-';
+                        const netWeightVal = transitDetail?.netWeight || '-';
+
+                        const isApprover = (user as any)?.role === 'owner' || 
+                                           (user as any)?.role === 'ceo' || 
+                                           (user as any)?.effectiveRole === 'ceo' || 
+                                           (user as any)?.role === 'inventory_head' || 
+                                           (user as any)?.effectiveRole === 'inventory_head' || 
+                                           (user as any)?.role === 'admin' || 
+                                           (user as any)?.role === 'manager';
+
                         return (
                           <React.Fragment key={isPlaceholder ? `p-${entry.id}` : `i-${inspection.id}`}>
                             {idx > 0 && (
@@ -1094,29 +1452,544 @@ const Arrivals: React.FC = () => {
                               </tr>
                             )}
                             <tr style={{
-                              borderBottom: '1px solid #cbd5e1',
-                              background: idx % 2 === 0 ? '#f1f5f9' : '#ffffff'
+                              borderBottom: '2px solid #cbd5e1',
+                              background: idx % 2 === 0 ? '#ffffff' : '#f9f9f9'
                             }}>
-                              <td style={{ padding: '9px 12px', whiteSpace: 'nowrap', fontWeight: '700', color: '#111827', borderRight: '1px solid #cbd5e1' }}>{new Date(dateVal).toLocaleDateString('en-IN')}</td>
-                              <td style={{ padding: '9px 12px', fontWeight: '700', color: '#111827', borderRight: '1px solid #cbd5e1' }}>{entry.brokerName}</td>
-                              <td style={{ padding: '9px 12px', fontWeight: '800', color: '#111827', borderRight: '1px solid #cbd5e1' }}>{entry.partyName || '-'}</td>
-                              <td style={{ padding: '9px 12px', color: '#0369a1', fontWeight: '900', borderRight: '1px solid #cbd5e1' }}>
-                                {lorryNum.toUpperCase()}
+                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700' }}>{idx + 1}</td>
+                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>{new Date(dateVal).toLocaleDateString('en-GB')}</td>
+                              <td style={{ border: '1px solid #000', padding: '5px', wordBreak: 'break-word' }}>{entry.brokerName || '-'}</td>
+                              <td style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', wordBreak: 'break-word' }}>
+                                <button
+                                  onClick={() => {
+                                    setSelectedDetailEntry({
+                                      ...entry,
+                                      lorryNumber: lorryNum
+                                    });
+                                    setIsDetailOpen(true);
+                                  }}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    padding: 0,
+                                    font: 'inherit',
+                                    color: '#2563eb',
+                                    textDecoration: 'underline',
+                                    cursor: 'pointer',
+                                    textAlign: 'left',
+                                    fontWeight: 'inherit'
+                                  }}
+                                >
+                                  {entry.partyName || '-'}
+                                </button>
                               </td>
-                              <td style={{ padding: '9px 12px', fontWeight: '800', color: '#111827', borderRight: '1px solid #cbd5e1' }}>{entry.variety}</td>
-                              <td style={{ padding: '9px 12px', fontWeight: '800', color: '#b91c1c', borderRight: '1px solid #cbd5e1', textAlign: 'left' }}>
+                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700' }}>
+                                {bagsLoaded} {entry.packaging ? `(${entry.packaging} Kg)` : ''}
+                              </td>
+                              <td style={{ border: '1px solid #000', padding: '5px' }}>{entry.variety || '-'}</td>
+                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700', color: '#b91c1c' }}>
                                 {isPlaceholder ? '-' : (inspection.moisture ? `${Number(inspection.moisture)}%` : '-')}
                               </td>
-                              <td style={{ padding: '9px 12px', fontWeight: '800', color: '#111827', borderRight: '1px solid #cbd5e1' }}>{bagsLoaded}</td>
-                              <td style={{ padding: '9px 12px', fontWeight: '800', borderRight: '1px solid #cbd5e1', textAlign: 'center', color: '#111827' }}>{isLinked ? '✅' : '⏳'}</td>
-                              <td style={{ padding: '9px 12px' }}>
-                                {isLinked ? (
-                                  <span style={{ color: '#16a34a', fontWeight: '800', background: '#f0fdf4', padding: '2px 8px', borderRadius: '4px', border: '1px solid #bbf7d0', fontSize: '10px' }}>LINKED</span>
-                                ) : (
-                                  <span style={{ color: '#d97706', fontWeight: '800', background: '#fffbeb', padding: '2px 8px', borderRadius: '4px', border: '1px solid #fde68a', fontSize: '10px' }}>PENDING</span>
-                                )}
+                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>
+                                {isPlaceholder ? '-' : getCuttingValue(entry, inspection)}
                               </td>
+                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>{wbNoVal}</td>
+                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontSize: '11px' }}>
+                                {transitDetail && (placeStatus === 'approved' || placeStatus === 'pending') ? (
+                                  <span style={{ 
+                                    padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold',
+                                    background: placeStatus === 'approved' ? '#dcfce7' : '#fef3c7',
+                                    color: placeStatus === 'approved' ? '#166534' : '#92400e'
+                                  }}>
+                                    {(() => {
+                                      if (transitDetail.placeType === 'kunchinittu') {
+                                        const kc = transitDetail.placeKunchinittuData?.name || '';
+                                        const wh = transitDetail.placeWarehouse?.name || '';
+                                        return wh ? `${wh} (${kc})` : (kc || '-');
+                                      }
+                                      return transitDetail.placeWarehouse?.name || transitDetail.warehouse?.name || (transitDetail.outturn ? `${transitDetail.outturn.code} (${transitDetail.outturn.allottedVariety})` : '-') || '-';
+                                    })()}
+                                    {placeStatus === 'pending' && ' ⏳'}
+                                  </span>
+                                ) : '-'}
+                              </td>
+                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700' }}>{netWeightVal ? `${netWeightVal} Kg` : '-'}</td>
+                              <td style={{ border: '1px solid #000', padding: '5px', fontWeight: '800', color: '#1e40af' }}>{lorryNum.toUpperCase()}</td>
+                              {(((user as any)?.role === 'owner' || (user as any)?.role === 'staff' || (user as any)?.role === 'inventory_staff' || (user as any)?.role === 'financial_account' || (user as any)?.role === 'ceo' || (user as any)?.effectiveRole === 'ceo' || (user as any)?.role === 'inventory_head' || (user as any)?.effectiveRole === 'inventory_head' || (user as any)?.role === 'admin' || (user as any)?.role === 'manager') && !(user?.staffType === 'mill')) && (
+                                <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>
+                                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
+                                    {/* Place Action Section */}
+                                    <div style={{ display: 'flex', gap: '4px' }}>
+                                      {placeStatus === 'pending' && isApprover ? (
+                                        <>
+                                          <button
+                                            onClick={() => handleApprovePlace(inspection.id)}
+                                            style={{
+                                              padding: '4px 6px', border: 'none', borderRadius: '4px',
+                                              background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer'
+                                            }}
+                                          >
+                                            Approve Place
+                                          </button>
+                                          <button
+                                            onClick={() => handleRejectPlace(inspection.id)}
+                                            style={{
+                                              padding: '4px 6px', border: 'none', borderRadius: '4px',
+                                              background: '#ef4444', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer'
+                                            }}
+                                          >
+                                            Reject Place
+                                          </button>
+                                        </>
+                                      ) : placeStatus === 'approved' ? (
+                                        <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: 'bold' }}>📍 Place Done</span>
+                                      ) : (
+                                        <button
+                                          onClick={() => {
+                                            const rowKey = isPlaceholder ? `p-${entry.id}` : `i-${inspection.id}`;
+                                            if (selectedLorryForPlace === rowKey) {
+                                              setSelectedLorryForPlace(null);
+                                              setSelectedLorryEntries([]);
+                                              setSelectedLorryInspection(null);
+                                            } else {
+                                              setSelectedLorryForPlace(rowKey);
+                                              setSelectedLorryForWB(null);
+                                              setSelectedLorryEntries([entry]);
+                                              setSelectedLorryInspection(inspection);
+                                              // Initialize inputs
+                                              setPlaceWarehouseId('');
+                                              setPlaceKunchinittuId('');
+                                              setPlaceOutturnId('');
+                                              setPlaceType('production');
+                                            }
+                                          }}
+                                          style={{
+                                            padding: '4px 8px',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            background: selectedLorryForPlace === (isPlaceholder ? `p-${entry.id}` : `i-${inspection.id}`) ? '#64748b' : 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                                            color: '#fff',
+                                            fontWeight: 'bold',
+                                            fontSize: '11px',
+                                            cursor: 'pointer'
+                                          }}
+                                        >
+                                          📍 Place
+                                        </button>
+                                      )}
+                                    </div>
+
+                                    {/* WB Action Section */}
+                                    <div style={{ display: 'flex', gap: '4px' }}>
+                                      {wbStatus === 'pending' && isApprover ? (
+                                        <>
+                                          <button
+                                            onClick={() => handleApproveWb(inspection.id)}
+                                            style={{
+                                              padding: '4px 6px', border: 'none', borderRadius: '4px',
+                                              background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer'
+                                            }}
+                                          >
+                                            Approve WB
+                                          </button>
+                                          <button
+                                            onClick={() => handleRejectWb(inspection.id)}
+                                            style={{
+                                              padding: '4px 6px', border: 'none', borderRadius: '4px',
+                                              background: '#ef4444', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer'
+                                            }}
+                                          >
+                                            Reject WB
+                                          </button>
+                                        </>
+                                      ) : wbStatus === 'approved' ? (
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                                          <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: 'bold' }}>✅ WB Approved</span>
+                                          {!entry.partyWbName && (
+                                            <button
+                                              onClick={() => {
+                                                const rowKey = isPlaceholder ? `p-${entry.id}` : `i-${inspection.id}`;
+                                                if (selectedLorryForWB === rowKey) {
+                                                  setSelectedLorryForWB(null);
+                                                  setSelectedLorryInspection(null);
+                                                } else {
+                                                  setSelectedLorryForWB(rowKey);
+                                                  setSelectedLorryForPlace(null);
+                                                  setSelectedLorryInspection(inspection || entry);
+                                                  setWbInputType('party');
+                                                  setWbNumber('');
+                                                  setPartyWbName('');
+                                                  setWbGrossWeight('');
+                                                  setWbTareWeight('');
+                                                  setWbNetWeight('');
+                                                }
+                                              }}
+                                              style={{
+                                                padding: '2px 6px', border: 'none', borderRadius: '4px',
+                                                background: selectedLorryForWB === (isPlaceholder ? `p-${entry.id}` : `i-${inspection.id}`) ? '#64748b' : '#2563eb',
+                                                color: '#fff', fontWeight: 'bold', fontSize: '10px', cursor: 'pointer'
+                                              }}
+                                            >
+                                              + Party WB
+                                            </button>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <button
+                                          onClick={() => {
+                                            const rowKey = isPlaceholder ? `p-${entry.id}` : `i-${inspection.id}`;
+                                            if (selectedLorryForWB === rowKey) {
+                                              setSelectedLorryForWB(null);
+                                              setSelectedLorryEntries([]);
+                                              setSelectedLorryInspection(null);
+                                            } else {
+                                              setSelectedLorryForWB(rowKey);
+                                              setSelectedLorryForPlace(null);
+                                              setSelectedLorryEntries([entry]);
+                                              setSelectedLorryInspection(inspection || entry);
+                                              setWbInputType('mill');
+                                              setWbNumber(transitDetail?.wbNo || '');
+                                              setWbGrossWeight('');
+                                              setWbTareWeight('');
+                                              setWbNetWeight('');
+                                            }
+                                          }}
+                                          style={{
+                                            padding: '4px 8px',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            background: selectedLorryForWB === (isPlaceholder ? `p-${entry.id}` : `i-${inspection.id}`) ? '#64748b' : 'linear-gradient(135deg, #f59e0b, #d97706)',
+                                            color: '#fff',
+                                            fontWeight: 'bold',
+                                            fontSize: '11px',
+                                            cursor: 'pointer'
+                                          }}
+                                        >
+                                          ⚖️ WB
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+                              )}
                             </tr>
+                            
+                            {/* COLLAPSIBLE WB ROW */}
+                            {selectedLorryForWB === (isPlaceholder ? `p-${entry.id}` : `i-${inspection.id}`) && (
+                              <tr>
+                                <td colSpan={ (((user as any)?.role === 'owner' || (user as any)?.role === 'staff' || (user as any)?.role === 'inventory_staff' || (user as any)?.role === 'financial_account' || (user as any)?.role === 'ceo' || (user as any)?.effectiveRole === 'ceo' || (user as any)?.role === 'inventory_head' || (user as any)?.effectiveRole === 'inventory_head' || (user as any)?.role === 'admin' || (user as any)?.role === 'manager') && !(user?.staffType === 'mill')) ? 13 : 12 } style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
+                                  <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
+                                      <h4 style={{ margin: 0, color: '#0f172a', fontSize: '13px', fontWeight: 'bold' }}>⚖️ Add Weight Bridge for {lorryNum.toUpperCase()}</h4>
+                                      <div style={{ display: 'flex', gap: '8px' }}>
+                                        <button 
+                                          onClick={() => setWbInputType('mill')}
+                                          style={{
+                                            padding: '4px 10px', fontSize: '11px', fontWeight: 'bold', borderRadius: '4px', border: '1px solid #cbd5e1',
+                                            background: wbInputType === 'mill' ? '#1a237e' : '#fff',
+                                            color: wbInputType === 'mill' ? '#fff' : '#475569',
+                                            cursor: 'pointer'
+                                          }}
+                                        >
+                                          Mill Weight Bridge
+                                        </button>
+                                        <button 
+                                          onClick={() => setWbInputType('party')}
+                                          style={{
+                                            padding: '4px 10px', fontSize: '11px', fontWeight: 'bold', borderRadius: '4px', border: '1px solid #cbd5e1',
+                                            background: wbInputType === 'party' ? '#1a237e' : '#fff',
+                                            color: wbInputType === 'party' ? '#fff' : '#475569',
+                                            cursor: 'pointer'
+                                          }}
+                                        >
+                                          Party Weight Bridge
+                                        </button>
+                                      </div>
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px', marginBottom: '14px' }}>
+                                      <div>
+                                        <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>WB Number <span style={{ color: '#ef4444' }}>*</span></label>
+                                        <input 
+                                          type="text" 
+                                          value={wbNumber}
+                                          onChange={(e) => setWbNumber(e.target.value.toUpperCase())}
+                                          placeholder="Enter WB number"
+                                          style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
+                                        />
+                                      </div>
+                                      
+                                      {wbInputType === 'mill' ? (
+                                        <div>
+                                          <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Mill WB Name (Mandatory)</label>
+                                          <select 
+                                            value={millWbId}
+                                            onChange={(e) => setMillWbId(e.target.value)}
+                                            style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
+                                          >
+                                            <option value="">Select Mill Weight Bridge</option>
+                                            {millWBList?.map(wb => (
+                                              <option key={wb.id} value={wb.id}>{wb.name}</option>
+                                            ))}
+                                          </select>
+                                        </div>
+                                      ) : (
+                                        <div>
+                                          <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Party WB Name</label>
+                                          <input 
+                                            type="text" 
+                                            value={partyWbName}
+                                            onChange={(e) => setPartyWbName(e.target.value)}
+                                            placeholder="Enter Party WB name"
+                                            style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
+                                          />
+                                        </div>
+                                      )}
+                                      
+                                      <div>
+                                        <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Gross Weight (Kg)</label>
+                                        <input 
+                                          type="number" 
+                                          value={wbGrossWeight}
+                                          onChange={(e) => {
+                                            const val = e.target.value;
+                                            setWbGrossWeight(val);
+                                            if (val && wbTareWeight) {
+                                              setWbNetWeight(String(Number(val) - Number(wbTareWeight)));
+                                            }
+                                          }}
+                                          placeholder="Enter Gross"
+                                          style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
+                                        />
+                                      </div>
+                                      
+                                      <div>
+                                        <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Tare Weight (Kg)</label>
+                                        <input 
+                                          type="number" 
+                                          value={wbTareWeight}
+                                          onChange={(e) => {
+                                            const val = e.target.value;
+                                            setWbTareWeight(val);
+                                            if (wbGrossWeight && val) {
+                                              setWbNetWeight(String(Number(wbGrossWeight) - Number(val)));
+                                            }
+                                          }}
+                                          placeholder="Enter Tare"
+                                          style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
+                                        />
+                                      </div>
+                                      
+                                      <div>
+                                        <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Net Weight (Kg)</label>
+                                        <input 
+                                          type="text" 
+                                          value={wbNetWeight}
+                                          disabled
+                                          style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px', background: '#f1f5f9' }}
+                                        />
+                                      </div>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                                      <button 
+                                        onClick={() => setSelectedLorryForWB(null)}
+                                        style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #cbd5e1', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
+                                      >
+                                        Cancel
+                                      </button>
+                                      <button 
+                                        onClick={async () => {
+                                          if (!wbNumber || (wbInputType === 'mill' && !millWbId)) {
+                                            toast.error('Please fill required fields (WB Number & Mill WB Name)');
+                                            return;
+                                          }
+                                          if (!wbGrossWeight || !wbTareWeight) {
+                                            toast.error('Please enter both Gross Weight and Tare Weight');
+                                            return;
+                                          }
+                                          if (parseFloat(wbGrossWeight) <= parseFloat(wbTareWeight)) {
+                                            toast.error('Gross Weight must be strictly greater than Tare Weight');
+                                            return;
+                                          }
+                                          try {
+                                            const token = localStorage.getItem('token');
+                                            await axios.post(`${API_URL}/arrivals/${selectedLorryInspection.id}/wb`, {
+                                              wbInputType,
+                                              millWbId: wbInputType === 'mill' ? millWbId : null,
+                                              partyWbName: wbInputType === 'party' ? partyWbName : null,
+                                              wbNo: wbNumber,
+                                              grossWeight: wbGrossWeight,
+                                              tareWeight: wbTareWeight,
+                                              netWeight: wbNetWeight
+                                            }, {
+                                              headers: { Authorization: `Bearer ${token}` }
+                                            });
+                                            toast.success('Weight Bridge submitted for approval!');
+                                            setSelectedLorryForWB(null);
+                                            setSelectedLorryEntries([]);
+                                            setSelectedLorryInspection(null);
+                                            fetchInTransitEntries();
+                                          } catch (err: any) {
+                                            toast.error(err.response?.data?.error || 'Failed to save Weight Bridge');
+                                          }
+                                        }}
+                                        style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', border: 'none', borderRadius: '4px', background: '#1a237e', color: '#fff', cursor: 'pointer' }}
+                                      >
+                                        Save Weight Bridge
+                                      </button>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                            
+                            {/* COLLAPSIBLE PLACE ROW */}
+                            {selectedLorryForPlace === (isPlaceholder ? `p-${entry.id}` : `i-${inspection.id}`) && (
+                              <tr>
+                                <td colSpan={ (((user as any)?.role === 'owner' || (user as any)?.role === 'staff' || (user as any)?.role === 'inventory_staff' || (user as any)?.role === 'financial_account' || (user as any)?.role === 'ceo' || (user as any)?.effectiveRole === 'ceo' || (user as any)?.role === 'inventory_head' || (user as any)?.effectiveRole === 'inventory_head' || (user as any)?.role === 'admin' || (user as any)?.role === 'manager') && !(user?.staffType === 'mill')) ? 14 : 13 } style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
+                                  <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
+                                      <h4 style={{ margin: 0, color: '#0f172a', fontSize: '13px', fontWeight: 'bold' }}>📍 Set Place Location for {lorryNum.toUpperCase()}</h4>
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px', marginBottom: '14px' }}>
+                                      <div>
+                                        <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Place Date</label>
+                                        <input 
+                                          type="date" 
+                                          value={placeDate}
+                                          onChange={(e) => setPlaceDate(e.target.value)}
+                                          style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
+                                        />
+                                      </div>
+                                      
+                                      <div>
+                                        <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Destination Type</label>
+                                        <select 
+                                          value={placeType}
+                                          onChange={(e) => {
+                                            setPlaceType(e.target.value as any);
+                                            setPlaceWarehouseId('');
+                                            setPlaceKunchinittuId('');
+                                          }}
+                                          style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
+                                        >
+                                          <option value="production">Production</option>
+                                          <option value="kunchinittu">Kunchinittu</option>
+                                        </select>
+                                      </div>
+                                      
+                                      {placeType === 'production' ? (
+                                        <>
+                                          <div>
+                                            <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Select Outturn</label>
+                                            <select 
+                                              value={placeOutturnId}
+                                              onChange={(e) => setPlaceOutturnId(e.target.value)}
+                                              style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
+                                            >
+                                              <option value="">Choose Outturn</option>
+                                              {outturns.filter(o => !o.isCleared).map((o) => (
+                                                <option key={o.id} value={o.id}>
+                                                  {o.code} - {o.allottedVariety}
+                                                </option>
+                                              ))}
+                                            </select>
+                                          </div>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <div>
+                                            <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Select Warehouse</label>
+                                            <select 
+                                              value={placeWarehouseId}
+                                              onChange={(e) => {
+                                                const wid = e.target.value;
+                                                setPlaceWarehouseId(wid);
+                                                // Reset Kunchinittu if it doesn't belong to the newly selected warehouse
+                                                const currentK = kunchinittus.find(k => String(k.id) === String(placeKunchinittuId));
+                                                if (currentK && String(currentK.warehouseId) !== String(wid)) {
+                                                  setPlaceKunchinittuId('');
+                                                }
+                                              }}
+                                              style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
+                                            >
+                                              <option value="">Choose Warehouse</option>
+                                              {warehouses.map(w => (
+                                                <option key={w.id} value={w.id}>{w.name} ({w.code})</option>
+                                              ))}
+                                            </select>
+                                          </div>
+                                          <div>
+                                            <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Select Kunchinittu</label>
+                                            <select 
+                                              value={placeKunchinittuId}
+                                              onChange={(e) => {
+                                                const kid = e.target.value;
+                                                setPlaceKunchinittuId(kid);
+                                                const match = kunchinittus.find(k => String(k.id) === String(kid));
+                                                if (match && match.warehouseId) {
+                                                  setPlaceWarehouseId(String(match.warehouseId));
+                                                }
+                                              }}
+                                              style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
+                                            >
+                                              <option value="">Choose Kunchinittu</option>
+                                              {kunchinittus
+                                                .filter(k => !placeWarehouseId || String(k.warehouseId) === String(placeWarehouseId))
+                                                .map(k => (
+                                                  <option key={k.id} value={k.id}>{k.name} ({k.code})</option>
+                                                ))}
+                                            </select>
+                                          </div>
+                                        </>
+                                      )}
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                                      <button 
+                                        onClick={() => setSelectedLorryForPlace(null)}
+                                        style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #cbd5e1', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
+                                      >
+                                        Cancel
+                                      </button>
+                                      <button 
+                                        onClick={async () => {
+                                          if (placeType === 'production') {
+                                            if (!placeOutturnId) {
+                                              toast.error('Please choose an outturn');
+                                              return;
+                                            }
+                                          }
+                                          if (placeType === 'kunchinittu' && (!placeKunchinittuId || !placeWarehouseId)) {
+                                            toast.error('Please choose both Kunchinittu & Warehouse');
+                                            return;
+                                          }
+                                          try {
+                                            const token = localStorage.getItem('token');
+                                            await axios.post(`${API_URL}/arrivals/${selectedLorryInspection.id}/place`, {
+                                              placeDate,
+                                              placeType,
+                                              placeKunchinittuId: placeType === 'kunchinittu' ? (placeKunchinittuId ? Number(placeKunchinittuId) : null) : null,
+                                              placeWarehouseId: placeType === 'production' ? null : (placeWarehouseId ? Number(placeWarehouseId) : null),
+                                              outturnId: placeType === 'production' ? (placeOutturnId ? Number(placeOutturnId) : null) : null
+                                            }, {
+                                              headers: { Authorization: `Bearer ${token}` }
+                                            });
+                                            toast.success('Place submitted for approval!');
+                                            setSelectedLorryForPlace(null);
+                                            setSelectedLorryEntries([]);
+                                            setSelectedLorryInspection(null);
+                                            fetchInTransitEntries();
+                                          } catch (err: any) {
+                                            toast.error(err.response?.data?.error || 'Failed to save Place');
+                                          }
+                                        }}
+                                        style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', border: 'none', borderRadius: '4px', background: '#1a237e', color: '#fff', cursor: 'pointer' }}
+                                      >
+                                        Save Place
+                                      </button>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
                           </React.Fragment>
                         );
                       });
@@ -1180,7 +2053,477 @@ const Arrivals: React.FC = () => {
             }
           `}</style>
         </div>
-      ) : (
+      ) : arrivalsActiveSubTab === 'bandmalal' ? (
+        <div>
+          <h3 style={{ margin: '0 0 16px 0', color: '#0f172a', fontSize: '16px', fontWeight: 'bold' }}>📗 Band Mall Book — Placed Entries</h3>
+          {loadingTransit ? (
+            <div style={{ padding: '40px 16px', textAlign: 'center', color: '#64748b' }}>⏳ Loading...</div>
+          ) : bandMalalEntries.length === 0 ? (
+            <div style={{ padding: '40px 16px', textAlign: 'center', color: '#64748b', fontWeight: 600, backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
+              No placed entries in Band Mall Book yet.
+            </div>
+          ) : (
+            <>
+            <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid #10b981', boxShadow: '0 2px 8px rgba(16,185,129,0.12)' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ background: '#065f46', color: '#fff', borderBottom: '1px solid #000' }}>
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '3%' }}>SL No</th>
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '7%' }}>Date</th>
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '10%' }}>Broker</th>
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '12%' }}>From/Party</th>
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>No. of Bags</th>
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '10%' }}>Variety</th>
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '6%' }}>Moisture</th>
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '6%' }}>Cutting</th>
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>WB Number</th>
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Place</th>
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Net Weight</th>
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Approved By</th>
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '12%' }}>Lorry Number</th>
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '5%' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bandMalalEntries.map((entry, idx) => {
+                    const wbStatus = entry.wbStatus || 'none';
+                    const wbNoVal = entry.wbNo || (wbStatus === 'none' ? '⚠️ Required' : '-');
+                    const netWeightVal = entry.netWeight || 0;
+                    const placeStatus = entry.placeStatus || 'none';
+                    
+                    // Format bags display (bags count + packaging size)
+                    const bagsDisplay = entry.bags 
+                      ? `${entry.bags} ${entry.packaging ? `(${entry.packaging} Kg)` : ''}` 
+                      : '-';
+                    
+                    // Use getCuttingValue helper for cutting display
+                    const cuttingDisplay = getCuttingValue(entry, null);
+                    
+                    // Format moisture display
+                    const moistureDisplay = entry.moisture 
+                      ? `${entry.moisture}%` 
+                      : '-';
+                    
+                    // Determine place display based on type
+                    let placeDisplay = '-';
+                    if (entry.placeType === 'production' && entry.outturn) {
+                      placeDisplay = `🏭 ${entry.outturn.code}`;
+                    } else if (entry.placeType === 'kunchinittu') {
+                      const wh = entry.placeWarehouse?.name || entry.toWarehouse?.name || '';
+                      const kc = entry.placeKunchinittuData?.name || entry.toKunchinittu?.name || '';
+                      placeDisplay = wh ? (wh + (kc ? ' (' + kc + ')' : '')) : (kc || '-');
+                    }
+
+                    const isApprover = (user as any)?.role === 'owner' || 
+                                       (user as any)?.role === 'ceo' || 
+                                       (user as any)?.effectiveRole === 'ceo' || 
+                                       (user as any)?.role === 'inventory_head' || 
+                                       (user as any)?.effectiveRole === 'inventory_head' || 
+                                       (user as any)?.role === 'admin' || 
+                                       (user as any)?.role === 'manager';
+
+                    return (
+                      <React.Fragment key={`bm-${entry.id}`}>
+                        <tr style={{ borderBottom: '1px solid #e2e8f0', background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                          {/* Column 1: SL No */}
+                          <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600' }}>
+                            {idx + 1}
+                          </td>
+                          
+                          {/* Column 2: Date */}
+                          <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>
+                            {entry.date ? new Date(entry.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
+                          </td>
+                          
+                          {/* Column 3: Broker */}
+                          <td style={{ border: '1px solid #000', padding: '5px' }}>
+                            {entry.broker || '-'}
+                          </td>
+                          
+                          {/* Column 4: From/Party */}
+                          <td style={{ border: '1px solid #000', padding: '5px', fontWeight: '600' }}>
+                            <button
+                              onClick={async () => {
+                                const entryId = entry.id || `${entry.slNo}-${idx}`;
+                                setDetailLoadingId(entryId);
+                                try {
+                                  // Try to fetch full sample entry to get all details
+                                  const sampleEntryId = entry.sampleEntry?.id || entry.sampleEntryId;
+                                  if (sampleEntryId) {
+                                    const token = localStorage.getItem('token');
+                                    const res = await axios.get(`${API_URL}/sample-entries/${sampleEntryId}`, {
+                                      headers: { Authorization: `Bearer ${token}` }
+                                    });
+                                    const fullSampleEntry = res.data.entry || res.data.sampleEntry || res.data;
+                                    // Merge: Sample Entry data first, then Band Mall entry overrides
+                                    // This preserves Band Mall specific fields (wbNo, placeType, WB/Place details)
+                                    setSelectedDetailEntry({
+                                      ...fullSampleEntry,
+                                      ...entry, // Band Mall entry overrides with WB and Place details
+                                      id: sampleEntryId,
+                                      lorryNumber: entry.lorryNumber,
+                                      isBandMalalBook: true,
+                                    });
+                                  } else {
+                                    setSelectedDetailEntry({
+                                      ...entry,
+                                      isBandMalalBook: true,
+                                    });
+                                  }
+                                  setIsDetailOpen(true);
+                                } catch (err) {
+                                  console.error('Error fetching sample entry details:', err);
+                                  // Fallback: just use the Band Mall entry data
+                                  setSelectedDetailEntry({
+                                    ...entry,
+                                    isBandMalalBook: true,
+                                  });
+                                  setIsDetailOpen(true);
+                                } finally {
+                                  setDetailLoadingId(null);
+                                }
+                              }}
+                              disabled={detailLoadingId === (entry.id || `${entry.slNo}-${idx}`)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                padding: 0,
+                                font: 'inherit',
+                                color: detailLoadingId === (entry.id || `${entry.slNo}-${idx}`) ? '#94a3b8' : '#2563eb',
+                                textDecoration: 'underline',
+                                cursor: detailLoadingId === (entry.id || `${entry.slNo}-${idx}`) ? 'wait' : 'pointer',
+                                textAlign: 'left',
+                                fontWeight: 'inherit'
+                              }}
+                            >
+                              {detailLoadingId === (entry.id || `${entry.slNo}-${idx}`) ? '⏳ Loading...' : (entry.partyName || entry.fromLocation || '-')}
+                            </button>
+                          </td>
+                          
+                          {/* Column 5: No. of Bags */}
+                          <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700' }}>
+                            {bagsDisplay}
+                          </td>
+                          
+                          {/* Column 6: Variety */}
+                          <td style={{ border: '1px solid #000', padding: '5px', fontWeight: '800', color: '#1e40af' }}>
+                            {entry.variety || '-'}
+                          </td>
+                          
+                          {/* Column 7: Moisture */}
+                          <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>
+                            {moistureDisplay}
+                          </td>
+                          
+                          {/* Column 8: Cutting */}
+                          <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: cuttingDisplay === '-' ? '#94a3b8' : '#059669' }}>
+                            {cuttingDisplay}
+                          </td>
+                          
+                          {/* Column 9: WB Number */}
+                          <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>
+                            {entry.wbNo || (wbStatus === 'pending' ? 'PENDING' : wbStatus === 'none' ? '⚠️ Required' : '-')}
+                          </td>
+                          
+                          {/* Column 10: Place */}
+                          <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: '#7c3aed' }}>
+                            {placeDisplay}
+                          </td>
+                          
+                          {/* Column 11: Net Weight */}
+                          <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700', color: '#059669' }}>
+                            {netWeightVal ? `${netWeightVal} Kg` : '-'}
+                          </td>
+
+                          {/* Column 11a: Approved By */}
+                          <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: entry.wbApprover ? '#16a34a' : '#b45309' }}>
+                            {entry.wbApprover?.username || entry.wbApprover?.fullName || (entry.wbStatus === 'approved' ? 'Auto Approved' : entry.wbStatus === 'pending' ? 'Pending Approval' : '-')}
+                          </td>
+                          
+                          {/* Column 12: Lorry Number */}
+                          <td style={{ border: '1px solid #000', padding: '5px', fontWeight: '800', color: '#1e40af' }}>
+                            {(entry.lorryNumber || 'N/A').toUpperCase()}
+                          </td>
+                          
+                          {/* Column 13: Actions */}
+                          {(user?.role === 'owner' || user?.role === 'ceo' || user?.effectiveRole === 'ceo' || user?.role === 'inventory_head' || user?.effectiveRole === 'inventory_head' || user?.role === 'admin' || user?.role === 'manager') && !(user?.staffType === 'mill') && (
+                            <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                                {/* Weight Bridge Actions */}
+                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                                  {wbStatus === 'pending' && isApprover ? (
+                                    <>
+                                      <button onClick={() => handleApproveWb(entry.id)} style={{ padding: '4px 6px', border: 'none', borderRadius: '4px', background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer' }}>Approve</button>
+                                      <button onClick={() => handleRejectWb(entry.id)} style={{ padding: '4px 6px', border: 'none', borderRadius: '4px', background: '#ef4444', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer' }}>Reject</button>
+                                    </>
+                                  ) : wbStatus === 'pending' ? (
+                                    <span style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold' }}>WB Pending</span>
+                                  ) : wbStatus === 'approved' ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                                      <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: 'bold' }}>✅ WB Approved</span>
+                                      {!entry.partyWbName && (
+                                        <button
+                                          onClick={() => {
+                                            const lorry = (entry.lorryNumber || 'N/A').toUpperCase();
+                                            if (selectedLorryForWB === lorry) {
+                                              setSelectedLorryForWB(null);
+                                              setSelectedLorryInspection(null);
+                                            } else {
+                                              setSelectedLorryForWB(lorry);
+                                              setSelectedLorryInspection(entry);
+                                              setWbInputType('party');
+                                              setWbNumber('');
+                                              setPartyWbName('');
+                                              setWbGrossWeight('');
+                                              setWbTareWeight('');
+                                              setWbNetWeight('');
+                                            }
+                                          }}
+                                          style={{
+                                            padding: '2px 6px', border: 'none', borderRadius: '4px',
+                                            background: selectedLorryForWB === (entry.lorryNumber || 'N/A').toUpperCase() ? '#64748b' : '#2563eb',
+                                            color: '#fff', fontWeight: 'bold', fontSize: '10px', cursor: 'pointer'
+                                          }}
+                                        >
+                                          + Party WB
+                                        </button>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <button onClick={() => {
+                                      const lorry = (entry.lorryNumber || 'N/A').toUpperCase();
+                                      if (selectedLorryForWB === lorry) { setSelectedLorryForWB(null); setSelectedLorryInspection(null); }
+                                      else { setSelectedLorryForWB(lorry); setSelectedLorryInspection(entry); setWbNumber(''); setMillWbId(''); setWbGrossWeight(''); setWbTareWeight(''); }
+                                    }} style={{ padding: '4px 6px', border: 'none', borderRadius: '4px', background: selectedLorryForWB === (entry.lorryNumber || 'N/A').toUpperCase() ? '#64748b' : 'linear-gradient(135deg, #d97706, #b45309)', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer' }}>Add WB</button>
+                                  )}
+                                </div>
+                                {/* Inventory Quality Button */}
+                                {canAddInventoryQuality && (
+                                  <button
+                                    onClick={() => {
+                                      if (expandedInventoryQuality === entry.transitDetailId) {
+                                        setExpandedInventoryQuality(null);
+                                      } else {
+                                        setExpandedInventoryQuality(entry.transitDetailId);
+                                        setInventoryQualityType('lot_avg');
+                                        setInventoryQualityForm({
+                                          moisture: '', dryMoisture: '', cutting: '', bend: '', grains: '',
+                                          mix: '', sMix: '', lMix: '', kandu: '', oil: '', sk: '',
+                                          wbR: '', wbBk: '', wbT: '', smell: '', paddyWb: '', pColor: '', remarks: ''
+                                        });
+                                      }
+                                    }}
+                                    style={{
+                                      padding: '6px 10px',
+                                      background: expandedInventoryQuality === entry.transitDetailId ? '#9333ea' : '#a855f7',
+                                      color: '#fff',
+                                      border: 'none',
+                                      borderRadius: '6px',
+                                      cursor: 'pointer',
+                                      fontSize: '11px',
+                                      fontWeight: '600',
+                                      width: '100%'
+                                    }}
+                                  >
+                                    🔬 Inventory Quality
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                        {selectedLorryForWB === (entry.lorryNumber || 'N/A').toUpperCase() && selectedLorryInspection?.id === entry.id && (
+                          <tr>
+                            <td colSpan={14} style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
+                              <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
+                                  <h4 style={{ margin: 0, color: '#0f172a', fontSize: '13px', fontWeight: 'bold' }}>⚖️ Add Weight Bridge for {(entry.lorryNumber || 'N/A').toUpperCase()}</h4>
+                                  <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button 
+                                      onClick={() => setWbInputType('mill')}
+                                      style={{
+                                        padding: '4px 10px', fontSize: '11px', fontWeight: 'bold', borderRadius: '4px', border: '1px solid #cbd5e1',
+                                        background: wbInputType === 'mill' ? '#1a237e' : '#fff',
+                                        color: wbInputType === 'mill' ? '#fff' : '#475569',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      Mill Weight Bridge
+                                    </button>
+                                    <button 
+                                      onClick={() => setWbInputType('party')}
+                                      style={{
+                                        padding: '4px 10px', fontSize: '11px', fontWeight: 'bold', borderRadius: '4px', border: '1px solid #cbd5e1',
+                                        background: wbInputType === 'party' ? '#1a237e' : '#fff',
+                                        color: wbInputType === 'party' ? '#fff' : '#475569',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      Party Weight Bridge
+                                    </button>
+                                  </div>
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px', marginBottom: '14px' }}>
+                                  <div>
+                                    <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>WB Number <span style={{ color: '#ef4444' }}>*</span></label>
+                                    <input 
+                                      type="text" 
+                                      value={wbNumber}
+                                      onChange={(e) => setWbNumber(e.target.value.toUpperCase())}
+                                      placeholder="Enter WB number"
+                                      style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
+                                    />
+                                  </div>
+                                  
+                                  {wbInputType === 'mill' ? (
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Mill WB Name (Mandatory)</label>
+                                      <select 
+                                        value={millWbId}
+                                        onChange={(e) => setMillWbId(e.target.value)}
+                                        style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
+                                      >
+                                        <option value="">Select Mill Weight Bridge</option>
+                                        {millWBList?.map(wb => (
+                                          <option key={wb.id} value={wb.id}>{wb.name}</option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  ) : (
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Party WB Name</label>
+                                      <input 
+                                        type="text" 
+                                        value={partyWbName}
+                                        onChange={(e) => setPartyWbName(e.target.value)}
+                                        placeholder="Enter Party WB name"
+                                        style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
+                                      />
+                                    </div>
+                                  )}
+                                  
+                                  <div>
+                                    <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Gross Weight (Kg)</label>
+                                    <input 
+                                      type="number" 
+                                      value={wbGrossWeight}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setWbGrossWeight(val);
+                                        if (val && wbTareWeight) {
+                                          setWbNetWeight(String(Number(val) - Number(wbTareWeight)));
+                                        }
+                                      }}
+                                      placeholder="Enter Gross"
+                                      style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
+                                    />
+                                  </div>
+                                  
+                                  <div>
+                                    <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Tare Weight (Kg)</label>
+                                    <input 
+                                      type="number" 
+                                      value={wbTareWeight}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setWbTareWeight(val);
+                                        if (wbGrossWeight && val) {
+                                          setWbNetWeight(String(Number(wbGrossWeight) - Number(val)));
+                                        }
+                                      }}
+                                      placeholder="Enter Tare"
+                                      style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
+                                    />
+                                  </div>
+                                  
+                                  <div>
+                                    <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Net Weight (Kg)</label>
+                                    <input 
+                                      type="text" 
+                                      value={wbNetWeight}
+                                      disabled
+                                      style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px', background: '#f1f5f9' }}
+                                    />
+                                  </div>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                                  <button 
+                                    onClick={() => {
+                                      setSelectedLorryForWB(null);
+                                      setSelectedLorryInspection(null);
+                                    }}
+                                    style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #cbd5e1', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button 
+                                    onClick={async () => {
+                                      if (!wbNumber || (wbInputType === 'mill' && !millWbId)) {
+                                        toast.error('Please fill required fields (WB Number & Mill WB Name)');
+                                        return;
+                                      }
+                                      if (!wbGrossWeight || !wbTareWeight) {
+                                        toast.error('Please enter both Gross Weight and Tare Weight');
+                                        return;
+                                      }
+                                      if (parseFloat(wbGrossWeight) <= parseFloat(wbTareWeight)) {
+                                        toast.error('Gross Weight must be strictly greater than Tare Weight');
+                                        return;
+                                      }
+                                      try {
+                                        const token = localStorage.getItem('token');
+                                        await axios.post(`${API_URL}/arrivals/${entry.id}/wb`, {
+                                          wbInputType,
+                                          millWbId: wbInputType === 'mill' ? Number(millWbId) : null,
+                                          partyWbName: wbInputType === 'party' ? partyWbName : null,
+                                          wbNo: wbNumber,
+                                          grossWeight: Number(wbGrossWeight),
+                                          tareWeight: Number(wbTareWeight),
+                                          netWeight: Number(wbNetWeight)
+                                        }, {
+                                          headers: { Authorization: `Bearer ${token}` }
+                                        });
+                                        toast.success('Weight Bridge submitted for approval!');
+                                        setSelectedLorryForWB(null);
+                                        setSelectedLorryInspection(null);
+                                        setWbNumber('');
+                                        setMillWbId('');
+                                        setPartyWbName('');
+                                        setWbGrossWeight('');
+                                        setWbTareWeight('');
+                                        setWbNetWeight('');
+                                        fetchBandMalalEntries();
+                                      } catch (err: any) {
+                                        toast.error(err.response?.data?.error || 'Failed to save Weight Bridge');
+                                      }
+                                    }}
+                                    style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', border: 'none', borderRadius: '4px', background: 'linear-gradient(135deg, #d97706, #b45309)', color: '#fff', cursor: 'pointer' }}
+                                  >
+                                    Save WB
+                                  </button>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {/* Pagination Footer: styled like In Transit */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', padding: '10px 14px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#64748b', fontWeight: 600 }}>
+                <span style={{ background: '#d1fae5', color: '#065f46', padding: '2px 8px', borderRadius: '10px', fontWeight: 700 }}>{bandMalalEntries.length}</span>
+                lots loaded
+              </div>
+              <span style={{ fontSize: '12px', color: '#16a34a', fontWeight: 600 }}>✅ All records loaded</span>
+            </div>
+            </>
+          )}
+        </div>
+      ) : arrivalsActiveSubTab === 'entry' ? (
         <MainGrid>
         <FormCard>
           <form onSubmit={handleSubmit}>
@@ -2052,7 +3395,7 @@ const Arrivals: React.FC = () => {
               <SectionTitle>Measurements</SectionTitle>
               <FormRow>
                 <FormGroup>
-                  <Label>WB No *</Label>
+                  <Label>WB No <span style={{ color: '#ef4444' }}>*</span></Label>
                   <Input
                     type="text"
                     value={wbNo}
@@ -2274,7 +3617,178 @@ const Arrivals: React.FC = () => {
           )}
         </InfoPanel>
       </MainGrid>
+      ) : null}
+      {isDetailOpen && selectedDetailEntry && (
+        <SampleEntryDetailModal
+          detailEntry={selectedDetailEntry}
+          detailMode="full"
+          progressiveMode={true}
+          completedLotsOrder={true}
+          showCollectorLoginPair={true}
+          onClose={() => {
+            setIsDetailOpen(false);
+            setSelectedDetailEntry(null);
+          }}
+        />
       )}
+      {isTransitDetailOpen && selectedTransitDetail && (() => {
+        const { entry, inspection } = selectedTransitDetail;
+        const transitDetail = inspection?.lorryTransitDetail;
+        const lorryNum = inspection?.lorryNumber || '-';
+        const varietyName = inspection?.variety?.name || entry.variety || '-';
+        const brokerName = entry.broker?.name || entry.brokerName || '-';
+        const partyName = entry.fromParty?.name || entry.partyName || '-';
+
+        return (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)',
+            display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+          }}>
+            <div style={{
+              background: '#fff', borderRadius: '12px', width: '90%', maxWidth: '600px',
+              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
+              overflow: 'hidden', border: '1px solid #e2e8f0', animation: 'pulse 0.15s ease-out'
+            }}>
+              {/* Header */}
+              <div style={{
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#fff'
+              }}>
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold' }}>🚚 Lorry Transit Details — {lorryNum.toUpperCase()}</h3>
+                <button
+                  onClick={() => {
+                    setIsTransitDetailOpen(false);
+                    setSelectedTransitDetail(null);
+                  }}
+                  style={{
+                    background: 'none', border: 'none', color: '#fff', fontSize: '18px', cursor: 'pointer', fontWeight: 'bold'
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Content */}
+              <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '80vh', overflowY: 'auto' }}>
+                
+                {/* Lorry Info */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <div>
+                    <span style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold' }}>PARTY</span>
+                    <span style={{ fontSize: '12px', color: '#0f172a', fontWeight: 'bold' }}>{partyName}</span>
+                  </div>
+                  <div>
+                    <span style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold' }}>BROKER</span>
+                    <span style={{ fontSize: '12px', color: '#0f172a' }}>{brokerName}</span>
+                  </div>
+                  <div>
+                    <span style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold' }}>VARIETY</span>
+                    <span style={{ fontSize: '12px', color: '#0f172a' }}>{varietyName}</span>
+                  </div>
+                  <div>
+                    <span style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold' }}>LORRY NUMBER</span>
+                    <span style={{ fontSize: '12px', color: '#1e40af', fontWeight: 'bold' }}>{lorryNum.toUpperCase()}</span>
+                  </div>
+                </div>
+
+                {/* Place Details */}
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+                  <div style={{ backgroundColor: '#f1f5f9', padding: '8px 12px', borderBottom: '1px solid #e2e8f0', fontSize: '12px', fontWeight: 'bold', color: '#334155' }}>
+                    📍 Placement Location Details
+                  </div>
+                  <div style={{ padding: '12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>Place Type</span>
+                      <span style={{ fontSize: '12px', color: '#0f172a', fontWeight: '600' }}>
+                        {transitDetail?.placeType ? transitDetail.placeType.toUpperCase() : '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>Placement Date</span>
+                      <span style={{ fontSize: '12px', color: '#0f172a' }}>
+                        {transitDetail?.placeDate ? new Date(transitDetail.placeDate).toLocaleDateString('en-GB') : '-'}
+                      </span>
+                    </div>
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>Allotted Location / Outturn</span>
+                      <span style={{ fontSize: '12px', color: '#0f172a', fontWeight: 'bold' }}>
+                        {transitDetail?.placeWarehouse?.name || transitDetail?.placeKunchinittuData?.name || (transitDetail?.outturn ? `${transitDetail.outturn.code} (${transitDetail.outturn.allottedVariety})` : null) || '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>Place Status</span>
+                      <span style={{
+                        display: 'inline-block', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold',
+                        backgroundColor: transitDetail?.placeStatus === 'approved' ? '#dcfce7' : transitDetail?.placeStatus === 'pending' ? '#fef3c7' : '#f1f5f9',
+                        color: transitDetail?.placeStatus === 'approved' ? '#166534' : transitDetail?.placeStatus === 'pending' ? '#92400e' : '#475569'
+                      }}>
+                        {transitDetail?.placeStatus ? transitDetail.placeStatus.toUpperCase() : 'NONE'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Weigh Bridge Details */}
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+                  <div style={{ backgroundColor: '#f1f5f9', padding: '8px 12px', borderBottom: '1px solid #e2e8f0', fontSize: '12px', fontWeight: 'bold', color: '#334155' }}>
+                    ⚖️ Weigh Bridge Details
+                  </div>
+                  <div style={{ padding: '12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>WB Number</span>
+                      <span style={{ fontSize: '12px', color: '#0f172a', fontWeight: 'bold' }}>{transitDetail?.wbNo || '-'}</span>
+                    </div>
+                    <div>
+                      <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>Mill Weight Bridge</span>
+                      <span style={{ fontSize: '12px', color: '#0f172a', fontWeight: '600' }}>{transitDetail?.millWeightBridge?.name || transitDetail?.partyWbName || '-'}</span>
+                    </div>
+                    <div>
+                      <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>Gross Weight</span>
+                      <span style={{ fontSize: '12px', color: '#0f172a' }}>{transitDetail?.grossWeight ? `${transitDetail.grossWeight} Kg` : '-'}</span>
+                    </div>
+                    <div>
+                      <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>Tare Weight</span>
+                      <span style={{ fontSize: '12px', color: '#0f172a' }}>{transitDetail?.tareWeight ? `${transitDetail.tareWeight} Kg` : '-'}</span>
+                    </div>
+                    <div>
+                      <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>Net Weight</span>
+                      <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 'bold' }}>{transitDetail?.netWeight ? `${transitDetail.netWeight} Kg` : '-'}</span>
+                    </div>
+                    <div>
+                      <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>WB Status</span>
+                      <span style={{
+                        display: 'inline-block', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold',
+                        backgroundColor: transitDetail?.wbStatus === 'approved' ? '#dcfce7' : transitDetail?.wbStatus === 'pending' ? '#fef3c7' : '#f1f5f9',
+                        color: transitDetail?.wbStatus === 'approved' ? '#166534' : transitDetail?.wbStatus === 'pending' ? '#92400e' : '#475569'
+                      }}>
+                        {transitDetail?.wbStatus ? transitDetail.wbStatus.toUpperCase() : 'NONE'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Footer */}
+              <div style={{ backgroundColor: '#f8fafc', padding: '12px 20px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #e2e8f0' }}>
+                <button
+                  onClick={() => {
+                    setIsTransitDetailOpen(false);
+                    setSelectedTransitDetail(null);
+                  }}
+                  style={{
+                    padding: '6px 14px', fontSize: '12px', fontWeight: 'bold', border: '1px solid #cbd5e1',
+                    borderRadius: '6px', background: '#fff', cursor: 'pointer', color: '#334155'
+                  }}
+                >
+                  Close Details
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </Container>
   );
 };

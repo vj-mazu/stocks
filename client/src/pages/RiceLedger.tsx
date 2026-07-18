@@ -857,7 +857,7 @@ const RiceLedger: React.FC = () => {
                                     <tr key={entry.id || idx} className={entry.movementType || (entry as any).movement_type}>
                                         <td>{formatDate(entry.date)}</td>
                                         <td>{getMovementTypeLabel(entry.movementType || (entry as any).movement_type, entry.productType || (entry as any).product_type)}</td>
-                                        <td>{entry.partyName || '-'}</td>
+                                        <td style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>{entry.partyName || '-'}</td>
                                         <td>{entry.variety || '-'}</td>
                                         <td>
                                             {(entry.movementType === 'palti' || (entry as any).movement_type === 'palti') ? (

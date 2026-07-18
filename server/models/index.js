@@ -37,6 +37,9 @@ const RiceHamaliRate = require('./RiceHamaliRate');
 const RiceProduction = require('./RiceProduction');
 const RiceStockLocation = require('./RiceStockLocation');
 const RiceVariety = require('./RiceVariety');
+const WeightBridge = require('./WeightBridge');
+const LorryTransitDetail = require('./LorryTransitDetail');
+const InventoryQualityParameter = require('./InventoryQualityParameter');
 
 // Create models object
 const models = {
@@ -71,7 +74,10 @@ const models = {
   RiceHamaliRate,
   RiceProduction,
   RiceStockLocation,
-  RiceVariety
+  RiceVariety,
+  WeightBridge,
+  LorryTransitDetail,
+  InventoryQualityParameter
 };
 
 // Initialize associations for all models that have them

@@ -112,7 +112,14 @@ const Login: React.FC = () => {
     try {
       await login(username, password);
       toast.success('Login successful!');
-      navigate('/dashboard');
+      
+      const userStr = localStorage.getItem('user');
+      const user = userStr ? JSON.parse(userStr) : null;
+      if (user?.role === 'inventory_staff' || user?.role === 'inventory_head') {
+        navigate('/arrivals');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (error: any) {
       toast.error(error.message || 'Login failed');
     } finally {

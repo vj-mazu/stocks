@@ -1991,10 +1991,27 @@ router.get('/tabs/completed-lots', authenticateToken, cacheMiddleware(30), async
       }
     });
 
+    const activeEntries = result.entries.filter(entry => {
+      if (entry.lotAllotment?.closedAt) {
+        const type = entry.lotAllotment.completionType;
+        if (type === 'CLOSED_EARLY') {
+          return false;
+        }
+        if (!type) {
+          // Backward compatibility fallback for older records
+          const reason = String(entry.lotAllotment.closedReason || '');
+          if (reason.toLowerCase().includes('closed') || reason.toLowerCase().includes('did not send') || reason.toLowerCase().includes('early')) {
+            return false;
+          }
+        }
+      }
+      return true;
+    });
+
     if (result.pagination) {
-      res.json({ entries: result.entries, pagination: result.pagination });
+      res.json({ entries: activeEntries, pagination: result.pagination });
     } else {
-      res.json({ entries: result.entries, total: result.entries.length, page: parseInt(page, 10), pageSize: parseInt(pageSize, 10) });
+      res.json({ entries: activeEntries, total: activeEntries.length, page: parseInt(page, 10), pageSize: parseInt(pageSize, 10) });
     }
   } catch (error) {
     console.error('Error getting completed lots:', error);
@@ -3847,7 +3864,8 @@ router.post('/:id/complete-loading', authenticateToken, async (req, res) => {
         closedByUserId: req.user.userId,
         closedReason: `Lot marked as completed by ${req.user.role}.`,
         inspectedBags: finalBags,
-        allottedBags: finalBags
+        allottedBags: finalBags,
+        completionType: 'COMPLETED'
       },
       req.user.userId
     );
@@ -3914,7 +3932,8 @@ router.post('/:id/close-lot', authenticateToken, async (req, res) => {
         closedByUserId: req.user.userId,
         closedReason: reason || `Lot closed by manager. ${inspectedBags} of ${progress.totalBags} bags inspected. Party did not send remaining ${progress.remainingBags} bags.`,
         inspectedBags: inspectedBags,
-        allottedBags: inspectedBags
+        allottedBags: inspectedBags,
+        completionType: 'CLOSED_EARLY'
       },
       req.user.userId
     );
@@ -3952,6 +3971,65 @@ router.post('/:id/close-lot', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error closing lot:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Resume lot (Manager/Admin)
+router.post('/:id/resume-lot', authenticateToken, async (req, res) => {
+  try {
+    const sampleEntryId = req.params.id;
+
+    // Only manager and admin can resume lots
+    if (!['manager', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Only manager or admin can resume lots' });
+    }
+
+    const existingAllotment = await LotAllotmentService.getLotAllotmentBySampleEntry(sampleEntryId);
+    if (!existingAllotment) {
+      return res.status(404).json({ error: 'No lot allotment found for this sample entry' });
+    }
+
+    if (!existingAllotment.closedAt) {
+      return res.status(400).json({ error: 'Lot is not closed' });
+    }
+
+    // Get original entry to restore bag count
+    const entry = await SampleEntry.findByPk(sampleEntryId);
+
+    // Get inspection progress
+    const progress = await PhysicalInspectionService.getInspectionProgress(sampleEntryId);
+
+    // Clear closed state and restore allotted bags
+    await LotAllotmentService.updateLotAllotment(
+      existingAllotment.id,
+      {
+        closedAt: null,
+        closedByUserId: null,
+        closedReason: null,
+        allottedBags: progress.totalBags || existingAllotment.allottedBags,
+        completionType: null
+      },
+      req.user.userId
+    );
+
+    // Transition workflow back to PHYSICAL_INSPECTION
+    await WorkflowEngine.transitionTo(
+      sampleEntryId,
+      'PHYSICAL_INSPECTION',
+      req.user.userId,
+      getWorkflowRole(req.user),
+      { resumedByManager: true }
+    );
+
+    // Invalidate caches so the UI updates immediately
+    invalidateSampleEntryTabCaches();
+
+    res.json({
+      message: 'Lot resumed successfully'
+    });
+  } catch (error) {
+    console.error('Error resuming lot:', error);
     res.status(400).json({ error: error.message });
   }
 });
@@ -4345,7 +4423,15 @@ router.post('/:id/complete', authenticateToken, async (req, res) => {
           let toWarehouseId = null;
           let outturnId = null;
 
-          if (invData.location === 'DIRECT_OUTTURN_PRODUCTION') {
+          if (sampleEntry.placeType === 'production') {
+            outturnId = sampleEntry.outturnId || null;
+            toWarehouseId = sampleEntry.placeWarehouseId || null;
+            toKunchinintuId = null;
+          } else if (sampleEntry.placeType === 'kunchinittu') {
+            toKunchinintuId = sampleEntry.placeKunchinittuId || toKunchinintuId;
+            toWarehouseId = sampleEntry.placeWarehouseId || toWarehouseId;
+            outturnId = null;
+          } else if (invData.location === 'DIRECT_OUTTURN_PRODUCTION') {
             // For production — goes to outturn
             outturnId = invData.outturnId || null;
             toKunchinintuId = null;
@@ -4390,7 +4476,18 @@ router.post('/:id/complete', authenticateToken, async (req, res) => {
             approvedAt: new Date(),
             adminApprovedBy: req.user.userId,
             adminApprovedAt: new Date(),
-            remarks: `Auto-created from completed sample entry #${sampleEntry.id}`
+            remarks: `Auto-created from completed sample entry #${sampleEntry.id}`,
+            wbInputType: sampleEntry.wbInputType || null,
+            millWbId: sampleEntry.millWbId || null,
+            partyWbName: sampleEntry.partyWbName || null,
+            wbStatus: sampleEntry.wbStatus || 'none',
+            wbRejectReason: sampleEntry.wbRejectReason || null,
+            placeType: sampleEntry.placeType || null,
+            placeWarehouseId: sampleEntry.placeWarehouseId || null,
+            placeKunchinittuId: sampleEntry.placeKunchinittuId || null,
+            placeDate: sampleEntry.placeDate || null,
+            placeStatus: sampleEntry.placeStatus || 'none',
+            placeRejectReason: sampleEntry.placeRejectReason || null
           });
 
           arrivalsCreated++;

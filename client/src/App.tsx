@@ -1,6 +1,6 @@
 import React, { useEffect, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LocationProvider } from './contexts/LocationContext';
 import { NotificationProvider, useNotification } from './contexts/NotificationContext';
 import { setNotificationCallback } from './utils/toast';
@@ -31,6 +31,7 @@ const KunchinintuManagement = React.lazy(() => import('./pages/KunchinintuManage
 const PackagingManagement = React.lazy(() => import('./pages/PackagingManagement'));
 const PaddyHamaliManagement = React.lazy(() => import('./pages/PaddyHamaliManagement'));
 const RiceHamaliManagement = React.lazy(() => import('./pages/RiceHamaliManagement'));
+const WeightBridgeManagement = React.lazy(() => import('./pages/WeightBridgeManagement'));
 const PendingApprovals = React.lazy(() => import('./pages/PendingApprovals'));
 const SampleEntry = React.lazy(() => import('./pages/SampleEntry'));
 const RiceSampleEntry = React.lazy(() => import('./pages/RiceSampleEntry'));
@@ -60,6 +61,12 @@ const PageLoader = () => (
   </div>
 );
 
+const IndexRoute: React.FC = () => {
+  const { user } = useAuth();
+  const defaultRedirect = (user?.role === 'inventory_staff' || user?.role === 'inventory_head') ? '/arrivals' : '/dashboard';
+  return <Navigate to={defaultRedirect} replace />;
+};
+
 const AppContent: React.FC = () => {
   const notification = useNotification();
 
@@ -80,11 +87,11 @@ const AppContent: React.FC = () => {
           <ErrorBoundary>
             <Routes>
               <Route path="/login" element={<Login />} />
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/" element={<IndexRoute />} />
               <Route
                 path="/dashboard"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute roles={['owner', 'staff', 'manager', 'admin', 'quality_supervisor', 'physical_supervisor', 'financial_account', 'paddy_supervisor']}>
                     <Layout>
                       <Dashboard />
                     </Layout>
@@ -104,7 +111,7 @@ const AppContent: React.FC = () => {
               <Route
                 path="/records"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute roles={['admin', 'manager', 'staff']}>
                     <Layout>
                       <Records />
                     </Layout>
@@ -124,7 +131,7 @@ const AppContent: React.FC = () => {
               <Route
                 path="/ledger"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute roles={['admin', 'manager']}>
                     <Layout>
                       <KunchinintuLedger />
                     </Layout>
@@ -134,7 +141,7 @@ const AppContent: React.FC = () => {
               <Route
                 path="/rice-ledger"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute roles={['admin', 'manager']}>
                     <Layout>
                       <RiceLedger />
                     </Layout>
@@ -144,7 +151,7 @@ const AppContent: React.FC = () => {
               <Route
                 path="/hamali"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute roles={['owner', 'staff', 'manager', 'admin', 'quality_supervisor', 'physical_supervisor', 'financial_account', 'paddy_supervisor']}>
                     <Layout>
                       <Hamali />
                     </Layout>
@@ -237,6 +244,16 @@ const AppContent: React.FC = () => {
                   <ProtectedRoute roles={['manager', 'admin']}>
                     <Layout>
                       <KunchinintuManagement />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/weight-bridges"
+                element={
+                  <ProtectedRoute roles={['manager', 'admin', 'ceo']}>
+                    <Layout>
+                      <WeightBridgeManagement />
                     </Layout>
                   </ProtectedRoute>
                 }
@@ -385,7 +402,7 @@ const AppContent: React.FC = () => {
               <Route
                 path="/inventory-entry"
                 element={
-                  <ProtectedRoute roles={['inventory_staff', 'admin']}>
+                  <ProtectedRoute roles={['admin']}>
                     <Layout>
                       <InventoryEntry />
                     </Layout>

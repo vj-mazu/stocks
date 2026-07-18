@@ -4,6 +4,7 @@ const Arrival = require('../models/Arrival');
 const { Warehouse, Kunchinittu } = require('../models/Location');
 const User = require('../models/User');
 const Outturn = require('../models/Outturn');
+const WeightBridge = require('../models/WeightBridge');
 
 /**
  * Query Optimization Service
@@ -263,6 +264,7 @@ class QueryOptimizationService {
     if (filters.status) where.status = filters.status;
     if (filters.createdBy) where.createdBy = filters.createdBy;
     if (filters.outturnId) where.outturnId = filters.outturnId;
+    if (filters.placeStatus) where.placeStatus = filters.placeStatus;
 
     if (filters.dateFrom || filters.dateTo) {
       where.date = {};
@@ -290,7 +292,9 @@ class QueryOptimizationService {
       attributes: [
         'id', 'slNo', 'date', 'movementType', 'broker', 'variety', 'bags',
         'fromLocation', 'moisture', 'cutting', 'wbNo', 'grossWeight',
-        'tareWeight', 'netWeight', 'lorryNumber', 'status', 'remarks'
+        'tareWeight', 'netWeight', 'lorryNumber', 'status', 'remarks',
+        'wbInputType', 'millWbId', 'partyWbName', 'wbStatus', 'wbRejectReason',
+        'placeType', 'placeWarehouseId', 'placeKunchinittuId', 'placeDate', 'placeStatus', 'placeRejectReason'
       ],
       include: [
         { model: User, as: 'creator', attributes: ['username'], required: false },
@@ -301,7 +305,10 @@ class QueryOptimizationService {
         { model: Warehouse, as: 'fromWarehouse', attributes: ['name', 'code'], required: false },
         { model: Warehouse, as: 'toWarehouseShift', attributes: ['name', 'code'], required: false },
         { model: Kunchinittu, as: 'fromKunchinittu', attributes: ['name', 'code'], required: false },
-        { model: Outturn, as: 'outturn', attributes: ['code', 'id'], required: false }
+        { model: Outturn, as: 'outturn', attributes: ['code', 'id'], required: false },
+        { model: WeightBridge, as: 'millWeightBridge', attributes: ['id', 'name'], required: false },
+        { model: Warehouse, as: 'placeWarehouse', attributes: ['id', 'name', 'code'], required: false },
+        { model: Kunchinittu, as: 'placeKunchinittuData', attributes: ['id', 'name', 'code'], required: false }
       ],
       order: [['date', 'DESC'], ['id', 'DESC']], // Use indexed columns
       limit: parseInt(limit),

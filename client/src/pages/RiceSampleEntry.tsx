@@ -857,7 +857,7 @@ const RiceSampleEntry: React.FC<{ defaultTab?: 'RICE_SAMPLE' | 'RICE_BOOK' }> = 
                                   if (pkg.toLowerCase().includes('tons')) return pkg;
                                   return `${pkg} Kg`;
                                 })()}</td>
-                                <td style={{ border: '1px solid #000', padding: '1px 4px', textAlign: 'left', fontSize: '14px', lineHeight: '1.2', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{toTitleCase(entry.partyName)}</td>
+                                <td style={{ border: '1px solid #000', padding: '1px 4px', textAlign: 'left', fontSize: '14px', lineHeight: '1.2', wordBreak: 'break-word', overflowWrap: 'break-word', whiteSpace: 'normal' }}>{toTitleCase(entry.partyName)}</td>
                                 <td style={{ border: '1px solid #000', padding: '1px 4px', textAlign: 'left', fontSize: '14px', lineHeight: '1.2', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{toTitleCase(entry.location)}</td>
 
                                 <td style={{ border: '1px solid #000', padding: '1px 4px', textAlign: 'left', fontSize: '14px', lineHeight: '1.2', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
