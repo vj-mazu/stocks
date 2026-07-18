@@ -997,28 +997,31 @@ const Arrivals: React.FC = () => {
       }
       const token = localStorage.getItem('token');
       const params: any = {
-        limit: transitPageSize
+        status: 'PHYSICAL_INSPECTION',
+        pageSize: transitPageSize,
+        includeInventory: 'true'
       };
+      if (cursor) params.cursor = cursor;
       if (transitDebouncedSearch.trim()) {
-        params.search = transitDebouncedSearch.trim();
+        params.broker = transitDebouncedSearch.trim();
+        params.variety = transitDebouncedSearch.trim();
+        params.party = transitDebouncedSearch.trim();
       }
-      // ✅ FIX: Use dedicated /arrivals/in-transit endpoint which includes moisture and cutting data
-      const response = await axios.get(`${API_URL}/arrivals/in-transit`, {
+      const response = await axios.get(`${API_URL}/sample-entries/by-role`, {
         headers: { Authorization: `Bearer ${token}` },
         params
       });
-      const newEntries = response.data.arrivals || [];
+      const newEntries = response.data.entries || [];
+      const pagination = response.data.pagination || {};
       
-      // Note: The /arrivals/in-transit endpoint doesn't support cursor pagination yet
-      // It returns all entries up to the limit
       if (append) {
         setInTransitEntries(prev => [...prev, ...newEntries]);
       } else {
         setInTransitEntries(newEntries);
       }
-      setTransitNextCursor(null);
-      setTransitHasNextPage(false);
-      setTransitTotalLoaded(newEntries.length);
+      setTransitNextCursor(pagination.nextCursor || null);
+      setTransitHasNextPage(!!pagination.hasNextPage);
+      setTransitTotalLoaded(prev => append ? prev + newEntries.length : newEntries.length);
     } catch (err) {
       console.error('Error fetching in transit entries:', err);
     } finally {
