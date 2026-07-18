@@ -38,6 +38,7 @@ const unifiedVarietiesRoutes = require('./routes/unified-varieties');
 const sampleEntriesRoutes = require('./routes/sample-entries');
 const weightBridgesRoutes = require('./routes/weight-bridges');
 const approvalsRoutes = require('./routes/approvals');
+const emergencyMigrateRoutes = require('./routes/emergency-migrate');
 
 const compression = require('compression');
 const performanceMonitor = require('./middleware/performanceMonitor');
@@ -180,6 +181,7 @@ app.use('/api/unified-varieties', unifiedVarietiesRoutes);
 app.use('/api/weight-bridges', weightBridgesRoutes);
 app.use('/api/sample-entries', sampleEntriesRoutes);
 app.use('/api/approvals', approvalsRoutes);
+app.use('/api/emergency', emergencyMigrateRoutes);
 
 
 const { execFile } = require('child_process');
