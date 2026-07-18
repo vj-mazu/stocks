@@ -16,6 +16,24 @@ router.post('/run-142-migration', async (req, res) => {
         await sequelize.query(`
             CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+            ALTER TABLE sample_entries
+                ADD COLUMN IF NOT EXISTS "wbInputType" VARCHAR(50),
+                ADD COLUMN IF NOT EXISTS "millWbId" INTEGER,
+                ADD COLUMN IF NOT EXISTS "partyWbName" VARCHAR(255),
+                ADD COLUMN IF NOT EXISTS "wbStatus" VARCHAR(50) NOT NULL DEFAULT 'none',
+                ADD COLUMN IF NOT EXISTS "wbRejectReason" TEXT,
+                ADD COLUMN IF NOT EXISTS "placeType" VARCHAR(50),
+                ADD COLUMN IF NOT EXISTS "placeWarehouseId" INTEGER,
+                ADD COLUMN IF NOT EXISTS "placeKunchinittuId" INTEGER,
+                ADD COLUMN IF NOT EXISTS "placeDate" DATE,
+                ADD COLUMN IF NOT EXISTS "placeStatus" VARCHAR(50) NOT NULL DEFAULT 'none',
+                ADD COLUMN IF NOT EXISTS "placeRejectReason" TEXT,
+                ADD COLUMN IF NOT EXISTS "outturnId" INTEGER,
+                ADD COLUMN IF NOT EXISTS "wbNo" VARCHAR(100),
+                ADD COLUMN IF NOT EXISTS "grossWeight" DECIMAL(15, 2),
+                ADD COLUMN IF NOT EXISTS "tareWeight" DECIMAL(15, 2),
+                ADD COLUMN IF NOT EXISTS "netWeight" DECIMAL(15, 2);
+
             CREATE TABLE IF NOT EXISTS lorry_transit_details (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 physical_inspection_id UUID NOT NULL,
@@ -147,6 +165,9 @@ router.post('/run-142-migration', async (req, res) => {
 
             INSERT INTO "SequelizeMeta" (name)
             VALUES
+                ('139_add_transit_approval_fields_to_sample_entries.js'),
+                ('140_add_outturn_id_to_sample_entries.js'),
+                ('141_add_wb_weights_to_sample_entries.js'),
                 ('142_create_lorry_transit_details.js'),
                 ('143_add_place_wb_approver_tracking.js'),
                 ('144_update_existing_place_approved_at.js'),

@@ -51,6 +51,24 @@ async function runAllMigrations() {
             return Boolean(rows && rows.table_name);
         };
 
+        const columnExists = async (tableName, columnName) => {
+            const [rows] = await sequelize.query(
+                `
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = :tableName
+                  AND column_name = :columnName
+                LIMIT 1
+                `,
+                {
+                    replacements: { tableName, columnName },
+                    type: sequelize.QueryTypes.SELECT
+                }
+            );
+            return Boolean(rows && rows.column_name);
+        };
+
         const removeStaleMigrationMarkers = async (migrationNames, reason) => {
             const staleNames = migrationNames.filter(name => executedNames.includes(name));
             if (staleNames.length === 0) {
@@ -72,6 +90,18 @@ async function runAllMigrations() {
                 '144_update_existing_place_approved_at.js',
                 '145_create_inventory_quality_parameters.js'
             ], 'lorry_transit_details table is missing');
+        }
+
+        if (!(await columnExists('sample_entries', 'wbInputType'))) {
+            await removeStaleMigrationMarkers([
+                '139_add_transit_approval_fields_to_sample_entries.js',
+                '140_add_outturn_id_to_sample_entries.js',
+                '141_add_wb_weights_to_sample_entries.js',
+                '142_create_lorry_transit_details.js',
+                '143_add_place_wb_approver_tracking.js',
+                '144_update_existing_place_approved_at.js',
+                '145_create_inventory_quality_parameters.js'
+            ], 'sample_entries transit columns are missing');
         }
 
         if (!(await tableExists('inventory_quality_parameters'))) {
