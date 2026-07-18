@@ -2566,88 +2566,16 @@ router.post('/:id/wb', auth, requireInventoryRole, async (req, res) => {
           ? 'Mill WB added and approved successfully' 
           : 'Mill WB submitted for approval';
         
-        // Fetch complete entry data for frontend (same format as Band Malal Book)
-        const inspection = transitDetail.physicalInspectionId 
-          ? await PhysicalInspection.findByPk(transitDetail.physicalInspectionId)
-          : null;
-        
-        const sampleEntry = transitDetail.sampleEntryId
-          ? await SampleEntry.findByPk(transitDetail.sampleEntryId, {
-              attributes: ['id', 'serialNo', 'variety', 'brokerName', 'location', 'partyName', 'lorryNumber', 'entryDate', 'packaging', 'grossWeight', 'tareWeight', 'netWeight', 'wbNo', 'partyWbName']
-            })
-          : null;
-        
-        const placeKunchinittu = transitDetail.placeKunchinittuId 
-          ? await Kunchinittu.findByPk(transitDetail.placeKunchinittuId, { attributes: ['id', 'name', 'code'] })
-          : null;
-        
-        const placeWarehouse = transitDetail.placeWarehouseId 
-          ? await Warehouse.findByPk(transitDetail.placeWarehouseId, { attributes: ['id', 'name', 'code'] })
-          : null;
-        
-        const outturn = transitDetail.outturnId 
-          ? await Outturn.findByPk(transitDetail.outturnId, { attributes: ['id', 'code', 'allottedVariety'] })
-          : null;
-        
-        const millWb = transitDetail.millWbId
-          ? await WeightBridge.findByPk(transitDetail.millWbId, { attributes: ['id', 'name', 'code'] })
-          : null;
-        
-        const wbApproverUser = wbApprovedBy
-          ? await User.findByPk(wbApprovedBy, { attributes: ['id', 'username', 'role'] })
-          : null;
-
-        // Return complete entry (same format as Band Malal Book)
-        const completeEntry = {
-          id: transitDetail.id,
-          date: transitDetail.placeDate || transitDetail.createdAt,
-          movementType: 'purchase',
-          broker: sampleEntry?.brokerName || null,
-          variety: sampleEntry?.variety || null,
-          bags: inspection?.bags || 0,
-          packaging: parseFloat(sampleEntry?.packaging) || 75,
-          fromLocation: sampleEntry?.location || null,
-          entryDate: sampleEntry?.entryDate || transitDetail.placeDate || transitDetail.createdAt,
-          partyName: sampleEntry?.partyName || null,
-          toKunchinittu: placeKunchinittu ? {
-            id: placeKunchinittu.id,
-            name: placeKunchinittu.name,
-            code: placeKunchinittu.code
-          } : null,
-          toWarehouse: placeWarehouse ? {
-            id: placeWarehouse.id,
-            name: placeWarehouse.name,
-            code: placeWarehouse.code
-          } : null,
-          outturn: outturn ? {
-            id: outturn.id,
-            code: outturn.code,
-            allottedVariety: outturn.allottedVariety
-          } : null,
-          moisture: inspection?.moisture || null,
-          cutting: await getCuttingFromInspection(inspection),
-          wbNo: transitDetail.wbNo || 'PENDING',
-          grossWeight: transitDetail.grossWeight || 0,
-          tareWeight: transitDetail.tareWeight || 0,
-          netWeight: transitDetail.netWeight || 0,
-          lorryNumber: inspection?.lorryNumber || sampleEntry?.lorryNumber || 'N/A',
-          placeStatus: transitDetail.placeStatus,
-          placeDate: transitDetail.placeDate,
-          placeType: transitDetail.placeType,
+        // ✅ FIX: Return lightweight response instead of fetching complete entry data
+        // The frontend will call fetchInTransitEntries() to refresh the table
+        return res.json({ 
+          message,
+          transitDetailId: transitDetail.id,
           wbStatus: transitDetail.wbStatus,
-          wbInputType: transitDetail.wbInputType,
           millWbId: transitDetail.millWbId,
-          millWb: millWb,
-          partyWbName: transitDetail.partyWbName,
-          placeKunchinittuData: placeKunchinittu,
-          placeWarehouse: placeWarehouse,
-          sampleEntry: sampleEntry,
-          wbApprover: wbApproverUser,
-          isBandMalalBook: true,
-          transitDetailId: transitDetail.id
-        };
-        
-        return res.json({ message, entry: completeEntry });
+          wbNo: transitDetail.wbNo,
+          netWeight: transitDetail.netWeight
+        });
       }
     }
 
