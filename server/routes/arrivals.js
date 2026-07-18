@@ -1505,6 +1505,9 @@ router.get('/band-malal-book', auth, async (req, res) => {
     
     const where = { placeStatus: 'approved' };
     
+    // Get total count of approved entries for SL No calculation
+    const totalApprovedCount = await LorryTransitDetail.count({ where });
+    
     // Fetch transit details with PhysicalInspection and SampleEntry associations
     const entries = await LorryTransitDetail.findAll({
       where,
@@ -1525,17 +1528,21 @@ router.get('/band-malal-book', auth, async (req, res) => {
       limit: parseInt(limit)
     });
     
-    console.log(`✅ Band Malal Book: Found ${entries.length} transit detail entries`);
+    console.log(`✅ Band Malal Book: Found ${entries.length} transit detail entries (Total: ${totalApprovedCount})`);
     
-    // Map entries with sequential BMB numbers
+    // Map entries with sequential BMB numbers (counting DOWN from total)
     const arrivals = await Promise.all(entries.map(async (detail, index) => {
       try {
         // Get physical inspection and sample entry from the already-loaded associations
         const inspection = detail.physicalInspection;
         const sampleEntry = detail.sampleEntry || {};
         
+        // ✅ FIX: Calculate SL No from total count (newest = highest number)
+        // Since order is DESC (newest first), SL No = totalCount - index
+        const slNo = totalApprovedCount - index;
+        
         // DEBUG: Log what we're getting
-        console.log(`Entry ${index + 1}: Physical Inspection ID=${detail.physicalInspectionId}, Sample Entry ID=${detail.sampleEntryId}`);
+        console.log(`Entry SL No ${slNo}: Physical Inspection ID=${detail.physicalInspectionId}, Sample Entry ID=${detail.sampleEntryId}`);
         console.log(`  - Inspection found: ${!!inspection}, Sample Entry found: ${!!detail.sampleEntry}`);
         console.log(`  - Party Name: ${sampleEntry.partyName || 'MISSING'}, Lorry: ${inspection?.lorryNumber || sampleEntry.lorryNumber || 'MISSING'}`);
         console.log(`  - Broker: ${sampleEntry.brokerName || 'MISSING'}, Variety: ${sampleEntry.variety || 'MISSING'}`);
@@ -1580,7 +1587,7 @@ router.get('/band-malal-book', auth, async (req, res) => {
         
         return {
           id: detail.id,
-          slNo: index + 1, // Sequential number starting from 1
+          slNo: slNo, // ✅ FIX: Use calculated SL No from total count (persistent across refreshes)
           date: detail.placeDate || detail.createdAt,
           movementType: 'purchase',
           broker: sampleEntry.brokerName || null,
@@ -1633,10 +1640,12 @@ router.get('/band-malal-book', auth, async (req, res) => {
         };
       } catch (entryError) {
         console.error(`Error processing entry ${detail.id}:`, entryError);
+        // ✅ FIX: Calculate SL No even in error case
+        const slNo = totalApprovedCount - index;
         // Return minimal entry if error
         return {
           id: detail.id,
-          slNo: index + 1, // Sequential number
+          slNo: slNo, // ✅ FIX: Use calculated SL No from total count
           date: detail.placeDate || detail.createdAt,
           placeStatus: detail.placeStatus,
           wbNo: detail.wbNo || 'PENDING',
