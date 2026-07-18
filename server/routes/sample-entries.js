@@ -3932,18 +3932,15 @@ router.post('/:id/close-lot', authenticateToken, async (req, res) => {
         closedByUserId: req.user.userId,
         closedReason: reason || `Lot closed by manager. ${inspectedBags} of ${progress.totalBags} bags inspected. Party did not send remaining ${progress.remainingBags} bags.`,
         inspectedBags: inspectedBags,
-        allottedBags: inspectedBags,
+        allottedBags: progress.totalBags,  // ✅ FIX: Keep original total bags, not inspected bags
         completionType: 'CLOSED_EARLY'
       },
       req.user.userId
     );
 
-    // Update sample entry bags to actual inspected bags (cancelling the remaining bags)
-    const entry = await SampleEntry.findByPk(sampleEntryId);
-    if (entry) {
-      entry.bags = inspectedBags;
-      await entry.save();
-    }
+    // ✅ FIX: Do NOT modify Sample Entry bags field - it should always show original total (600)
+    // The inspectedBags field in LotAllotment tracks actual loaded bags (300)
+    // This way the UI shows: "600 total bags, 300 completed, 300 remaining"
 
     // Transition workflow to INVENTORY_ENTRY (skipping remaining bags)
     await WorkflowEngine.transitionTo(
