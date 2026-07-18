@@ -4241,8 +4241,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             const title = isLorryNotAdded
                                                 ? <span style={{ color: 'white', fontWeight: 'bold' }}>Next Loading Lorry Sampling: Lot Avg Sampling or Balance Lot Sampling</span>
                                                 : tripIdx === 0
-                                                    ? `Load 1 - Loading Sample Details | Bags Loaded: ${bagsLoaded}`
-                                                    : `Load ${tripIdx + 1} - Loading Sample Details | Bags Loaded: ${bagsLoaded}`;
+                                                    ? `Load 1 - Loading Sample Details : ${insp.lorryNumber?.toUpperCase() || 'Lorry'} | Bags Loaded: ${bagsLoaded}`
+                                                    : `Load ${tripIdx + 1} - Lorry Number: ${insp.lorryNumber?.toUpperCase() || 'Lorry'} | Bags Loaded: ${bagsLoaded}`;
                                             const isNewRulesMode = inspectionsProgress?.samplingRulesMode === 'new' || detailEntry?.lotAllotment?.samplingRulesMode === 'new';
                                             return renderHorizontalTable(
                                                 title,
@@ -4293,8 +4293,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             const title = isLorryNotAdded
                                                 ? <span style={{ color: 'white', fontWeight: 'bold' }}>Next Loading Lorry Sampling: Lot Avg Sampling or Balance Lot Sampling</span>
                                                 : tripIdx === 0
-                                                    ? `Load 1 - Loading Sample Details | Bags Loaded: ${bagsLoaded}`
-                                                    : `Load ${tripIdx + 1} - Loading Sample Details | Bags Loaded: ${bagsLoaded}`;
+                                                    ? `Load 1 - Loading Sample Details : ${insp.lorryNumber?.toUpperCase() || 'Lorry'} | Bags Loaded: ${bagsLoaded}`
+                                                    : `Load ${tripIdx + 1} - Lorry Number: ${insp.lorryNumber?.toUpperCase() || 'Lorry'} | Bags Loaded: ${bagsLoaded}`;
                                             const isNewRulesMode = inspectionsProgress?.samplingRulesMode === 'new' || detailEntry?.lotAllotment?.samplingRulesMode === 'new';
                                             return renderHorizontalTable(
                                                 title,
@@ -5624,3 +5624,4 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         </>
     );
 };
+
