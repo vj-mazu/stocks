@@ -176,6 +176,43 @@ router.post('/run-142-migration', async (req, res) => {
     }
 });
 
+// Verify endpoint - check if columns exist
+router.get('/verify-columns', async (req, res) => {
+    try {
+        console.log('🔍 Verifying sample_entries columns...');
+        
+        const [columns] = await sequelize.query(`
+            SELECT column_name, data_type 
+            FROM information_schema.columns 
+            WHERE table_name = 'sample_entries' 
+            AND column_name IN ('wbInputType', 'millWbId', 'partyWbName', 'wbStatus', 'placeType', 'placeWarehouseId', 'placeKunchinittuId', 'placeDate', 'placeStatus', 'outturnId', 'wbNo', 'grossWeight', 'tareWeight', 'netWeight')
+            ORDER BY column_name;
+        `);
+        
+        const [tables] = await sequelize.query(`
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name IN ('sample_entries', 'lorry_transit_details', 'inventory_quality_parameters')
+            ORDER BY table_name;
+        `);
+        
+        res.json({
+            success: true,
+            message: 'Column and table verification complete',
+            sample_entries_columns: columns,
+            tables_exist: tables.map(t => t.table_name),
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('❌ Verification failed:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // OLD CODE BELOW - KEEPING FOR REFERENCE
 router.post('/run-142-migration-OLD', async (req, res) => {
     try {
