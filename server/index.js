@@ -1800,6 +1800,15 @@ const startServer = async () => {
         console.log('Migration 138 warning:', error.message);
       }
 
+      // Migration 146: Add performance indexes for LorryTransitDetail (In-Transit & Band Malal Book optimization)
+      try {
+        const addPerformanceIndexes = require('./migrations/146_add_performance_indexes');
+        await addPerformanceIndexes.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('✅ Migration 146: Performance indexes added for millions of records');
+      } catch (error) {
+        console.log('⚠️ Migration 146 warning:', error.message);
+      }
+
     // Default warehouses removed - users should create their own warehouses
 
     // Create default users if they don't exist
