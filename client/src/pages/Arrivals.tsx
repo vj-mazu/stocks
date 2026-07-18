@@ -2492,7 +2492,7 @@ const Arrivals: React.FC = () => {
                                         setWbGrossWeight('');
                                         setWbTareWeight('');
                                         setWbNetWeight('');
-                                        fetchBandMalalEntries();
+                                        fetchInTransitEntries();
                                       } catch (err: any) {
                                         toast.error(err.response?.data?.error || 'Failed to save Weight Bridge');
                                       }
