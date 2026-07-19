@@ -9,6 +9,7 @@ import { useLocation } from '../contexts/LocationContext';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
 import { SampleEntryDetailModal } from '../components/SampleEntryDetailModal';
+import { applyWbSaveToEntries } from './arrivalsWbState';
 
 const Container = styled.div`
   animation: fadeIn 0.5s ease-in;
@@ -2478,7 +2479,7 @@ const Arrivals: React.FC = () => {
                                       }
                                       try {
                                         const token = localStorage.getItem('token');
-                                        await axios.post(`${API_URL}/arrivals/${entry.id}/wb`, {
+                                        const response = await axios.post(`${API_URL}/arrivals/${entry.id}/wb`, {
                                           wbInputType,
                                           millWbId: wbInputType === 'mill' ? Number(millWbId) : null,
                                           partyWbName: wbInputType === 'party' ? partyWbName : null,
@@ -2489,6 +2490,19 @@ const Arrivals: React.FC = () => {
                                         }, {
                                           headers: { Authorization: `Bearer ${token}` }
                                         });
+                                        const savedStatus = response?.data?.wbStatus || 'pending';
+                                        const savedWbNo = response?.data?.wbNo || wbNumber;
+                                        const savedNetWeight = response?.data?.netWeight ?? Number(wbNetWeight);
+                                        setInTransitEntries(prev => applyWbSaveToEntries(prev, entry.id, {
+                                          wbStatus: savedStatus,
+                                          wbNo: savedWbNo,
+                                          netWeight: savedNetWeight,
+                                          partyWbName: wbInputType === 'party' ? partyWbName : undefined,
+                                          wbInputType,
+                                          millWbId: wbInputType === 'mill' ? Number(millWbId) : undefined,
+                                          grossWeight: Number(wbGrossWeight),
+                                          tareWeight: Number(wbTareWeight)
+                                        }));
                                         toast.success('Weight Bridge submitted for approval!');
                                         setSelectedLorryForWB(null);
                                         setSelectedLorryInspection(null);
