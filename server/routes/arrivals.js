@@ -1446,7 +1446,7 @@ router.get('/in-transit', auth, async (req, res) => {
             code: outturn.code,
             allottedVariety: outturn.allottedVariety
           } : null,
-          moisture: inspection?.moisture || null,
+          moisture: inspection?.samplingStages?.full_avg?.moisture || inspection?.moisture || null, // ✅ FIX: Read from Full Lorry Avg first (In-Transit)
           cutting: await getCuttingFromInspection(inspection),
           wbNo: detail.wbNo || 'PENDING',
           grossWeight: detail.grossWeight || 0,
@@ -1612,7 +1612,7 @@ router.get('/band-malal-book', auth, async (req, res) => {
             code: outturn.code,
             allottedVariety: outturn.allottedVariety
           } : null,
-          moisture: inspection?.moisture || null,
+          moisture: inspection?.samplingStages?.full_avg?.moisture || inspection?.moisture || null, // ✅ FIX: Read from Full Lorry Avg first (Band Malal Book)
           cutting: await getCuttingFromInspection(inspection),
           wbNo: detail.wbNo || 'PENDING',
           grossWeight: detail.grossWeight || 0,
