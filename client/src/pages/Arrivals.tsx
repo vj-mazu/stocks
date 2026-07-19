@@ -2604,23 +2604,24 @@ const Arrivals: React.FC = () => {
                                     </div>
                                     </div>
 
-                                    {/* Row 7: Paddy WB, Remarks */}
+                                                                        {/* Row 7: Remarks */}
                                     <div style={{ display: 'flex', gap: '8px' }}>
                                     <div style={{ flex: 1 }}>
-                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Paddy WB</label>
-                                      <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
-                                        <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="pwb_toggle" checked={inventoryQualityToggle.paddyWb === 'Y'} onChange={() => setInventoryQualityToggle(p => ({ ...p, paddyWb: 'Y' }))} /> Y</label>
-                                        <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="pwb_toggle" checked={inventoryQualityToggle.paddyWb === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, paddyWb: 'N' })); setInventoryQualityForm(p => ({ ...p, paddyWb: '' })); }} /> N</label>
-                                      </div>
-                                      {inventoryQualityToggle.paddyWb === 'Y' && (
-                                        <input type="text" value={inventoryQualityForm.paddyWb} onChange={(e) => setInventoryQualityForm(p => ({ ...p, paddyWb: e.target.value }))} placeholder="Value" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-                                      )}
-                                    </div>
-                                    <div style={{ flex: 2 }}>
                                       <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Remarks</label>
                                       <textarea value={inventoryQualityForm.remarks} onChange={(e) => setInventoryQualityForm(p => ({ ...p, remarks: e.target.value }))} placeholder='Additional remarks...' rows={1} style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px', resize: 'vertical', fontFamily: 'inherit' }} />
                                     </div>
                                     </div>
+
+                                    {/* Footer: Reported By */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid #eee', paddingTop: '10px', marginTop: '4px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                                      <div style={{ flex: 1 }}>
+                                        <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Sample Reported By</label>
+                                        <input type="text" disabled value={user?.username || 'System'} style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px', background: '#f0f0f0' }} />
+                                      </div>
+                                    </div>
+                                    </div>
+
 {/* Submit Button */}
                                     <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '12px', borderTop: '1px solid #e2e8f0', marginTop: '12px' }}>
                                       <button
