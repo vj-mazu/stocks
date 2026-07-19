@@ -2495,6 +2495,9 @@ router.post('/:id/wb', auth, requireInventoryRole, async (req, res) => {
       return res.status(400).json({ error: 'Party Weight Bridge name is required' });
     }
 
+    // Import cache invalidation
+    const { invalidateCache } = require('../middleware/cache');
+
     // Use top-level imports (already imported at line 10-12)
     
     // First check if id is a LorryTransitDetail (from Band Malal Book)
@@ -2518,6 +2521,9 @@ router.post('/:id/wb', auth, requireInventoryRole, async (req, res) => {
         await transitDetail.update({
           partyWbName
         });
+
+        // Invalidate cache to refresh In-Transit and Band Malal Book
+        ['sample-entries/by-role', 'arrivals/band-malal-book'].forEach(invalidateCache);
 
         return res.json({ message: 'Party Weight Bridge added successfully', detail: transitDetail });
       } else {
@@ -2575,6 +2581,9 @@ router.post('/:id/wb', auth, requireInventoryRole, async (req, res) => {
           ? 'Mill WB added and approved successfully' 
           : 'Mill WB submitted for approval';
         
+        // Invalidate cache to refresh In-Transit and Band Malal Book
+        ['sample-entries/by-role', 'arrivals/band-malal-book'].forEach(invalidateCache);
+
         // ✅ FIX: Return lightweight response instead of fetching complete entry data
         // The frontend will call fetchInTransitEntries() to refresh the table
         return res.json({ 
@@ -2681,6 +2690,9 @@ router.post('/:id/wb', auth, requireInventoryRole, async (req, res) => {
           ? 'Mill WB added and approved successfully' 
           : 'Mill WB submitted for approval';
         
+        // Invalidate cache to refresh In-Transit and Band Malal Book
+        ['sample-entries/by-role', 'arrivals/band-malal-book'].forEach(invalidateCache);
+
         // ✅ Return lightweight response with partyWbName (same as LorryTransitDetail branch)
         return res.json({ 
           message,
