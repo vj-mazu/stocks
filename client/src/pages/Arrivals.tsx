@@ -1818,7 +1818,7 @@ const Arrivals: React.FC = () => {
                                           }
                                           try {
                                             const token = localStorage.getItem('token');
-                                            await axios.post(`${API_URL}/arrivals/${selectedLorryInspection.id}/wb`, {
+                                            const response = await axios.post(`${API_URL}/arrivals/${selectedLorryInspection.id}/wb`, {
                                               wbInputType,
                                               millWbId: wbInputType === 'mill' ? millWbId : null,
                                               partyWbName: wbInputType === 'party' ? partyWbName : null,
@@ -1829,6 +1829,20 @@ const Arrivals: React.FC = () => {
                                             }, {
                                               headers: { Authorization: `Bearer ${token}` }
                                             });
+                                            const responseDetail = response?.data?.detail || response?.data || {};
+                                            const savedStatus = wbInputType === 'party' ? 'approved' : (responseDetail?.wbStatus || response?.data?.wbStatus || 'pending');
+                                            const savedWbNo = responseDetail?.wbNo || response?.data?.wbNo || wbNumber;
+                                            const savedNetWeight = responseDetail?.netWeight ?? response?.data?.netWeight ?? wbNetWeight;
+                                            setInTransitEntries(prev => applyWbSaveToEntries(prev, selectedLorryInspection?.id ?? entry.id, {
+                                              wbStatus: savedStatus,
+                                              wbNo: savedWbNo,
+                                              netWeight: savedNetWeight,
+                                              partyWbName: wbInputType === 'party' ? partyWbName : (responseDetail?.partyWbName || undefined),
+                                              wbInputType,
+                                              millWbId: wbInputType === 'mill' ? millWbId : undefined,
+                                              grossWeight: wbGrossWeight,
+                                              tareWeight: wbTareWeight
+                                            }));
                                             toast.success('Weight Bridge submitted for approval!');
                                             setSelectedLorryForWB(null);
                                             setSelectedLorryEntries([]);
@@ -2490,14 +2504,15 @@ const Arrivals: React.FC = () => {
                                         }, {
                                           headers: { Authorization: `Bearer ${token}` }
                                         });
-                                        const savedStatus = response?.data?.wbStatus || 'pending';
-                                        const savedWbNo = response?.data?.wbNo || wbNumber;
-                                        const savedNetWeight = response?.data?.netWeight ?? Number(wbNetWeight);
+                                        const responseDetail = response?.data?.detail || response?.data || {};
+                                        const savedStatus = wbInputType === 'party' ? 'approved' : (responseDetail?.wbStatus || response?.data?.wbStatus || 'pending');
+                                        const savedWbNo = responseDetail?.wbNo || response?.data?.wbNo || wbNumber;
+                                        const savedNetWeight = responseDetail?.netWeight ?? response?.data?.netWeight ?? Number(wbNetWeight);
                                         setInTransitEntries(prev => applyWbSaveToEntries(prev, entry.id, {
                                           wbStatus: savedStatus,
                                           wbNo: savedWbNo,
                                           netWeight: savedNetWeight,
-                                          partyWbName: wbInputType === 'party' ? partyWbName : undefined,
+                                          partyWbName: wbInputType === 'party' ? partyWbName : (responseDetail?.partyWbName || undefined),
                                           wbInputType,
                                           millWbId: wbInputType === 'mill' ? Number(millWbId) : undefined,
                                           grossWeight: Number(wbGrossWeight),

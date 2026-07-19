@@ -14,6 +14,19 @@ export const applyWbSaveToEntries = (
       return entry;
     }
 
+    const mergedEntryData = {
+      ...entry,
+      ...saveData,
+      wbStatus: saveData.wbStatus || entry.wbStatus || 'pending',
+      wbNo: saveData.wbNo ?? entry.wbNo,
+      netWeight: saveData.netWeight ?? entry.netWeight,
+      partyWbName: saveData.partyWbName ?? entry.partyWbName,
+      wbInputType: saveData.wbInputType ?? entry.wbInputType,
+      millWbId: saveData.millWbId ?? entry.millWbId,
+      grossWeight: saveData.grossWeight ?? entry.grossWeight,
+      tareWeight: saveData.tareWeight ?? entry.tareWeight
+    };
+
     const updateInspection = (inspection: any) => {
       if (!inspection || String(inspection.id) !== targetId) {
         return inspection;
@@ -24,7 +37,14 @@ export const applyWbSaveToEntries = (
         lorryTransitDetail: {
           ...(inspection.lorryTransitDetail || {}),
           ...saveData,
-          wbStatus: saveData.wbStatus || inspection.lorryTransitDetail?.wbStatus || 'pending'
+          wbStatus: saveData.wbStatus || inspection.lorryTransitDetail?.wbStatus || entry.wbStatus || 'pending',
+          wbNo: saveData.wbNo ?? inspection.lorryTransitDetail?.wbNo ?? entry.wbNo,
+          netWeight: saveData.netWeight ?? inspection.lorryTransitDetail?.netWeight ?? entry.netWeight,
+          partyWbName: saveData.partyWbName ?? inspection.lorryTransitDetail?.partyWbName ?? entry.partyWbName,
+          wbInputType: saveData.wbInputType ?? inspection.lorryTransitDetail?.wbInputType ?? entry.wbInputType,
+          millWbId: saveData.millWbId ?? inspection.lorryTransitDetail?.millWbId ?? entry.millWbId,
+          grossWeight: saveData.grossWeight ?? inspection.lorryTransitDetail?.grossWeight ?? entry.grossWeight,
+          tareWeight: saveData.tareWeight ?? inspection.lorryTransitDetail?.tareWeight ?? entry.tareWeight
         }
       };
     };
@@ -35,7 +55,7 @@ export const applyWbSaveToEntries = (
 
     if (currentPhysicalInspections !== entry.physicalInspections) {
       return {
-        ...entry,
+        ...mergedEntryData,
         physicalInspections: currentPhysicalInspections
       };
     }
@@ -47,7 +67,7 @@ export const applyWbSaveToEntries = (
 
     if (currentLotInspections !== lotAllotment?.physicalInspections) {
       return {
-        ...entry,
+        ...mergedEntryData,
         lotAllotment: {
           ...lotAllotment,
           physicalInspections: currentLotInspections
@@ -55,6 +75,6 @@ export const applyWbSaveToEntries = (
       };
     }
 
-    return entry;
+    return mergedEntryData;
   });
 };
