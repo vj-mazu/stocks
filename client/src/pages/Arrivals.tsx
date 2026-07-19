@@ -2360,6 +2360,261 @@ const Arrivals: React.FC = () => {
                             </td>
                           )}
                         </tr>
+                        {/* INVENTORY QUALITY EXPANDED FORM */}
+                        {expandedInventoryQuality === entry.transitDetailId && (
+                          <tr>
+                            <td colSpan={14} style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
+                              <div style={{ background: '#fff', border: '1px solid #d8b4fe', borderRadius: '8px', padding: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+                                {/* Header */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
+                                  <h4 style={{ margin: 0, color: '#6b21a8', fontSize: '13px', fontWeight: 'bold' }}>🔬 Inventory Quality Parameters for {(entry.lorryNumber || 'N/A').toUpperCase()}</h4>
+                                  <button
+                                    onClick={() => setExpandedInventoryQuality(null)}
+                                    style={{ padding: '4px 8px', border: '1px solid #cbd5e1', borderRadius: '4px', background: '#fff', cursor: 'pointer', fontSize: '11px', color: '#64748b', fontWeight: 600 }}
+                                  >
+                                    ✕ Close
+                                  </button>
+                                </div>
+
+                                {/* Existing Submitted Parameters Display */}
+                                {entry.inventoryQualityParameters && entry.inventoryQualityParameters.length > 0 && (
+                                  <div style={{ marginBottom: '16px' }}>
+                                    <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#374151', marginBottom: '8px' }}>Previously Submitted:</div>
+                                    {entry.inventoryQualityParameters.map((qp: any, qIdx: number) => (
+                                      <div key={qp.id || qIdx} style={{
+                                        padding: '8px 12px',
+                                        marginBottom: '6px',
+                                        background: qp.status === 'approved' ? '#f0fdf4' : qp.status === 'rejected' ? '#fef2f2' : '#fefce8',
+                                        border: '1px solid',
+                                        borderColor: qp.status === 'approved' ? '#86efac' : qp.status === 'rejected' ? '#fca5a5' : '#fde68a',
+                                        borderRadius: '6px',
+                                        fontSize: '11px'
+                                      }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                          <span style={{ fontWeight: 'bold', color: '#374151' }}>
+                                            #{qIdx + 1} {qp.type === 'lot_avg' ? '📊 Lot Avg' : '🚛 Full Lorry Avg'}
+                                          </span>
+                                          <span style={{
+                                            padding: '2px 8px', borderRadius: '10px', fontSize: '10px', fontWeight: 'bold',
+                                            background: qp.status === 'approved' ? '#dcfce7' : qp.status === 'rejected' ? '#fee2e2' : '#fef3c7',
+                                            color: qp.status === 'approved' ? '#166534' : qp.status === 'rejected' ? '#991b1b' : '#92400e'
+                                          }}>
+                                            {qp.status === 'approved' ? '✅ Approved' : qp.status === 'rejected' ? '❌ Rejected' : '⏳ Pending'}
+                                          </span>
+                                        </div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '4px', color: '#475569' }}>
+                                          {qp.moisture && <span>💧 Moisture: <b>{qp.moisture}</b></span>}
+                                          {qp.dryMoisture && <span>🏖️ Dry Moisture: <b>{qp.dryMoisture}</b></span>}
+                                          {qp.cutting && <span>✂️ Cutting: <b>{qp.cutting}</b></span>}
+                                          {qp.bend && <span>↩️ Bend: <b>{qp.bend}</b></span>}
+                                          {qp.grains && <span>🌾 Grains: <b>{qp.grains}</b></span>}
+                                          {qp.mix && <span>🔀 Mix: <b>{qp.mix}</b></span>}
+                                          {qp.sMix && <span>SMix: <b>{qp.sMix}</b></span>}
+                                          {qp.lMix && <span>LMix: <b>{qp.lMix}</b></span>}
+                                          {qp.kandu && <span>Kandu: <b>{qp.kandu}</b></span>}
+                                          {qp.oil && <span>🛢️ Oil: <b>{qp.oil}</b></span>}
+                                          {qp.sk && <span>SK: <b>{qp.sk}</b></span>}
+                                          {qp.wbR && <span>WBR: <b>{qp.wbR}</b></span>}
+                                          {qp.wbBk && <span>WBBK: <b>{qp.wbBk}</b></span>}
+                                          {qp.wbT && <span>WBT: <b>{qp.wbT}</b></span>}
+                                          {qp.smell && <span>👃 Smell: <b>{qp.smell}</b></span>}
+                                          {qp.paddyWb && <span>PaddyWB: <b>{qp.paddyWb}</b></span>}
+                                          {qp.pColor && <span>🎨 PColor: <b>{qp.pColor}</b></span>}
+                                        </div>
+                                        {qp.remarks && <div style={{ marginTop: '4px', color: '#64748b', fontStyle: 'italic' }}>💬 {qp.remarks}</div>}
+                                        {qp.reporter && <div style={{ marginTop: '2px', fontSize: '10px', color: '#94a3b8' }}>Reported by: {qp.reporter.fullName || qp.reporter.username}</div>}
+                                        
+                                        {/* Approve/Reject buttons for pending params */}
+                                        {qp.status === 'pending' && canApproveInventoryQuality && (
+                                          <div style={{ display: 'flex', gap: '6px', marginTop: '6px', paddingTop: '6px', borderTop: '1px solid #e2e8f0' }}>
+                                            <button
+                                              onClick={() => handleApproveInventoryQuality(qp.id)}
+                                              style={{ padding: '3px 10px', border: 'none', borderRadius: '4px', background: '#16a34a', color: '#fff', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+                                            >
+                                              ✅ Approve
+                                            </button>
+                                            <button
+                                              onClick={() => { setRejectInventoryQualityId(qp.id); setRejectInventoryQualityReason(''); }}
+                                              style={{ padding: '3px 10px', border: 'none', borderRadius: '4px', background: '#dc2626', color: '#fff', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+                                            >
+                                              ❌ Reject
+                                            </button>
+                                          </div>
+                                        )}
+                                        
+                                        {/* Reject reason input */}
+                                        {rejectInventoryQualityId === qp.id && (
+                                          <div style={{ display: 'flex', gap: '6px', marginTop: '6px', alignItems: 'center' }}>
+                                            <input
+                                              type="text"
+                                              value={rejectInventoryQualityReason}
+                                              onChange={(e) => setRejectInventoryQualityReason(e.target.value)}
+                                              placeholder="Enter rejection reason..."
+                                              style={{ flex: 1, padding: '4px 8px', fontSize: '11px', border: '1px solid #fca5a5', borderRadius: '4px' }}
+                                            />
+                                            <button
+                                              onClick={handleRejectInventoryQuality}
+                                              style={{ padding: '4px 10px', border: 'none', borderRadius: '4px', background: '#dc2626', color: '#fff', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+                                            >
+                                              Confirm Reject
+                                            </button>
+                                            <button
+                                              onClick={() => setRejectInventoryQualityId(null)}
+                                              style={{ padding: '4px 10px', border: '1px solid #cbd5e1', borderRadius: '4px', background: '#fff', color: '#64748b', fontSize: '10px', cursor: 'pointer' }}
+                                            >
+                                              Cancel
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {/* Add New Quality Parameters Form */}
+                                <div>
+                                  <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#6b21a8', marginBottom: '10px' }}>📝 Add New Parameters:</div>
+                                  
+                                  {/* Type Toggle */}
+                                  <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                                    <button
+                                      onClick={() => setInventoryQualityType('lot_avg')}
+                                      style={{
+                                        padding: '4px 12px', fontSize: '11px', fontWeight: 'bold', borderRadius: '4px', border: '1px solid #cbd5e1',
+                                        background: inventoryQualityType === 'lot_avg' ? '#7c3aed' : '#fff',
+                                        color: inventoryQualityType === 'lot_avg' ? '#fff' : '#475569',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      📊 Lot Avg
+                                    </button>
+                                    <button
+                                      onClick={() => setInventoryQualityType('full_lorry_avg')}
+                                      style={{
+                                        padding: '4px 12px', fontSize: '11px', fontWeight: 'bold', borderRadius: '4px', border: '1px solid #cbd5e1',
+                                        background: inventoryQualityType === 'full_lorry_avg' ? '#7c3aed' : '#fff',
+                                        color: inventoryQualityType === 'full_lorry_avg' ? '#fff' : '#475569',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      🚛 Full Lorry Avg
+                                    </button>
+                                  </div>
+
+                                  {/* Row 1: moisture, dryMoisture, cutting, bend */}
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '10px' }}>
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '10px', color: '#64748b', fontWeight: 'bold', marginBottom: '3px' }}>Moisture %</label>
+                                      <input type="text" value={inventoryQualityForm.moisture} onChange={(e) => setInventoryQualityForm(p => ({ ...p, moisture: e.target.value }))} placeholder="e.g. 16.5" style={{ width: '100%', padding: '5px 6px', fontSize: '11px', border: '1.5px solid #cbd5e1', borderRadius: '5px' }} />
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '10px', color: '#64748b', fontWeight: 'bold', marginBottom: '3px' }}>Dry Moisture %</label>
+                                      <input type="text" value={inventoryQualityForm.dryMoisture} onChange={(e) => setInventoryQualityForm(p => ({ ...p, dryMoisture: e.target.value }))} placeholder="e.g. 14.0" style={{ width: '100%', padding: '5px 6px', fontSize: '11px', border: '1.5px solid #cbd5e1', borderRadius: '5px' }} />
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '10px', color: '#64748b', fontWeight: 'bold', marginBottom: '3px' }}>Cutting</label>
+                                      <input type="text" value={inventoryQualityForm.cutting} onChange={(e) => setInventoryQualityForm(p => ({ ...p, cutting: e.target.value }))} placeholder="e.g. 1x2" style={{ width: '100%', padding: '5px 6px', fontSize: '11px', border: '1.5px solid #cbd5e1', borderRadius: '5px' }} />
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '10px', color: '#64748b', fontWeight: 'bold', marginBottom: '3px' }}>Bend %</label>
+                                      <input type="text" value={inventoryQualityForm.bend} onChange={(e) => setInventoryQualityForm(p => ({ ...p, bend: e.target.value }))} placeholder="e.g. 2.5" style={{ width: '100%', padding: '5px 6px', fontSize: '11px', border: '1.5px solid #cbd5e1', borderRadius: '5px' }} />
+                                    </div>
+                                  </div>
+
+                                  {/* Row 2: grains, mix, sMix, lMix */}
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '10px' }}>
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '10px', color: '#64748b', fontWeight: 'bold', marginBottom: '3px' }}>Grains %</label>
+                                      <input type="text" value={inventoryQualityForm.grains} onChange={(e) => setInventoryQualityForm(p => ({ ...p, grains: e.target.value }))} placeholder="e.g. 85" style={{ width: '100%', padding: '5px 6px', fontSize: '11px', border: '1.5px solid #cbd5e1', borderRadius: '5px' }} />
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '10px', color: '#64748b', fontWeight: 'bold', marginBottom: '3px' }}>Mix %</label>
+                                      <input type="text" value={inventoryQualityForm.mix} onChange={(e) => setInventoryQualityForm(p => ({ ...p, mix: e.target.value }))} placeholder="e.g. 5" style={{ width: '100%', padding: '5px 6px', fontSize: '11px', border: '1.5px solid #cbd5e1', borderRadius: '5px' }} />
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '10px', color: '#64748b', fontWeight: 'bold', marginBottom: '3px' }}>S Mix %</label>
+                                      <input type="text" value={inventoryQualityForm.sMix} onChange={(e) => setInventoryQualityForm(p => ({ ...p, sMix: e.target.value }))} placeholder="e.g. 2" style={{ width: '100%', padding: '5px 6px', fontSize: '11px', border: '1.5px solid #cbd5e1', borderRadius: '5px' }} />
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '10px', color: '#64748b', fontWeight: 'bold', marginBottom: '3px' }}>L Mix %</label>
+                                      <input type="text" value={inventoryQualityForm.lMix} onChange={(e) => setInventoryQualityForm(p => ({ ...p, lMix: e.target.value }))} placeholder="e.g. 3" style={{ width: '100%', padding: '5px 6px', fontSize: '11px', border: '1.5px solid #cbd5e1', borderRadius: '5px' }} />
+                                    </div>
+                                  </div>
+
+                                  {/* Row 3: kandu, oil, sk, smell */}
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '10px' }}>
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '10px', color: '#64748b', fontWeight: 'bold', marginBottom: '3px' }}>Kandu %</label>
+                                      <input type="text" value={inventoryQualityForm.kandu} onChange={(e) => setInventoryQualityForm(p => ({ ...p, kandu: e.target.value }))} placeholder="e.g. 1.5" style={{ width: '100%', padding: '5px 6px', fontSize: '11px', border: '1.5px solid #cbd5e1', borderRadius: '5px' }} />
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '10px', color: '#64748b', fontWeight: 'bold', marginBottom: '3px' }}>Oil %</label>
+                                      <input type="text" value={inventoryQualityForm.oil} onChange={(e) => setInventoryQualityForm(p => ({ ...p, oil: e.target.value }))} placeholder="e.g. 1.0" style={{ width: '100%', padding: '5px 6px', fontSize: '11px', border: '1.5px solid #cbd5e1', borderRadius: '5px' }} />
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '10px', color: '#64748b', fontWeight: 'bold', marginBottom: '3px' }}>SK</label>
+                                      <input type="text" value={inventoryQualityForm.sk} onChange={(e) => setInventoryQualityForm(p => ({ ...p, sk: e.target.value }))} placeholder="e.g. 0.5" style={{ width: '100%', padding: '5px 6px', fontSize: '11px', border: '1.5px solid #cbd5e1', borderRadius: '5px' }} />
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '10px', color: '#64748b', fontWeight: 'bold', marginBottom: '3px' }}>Smell</label>
+                                      <input type="text" value={inventoryQualityForm.smell} onChange={(e) => setInventoryQualityForm(p => ({ ...p, smell: e.target.value }))} placeholder="Normal/Mild/Strong" style={{ width: '100%', padding: '5px 6px', fontSize: '11px', border: '1.5px solid #cbd5e1', borderRadius: '5px' }} />
+                                    </div>
+                                  </div>
+
+                                  {/* Row 4: wbR, wbBk, wbT, paddyWb */}
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '10px' }}>
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '10px', color: '#64748b', fontWeight: 'bold', marginBottom: '3px' }}>WB Red</label>
+                                      <input type="text" value={inventoryQualityForm.wbR} onChange={(e) => setInventoryQualityForm(p => ({ ...p, wbR: e.target.value }))} placeholder="e.g. 2" style={{ width: '100%', padding: '5px 6px', fontSize: '11px', border: '1.5px solid #cbd5e1', borderRadius: '5px' }} />
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '10px', color: '#64748b', fontWeight: 'bold', marginBottom: '3px' }}>WB Black</label>
+                                      <input type="text" value={inventoryQualityForm.wbBk} onChange={(e) => setInventoryQualityForm(p => ({ ...p, wbBk: e.target.value }))} placeholder="e.g. 1" style={{ width: '100%', padding: '5px 6px', fontSize: '11px', border: '1.5px solid #cbd5e1', borderRadius: '5px' }} />
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '10px', color: '#64748b', fontWeight: 'bold', marginBottom: '3px' }}>WB Thin</label>
+                                      <input type="text" value={inventoryQualityForm.wbT} onChange={(e) => setInventoryQualityForm(p => ({ ...p, wbT: e.target.value }))} placeholder="e.g. 3" style={{ width: '100%', padding: '5px 6px', fontSize: '11px', border: '1.5px solid #cbd5e1', borderRadius: '5px' }} />
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '10px', color: '#64748b', fontWeight: 'bold', marginBottom: '3px' }}>Paddy WB %</label>
+                                      <input type="text" value={inventoryQualityForm.paddyWb} onChange={(e) => setInventoryQualityForm(p => ({ ...p, paddyWb: e.target.value }))} placeholder="e.g. 5" style={{ width: '100%', padding: '5px 6px', fontSize: '11px', border: '1.5px solid #cbd5e1', borderRadius: '5px' }} />
+                                    </div>
+                                  </div>
+
+                                  {/* Row 5: pColor */}
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '10px' }}>
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '10px', color: '#64748b', fontWeight: 'bold', marginBottom: '3px' }}>P Color</label>
+                                      <input type="text" value={inventoryQualityForm.pColor} onChange={(e) => setInventoryQualityForm(p => ({ ...p, pColor: e.target.value }))} placeholder="e.g. Golden Yellow" style={{ width: '100%', padding: '5px 6px', fontSize: '11px', border: '1.5px solid #cbd5e1', borderRadius: '5px' }} />
+                                    </div>
+                                  </div>
+
+                                  {/* Row 6: Remarks */}
+                                  <div style={{ marginBottom: '12px' }}>
+                                    <label style={{ display: 'block', fontSize: '10px', color: '#64748b', fontWeight: 'bold', marginBottom: '3px' }}>Remarks</label>
+                                    <textarea
+                                      value={inventoryQualityForm.remarks}
+                                      onChange={(e) => setInventoryQualityForm(p => ({ ...p, remarks: e.target.value }))}
+                                      placeholder="Enter any additional remarks..."
+                                      rows={2}
+                                      style={{ width: '100%', padding: '5px 6px', fontSize: '11px', border: '1.5px solid #cbd5e1', borderRadius: '5px', resize: 'vertical', fontFamily: 'inherit' }}
+                                    />
+                                  </div>
+
+                                  {/* Submit Button */}
+                                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', paddingTop: '10px', borderTop: '1px solid #f1f5f9' }}>
+                                    <button
+                                      onClick={() => handleSubmitInventoryQuality(entry.transitDetailId)}
+                                      style={{ padding: '6px 16px', border: 'none', borderRadius: '6px', background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', color: '#fff', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
+                                    >
+                                      💾 Submit Quality Parameters
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
                         {selectedLorryForWB === (entry.lorryNumber || 'N/A').toUpperCase() && selectedLorryInspection?.id === entry.id && (
                           <tr>
                             <td colSpan={14} style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
