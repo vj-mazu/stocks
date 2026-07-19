@@ -1487,7 +1487,13 @@ const Arrivals: React.FC = () => {
                               </td>
                               <td style={{ border: '1px solid #000', padding: '5px' }}>{entry.variety || '-'}</td>
                               <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700', color: '#b91c1c' }}>
-                                {isPlaceholder ? '-' : (inspection.moisture ? `${Number(inspection.moisture)}%` : '-')}
+                                {isPlaceholder ? '-' : (() => {
+                                  // ✅ FIX: Get moisture from Full Lorry Avg (samplingStages.full_avg.moisture) OR fallback to inspection.moisture
+                                  const fullLorryMoisture = inspection?.samplingStages?.full_avg?.moisture;
+                                  const directMoisture = inspection?.moisture;
+                                  const moistureValue = fullLorryMoisture || directMoisture;
+                                  return moistureValue ? `${Number(moistureValue)}%` : '-';
+                                })()}
                               </td>
                               <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>
                                 {isPlaceholder ? '-' : getCuttingValue(entry, inspection)}
