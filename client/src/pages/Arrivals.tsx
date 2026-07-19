@@ -975,10 +975,10 @@ const Arrivals: React.FC = () => {
   const [inventoryQualityForm, setInventoryQualityForm] = useState({
     moisture: '', dryMoisture: '', cutting: '', bend: '', grains: '',
     mix: '', sMix: '', lMix: '', kandu: '', oil: '', sk: '',
-    wbR: '', wbBk: '', wbT: '', smell: 'Normal', paddyWb: '', pColor: '', remarks: ''
+    wbR: '', wbBk: '', wbT: '', smell: '', paddyWb: '', pColor: '', kadiga: '', remarks: ''
   });
   const [inventoryQualityToggle, setInventoryQualityToggle] = useState({
-    dryMoisture: 'Y', sMix: 'Y', lMix: 'Y', paddyWb: 'Y', pColor: 'Y'
+    dryMoisture: 'Y', sMix: 'Y', lMix: 'Y', paddyWb: 'Y', kadiga: 'Y', smellHas: 'No'
   });
   const [rejectInventoryQualityId, setRejectInventoryQualityId] = useState<string | null>(null);
   const [rejectInventoryQualityReason, setRejectInventoryQualityReason] = useState('');
@@ -1017,7 +1017,7 @@ const Arrivals: React.FC = () => {
       });
       // Reset toggle state
       setInventoryQualityToggle({
-        dryMoisture: 'Y', sMix: 'Y', lMix: 'Y', paddyWb: 'Y', pColor: 'Y'
+        dryMoisture: 'Y', sMix: 'Y', lMix: 'Y', paddyWb: 'Y', kadiga: 'Y', smellHas: 'No'
       });
       const newEntries = response.data.entries || [];
       const pagination = response.data.pagination || {};
@@ -1151,7 +1151,7 @@ const Arrivals: React.FC = () => {
       setInventoryQualityForm({
         moisture: '', dryMoisture: '', cutting: '', bend: '', grains: '',
         mix: '', sMix: '', lMix: '', kandu: '', oil: '', sk: '',
-        wbR: '', wbBk: '', wbT: '', smell: 'Normal', paddyWb: '', pColor: '', remarks: ''
+        wbR: '', wbBk: '', wbT: '', smell: '', paddyWb: '', pColor: '', kadiga: '', remarks: ''
       });
       fetchBandMalalEntries();
     } catch (error: any) {
@@ -1849,7 +1849,7 @@ const Arrivals: React.FC = () => {
                                               headers: { Authorization: `Bearer ${token}` }
                                             });
                                           setInventoryQualityToggle({
-                                            dryMoisture: 'Y', sMix: 'Y', lMix: 'Y', paddyWb: 'Y', pColor: 'Y'
+                                            dryMoisture: 'Y', sMix: 'Y', lMix: 'Y', paddyWb: 'Y', kadiga: 'Y', smellHas: 'No'
                                           });
                                             const responseDetail = response?.data?.detail || response?.data || {};
                                             const savedStatus = wbInputType === 'party' ? 'approved' : (responseDetail?.wbStatus || response?.data?.wbStatus || 'pending');
@@ -2352,7 +2352,7 @@ const Arrivals: React.FC = () => {
                                         setInventoryQualityForm({
                                           moisture: '', dryMoisture: '', cutting: '', bend: '', grains: '',
                                           mix: '', sMix: '', lMix: '', kandu: '', oil: '', sk: '',
-                                          wbR: '', wbBk: '', wbT: '', smell: 'Normal', paddyWb: '', pColor: '', remarks: ''
+                                          wbR: '', wbBk: '', wbT: '', smell: '', paddyWb: '', pColor: '', kadiga: '', remarks: ''
                                         });
                                       }
                                     }}
@@ -2473,159 +2473,155 @@ const Arrivals: React.FC = () => {
                                       </div>
                                     </div>
 
-                                    {/* Row 1: Moisture, Dry Moisture, Cutting */}
-                                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                                      <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Moisture</label>
-                                        <input type="text" value={inventoryQualityForm.moisture} onChange={(e) => setInventoryQualityForm(p => ({ ...p, moisture: e.target.value }))} placeholder="e.g. 16.5" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                                                                        {/* Row 1: Moisture, Dry Moisture, Grains Count */}
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                    <div style={{ flex: 1 }}>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Moisture</label>
+                                      <input type="text" value={inventoryQualityForm.moisture} onChange={(e) => setInventoryQualityForm(p => ({ ...p, moisture: e.target.value }))} placeholder="e.g. 16.5" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Dry Moisture</label>
+                                      <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
+                                        <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="dm_toggle" checked={inventoryQualityToggle.dryMoisture === 'Y'} onChange={() => setInventoryQualityToggle(p => ({ ...p, dryMoisture: 'Y' }))} /> Y</label>
+                                        <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="dm_toggle" checked={inventoryQualityToggle.dryMoisture === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, dryMoisture: 'N' })); setInventoryQualityForm(p => ({ ...p, dryMoisture: '' })); }} /> N</label>
                                       </div>
-                                      <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Dry Moisture</label>
-                                        <div style={{ display: 'flex', gap: '6px', marginTop: '2px', marginBottom: '4px' }}>
-                                          <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                            <input type="radio" name="dm_toggle" checked={inventoryQualityToggle.dryMoisture === 'Y'} onChange={() => setInventoryQualityToggle(p => ({ ...p, dryMoisture: 'Y' }))} /> Y
-                                          </label>
-                                          <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                            <input type="radio" name="dm_toggle" checked={inventoryQualityToggle.dryMoisture === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, dryMoisture: 'N' })); setInventoryQualityForm(p => ({ ...p, dryMoisture: '' })); }} /> N
-                                          </label>
-                                        </div>
-                                        {inventoryQualityToggle.dryMoisture === 'Y' && (
-                                          <input type="text" value={inventoryQualityForm.dryMoisture} onChange={(e) => setInventoryQualityForm(p => ({ ...p, dryMoisture: e.target.value }))} placeholder="e.g. 14.0" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-                                        )}
-                                      </div>
-                                      <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Cutting</label>
-                                        <input type="text" value={inventoryQualityForm.cutting} onChange={(e) => setInventoryQualityForm(p => ({ ...p, cutting: e.target.value }))} placeholder="e.g. 1x2" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-                                      </div>
+                                      {inventoryQualityToggle.dryMoisture === 'Y' && (
+                                        <input type="text" value={inventoryQualityForm.dryMoisture} onChange={(e) => setInventoryQualityForm(p => ({ ...p, dryMoisture: e.target.value }))} placeholder="Dry Value" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                                      )}
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Grains Count</label>
+                                      <input type="text" value={inventoryQualityForm.grains} onChange={(e) => setInventoryQualityForm(p => ({ ...p, grains: e.target.value }))} placeholder="e.g. 85" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                                    </div>
                                     </div>
 
-                                    {/* Row 2: Bend, Grains, Mix */}
-                                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                                      <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Bend</label>
-                                        <input type="text" value={inventoryQualityForm.bend} onChange={(e) => setInventoryQualityForm(p => ({ ...p, bend: e.target.value }))} placeholder="e.g. 2.5" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-                                      </div>
-                                      <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Grains</label>
-                                        <input type="text" value={inventoryQualityForm.grains} onChange={(e) => setInventoryQualityForm(p => ({ ...p, grains: e.target.value }))} placeholder="e.g. 85" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-                                      </div>
-                                      <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Mix</label>
-                                        <input type="text" value={inventoryQualityForm.mix} onChange={(e) => setInventoryQualityForm(p => ({ ...p, mix: e.target.value }))} placeholder="e.g. 5" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-                                      </div>
+                                    {/* Row 2: Cutting, Bend, Mix */}
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                    <div style={{ flex: 1 }}>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Cutting</label>
+                                      <input type="text" value={inventoryQualityForm.cutting} onChange={(e) => setInventoryQualityForm(p => ({ ...p, cutting: e.target.value }))} placeholder="1x" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Bend</label>
+                                      <input type="text" value={inventoryQualityForm.bend} onChange={(e) => setInventoryQualityForm(p => ({ ...p, bend: e.target.value }))} placeholder="1x" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Mix</label>
+                                      <input type="text" value={inventoryQualityForm.mix} onChange={(e) => setInventoryQualityForm(p => ({ ...p, mix: e.target.value }))} placeholder="e.g. 5" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                                    </div>
                                     </div>
 
-                                    {/* Row 3: S Mix, L Mix, Kandu */}
-                                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                                      <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>S Mix</label>
-                                        <div style={{ display: 'flex', gap: '6px', marginTop: '2px', marginBottom: '4px' }}>
-                                          <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                            <input type="radio" name="sm_toggle" checked={inventoryQualityToggle.sMix === 'Y'} onChange={() => setInventoryQualityToggle(p => ({ ...p, sMix: 'Y' }))} /> Y
-                                          </label>
-                                          <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                            <input type="radio" name="sm_toggle" checked={inventoryQualityToggle.sMix === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, sMix: 'N' })); setInventoryQualityForm(p => ({ ...p, sMix: '' })); }} /> N
-                                          </label>
-                                        </div>
-                                        {inventoryQualityToggle.sMix === 'Y' && (
-                                          <input type="text" value={inventoryQualityForm.sMix} onChange={(e) => setInventoryQualityForm(p => ({ ...p, sMix: e.target.value }))} placeholder="e.g. 2" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-                                        )}
+                                    {/* Row 3: SMix, LMix, SK */}
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                    <div style={{ flex: 1 }}>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>SMix</label>
+                                      <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
+                                        <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="sm_toggle" checked={inventoryQualityToggle.sMix === 'Y'} onChange={() => setInventoryQualityToggle(p => ({ ...p, sMix: 'Y' }))} /> Y</label>
+                                        <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="sm_toggle" checked={inventoryQualityToggle.sMix === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, sMix: 'N' })); setInventoryQualityForm(p => ({ ...p, sMix: '' })); }} /> N</label>
                                       </div>
-                                      <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>L Mix</label>
-                                        <div style={{ display: 'flex', gap: '6px', marginTop: '2px', marginBottom: '4px' }}>
-                                          <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                            <input type="radio" name="lm_toggle" checked={inventoryQualityToggle.lMix === 'Y'} onChange={() => setInventoryQualityToggle(p => ({ ...p, lMix: 'Y' }))} /> Y
-                                          </label>
-                                          <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                            <input type="radio" name="lm_toggle" checked={inventoryQualityToggle.lMix === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, lMix: 'N' })); setInventoryQualityForm(p => ({ ...p, lMix: '' })); }} /> N
-                                          </label>
-                                        </div>
-                                        {inventoryQualityToggle.lMix === 'Y' && (
-                                          <input type="text" value={inventoryQualityForm.lMix} onChange={(e) => setInventoryQualityForm(p => ({ ...p, lMix: e.target.value }))} placeholder="e.g. 3" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-                                        )}
+                                      {inventoryQualityToggle.sMix === 'Y' && (
+                                        <input type="text" value={inventoryQualityForm.sMix} onChange={(e) => setInventoryQualityForm(p => ({ ...p, sMix: e.target.value }))} placeholder="Value" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                                      )}
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>LMix</label>
+                                      <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
+                                        <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="lm_toggle" checked={inventoryQualityToggle.lMix === 'Y'} onChange={() => setInventoryQualityToggle(p => ({ ...p, lMix: 'Y' }))} /> Y</label>
+                                        <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="lm_toggle" checked={inventoryQualityToggle.lMix === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, lMix: 'N' })); setInventoryQualityForm(p => ({ ...p, lMix: '' })); }} /> N</label>
                                       </div>
-                                      <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Kandu</label>
-                                        <input type="text" value={inventoryQualityForm.kandu} onChange={(e) => setInventoryQualityForm(p => ({ ...p, kandu: e.target.value }))} placeholder="e.g. 1" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-                                      </div>
+                                      {inventoryQualityToggle.lMix === 'Y' && (
+                                        <input type="text" value={inventoryQualityForm.lMix} onChange={(e) => setInventoryQualityForm(p => ({ ...p, lMix: e.target.value }))} placeholder="Value" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                                      )}
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>SK</label>
+                                      <input type="text" value={inventoryQualityForm.sk} onChange={(e) => setInventoryQualityForm(p => ({ ...p, sk: e.target.value }))} placeholder="e.g. 0.5" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                                    </div>
                                     </div>
 
-                                    {/* Row 4: Oil, SK, Smell */}
-                                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                                      <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Oil</label>
-                                        <input type="text" value={inventoryQualityForm.oil} onChange={(e) => setInventoryQualityForm(p => ({ ...p, oil: e.target.value }))} placeholder="e.g. 0.5" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                                    {/* Row 4: Kandu, Oil, Smell */}
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                    <div style={{ flex: 1 }}>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Kandu</label>
+                                      <input type="text" value={inventoryQualityForm.kandu} onChange={(e) => setInventoryQualityForm(p => ({ ...p, kandu: e.target.value }))} placeholder="e.g. 1" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Oil</label>
+                                      <input type="text" value={inventoryQualityForm.oil} onChange={(e) => setInventoryQualityForm(p => ({ ...p, oil: e.target.value }))} placeholder="e.g. 0.5" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Smell</label>
+                                      <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
+                                        <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="smell_has" checked={inventoryQualityToggle.smellHas === 'Yes'} onChange={() => setInventoryQualityToggle(p => ({ ...p, smellHas: 'Yes' }))} /> Yes</label>
+                                        <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="smell_has" checked={inventoryQualityToggle.smellHas === 'No'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, smellHas: 'No' })); setInventoryQualityForm(p => ({ ...p, smell: '' })); }} /> No</label>
                                       </div>
-                                      <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>SK</label>
-                                        <input type="text" value={inventoryQualityForm.sk} onChange={(e) => setInventoryQualityForm(p => ({ ...p, sk: e.target.value }))} placeholder="e.g. 0.5" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-                                      </div>
-                                      <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Smell</label>
-                                        <div style={{ display: 'flex', gap: '6px', marginTop: '2px', marginBottom: '4px', flexWrap: 'wrap' }}>
-                                          {['Normal', 'Odor', 'None'].map(opt => (
+                                      {inventoryQualityToggle.smellHas === 'Yes' && (
+                                        <div style={{ display: 'flex', gap: '6px', marginTop: '2px', flexWrap: 'wrap' }}>
+                                          {['Light', 'Medium', 'Dark'].map(opt => (
                                             <label key={opt} style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                              <input type="radio" name="smell_opt" checked={inventoryQualityForm.smell === opt} onChange={() => setInventoryQualityForm(p => ({ ...p, smell: opt }))} /> {opt}
+                                              <input type="radio" name="smell_type" checked={inventoryQualityForm.smell === opt} onChange={() => setInventoryQualityForm(p => ({ ...p, smell: opt }))} /> {opt}
                                             </label>
                                           ))}
                                         </div>
-                                      </div>
+                                      )}
+                                    </div>
                                     </div>
 
-                                    {/* Row 5: WB R, WB Bk, WB T */}
-                                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                                      <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>WB R</label>
-                                        <input type="text" value={inventoryQualityForm.wbR} onChange={(e) => setInventoryQualityForm(p => ({ ...p, wbR: e.target.value }))} placeholder="0" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-                                      </div>
-                                      <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>WB Bk</label>
-                                        <input type="text" value={inventoryQualityForm.wbBk} onChange={(e) => setInventoryQualityForm(p => ({ ...p, wbBk: e.target.value }))} placeholder="0" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-                                      </div>
-                                      <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>WB T</label>
-                                        <input type="text" value={inventoryQualityForm.wbT} onChange={(e) => setInventoryQualityForm(p => ({ ...p, wbT: e.target.value }))} placeholder="0" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                                    {/* Row 5: Paddy Discolor, Kadiga */}
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                    <div style={{ flex: 1.2 }}>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Paddy Discolor</label>
+                                      <select value={inventoryQualityForm.pColor} onChange={(e) => setInventoryQualityForm(p => ({ ...p, pColor: e.target.value }))} style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px', background: '#fff' }}>
+                                        <option value=''>Select discolor</option>
+                                        <option value='Normal Color'>Normal Color</option>
+                                        <option value='Light Discolor'>Light Discolor</option>
+                                        <option value='Medium Discolor'>Medium Discolor</option>
+                                        <option value='Dark Discolor'>Dark Discolor</option>
+                                      </select>
+                                    </div>
+                                    <div style={{ flex: 0.8 }}>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>ಕಡಿಗಾ (Kadiga)</label>
+                                      <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
+                                        <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="kd_toggle" checked={inventoryQualityToggle.kadiga === 'Y'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, kadiga: 'Y' })); setInventoryQualityForm(p => ({ ...p, kadiga: 'Y' })); }} /> Y</label>
+                                        <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="kd_toggle" checked={inventoryQualityToggle.kadiga === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, kadiga: 'N' })); setInventoryQualityForm(p => ({ ...p, kadiga: '' })); }} /> N</label>
                                       </div>
                                     </div>
-
-                                    {/* Row 6: Paddy WB, P Color, Remarks (2 + full width) */}
-                                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                                      <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Paddy WB</label>
-                                        <div style={{ display: 'flex', gap: '6px', marginTop: '2px', marginBottom: '4px' }}>
-                                          <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                            <input type="radio" name="pwb_toggle" checked={inventoryQualityToggle.paddyWb === 'Y'} onChange={() => setInventoryQualityToggle(p => ({ ...p, paddyWb: 'Y' }))} /> Y
-                                          </label>
-                                          <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                            <input type="radio" name="pwb_toggle" checked={inventoryQualityToggle.paddyWb === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, paddyWb: 'N' })); setInventoryQualityForm(p => ({ ...p, paddyWb: '' })); }} /> N
-                                          </label>
-                                        </div>
-                                        {inventoryQualityToggle.paddyWb === 'Y' && (
-                                          <input type="text" value={inventoryQualityForm.paddyWb} onChange={(e) => setInventoryQualityForm(p => ({ ...p, paddyWb: e.target.value }))} placeholder="e.g. 0" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-                                        )}
-                                      </div>
-                                      <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>P Color</label>
-                                        <div style={{ display: 'flex', gap: '6px', marginTop: '2px', marginBottom: '4px' }}>
-                                          <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                            <input type="radio" name="pc_toggle" checked={inventoryQualityToggle.pColor === 'Y'} onChange={() => setInventoryQualityToggle(p => ({ ...p, pColor: 'Y' }))} /> Y
-                                          </label>
-                                          <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                            <input type="radio" name="pc_toggle" checked={inventoryQualityToggle.pColor === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, pColor: 'N' })); setInventoryQualityForm(p => ({ ...p, pColor: '' })); }} /> N
-                                          </label>
-                                        </div>
-                                        {inventoryQualityToggle.pColor === 'Y' && (
-                                          <input type="text" value={inventoryQualityForm.pColor} onChange={(e) => setInventoryQualityForm(p => ({ ...p, pColor: e.target.value }))} placeholder="White" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-                                        )}
-                                      </div>
-                                      <div style={{ flex: 2 }}>
-                                        <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Remarks</label>
-                                        <input type="text" value={inventoryQualityForm.remarks} onChange={(e) => setInventoryQualityForm(p => ({ ...p, remarks: e.target.value }))} placeholder="Additional remarks..." style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-                                      </div>
                                     </div>
 
-                                    {/* Submit Button */}
+                                    {/* Row 6: WB R, WB Bk, WB T */}
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                    <div style={{ flex: 1 }}>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>WB R</label>
+                                      <input type="text" value={inventoryQualityForm.wbR} onChange={(e) => setInventoryQualityForm(p => ({ ...p, wbR: e.target.value }))} placeholder="0" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>WB Bk</label>
+                                      <input type="text" value={inventoryQualityForm.wbBk} onChange={(e) => setInventoryQualityForm(p => ({ ...p, wbBk: e.target.value }))} placeholder="0" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>WB T</label>
+                                      <input type="text" value={inventoryQualityForm.wbT} onChange={(e) => setInventoryQualityForm(p => ({ ...p, wbT: e.target.value }))} placeholder="0" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                                    </div>
+                                    </div>
+
+                                    {/* Row 7: Paddy WB, Remarks */}
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                    <div style={{ flex: 1 }}>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Paddy WB</label>
+                                      <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
+                                        <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="pwb_toggle" checked={inventoryQualityToggle.paddyWb === 'Y'} onChange={() => setInventoryQualityToggle(p => ({ ...p, paddyWb: 'Y' }))} /> Y</label>
+                                        <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="pwb_toggle" checked={inventoryQualityToggle.paddyWb === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, paddyWb: 'N' })); setInventoryQualityForm(p => ({ ...p, paddyWb: '' })); }} /> N</label>
+                                      </div>
+                                      {inventoryQualityToggle.paddyWb === 'Y' && (
+                                        <input type="text" value={inventoryQualityForm.paddyWb} onChange={(e) => setInventoryQualityForm(p => ({ ...p, paddyWb: e.target.value }))} placeholder="Value" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                                      )}
+                                    </div>
+                                    <div style={{ flex: 2 }}>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Remarks</label>
+                                      <textarea value={inventoryQualityForm.remarks} onChange={(e) => setInventoryQualityForm(p => ({ ...p, remarks: e.target.value }))} placeholder='Additional remarks...' rows={1} style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px', resize: 'vertical', fontFamily: 'inherit' }} />
+                                    </div>
+                                    </div>
+{/* Submit Button */}
                                     <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '12px', borderTop: '1px solid #e2e8f0', marginTop: '12px' }}>
                                       <button
                                         onClick={() => handleSubmitInventoryQuality(entry.transitDetailId)}
