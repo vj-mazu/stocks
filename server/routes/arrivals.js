@@ -2592,22 +2592,22 @@ router.post('/:id/wb', auth, requireInventoryRole, async (req, res) => {
     const sampleEntry = await SampleEntry.findByPk(id);
     if (sampleEntry) {
       // Find the most recent PhysicalInspection for this Sample Entry
-      const inspection = await PhysicalInspection.findOne({
+      const sampleInspection = await PhysicalInspection.findOne({
         where: { sampleEntryId: id },
         order: [['createdAt', 'DESC']]
       });
       
-      if (!inspection) {
+      if (!sampleInspection) {
         return res.status(404).json({ error: 'No inspection found for this sample entry' });
       }
       
       // Now process using the inspection's ID (redirect to PhysicalInspection logic below)
       // Find or create LorryTransitDetail
-      let detail = await LorryTransitDetail.findOne({ where: { physicalInspectionId: inspection.id } });
+      let detail = await LorryTransitDetail.findOne({ where: { physicalInspectionId: sampleInspection.id } });
       if (!detail) {
         detail = await LorryTransitDetail.create({
-          physicalInspectionId: inspection.id,
-          sampleEntryId: inspection.sampleEntryId,
+          physicalInspectionId: sampleInspection.id,
+          sampleEntryId: sampleInspection.sampleEntryId,
           wbStatus: 'none',
           placeStatus: 'none'
         });
@@ -2660,8 +2660,8 @@ router.post('/:id/wb', auth, requireInventoryRole, async (req, res) => {
           // Update the auto-created Arrival weights
           const arrival = await Arrival.findOne({
             where: {
-              lorryNumber: inspection.lorryNumber,
-              remarks: { [Op.like]: `%inspection #${inspection.id}%` }
+              lorryNumber: sampleInspection.lorryNumber,
+              remarks: { [Op.like]: `%inspection #${sampleInspection.id}%` }
             }
           });
           if (arrival) {
