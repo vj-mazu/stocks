@@ -2478,7 +2478,8 @@ const Arrivals: React.FC = () => {
                                       }
                                       try {
                                         const token = localStorage.getItem('token');
-                                        await axios.post(`${API_URL}/arrivals/${entry.id}/wb`, {
+                                        // ✅ FIX: Use inspection.id (PhysicalInspection ID) instead of entry.id (Sample Entry ID)
+                                        await axios.post(`${API_URL}/arrivals/${inspection.id}/wb`, {
                                           wbInputType,
                                           millWbId: wbInputType === 'mill' ? Number(millWbId) : null,
                                           partyWbName: wbInputType === 'party' ? partyWbName : null,
