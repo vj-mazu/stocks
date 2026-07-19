@@ -2588,6 +2588,112 @@ router.post('/:id/wb', auth, requireInventoryRole, async (req, res) => {
       }
     }
 
+    // Check if id is a SampleEntry (from In-Transit tab)
+    const sampleEntry = await SampleEntry.findByPk(id);
+    if (sampleEntry) {
+      // Find the most recent PhysicalInspection for this Sample Entry
+      const inspection = await PhysicalInspection.findOne({
+        where: { sampleEntryId: id },
+        order: [['createdAt', 'DESC']]
+      });
+      
+      if (!inspection) {
+        return res.status(404).json({ error: 'No inspection found for this sample entry' });
+      }
+      
+      // Now process using the inspection's ID (redirect to PhysicalInspection logic below)
+      // Find or create LorryTransitDetail
+      let detail = await LorryTransitDetail.findOne({ where: { physicalInspectionId: inspection.id } });
+      if (!detail) {
+        detail = await LorryTransitDetail.create({
+          physicalInspectionId: inspection.id,
+          sampleEntryId: inspection.sampleEntryId,
+          wbStatus: 'none',
+          placeStatus: 'none'
+        });
+      }
+
+      if (wbInputType === 'party') {
+        // Party WB details go directly to the SampleEntry record (gate weights)
+        await sampleEntry.update({
+          partyWbName,
+          wbNo,
+          grossWeight: grossWeight ? Number(grossWeight) : null,
+          tareWeight: tareWeight ? Number(tareWeight) : null,
+          netWeight: netWeight ? Number(netWeight) : null,
+          wbStatus: 'approved' // Automatically approved since it is optional/informational
+        });
+
+        // Also update LorryTransitDetail to sync party name
+        await detail.update({
+          partyWbName
+        });
+
+        return res.json({ message: 'Party Weight Bridge added successfully', detail });
+      } else {
+        // Mill WB - check if already added (not just approved)
+        if (detail.millWbId && detail.wbStatus !== 'rejected') {
+          return res.status(400).json({ error: 'Mill WB already added for this lorry. Cannot add duplicate WB entry.' });
+        }
+
+        // Role-based approval logic
+        const userRole = req.user.role;
+        const isAutoApprove = userRole === 'admin' || userRole === 'owner';
+        const wbStatus = isAutoApprove ? 'approved' : 'pending';
+        const wbApprovedBy = isAutoApprove ? req.user.userId : null;
+        const wbApprovedAt = isAutoApprove ? new Date() : null;
+
+        await detail.update({
+          wbInputType: 'mill',
+          millWbId: Number(millWbId),
+          wbNo: wbNo || null,
+          grossWeight: grossWeight ? Number(grossWeight) : null,
+          tareWeight: tareWeight ? Number(tareWeight) : null,
+          netWeight: netWeight ? Number(netWeight) : null,
+          wbStatus,
+          wbRejectReason: null,
+          wbApprovedBy,
+          wbApprovedAt
+        });
+
+        if (isAutoApprove) {
+          // Update the auto-created Arrival weights
+          const arrival = await Arrival.findOne({
+            where: {
+              lorryNumber: inspection.lorryNumber,
+              remarks: { [Op.like]: `%inspection #${inspection.id}%` }
+            }
+          });
+          if (arrival) {
+            await arrival.update({
+              wbStatus: 'approved',
+              wbNo: detail.wbNo,
+              wbInputType: detail.wbInputType,
+              millWbId: detail.millWbId,
+              grossWeight: detail.grossWeight,
+              tareWeight: detail.tareWeight,
+              netWeight: detail.netWeight
+            });
+          }
+        }
+
+        const message = isAutoApprove 
+          ? 'Mill WB added and approved successfully' 
+          : 'Mill WB submitted for approval';
+        
+        // ✅ Return lightweight response with partyWbName (same as LorryTransitDetail branch)
+        return res.json({ 
+          message,
+          transitDetailId: detail.id,
+          wbStatus: detail.wbStatus,
+          millWbId: detail.millWbId,
+          wbNo: detail.wbNo,
+          netWeight: detail.netWeight,
+          partyWbName: sampleEntry.partyWbName || detail.partyWbName || null  // ✅ Include partyWbName
+        });
+      }
+    }
+
     // Next check if id is a PhysicalInspection
     const inspection = await PhysicalInspection.findByPk(id);
     if (inspection) {

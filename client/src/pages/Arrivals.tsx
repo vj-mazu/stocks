@@ -1610,7 +1610,7 @@ const Arrivals: React.FC = () => {
                                       ) : wbStatus === 'approved' ? (
                                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
                                           <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: 'bold' }}>✅ WB Approved</span>
-                                          {!entry.partyWbName && (
+                                          {!transitDetail?.partyWbName && !entry.partyWbName && (
                                             <button
                                               onClick={() => {
                                                 const rowKey = isPlaceholder ? `p-${entry.id}` : `i-${inspection.id}`;
