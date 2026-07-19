@@ -1114,7 +1114,12 @@ const Arrivals: React.FC = () => {
   const canAddInventoryQuality = user && (
     (user.role === 'staff' && ['mill', 'location', 'inventory'].includes(user.staffType)) ||
     user.role === 'inventory_head' ||
-    user.effectiveRole === 'inventory_head'
+    user.effectiveRole === 'inventory_head' ||
+    user.role === 'admin' ||
+    user.role === 'owner' ||
+    user.role === 'manager' ||
+    user.role === 'ceo' ||
+    user.effectiveRole === 'ceo'
   );
 
   const canApproveInventoryQuality = user && ['admin', 'owner', 'manager', 'ceo'].includes(user.role);
@@ -2274,7 +2279,7 @@ const Arrivals: React.FC = () => {
                           </td>
                           
                           {/* Column 13: Actions */}
-                          {(user?.role === 'owner' || user?.role === 'ceo' || user?.effectiveRole === 'ceo' || user?.role === 'inventory_head' || user?.effectiveRole === 'inventory_head' || user?.role === 'admin' || user?.role === 'manager') && !(user?.staffType === 'mill') && (
+                          {(user?.role === 'owner' || user?.role === 'ceo' || user?.effectiveRole === 'ceo' || user?.role === 'inventory_head' || user?.effectiveRole === 'inventory_head' || user?.role === 'admin' || user?.role === 'manager' || (user?.role === 'staff' && ['mill', 'location', 'inventory'].includes(user?.staffType))) && (
                             <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
                                 {/* Weight Bridge Actions */}

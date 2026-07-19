@@ -3204,11 +3204,16 @@ router.post('/bmb/:transitDetailId/inventory-quality', auth, async (req, res) =>
     const effectiveRole = req.user.effectiveRole;
     const staffType = req.user.staffType;
 
-    // Authorization: Mill Staff, Location Staff, Inventory Staff, Inventory Head
+    // Authorization: Mill Staff, Location Staff, Inventory Staff, Inventory Head, Admin, Manager, Owner, CEO
     const canAdd = 
       (userRole === 'staff' && (staffType === 'mill' || staffType === 'location' || staffType === 'inventory')) ||
       userRole === 'inventory_head' ||
-      effectiveRole === 'inventory_head';
+      effectiveRole === 'inventory_head' ||
+      userRole === 'admin' ||
+      userRole === 'owner' ||
+      userRole === 'manager' ||
+      userRole === 'ceo' ||
+      effectiveRole === 'ceo';
 
     if (!canAdd) {
       return res.status(403).json({ error: 'Not authorized to add inventory quality parameters' });
