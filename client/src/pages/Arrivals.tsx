@@ -1015,6 +1015,10 @@ const Arrivals: React.FC = () => {
         headers: { Authorization: `Bearer ${token}` },
         params
       });
+      // Reset toggle state
+      setInventoryQualityToggle({
+        dryMoisture: 'Y', sMix: 'Y', lMix: 'Y', paddyWb: 'Y', pColor: 'Y'
+      });
       const newEntries = response.data.entries || [];
       const pagination = response.data.pagination || {};
       
@@ -1844,6 +1848,9 @@ const Arrivals: React.FC = () => {
                                             }, {
                                               headers: { Authorization: `Bearer ${token}` }
                                             });
+                                          setInventoryQualityToggle({
+                                            dryMoisture: 'Y', sMix: 'Y', lMix: 'Y', paddyWb: 'Y', pColor: 'Y'
+                                          });
                                             const responseDetail = response?.data?.detail || response?.data || {};
                                             const savedStatus = wbInputType === 'party' ? 'approved' : (responseDetail?.wbStatus || response?.data?.wbStatus || 'pending');
                                             const savedWbNo = responseDetail?.wbNo || response?.data?.wbNo || wbNumber;
