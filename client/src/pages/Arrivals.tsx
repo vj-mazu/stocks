@@ -1424,6 +1424,13 @@ const Arrivals: React.FC = () => {
                         });
                       });
 
+                      // Sort flatTrips by date ascending so oldest entry gets SL No 1
+                      flatTrips.sort((a, b) => {
+                        const aDate = new Date(a.inspection?.inspectionDate || a.entry?.entryDate || 0).getTime();
+                        const bDate = new Date(b.inspection?.inspectionDate || b.entry?.entryDate || 0).getTime();
+                        return aDate - bDate;
+                      });
+
                       return flatTrips.map((trip, idx) => {
                         const { entry, inspection, isPlaceholder } = trip;
                         const dateVal = isPlaceholder ? entry.entryDate : (inspection.inspectionDate || entry.entryDate);
@@ -2148,7 +2155,7 @@ const Arrivals: React.FC = () => {
                         <tr style={{ borderBottom: '1px solid #e2e8f0', background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
                           {/* Column 1: SL No */}
                           <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600' }}>
-                            {idx + 1}
+                            {entry.slNo}
                           </td>
                           
                           {/* Column 2: Date */}
