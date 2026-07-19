@@ -1611,7 +1611,7 @@ const Arrivals: React.FC = () => {
                                       ) : wbStatus === 'approved' ? (
                                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
                                           <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: 'bold' }}>✅ WB Approved</span>
-                                          {!transitDetail?.partyWbName && !entry.partyWbName && (
+                                          {!transitDetail?.partyWbName && (
                                             <button
                                               onClick={() => {
                                                 const rowKey = isPlaceholder ? `p-${entry.id}` : `i-${inspection.id}`;
@@ -1804,8 +1804,8 @@ const Arrivals: React.FC = () => {
                                       </button>
                                       <button 
                                         onClick={async () => {
-                                          if (!wbNumber || (wbInputType === 'mill' && !millWbId)) {
-                                            toast.error('Please fill required fields (WB Number & Mill WB Name)');
+                                          if (!wbNumber || (wbInputType === 'mill' && !millWbId) || (wbInputType === 'party' && !partyWbName)) {
+                                            toast.error('Please fill required fields (WB Number & Mill/Party WB Name)');
                                             return;
                                           }
                                           if (!wbGrossWeight || !wbTareWeight) {
@@ -2479,8 +2479,8 @@ const Arrivals: React.FC = () => {
                                   </button>
                                   <button 
                                     onClick={async () => {
-                                      if (!wbNumber || (wbInputType === 'mill' && !millWbId)) {
-                                        toast.error('Please fill required fields (WB Number & Mill WB Name)');
+                                      if (!wbNumber || (wbInputType === 'mill' && !millWbId) || (wbInputType === 'party' && !partyWbName)) {
+                                        toast.error('Please fill required fields (WB Number & Mill/Party WB Name)');
                                         return;
                                       }
                                       if (!wbGrossWeight || !wbTareWeight) {
