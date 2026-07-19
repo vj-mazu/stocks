@@ -1133,6 +1133,68 @@ const Arrivals: React.FC = () => {
 
   // Inventory Quality Parameters Handlers
   const handleSubmitInventoryQuality = async (transitDetailId: string) => {
+    // Client-side validation matching Physical Inspection pattern - every required field
+    if (!inventoryQualityForm.moisture.trim()) {
+      toast.error('Moisture is required');
+      return;
+    }
+    if (inventoryQualityToggle.dryMoisture === 'Y' && !inventoryQualityForm.dryMoisture.trim()) {
+      toast.error('Dry Moisture value is required');
+      return;
+    }
+    if (!inventoryQualityForm.cutting.trim()) {
+      toast.error('Cutting is required');
+      return;
+    }
+    if (!inventoryQualityForm.bend.trim()) {
+      toast.error('Bend is required');
+      return;
+    }
+    if (!inventoryQualityForm.mix.trim()) {
+      toast.error('Mix is required');
+      return;
+    }
+    if (!inventoryQualityForm.grains.trim()) {
+      toast.error('Grains Count is required');
+      return;
+    }
+    if (!inventoryQualityForm.kandu.trim()) {
+      toast.error('Kandu is required');
+      return;
+    }
+    if (!inventoryQualityForm.oil.trim()) {
+      toast.error('Oil is required');
+      return;
+    }
+    if (!inventoryQualityForm.sk.trim()) {
+      toast.error('SK is required');
+      return;
+    }
+    if (inventoryQualityToggle.sMix === 'Y' && !inventoryQualityForm.sMix.trim()) {
+      toast.error('SMix value is required');
+      return;
+    }
+    if (inventoryQualityToggle.lMix === 'Y' && !inventoryQualityForm.lMix.trim()) {
+      toast.error('LMix value is required');
+      return;
+    }
+    if (inventoryQualityToggle.smellHas === 'Yes' && !inventoryQualityForm.smell.trim()) {
+      toast.error('Smell type is required');
+      return;
+    }
+    if (!inventoryQualityForm.pColor.trim()) {
+      toast.error('Paddy Discolor is required');
+      return;
+    }
+    if (inventoryQualityToggle.kadiga === 'Y' && !inventoryQualityForm.kadiga.trim()) {
+      toast.error('Kadiga is required');
+      return;
+    }
+    if (inventoryQualityToggle.paddyWb === 'Y' && !inventoryQualityForm.paddyWb.trim()) {
+      toast.error('Paddy WB value is required');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
       await axios.post(
