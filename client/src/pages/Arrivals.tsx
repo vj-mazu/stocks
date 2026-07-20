@@ -2436,7 +2436,7 @@ const Arrivals: React.FC = () => {
                               )
                             ) : (
                               wbStatus === 'pending' ? 'PENDING ⏳' : '-'
-                            )
+                            )}
                           </td>
                           
                           {/* Column 10: Place */}
