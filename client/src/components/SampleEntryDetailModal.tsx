@@ -4004,7 +4004,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             )}
                                         </div>
                                     )}
-                                    {/* Weight Bridge & Place Details for Band Mall Book */}
+                                    {/* Weight Bridge & Godown Details for Band Mall Book */}
                                     {(detailEntry as any).isBandMalalBook && (() => {
                                         const hasPartyWb = !!((detailEntry as any).sampleEntry?.partyWbName || (detailEntry as any).partyWbName);
                                         return (
@@ -4104,7 +4104,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                 {/* Place Card */}
                                                 <div style={{ background: '#faf5ff', padding: '16px', borderRadius: '12px', border: '1.5px solid #e9d5ff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                                                     <div style={{ fontSize: '13px', color: '#6d28d9', marginBottom: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                        <span>📍</span> Place Details
+                                                        <span>📍</span> Godown Details
                                                     </div>
                                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                                                         <div>
@@ -4152,7 +4152,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         );
                                     })()}
                                     {/* Pricing & Patti - shown first for Completed Lots Pending Patti */}
-                                    {!isStaff && completedLotsOrder && (() => {
+                                    {!isStaff && completedLotsOrder && !(detailEntry as any)?.isBandMalalBook && (() => {
                                         const callback = (targetLorryTripId && targetRateLinkAction) ? async (rateInfo: any) => {
                                             await targetRateLinkAction(rateInfo);
                                             await refreshProgressData();
@@ -4514,7 +4514,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                     })()}
 
                                     {/* Pricing & Offers - hidden for Completed Lots Pending Patti (shown earlier) */}
-                                    {!isStaff && !completedLotsOrder && (() => {
+                                    {!isStaff && !completedLotsOrder && !(detailEntry as any)?.isBandMalalBook && (() => {
                                         const callback = (targetLorryTripId && targetRateLinkAction) ? async (rateInfo: any) => {
                                             await targetRateLinkAction(rateInfo);
                                             await refreshProgressData();

@@ -1077,7 +1077,7 @@ const Arrivals: React.FC = () => {
       await axios.post(`${API_URL}/arrivals/${id}/approve-place`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      toast.success('Place approved!');
+      toast.success('Godown approved!');
       fetchInTransitEntries();
       fetchBandMalalEntries();
     } catch (err: any) {
@@ -1093,7 +1093,7 @@ const Arrivals: React.FC = () => {
       await axios.post(`${API_URL}/arrivals/${id}/reject-place`, { reason }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      toast.success('Place rejected!');
+      toast.success('Godown rejected!');
       fetchInTransitEntries();
       fetchBandMalalEntries();
     } catch (err: any) {
@@ -1261,7 +1261,7 @@ const Arrivals: React.FC = () => {
           headers: { Authorization: `Bearer ${token}` }
         }
       );
-      toast.success(response?.data?.message || 'Inventory quality parameters submitted successfully');
+      toast.success(response?.data?.message || 'Mill quality parameters submitted successfully');
       setExpandedInventoryQuality(null);
       // Reset form
       setInventoryQualityForm({
@@ -1271,7 +1271,7 @@ const Arrivals: React.FC = () => {
       });
       fetchBandMalalEntries();
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to submit inventory quality parameters');
+      toast.error(error.response?.data?.error || 'Failed to submit mill quality parameters');
     }
   };
 
@@ -1285,10 +1285,10 @@ const Arrivals: React.FC = () => {
           headers: { Authorization: `Bearer ${token}` }
         }
       );
-      toast.success('Inventory quality parameters approved successfully');
+      toast.success('Mill quality parameters approved successfully');
       fetchBandMalalEntries();
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to approve inventory quality parameters');
+      toast.error(error.response?.data?.error || 'Failed to approve mill quality parameters');
     }
   };
 
@@ -1307,12 +1307,12 @@ const Arrivals: React.FC = () => {
           headers: { Authorization: `Bearer ${token}` }
         }
       );
-      toast.success('Inventory quality parameters rejected');
+      toast.success('Mill quality parameters rejected');
       setRejectInventoryQualityId(null);
       setRejectInventoryQualityReason('');
       fetchBandMalalEntries();
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to reject inventory quality parameters');
+      toast.error(error.response?.data?.error || 'Failed to reject mill quality parameters');
     }
   };
 
@@ -1489,7 +1489,7 @@ const Arrivals: React.FC = () => {
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '6%' }}>Moisture</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '6%' }}>Cutting</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>WB Number</th>
-                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Place</th>
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Godown</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Net Weight</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '12%' }}>Lorry Number</th>
                       {(((user as any)?.role === 'owner' || (user as any)?.role === 'staff' || (user as any)?.role === 'inventory_staff' || (user as any)?.role === 'financial_account' || (user as any)?.role === 'ceo' || (user as any)?.effectiveRole === 'ceo' || (user as any)?.role === 'inventory_head' || (user as any)?.effectiveRole === 'inventory_head' || (user as any)?.role === 'admin' || (user as any)?.role === 'manager') && !(user?.staffType === 'mill')) && (
@@ -1683,7 +1683,7 @@ const Arrivals: React.FC = () => {
                               {(((user as any)?.role === 'owner' || (user as any)?.role === 'staff' || (user as any)?.role === 'inventory_staff' || (user as any)?.role === 'financial_account' || (user as any)?.role === 'ceo' || (user as any)?.effectiveRole === 'ceo' || (user as any)?.role === 'inventory_head' || (user as any)?.effectiveRole === 'inventory_head' || (user as any)?.role === 'admin' || (user as any)?.role === 'manager') && !(user?.staffType === 'mill')) && (
                                 <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>
                                   <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
-                                    {/* Place Action Section */}
+                                    {/* Godown Action Section */}
                                     <div style={{ display: 'flex', gap: '4px' }}>
                                       {placeStatus === 'pending' && isApprover ? (
                                         <>
@@ -1694,7 +1694,7 @@ const Arrivals: React.FC = () => {
                                               background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer'
                                             }}
                                           >
-                                            Approve Place
+                                            Approve Godown
                                           </button>
                                           <button
                                             onClick={() => handleRejectPlace(inspection.id)}
@@ -1703,7 +1703,7 @@ const Arrivals: React.FC = () => {
                                               background: '#ef4444', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer'
                                             }}
                                           >
-                                            Reject Place
+                                            Reject Godown
                                           </button>
                                         </>
                                       ) : placeStatus === 'approved' ? (
@@ -2256,16 +2256,16 @@ const Arrivals: React.FC = () => {
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '3%' }}>SL No</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '7%' }}>Date</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '10%' }}>Broker</th>
-                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '12%' }}>From/Party</th>
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '12%' }}>Party</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>No. of Bags</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '10%' }}>Variety</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '6%' }}>Moisture</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '6%' }}>Cutting</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>WB Number</th>
-                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Place</th>
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Godown</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Net Weight</th>
-                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Approved By</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '12%' }}>Lorry Number</th>
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Approved By</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '5%' }}>Actions</th>
                   </tr>
                 </thead>
@@ -2277,17 +2277,19 @@ const Arrivals: React.FC = () => {
                     const placeStatus = entry.placeStatus || 'none';
                     
                     // Format bags display (bags count + packaging size)
-                    const bagsDisplay = entry.bags 
-                      ? `${entry.bags} ${entry.packaging ? `(${entry.packaging} Kg)` : ''}` 
-                      : '-';
+                    const bagsCount = entry.bags || '-';
+                    const bagsKg = entry.packaging ? `${entry.packaging} Kg` : '';
                     
                     // Use getCuttingValue helper for cutting display
-                    const cuttingDisplay = getCuttingValue(entry, null);
+                    // ponytail: moisture/cutting from approved quality params
+                    const iqParams = entry.inventoryQualityParameters || [];
+                    const approvedFull = iqParams.find((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
+                    const approvedLot = iqParams.find((p: any) => p.type === 'lot_avg' && p.status === 'approved');
+                    const iqSource = approvedFull || approvedLot;
+                    const cuttingDisplay = iqSource ? (iqSource.cutting || '-') : getCuttingValue(entry, null);
                     
                     // Format moisture display
-                    const moistureDisplay = entry.moisture 
-                      ? `${entry.moisture}%` 
-                      : '-';
+                    const moistureDisplay = iqSource ? `${iqSource.moisture || '-'}%` : (entry.moisture ? `${entry.moisture}%` : '-');
                     
                     // Determine place display based on type
                     let placeDisplay = '-';
@@ -2376,6 +2378,7 @@ const Arrivals: React.FC = () => {
                                   setSelectedDetailEntry({
                                     ...entry,
                                     isBandMalalBook: true,
+                                    isBandMalalBook: true,
                                   });
                                   setIsDetailOpen(true);
                                 } finally {
@@ -2401,7 +2404,7 @@ const Arrivals: React.FC = () => {
                           
                           {/* Column 5: No. of Bags */}
                           <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700' }}>
-                            {bagsDisplay}
+                            <div><div style={{ fontWeight: '700' }}>{bagsCount}</div>{bagsKg && <div style={{ fontSize: '10px', color: '#64748b' }}>{bagsKg}</div>}</div>
                           </td>
                           
                           {/* Column 6: Variety */}
@@ -2449,14 +2452,14 @@ const Arrivals: React.FC = () => {
                             {netWeightVal ? `${netWeightVal} Kg` : '-'}
                           </td>
 
-                          {/* Column 11a: Approved By */}
-                          <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: entry.wbApprover ? '#16a34a' : '#b45309' }}>
-                            {entry.wbApprover?.username || entry.wbApprover?.fullName || (entry.wbStatus === 'approved' ? 'Auto Approved' : entry.wbStatus === 'pending' ? 'Pending Approval' : '-')}
-                          </td>
-                          
                           {/* Column 12: Lorry Number */}
                           <td style={{ border: '1px solid #000', padding: '5px', fontWeight: '800', color: '#1e40af' }}>
                             {(entry.lorryNumber || 'N/A').toUpperCase()}
+                          </td>
+                          
+                          {/* Column 11a: Approved By */}
+                          <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: entry.wbApprover ? '#16a34a' : '#b45309' }}>
+                            {entry.wbApprover?.username || entry.wbApprover?.fullName || (entry.wbStatus === 'approved' ? 'Auto Approved' : entry.wbStatus === 'pending' ? 'Pending Approval' : '-')}
                           </td>
                           
                           {/* Column 13: Actions */}
@@ -4224,10 +4227,10 @@ const Arrivals: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Place Details */}
+                {/* Godown Details */}
                 <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
                   <div style={{ backgroundColor: '#f1f5f9', padding: '8px 12px', borderBottom: '1px solid #e2e8f0', fontSize: '12px', fontWeight: 'bold', color: '#334155' }}>
-                    📍 Placement Location Details
+                    📍 Godown Location Details
                   </div>
                   <div style={{ padding: '12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                     <div>

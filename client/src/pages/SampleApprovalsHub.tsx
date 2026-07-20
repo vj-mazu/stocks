@@ -214,7 +214,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
       setPendingInventoryQualityApprovals(entries);
       setInventoryQualityApprovalCount(entries.length);
     } catch (error) {
-      console.error('Error fetching Arrivals inventory quality approvals:', error);
+      console.error('Error fetching Arrivals mill quality approvals:', error);
     } finally {
       if (!isSilent) {
         setLoadingInventoryQualityApprovals(false);
@@ -363,8 +363,8 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
       fetchInventoryQualityApprovals();
       fetchCounts();
     } catch (error: any) {
-      console.error('Error approving inventory quality:', error);
-      toast.error(error.response?.data?.error || 'Failed to approve inventory quality');
+      console.error('Error approving mill quality:', error);
+      toast.error(error.response?.data?.error || 'Failed to approve mill quality');
     } finally {
       setProcessingLorry(false);
     }
@@ -384,8 +384,8 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
       fetchInventoryQualityApprovals();
       fetchCounts();
     } catch (error: any) {
-      console.error('Error rejecting inventory quality:', error);
-      toast.error(error.response?.data?.error || 'Failed to reject inventory quality');
+      console.error('Error rejecting mill quality:', error);
+      toast.error(error.response?.data?.error || 'Failed to reject mill quality');
     } finally {
       setProcessingLorry(false);
     }
@@ -1303,13 +1303,13 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     };
 
     if (loadingInventoryQualityApprovals) {
-      return <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>Loading arrivals inventory quality approvals...</div>;
+      return <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>Loading arrivals mill quality approvals...</div>;
     }
 
     if (pendingInventoryQualityApprovals.length === 0) {
       return (
         <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8' }}>
-          No pending arrivals inventory quality approvals.
+          No pending arrivals mill quality approvals.
         </div>
       );
     }
