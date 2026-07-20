@@ -1580,8 +1580,8 @@ const Arrivals: React.FC = () => {
                         const transitDetail = isPlaceholder ? null : inspection?.lorryTransitDetail;
                         const placeStatus = transitDetail?.placeStatus || 'none';
                         const wbStatus = transitDetail?.wbStatus || 'none';
-                        const wbNoVal = transitDetail?.wbNo || '-';
-                        const netWeightVal = transitDetail?.netWeight || '-';
+                        const wbNoVal = (transitDetail?.wbInputType === 'mill') ? (transitDetail?.wbNo || '-') : '-';
+                        const netWeightVal = (transitDetail?.wbInputType === 'mill') ? (transitDetail?.netWeight || '-') : '-';
 
                         const isApprover = (user as any)?.role === 'owner' || 
                                            (user as any)?.role === 'ceo' || 
@@ -2421,18 +2421,22 @@ const Arrivals: React.FC = () => {
                           
                           {/* Column 9: WB Number */}
                           <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>
-                            {wbStatus === 'approved' || wbStatus === 'pending' ? (
-                              <span style={{ 
-                                padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold',
-                                background: wbStatus === 'approved' ? '#dcfce7' : '#fef3c7',
-                                color: wbStatus === 'approved' ? '#166534' : '#92400e'
-                              }}>
-                                {entry.wbNo || 'PENDING'}
-                                {wbStatus === 'pending' && ' ⏳'}
-                              </span>
-                            ) : (
-                              entry.wbNo || (wbStatus === 'none' ? '⚠️ Required' : '-')
-                            )}
+                            {entry.wbInputType === 'mill' ? (
+                              wbStatus === 'approved' || wbStatus === 'pending' ? (
+                                <span style={{
+                                  padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold',
+                                  background: wbStatus === 'approved' ? '#dcfce7' : '#fef3c7',
+                                  color: wbStatus === 'approved' ? '#166534' : '#92400e'
+                                }}>
+                                  {entry.wbNo || 'PENDING'}
+                                  {wbStatus === 'pending' && ' ⏳'}
+                                </span>
+                              ) : (
+                                entry.wbNo || (wbStatus === 'none' ? '⚠️ Required' : '-')
+                              )
+                            ) : (
+                              wbStatus === 'pending' ? 'PENDING ⏳' : '-'
+                            )
                           </td>
                           
                           {/* Column 10: Place */}
