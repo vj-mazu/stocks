@@ -6816,7 +6816,9 @@ router.post('/bmb/:transitDetailId/inventory-quality', auth, async (req, res) =>
 
       pColor,
 
-      remarks
+      remarks,
+
+      kadiga
 
     } = req.body;
 
@@ -6915,6 +6917,8 @@ router.post('/bmb/:transitDetailId/inventory-quality', auth, async (req, res) =>
       pColor,
 
       remarks,
+
+      kadiga: kadiga || 'N',
 
       reportedByUserId: req.user.userId,
 
