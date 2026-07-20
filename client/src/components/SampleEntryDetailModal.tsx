@@ -3983,21 +3983,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 </div>
                                 {/* Standardized Horizontal Tables Section */}
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
-                                    {/* 1. Quality Parameters (Sample entry details) */}
-                                    <div style={{ position: 'sticky', top: '0', zIndex: 20, backgroundColor: '#ffffff', paddingBottom: '10px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-                                        {renderHorizontalTable(
-                                            'Quality Parameters', 
-                                            '🔬', 
-                                            '#f97316', 
-                                            progressiveMode
-                                                ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', '', 'ACTIONS']
-                                                : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', ''],
-                                            buildInitialQualityRows(),
-                                            { isQuality: true }
-                                        )}
-                                    </div>
-
-                                    {/* 2. Lorry Load Details (Progressive Loads) for Band Mall Book */}
+                                    {/* 1. Lorry Load Details (Progressive Loads) for Band Mall Book */}
                                     {(detailEntry as any).isBandMalalBook && (() => {
                                         const insps = (inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections)
                                             ? inspectionsProgress.previousInspections
@@ -4031,7 +4017,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         );
                                     })()}
 
-                                    {/* 3. Mill Quality Parameters (Inventory Quality) */}
+                                    {/* 2. Mill Quality Parameters (Inventory Quality) */}
                                     {(detailEntry as any).isBandMalalBook && (detailEntry as any).inventoryQualityParameters && (detailEntry as any).inventoryQualityParameters.length > 0 && (
                                         <div style={{ marginTop: '8px' }}>
                                             {renderHorizontalTable(
@@ -4045,94 +4031,21 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         </div>
                                     )}
 
-                                    {/* 4. Patti Rate Linking Details */}
-                                    {(detailEntry as any).isBandMalalBook && (() => {
-                                        const rawInspections = (detailEntry as any).physicalInspections || [];
-                                        const patti = detailEntry.offering || {};
-                                        const inspections = rawInspections.filter((insp: any) => {
-                                            const isPendingRate = patti?.pendingRateLinkingStatus === 'pending' && String(patti?.pendingRateLinkingData?.targetLorryTripId) === String(insp.id);
-                                            return !!insp.linkedPattiRate || isPendingRate;
-                                        });
-                                        if (inspections.length === 0) return null;
-                                        return (
-                                            <div style={{ marginTop: '16px' }}>
-                                                <div style={{
-                                                    backgroundColor: '#1a237e',
-                                                    color: '#ffffff',
-                                                    padding: '8px 12px',
-                                                    fontWeight: '800',
-                                                    fontSize: '12px',
-                                                    borderTopLeftRadius: '6px',
-                                                    borderTopRightRadius: '6px',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '6px'
-                                                }}>
-                                                    <span>📋</span> Patti Rate Linking Details
-                                                </div>
-                                                <div style={{ overflowX: 'auto' }}>
-                                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #cbd5e1' }}>
-                                                        <thead>
-                                                            <tr style={{ background: '#f1f5f9', color: '#334155', borderBottom: '2px solid #cbd5e1' }}>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>SL NO</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>DATE</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'left', border: '1px solid #cbd5e1' }}>LORRY NUMBER</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BASE RATE</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>SUTE</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>MOISTURE</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>HAMALI</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BROKERAGE</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>LF</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>EGB</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>CD</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BANK LOAN</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PAYMENT</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '75px' }}>STATUS</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {inspections.map((insp: any, idx: number) => {
-                                                                const tripRate = insp.linkedPattiRate || null;
-                                                                const isPendingRate = patti?.pendingRateLinkingStatus === 'pending' && String(patti?.pendingRateLinkingData?.targetLorryTripId) === String(insp.id);
-                                                                const activeRateInfo = tripRate ? tripRate : (isPendingRate ? (patti.pendingRateLinkingData.rateInfo || patti.pendingRateLinkingData) : null);
-                                                                const rRate = activeRateInfo?.rate;
-                                                                const rRateType = activeRateInfo?.rateType || activeRateInfo?.baseRateType;
-                                                                const rSute = activeRateInfo?.sute;
-                                                                const rSuteUnit = activeRateInfo?.suteUnit;
-                                                                const rMoisture = activeRateInfo?.moisture || activeRateInfo?.moistureValue;
-                                                                const rHamali = activeRateInfo?.hamali;
-                                                                const rHamaliUnit = activeRateInfo?.hamaliUnit;
-                                                                const rLf = activeRateInfo?.lf;
-                                                                const rLfUnit = activeRateInfo?.lfUnit;
-                                                                return (
-                                                                    <tr key={insp.id || idx} style={{ borderBottom: '1px solid #cbd5e1', backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', fontWeight: '700', border: '1px solid #cbd5e1' }}>{idx + 1}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1', whiteSpace: 'nowrap' }}>{insp.inspectionDate ? new Date(insp.inspectionDate).toLocaleDateString('en-GB') : '-'}</td>
-                                                                        <td style={{ padding: '8px', fontWeight: '700', border: '1px solid #cbd5e1' }}>{insp.lorryNumber?.toUpperCase() || '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', fontWeight: '700', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `Rs ${rRate} / ${(rRateType || 'PD/WB').replace(/_/g, '/')}` : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `${rSute || 0} / ${rSuteUnit}` : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `${rMoisture}%` : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `Rs ${rHamali} / ${rHamaliUnit}` : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.brokerage ? `Rs ${patti.brokerage} / ${patti.brokerageUnit}` : '-') : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `Rs ${rLf} / ${rLfUnit}` : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.egbValue ? `${patti.egbValue} / ${patti.egbType}` : '-') : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.cdEnabled && patti.cdValue ? `${patti.cdValue} / ${patti.cdUnit}` : '-') : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.bankLoanEnabled && patti.bankLoanValue ? `Rs ${patti.bankLoanValue} / ${patti.bankLoanUnit}` : '-') : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{patti.paymentConditionValue ? `${patti.paymentConditionValue} ${patti.paymentConditionUnit}` : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1', fontWeight: '700' }}>
-                                                                            {isPendingRate ? <span style={{ color: '#d97706', background: '#fffbeb', padding: '2px 8px', borderRadius: '4px', border: '1px solid #fef3c7' }}>Pending</span> : tripRate ? <span style={{ color: '#16a34a', background: '#f0fdf4', padding: '2px 8px', borderRadius: '4px', border: '1px solid #bbf7d0' }}>Completed</span> : '-'}
-                                                                        </td>
-                                                                    </tr>
-                                                                );
-                                                            })}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                        );
-                                    })()}
+                                    {/* 3. Quality Parameters (Sample entry details) */}
+                                    <div style={{ position: 'sticky', top: '0', zIndex: 20, backgroundColor: '#ffffff', paddingBottom: '10px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+                                        {renderHorizontalTable(
+                                            'Quality Parameters', 
+                                            '🔬', 
+                                            '#f97316', 
+                                            progressiveMode
+                                                ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', '', 'ACTIONS']
+                                                : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', ''],
+                                            buildInitialQualityRows(),
+                                            { isQuality: true }
+                                        )}
+                                    </div>
 
-                                    {/* 5. Weight Bridge & Godown Details for Band Mall Book */}
+                                    {/* 4. Weight Bridge & Godown Details for Band Mall Book */}
                                     {(detailEntry as any).isBandMalalBook && (() => {
                                         const hasPartyWb = !!((detailEntry as any).sampleEntry?.partyWbName || (detailEntry as any).partyWbName);
                                         return (
@@ -4268,6 +4181,93 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                             </div>
                                                         </div>
                                                     </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+
+                                    {/* 5. Patti Rate Linking Details */}
+                                    {(detailEntry as any).isBandMalalBook && (() => {
+                                        const rawInspections = (detailEntry as any).physicalInspections || [];
+                                        const patti = detailEntry.offering || {};
+                                        const inspections = rawInspections.filter((insp: any) => {
+                                            const isPendingRate = patti?.pendingRateLinkingStatus === 'pending' && String(patti?.pendingRateLinkingData?.targetLorryTripId) === String(insp.id);
+                                            return !!insp.linkedPattiRate || isPendingRate;
+                                        });
+                                        if (inspections.length === 0) return null;
+                                        return (
+                                            <div style={{ marginTop: '16px' }}>
+                                                <div style={{
+                                                    backgroundColor: '#1a237e',
+                                                    color: '#ffffff',
+                                                    padding: '8px 12px',
+                                                    fontWeight: '800',
+                                                    fontSize: '12px',
+                                                    borderTopLeftRadius: '6px',
+                                                    borderTopRightRadius: '6px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '6px'
+                                                }}>
+                                                    <span>📋</span> Patti Rate Linking Details
+                                                </div>
+                                                <div style={{ overflowX: 'auto' }}>
+                                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #cbd5e1' }}>
+                                                        <thead>
+                                                            <tr style={{ background: '#f1f5f9', color: '#334155', borderBottom: '2px solid #cbd5e1' }}>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>SL NO</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>DATE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'left', border: '1px solid #cbd5e1' }}>LORRY NUMBER</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BASE RATE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>SUTE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>MOISTURE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>HAMALI</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BROKERAGE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>LF</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>EGB</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>CD</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BANK LOAN</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PAYMENT</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '75px' }}>STATUS</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {inspections.map((insp: any, idx: number) => {
+                                                                const tripRate = insp.linkedPattiRate || null;
+                                                                const isPendingRate = patti?.pendingRateLinkingStatus === 'pending' && String(patti?.pendingRateLinkingData?.targetLorryTripId) === String(insp.id);
+                                                                const activeRateInfo = tripRate ? tripRate : (isPendingRate ? (patti.pendingRateLinkingData.rateInfo || patti.pendingRateLinkingData) : null);
+                                                                const rRate = activeRateInfo?.rate;
+                                                                const rRateType = activeRateInfo?.rateType || activeRateInfo?.baseRateType;
+                                                                const rSute = activeRateInfo?.sute;
+                                                                const rSuteUnit = activeRateInfo?.suteUnit;
+                                                                const rMoisture = activeRateInfo?.moisture || activeRateInfo?.moistureValue;
+                                                                const rHamali = activeRateInfo?.hamali;
+                                                                const rHamaliUnit = activeRateInfo?.hamaliUnit;
+                                                                const rLf = activeRateInfo?.lf;
+                                                                const rLfUnit = activeRateInfo?.lfUnit;
+                                                                return (
+                                                                    <tr key={insp.id || idx} style={{ borderBottom: '1px solid #cbd5e1', backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', fontWeight: '700', border: '1px solid #cbd5e1' }}>{idx + 1}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1', whiteSpace: 'nowrap' }}>{insp.inspectionDate ? new Date(insp.inspectionDate).toLocaleDateString('en-GB') : '-'}</td>
+                                                                        <td style={{ padding: '8px', fontWeight: '700', border: '1px solid #cbd5e1' }}>{insp.lorryNumber?.toUpperCase() || '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', fontWeight: '700', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `Rs ${rRate} / ${(rRateType || 'PD/WB').replace(/_/g, '/')}` : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `${rSute || 0} / ${rSuteUnit}` : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `${rMoisture}%` : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `Rs ${rHamali} / ${rHamaliUnit}` : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.brokerage ? `Rs ${patti.brokerage} / ${patti.brokerageUnit}` : '-') : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `Rs ${rLf} / ${rLfUnit}` : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.egbValue ? `${patti.egbValue} / ${patti.egbType}` : '-') : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.cdEnabled && patti.cdValue ? `${patti.cdValue} / ${patti.cdUnit}` : '-') : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.bankLoanEnabled && patti.bankLoanValue ? `Rs ${patti.bankLoanValue} / ${patti.bankLoanUnit}` : '-') : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{patti.paymentConditionValue ? `${patti.paymentConditionValue} ${patti.paymentConditionUnit}` : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1', fontWeight: '700' }}>
+                                                                            {isPendingRate ? <span style={{ color: '#d97706', background: '#fffbeb', padding: '2px 8px', borderRadius: '4px', border: '1px solid #fef3c7' }}>Pending</span> : tripRate ? <span style={{ color: '#16a34a', background: '#f0fdf4', padding: '2px 8px', borderRadius: '4px', border: '1px solid #bbf7d0' }}>Completed</span> : '-'}
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                        </tbody>
+                                                    </table>
                                                 </div>
                                             </div>
                                         );
