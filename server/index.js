@@ -1809,6 +1809,15 @@ const startServer = async () => {
         console.log('⚠️ Migration 146 warning:', error.message);
       }
 
+      // Add missing inventory quality parameter columns to database on startup
+      try {
+        const addMissingQualityColumns = require('./migrations/146_add_missing_quality_columns');
+        await addMissingQualityColumns.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('✅ Migration: Missing inventory quality columns checked and created');
+      } catch (error) {
+        console.log('⚠️ Migration missing quality columns warning:', error.message);
+      }
+
     // Default warehouses removed - users should create their own warehouses
 
     // Create default users if they don't exist
