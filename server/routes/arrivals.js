@@ -2625,9 +2625,16 @@ router.post('/:id/wb', auth, requireInventoryRole, async (req, res) => {
           });
         }
 
-        // Also update LorryTransitDetail to sync party name
+        // Also update LorryTransitDetail to sync party name, wbStatus, wbNo, weights and wbInputType
         await transitDetail.update({
-          partyWbName
+          partyWbName,
+          wbNo,
+          grossWeight: grossWeight ? Number(grossWeight) : null,
+          tareWeight: tareWeight ? Number(tareWeight) : null,
+          netWeight: netWeight ? Number(netWeight) : null,
+          wbStatus: 'approved',
+          wbInputType: 'party',
+          wbApprovedBy: req.user.userId
         });
 
         // Invalidate cache to refresh In-Transit and Band Malal Book

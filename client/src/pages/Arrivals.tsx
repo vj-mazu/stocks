@@ -1343,56 +1343,67 @@ const Arrivals: React.FC = () => {
     <Container>
       <Title>📝 Arrivals</Title>
 
-      <div style={{
-        display: 'flex',
-        gap: '8px',
-        marginBottom: '20px',
-        borderBottom: '1px solid #cbd5e1',
-        paddingBottom: '10px'
-      }}>
-        <button
-          onClick={() => setArrivalsActiveSubTab('transit')}
-          style={{
-            padding: '8px 16px',
-            border: 'none',
-            borderRadius: '4px',
-            background: arrivalsActiveSubTab === 'transit' ? '#10b981' : '#f1f5f9',
-            color: arrivalsActiveSubTab === 'transit' ? '#fff' : '#475569',
-            fontWeight: 'bold',
-            cursor: 'pointer'
-          }}
-        >
-          In Transit
-        </button>
-        <button
-          onClick={() => setArrivalsActiveSubTab('bandmalal')}
-          style={{
-            padding: '8px 16px',
-            border: 'none',
-            borderRadius: '4px',
-            background: arrivalsActiveSubTab === 'bandmalal' ? '#10b981' : '#f1f5f9',
-            color: arrivalsActiveSubTab === 'bandmalal' ? '#fff' : '#475569',
-            fontWeight: 'bold',
-            cursor: 'pointer'
-          }}
-        >
-          Band Mall Book
-        </button>
-        <button
-          onClick={() => setArrivalsActiveSubTab('entry')}
-          style={{
-            padding: '8px 16px',
-            border: 'none',
-            borderRadius: '4px',
-            background: arrivalsActiveSubTab === 'entry' ? '#10b981' : '#f1f5f9',
-            color: arrivalsActiveSubTab === 'entry' ? '#fff' : '#475569',
-            fontWeight: 'bold',
-            cursor: 'pointer'
-          }}
-        >
-          Arrivals Data Entry
-        </button>
-      </div>
+      {/* Auto-redirect Location and Mill Staff to Band Mall Book sub-tab */}
+      {(() => {
+        const isLocOrMill = user && (user as any).role === 'staff' && ['mill', 'location'].includes((user as any).staffType);
+        if (isLocOrMill && arrivalsActiveSubTab !== 'bandmalal') {
+          setTimeout(() => setArrivalsActiveSubTab('bandmalal'), 0);
+        }
+        return null;
+      })()}
+
+      {!(user && (user as any).role === 'staff' && ['mill', 'location'].includes((user as any).staffType)) && (
+        <div style={{
+          display: 'flex',
+          gap: '8px',
+          marginBottom: '20px',
+          borderBottom: '1px solid #cbd5e1',
+          paddingBottom: '10px'
+        }}>
+          <button
+            onClick={() => setArrivalsActiveSubTab('transit')}
+            style={{
+              padding: '8px 16px',
+              border: 'none',
+              borderRadius: '4px',
+              background: arrivalsActiveSubTab === 'transit' ? '#10b981' : '#f1f5f9',
+              color: arrivalsActiveSubTab === 'transit' ? '#fff' : '#475569',
+              fontWeight: 'bold',
+              cursor: 'pointer'
+            }}
+          >
+            In Transit
+          </button>
+          <button
+            onClick={() => setArrivalsActiveSubTab('bandmalal')}
+            style={{
+              padding: '8px 16px',
+              border: 'none',
+              borderRadius: '4px',
+              background: arrivalsActiveSubTab === 'bandmalal' ? '#10b981' : '#f1f5f9',
+              color: arrivalsActiveSubTab === 'bandmalal' ? '#fff' : '#475569',
+              fontWeight: 'bold',
+              cursor: 'pointer'
+            }}
+          >
+            Band Mall Book
+          </button>
+          <button
+            onClick={() => setArrivalsActiveSubTab('entry')}
+            style={{
+              padding: '8px 16px',
+              border: 'none',
+              borderRadius: '4px',
+              background: arrivalsActiveSubTab === 'entry' ? '#10b981' : '#f1f5f9',
+              color: arrivalsActiveSubTab === 'entry' ? '#fff' : '#475569',
+              fontWeight: 'bold',
+              cursor: 'pointer'
+            }}
+          >
+            Arrivals Data Entry
+          </button>
+        </div>
+      )}
 
       {arrivalsActiveSubTab === 'transit' ? (
         <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.07)', border: '2px solid #f3f4f6' }}>
@@ -2445,53 +2456,55 @@ const Arrivals: React.FC = () => {
                             <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
                                 {/* Weight Bridge Actions */}
-                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                                  {wbStatus === 'pending' && isApprover ? (
-                                    <>
-                                      <button onClick={() => handleApproveWb(entry.id)} style={{ padding: '4px 6px', border: 'none', borderRadius: '4px', background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer' }}>Approve</button>
-                                      <button onClick={() => handleRejectWb(entry.id)} style={{ padding: '4px 6px', border: 'none', borderRadius: '4px', background: '#ef4444', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer' }}>Reject</button>
-                                    </>
-                                  ) : wbStatus === 'pending' ? (
-                                    <span style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold' }}>WB Pending</span>
-                                  ) : wbStatus === 'approved' ? (
-                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                                      <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: 'bold' }}>✅ WB Approved</span>
-                                      {!entry.partyWbName && (
-                                        <button
-                                          onClick={() => {
-                                            const lorry = (entry.lorryNumber || 'N/A').toUpperCase();
-                                            if (selectedLorryForWB === lorry) {
-                                              setSelectedLorryForWB(null);
-                                              setSelectedLorryInspection(null);
-                                            } else {
-                                              setSelectedLorryForWB(lorry);
-                                              setSelectedLorryInspection(entry);
-                                              setWbInputType('party');
-                                              setWbNumber('');
-                                              setPartyWbName('');
-                                              setWbGrossWeight('');
-                                              setWbTareWeight('');
-                                              setWbNetWeight('');
-                                            }
-                                          }}
-                                          style={{
-                                            padding: '2px 6px', border: 'none', borderRadius: '4px',
-                                            background: selectedLorryForWB === (entry.lorryNumber || 'N/A').toUpperCase() ? '#64748b' : '#2563eb',
-                                            color: '#fff', fontWeight: 'bold', fontSize: '10px', cursor: 'pointer'
-                                          }}
-                                        >
-                                          + Party WB
-                                        </button>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <button onClick={() => {
-                                      const lorry = (entry.lorryNumber || 'N/A').toUpperCase();
-                                      if (selectedLorryForWB === lorry) { setSelectedLorryForWB(null); setSelectedLorryInspection(null); }
-                                      else { setSelectedLorryForWB(lorry); setSelectedLorryInspection(entry); setWbNumber(''); setMillWbId(''); setWbGrossWeight(''); setWbTareWeight(''); }
-                                    }} style={{ padding: '4px 6px', border: 'none', borderRadius: '4px', background: selectedLorryForWB === (entry.lorryNumber || 'N/A').toUpperCase() ? '#64748b' : 'linear-gradient(135deg, #d97706, #b45309)', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer' }}>Add WB</button>
-                                  )}
-                                </div>
+                                {!(user && (user as any).role === 'staff' && ['mill', 'location'].includes((user as any).staffType)) && (
+                                  <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                                    {wbStatus === 'pending' && isApprover ? (
+                                      <>
+                                        <button onClick={() => handleApproveWb(entry.id)} style={{ padding: '4px 6px', border: 'none', borderRadius: '4px', background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer' }}>Approve</button>
+                                        <button onClick={() => handleRejectWb(entry.id)} style={{ padding: '4px 6px', border: 'none', borderRadius: '4px', background: '#ef4444', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer' }}>Reject</button>
+                                      </>
+                                    ) : wbStatus === 'pending' ? (
+                                      <span style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold' }}>WB Pending</span>
+                                    ) : wbStatus === 'approved' ? (
+                                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                                        <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: 'bold' }}>✅ WB Approved</span>
+                                        {!entry.partyWbName && (
+                                          <button
+                                            onClick={() => {
+                                              const lorry = (entry.lorryNumber || 'N/A').toUpperCase();
+                                              if (selectedLorryForWB === lorry) {
+                                                setSelectedLorryForWB(null);
+                                                setSelectedLorryInspection(null);
+                                              } else {
+                                                setSelectedLorryForWB(lorry);
+                                                setSelectedLorryInspection(entry);
+                                                setWbInputType('party');
+                                                setWbNumber('');
+                                                setPartyWbName('');
+                                                setWbGrossWeight('');
+                                                setWbTareWeight('');
+                                                setWbNetWeight('');
+                                              }
+                                            }}
+                                            style={{
+                                              padding: '2px 6px', border: 'none', borderRadius: '4px',
+                                              background: selectedLorryForWB === (entry.lorryNumber || 'N/A').toUpperCase() ? '#64748b' : '#2563eb',
+                                              color: '#fff', fontWeight: 'bold', fontSize: '10px', cursor: 'pointer'
+                                            }}
+                                          >
+                                            + Party WB
+                                          </button>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <button onClick={() => {
+                                        const lorry = (entry.lorryNumber || 'N/A').toUpperCase();
+                                        if (selectedLorryForWB === lorry) { setSelectedLorryForWB(null); setSelectedLorryInspection(null); }
+                                        else { setSelectedLorryForWB(lorry); setSelectedLorryInspection(entry); setWbNumber(''); setMillWbId(''); setWbGrossWeight(''); setWbTareWeight(''); }
+                                      }} style={{ padding: '4px 6px', border: 'none', borderRadius: '4px', background: selectedLorryForWB === (entry.lorryNumber || 'N/A').toUpperCase() ? '#64748b' : 'linear-gradient(135deg, #d97706, #b45309)', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer' }}>Add WB</button>
+                                    )}
+                                  </div>
+                                )}
                                 {/* Inventory Quality Button */}
                                  {canAddInventoryQuality && (() => {
                                    const params = entry.inventoryQualityParameters || [];

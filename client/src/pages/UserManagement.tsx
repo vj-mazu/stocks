@@ -641,7 +641,40 @@ const UserManagement: React.FC = () => {
         try {
             setLoading(true);
             const response = await axios.get<{ users: User[] }>(`${API_URL}/admin/users`, getAuthConfig());
-            setUsers(response.data.users || []);
+            const userList = response.data.users || [];
+            
+            // Sort by role hierarchy:
+            // 1. Admin, 2. CEO, 3. Manager, 4. Financial Head, 5. Financial Staff, 
+            // 6. Inventory Head, 7. Inventory Staff, 8. Location Staff, 9. Mill Staff
+            const roleWeight = (role: string, staffType?: string): number => {
+                const r = String(role || '').toLowerCase().trim();
+                const s = String(staffType || '').toLowerCase().trim();
+                
+                if (r === 'admin') return 10;
+                if (r === 'ceo') return 9;
+                if (r === 'manager') return 8;
+                if (r === 'financial_head' || r === 'financial_account') return 7;
+                if (r === 'financial_staff') return 6;
+                if (r === 'inventory_head') return 5;
+                if (r === 'inventory_staff') return 4;
+                if (r === 'staff' && s === 'location') return 3;
+                if (r === 'location_staff') return 3;
+                if (r === 'staff' && s === 'mill') return 2;
+                if (r === 'mill_staff') return 2;
+                return 1;
+            };
+
+            userList.sort((a, b) => {
+                const weightA = roleWeight(a.role, a.staffType);
+                const weightB = roleWeight(b.role, b.staffType);
+                if (weightA !== weightB) {
+                    return weightB - weightA; // Higher weight first
+                }
+                // Secondary sort: username alphabetically
+                return String(a.username || '').localeCompare(String(b.username || ''));
+            });
+
+            setUsers(userList);
         } catch (error: any) {
             console.error('Fetch users error:', error);
             toast.error(error.response?.data?.error || 'Failed to load users');
