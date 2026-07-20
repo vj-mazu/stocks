@@ -118,6 +118,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
   const [pendingInventoryQualityApprovals, setPendingInventoryQualityApprovals] = useState<any[]>([]);
   const [loadingInventoryQualityApprovals, setLoadingInventoryQualityApprovals] = useState(false);
   const [inventoryQualityApprovalCount, setInventoryQualityApprovalCount] = useState(0);
+  const [transitApprovalsCount, setTransitApprovalsCount] = useState(0);
 
   const [pendingLorryInspections, setPendingLorryInspections] = useState<any[]>([]);
   const [loadingQuality, setLoadingQuality] = useState(false);
@@ -174,7 +175,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     return (saved && allowedKeys.includes(saved)) ? (saved as ApprovalTabKey) : 'approval-for-edits';
   });
   const totalPendingCount = editApprovalCount + 
-    (canAccessManagerApprovals ? (managerApprovalCount + lorryApprovalCount + rateLinkingCount) : 0) + 
+    (canAccessManagerApprovals ? (managerApprovalCount + lorryApprovalCount + rateLinkingCount + transitApprovalsCount) : 0) + 
     (canAccessLoadingQuality ? (loadingQualityApprovalCount + inventoryQualityApprovalCount) : 0);
 
   const fetchLoadingQuality = useCallback(async (isSilent = false) => {
@@ -259,11 +260,21 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
         const rateLinkEntriesList = rateLinkRes.data?.entries || [];
         setRateLinkingEntries(rateLinkEntriesList);
         setRateLinkingCount(rateLinkEntriesList.length);
+        // Fetch In-Transit approvals count
+        const transitRes = await axios.get(`${API_URL}/arrivals/transit-approvals/pending`, { headers });
+        const transitPending = transitRes.data?.arrivals || transitRes.data?.data || [];
+        let transitRowsCount = 0;
+        transitPending.forEach((entry: any) => {
+          if (entry.placeStatus === 'pending') transitRowsCount++;
+          if (entry.wbStatus === 'pending') transitRowsCount++;
+        });
+        setTransitApprovalsCount(transitRowsCount);
       } else {
         setManagerApprovalCount(0);
         setLorryApprovalCount(0);
         setRateLinkingCount(0);
         setRateLinkingEntries([]);
+        setTransitApprovalsCount(0);
       }
     } catch (err) {
       console.error('Error fetching global approvals counts:', err);
@@ -1304,20 +1315,24 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     }
 
     const CELL: React.CSSProperties = {
-      padding: '10px 12px',
-      borderRight: '1px solid #e2e8f0',
+      padding: '6px 8px',
+      borderRight: '1px solid #cbd5e1',
+      borderBottom: '1px solid #cbd5e1',
       verticalAlign: 'middle',
-      fontSize: '12px'
+      fontSize: '11.5px',
+      textAlign: 'center'
     };
 
     const CELL_HEAD: React.CSSProperties = {
-      padding: '10px 12px',
-      borderRight: '1px solid #e2e8f0',
-      textAlign: 'left',
-      fontWeight: '700',
-      fontSize: '12px',
-      color: '#0f766e',
-      backgroundColor: '#f0fdf4'
+      padding: '8px 6px',
+      borderRight: '1px solid #0f766e',
+      borderBottom: '2px solid #0f766e',
+      textAlign: 'center',
+      fontWeight: '800',
+      fontSize: '11px',
+      color: '#fff',
+      backgroundColor: '#0f766e',
+      whiteSpace: 'nowrap'
     };
 
     return (
@@ -1325,18 +1340,32 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
         <div style={{ marginBottom: '12px', fontSize: '13px', color: '#374151', fontWeight: 600 }}>
           📋 {pendingInventoryQualityApprovals.length} pending quality parameter approval{pendingInventoryQualityApprovals.length > 1 ? 's' : ''}
         </div>
-        <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid #cbd5e1', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: '#fff' }}>
+        <div style={{ overflowX: 'auto', borderRadius: '10px', border: '1px solid #0f766e', boxShadow: '0 4px 16px rgba(15,118,110,0.15)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: '#fff', minWidth: '1600px' }}>
             <thead>
-              <tr style={{ borderBottom: '2px solid #cbd5e1' }}>
-                <th style={{ ...CELL_HEAD, width: '40px' }}>#</th>
-                <th style={{ ...CELL_HEAD, width: '100px' }}>Date</th>
-                <th style={CELL_HEAD}>Party / Lorry</th>
-                <th style={{ ...CELL_HEAD, width: '70px' }}>Bags</th>
-                <th style={{ ...CELL_HEAD, width: '120px' }}>Type</th>
-                <th style={{ ...CELL_HEAD, minWidth: '380px' }}>📊 Quality Parameters</th>
-                <th style={CELL_HEAD}>Reporter / Remarks</th>
-                <th style={{ ...CELL_HEAD, textAlign: 'center', width: '200px' }}>Actions</th>
+              <tr>
+                <th style={{ ...CELL_HEAD, width: '35px' }}>#</th>
+                <th style={{ ...CELL_HEAD, width: '80px' }}>Date</th>
+                <th style={{ ...CELL_HEAD, textAlign: 'left', minWidth: '160px' }}>Party / Lorry</th>
+                <th style={{ ...CELL_HEAD, width: '50px' }}>Bags</th>
+                <th style={{ ...CELL_HEAD, width: '90px' }}>Type</th>
+                <th style={CELL_HEAD}>MST</th>
+                <th style={CELL_HEAD}>DRY</th>
+                <th style={CELL_HEAD}>CUT</th>
+                <th style={CELL_HEAD}>BND</th>
+                <th style={CELL_HEAD}>GRN</th>
+                <th style={CELL_HEAD}>MIX</th>
+                <th style={CELL_HEAD}>SMIX</th>
+                <th style={CELL_HEAD}>LMIX</th>
+                <th style={CELL_HEAD}>KND</th>
+                <th style={CELL_HEAD}>OIL</th>
+                <th style={CELL_HEAD}>SK</th>
+                <th style={CELL_HEAD}>SML</th>
+                <th style={CELL_HEAD}>PWB</th>
+                <th style={CELL_HEAD}>PCOL</th>
+                <th style={CELL_HEAD}>KDG</th>
+                <th style={{ ...CELL_HEAD, textAlign: 'left', minWidth: '180px' }}>Reporter / Remarks</th>
+                <th style={{ ...CELL_HEAD, width: '140px' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -1344,63 +1373,62 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                 const sampleEntry = entry.lorryTransitDetail?.sampleEntry;
                 const inspection = entry.lorryTransitDetail?.physicalInspection;
                 const lorryNumber = entry.lorryTransitDetail?.lorryNumber || inspection?.lorryNumber || '-';
-                const typeLabel = entry.type === 'lot_avg' ? 'Lot Avg' : 'Full Lorry Avg';
-                
+                const typeLabel = entry.type === 'lot_avg' ? 'Lot Avg' : 'Full Lorry';
+
+                // Format values for parameters
+                const getVal = (v: any) => (v !== undefined && v !== null && String(v).trim() !== '') ? String(v) : '-';
+
                 return (
-                  <tr key={entry.id} style={{ borderBottom: '1px solid #e2e8f0', background: index % 2 === 0 ? '#fff' : '#f8fafc' }}>
-                    <td style={{ ...CELL, fontWeight: 'bold' }}>{index + 1}</td>
+                  <tr key={entry.id} style={{ borderBottom: '1px solid #cbd5e1', background: index % 2 === 0 ? '#ffffff' : '#f0fdfa' }}>
+                    <td style={{ ...CELL, fontWeight: 'bold', color: '#475569' }}>{index + 1}</td>
                     <td style={{ ...CELL, whiteSpace: 'nowrap' }}>{formatDate(entry.reportedAt)}</td>
-                    <td style={CELL}>
+                    <td style={{ ...CELL, textAlign: 'left' }}>
                       <div style={{ fontWeight: 'bold', color: '#1e293b' }}>{sampleEntry?.partyName || '-'}</div>
                       <div style={{ fontSize: '11px', color: '#1e40af', fontWeight: 'bold', marginTop: '2px' }}>🚚 {lorryNumber.toUpperCase()}</div>
-                      <div style={{ fontSize: '11px', color: '#64748b' }}>{sampleEntry?.variety || '-'} | Broker: {sampleEntry?.brokerName || '-'}</div>
+                      <div style={{ fontSize: '10px', color: '#64748b' }}>{sampleEntry?.variety || '-'} | Broker: {sampleEntry?.brokerName || '-'}</div>
                     </td>
                     <td style={{ ...CELL, fontWeight: 'bold' }}>{inspection?.bags || sampleEntry?.bags || '-'}</td>
                     <td style={CELL}>
                       <span style={{
                         padding: '3px 8px',
-                        background: entry.type === 'lot_avg' ? '#eff6ff' : '#faf5ff',
-                        color: entry.type === 'lot_avg' ? '#1d4ed8' : '#7c3aed',
-                        border: entry.type === 'lot_avg' ? '1px solid #bfdbfe' : '1px solid #e9d5ff',
+                        background: entry.type === 'lot_avg' ? '#ccfbf1' : '#f3e8ff',
+                        color: entry.type === 'lot_avg' ? '#0f766e' : '#6b21a8',
+                        border: entry.type === 'lot_avg' ? '1px solid #99f6e4' : '1px solid #d8b4fe',
                         borderRadius: '4px',
                         fontWeight: 'bold',
-                        fontSize: '11px',
-                        display: 'inline-block'
+                        fontSize: '10px'
                       }}>
                         {typeLabel}
                       </span>
                     </td>
-                    <td style={CELL}>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', fontSize: '11px' }}>
-                        <div>Moisture: <b>{entry.moisture || '-'}</b></div>
-                        <div>Dry: <b>{entry.dryMoisture || '-'}</b></div>
-                        <div>Cutting: <b>{entry.cutting || '-'}</b></div>
-                        <div>Bend: <b>{entry.bend || '-'}</b></div>
-                        <div>Grains: <b>{entry.grains || '-'}</b></div>
-                        <div>Mix: <b>{entry.mix || '-'}</b></div>
-                        <div>SMix: <b>{entry.sMix || '-'}</b></div>
-                        <div>LMix: <b>{entry.lMix || '-'}</b></div>
-                        <div>SK: <b>{entry.sk || '-'}</b></div>
-                        <div>Kandu: <b>{entry.kandu || '-'}</b></div>
-                        <div>Oil: <b>{entry.oil || '-'}</b></div>
-                        <div>Smell: <b>{entry.smell || '-'}</b></div>
-                        <div>Paddy WB: <b>{entry.paddyWb || '-'}</b></div>
-                        <div>Discolor: <b>{entry.pColor || '-'}</b></div>
-                        <div>Kadiga: <b>{entry.kadiga || '-'}</b></div>
-                      </div>
-                    </td>
-                    <td style={CELL}>
-                      <div style={{ fontSize: '11px', color: '#475569' }}>
+                    {/* Quality parameters columns */}
+                    <td style={{ ...CELL, fontWeight: '700', color: '#0f766e' }}>{getVal(entry.moisture)}</td>
+                    <td style={{ ...CELL, color: '#0d9488' }}>{getVal(entry.dryMoisture)}</td>
+                    <td style={{ ...CELL, fontWeight: '600' }}>{getVal(entry.cutting)}</td>
+                    <td style={{ ...CELL, fontWeight: '600' }}>{getVal(entry.bend)}</td>
+                    <td style={CELL}>{getVal(entry.grains)}</td>
+                    <td style={CELL}>{getVal(entry.mix)}</td>
+                    <td style={CELL}>{getVal(entry.sMix)}</td>
+                    <td style={CELL}>{getVal(entry.lMix)}</td>
+                    <td style={CELL}>{getVal(entry.kandu)}</td>
+                    <td style={CELL}>{getVal(entry.oil)}</td>
+                    <td style={CELL}>{getVal(entry.sk)}</td>
+                    <td style={{ ...CELL, fontStyle: entry.smell ? 'italic' : 'normal', fontWeight: entry.smell ? '600' : 'normal' }}>{getVal(entry.smell)}</td>
+                    <td style={CELL}>{getVal(entry.paddyWb)}</td>
+                    <td style={CELL}>{getVal(entry.pColor)}</td>
+                    <td style={{ ...CELL, fontWeight: '700', color: '#b45309' }}>{getVal(entry.kadiga)}</td>
+                    <td style={{ ...CELL, textAlign: 'left' }}>
+                      <div style={{ fontSize: '10.5px', color: '#475569' }}>
                         Reported: <b>{entry.reportedBy?.fullName || entry.reportedBy?.username || '-'}</b>
                       </div>
                       {entry.remarks && (
-                        <div style={{ marginTop: '4px', fontSize: '11px', color: '#b45309', background: '#fffbeb', padding: '4px 8px', borderRadius: '4px', border: '1px solid #fde68a' }}>
+                        <div style={{ marginTop: '4px', fontSize: '10px', color: '#b45309', background: '#fffbeb', padding: '3px 6px', borderRadius: '4px', border: '1px solid #fde68a' }}>
                           💬 {entry.remarks}
                         </div>
                       )}
                     </td>
-                    <td style={{ ...CELL, textAlign: 'center' }}>
-                      <div style={{ display: 'inline-flex', gap: '8px' }}>
+                    <td style={{ ...CELL, borderRight: 'none' }}>
+                      <div style={{ display: 'inline-flex', gap: '6px' }}>
                         <button
                           onClick={() => handleApproveBmbInventoryQuality(entry.id)}
                           disabled={processingLorry}
@@ -1408,14 +1436,15 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                             backgroundColor: '#10b981',
                             color: '#fff',
                             border: 'none',
-                            padding: '6px 14px',
+                            padding: '5px 10px',
                             borderRadius: '4px',
                             fontWeight: 'bold',
                             cursor: 'pointer',
-                            fontSize: '11px'
+                            fontSize: '11px',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
                           }}
                         >
-                          ✅ Approve
+                          Approve
                         </button>
                         <button
                           onClick={() => handleRejectBmbInventoryQuality(entry.id)}
@@ -1424,14 +1453,15 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                             backgroundColor: '#ef4444',
                             color: '#fff',
                             border: 'none',
-                            padding: '6px 14px',
+                            padding: '5px 10px',
                             borderRadius: '4px',
                             fontWeight: 'bold',
                             cursor: 'pointer',
-                            fontSize: '11px'
+                            fontSize: '11px',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
                           }}
                         >
-                          ❌ Reject
+                          Reject
                         </button>
                       </div>
                     </td>
@@ -1473,6 +1503,8 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                   ? rateLinkingCount
                   : tab.key === 'bmb-inventory-quality'
                     ? inventoryQualityApprovalCount
+                  : tab.key === 'transit-approvals'
+                    ? transitApprovalsCount
                     : loadingQualityApprovalCount;
           return (
             <button
