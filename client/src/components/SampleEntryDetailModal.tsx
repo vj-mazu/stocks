@@ -4522,7 +4522,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                     })()}
 
                                     {/* Progressive Loads - for original progressiveMode (not completedLotsOrder) */}
-                                    {!targetLorryTripId && progressiveMode && !completedLotsOrder && inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections) && (() => {
+                                    {!targetLorryTripId && progressiveMode && !completedLotsOrder && !(detailEntry as any).isBandMalalBook && inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections) && (() => {
                                         const activeLorryNumber = (detailEntry as any).clickedLorryNumber || (detailEntry as any).lorryNumber || (detailEntry as any).sampleEntry?.lorryNumber;
                                         const insps = inspectionsProgress.previousInspections.filter((insp: any) => {
                                             if (!activeLorryNumber) return true;
@@ -4574,7 +4574,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                     )}
 
                                     {/* Progressive Loads (Lorry) - shown last in Completed Lots Pending Patti */}
-                                    {!targetLorryTripId && progressiveMode && completedLotsOrder && inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections) && (() => {
+                                    {!targetLorryTripId && progressiveMode && completedLotsOrder && !(detailEntry as any).isBandMalalBook && inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections) && (() => {
                                         const activeLorryNumber = (detailEntry as any).clickedLorryNumber || (detailEntry as any).lorryNumber || (detailEntry as any).sampleEntry?.lorryNumber;
                                         const insps = inspectionsProgress.previousInspections.filter((insp: any) => {
                                             if (!activeLorryNumber) return true;
