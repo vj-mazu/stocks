@@ -1314,22 +1314,22 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
       );
     }
 
-    const CELL: React.CSSProperties = {
-      padding: '6px 8px',
+     const CELL: React.CSSProperties = {
+      padding: '4px 3px',
       borderRight: '1px solid #cbd5e1',
       borderBottom: '1px solid #cbd5e1',
       verticalAlign: 'middle',
-      fontSize: '11.5px',
+      fontSize: '10px',
       textAlign: 'center'
     };
 
     const CELL_HEAD: React.CSSProperties = {
-      padding: '8px 6px',
+      padding: '6px 3px',
       borderRight: '1px solid #0f766e',
       borderBottom: '2px solid #0f766e',
       textAlign: 'center',
       fontWeight: '800',
-      fontSize: '11px',
+      fontSize: '10px',
       color: '#fff',
       backgroundColor: '#0f766e',
       whiteSpace: 'nowrap'
@@ -1341,7 +1341,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
           📋 {pendingInventoryQualityApprovals.length} pending quality parameter approval{pendingInventoryQualityApprovals.length > 1 ? 's' : ''}
         </div>
         <div style={{ overflowX: 'auto', borderRadius: '10px', border: '1px solid #0f766e', boxShadow: '0 4px 16px rgba(15,118,110,0.15)' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: '#fff', minWidth: '1600px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: '#fff' }}>
             <thead>
               <tr>
                 <th style={{ ...CELL_HEAD, width: '35px' }}>#</th>
