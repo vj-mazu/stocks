@@ -423,7 +423,12 @@ const getQualityAttemptsForEntry = (entry: any) => {
         }));
     }
 
-    if (!currentQuality || !hasQualitySnapshot(currentQuality)) return [];
+    if (!currentQuality || !hasQualitySnapshot(currentQuality)) {
+        if (entry?.isBandMalalBook) {
+            return [{ attemptNo: 1 }];
+        }
+        return [];
+    }
     return [{ ...currentQuality, attemptNo: 1 }];
 };
 
