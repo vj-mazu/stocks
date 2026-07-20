@@ -3073,9 +3073,27 @@ router.get('/band-malal-book', auth, async (req, res) => {
 
         // Get physical inspection and sample entry from the already-loaded associations
 
-        const inspection = detail.physicalInspection;
+        let inspection = detail.physicalInspection;
 
-        const sampleEntry = detail.sampleEntry || {};
+        let sampleEntry = detail.sampleEntry;
+
+        // Auto-heal: Load physical inspection if missing from association
+        if (!inspection && detail.physicalInspectionId) {
+          inspection = await PhysicalInspection.findByPk(detail.physicalInspectionId);
+        }
+
+        // Auto-heal: Backfill sampleEntryId on lorry_transit_details if it is missing
+        if (inspection && (!detail.sampleEntryId || !sampleEntry)) {
+          detail.sampleEntryId = inspection.sampleEntryId;
+          await detail.save();
+          sampleEntry = await SampleEntry.findByPk(inspection.sampleEntryId, {
+            attributes: ['id', 'serialNo', 'variety', 'brokerName', 'location', 'partyName', 'lorryNumber', 'entryDate', 'packaging', 'grossWeight', 'tareWeight', 'netWeight', 'wbNo', 'partyWbName']
+          });
+        }
+
+        if (!sampleEntry) {
+          sampleEntry = {};
+        }
 
         
 
