@@ -101,6 +101,10 @@ const InventoryQualityParameter = sequelize.define('InventoryQualityParameter', 
     allowNull: true,
     field: 'p_color'
   },
+  kadiga: {
+    type: DataTypes.STRING(30),
+    allowNull: true
+  },
   remarks: {
     type: DataTypes.TEXT,
     allowNull: true

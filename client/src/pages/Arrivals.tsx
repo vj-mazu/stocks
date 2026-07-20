@@ -4714,6 +4714,10 @@ const Arrivals: React.FC = () => {
 
                                       partyWbName: entry.partyWbName || null,
 
+                                      // Explicitly preserve sample entry quality data
+                                      qualityParameters: fullSampleEntry.qualityParameters || entry.qualityParameters || null,
+                                      qualityAttemptDetails: fullSampleEntry.qualityAttemptDetails || entry.qualityAttemptDetails || []
+
                                     };
 
                                     // Prevent nested sampleEntry from carrying another lorry's party WB data
