@@ -1377,6 +1377,13 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
 
                 // Format values for parameters
                 const getVal = (v: any) => (v !== undefined && v !== null && String(v).trim() !== '') ? String(v) : '-';
+                const getKadigaVal = (v: any) => {
+                  if (v === undefined || v === null || String(v).trim() === '') return '-';
+                  const str = String(v).trim().toLowerCase();
+                  if (str === 'y' || str === 'yes' || str === 'true') return 'Yes';
+                  if (str === 'n' || str === 'no' || str === 'false') return 'No';
+                  return String(v);
+                };
 
                 return (
                   <tr key={entry.id} style={{ borderBottom: '1px solid #cbd5e1', background: index % 2 === 0 ? '#ffffff' : '#f0fdfa' }}>
@@ -1416,7 +1423,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                     <td style={{ ...CELL, fontStyle: entry.smell ? 'italic' : 'normal', fontWeight: entry.smell ? '600' : 'normal' }}>{getVal(entry.smell)}</td>
                     <td style={CELL}>{getVal(entry.paddyWb)}</td>
                     <td style={CELL}>{getVal(entry.pColor)}</td>
-                    <td style={{ ...CELL, fontWeight: '700', color: '#b45309' }}>{getVal(entry.kadiga)}</td>
+                    <td style={{ ...CELL, fontWeight: '700', color: '#b45309' }}>{getKadigaVal(entry.kadiga)}</td>
                     <td style={{ ...CELL, textAlign: 'left' }}>
                       <div style={{ fontSize: '10.5px', color: '#475569' }}>
                         Reported: <b>{entry.reportedBy?.fullName || entry.reportedBy?.username || '-'}</b>
