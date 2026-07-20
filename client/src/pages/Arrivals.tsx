@@ -1707,7 +1707,7 @@ const Arrivals: React.FC = () => {
                                           </button>
                                         </>
                                       ) : placeStatus === 'approved' ? (
-                                        <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: 'bold' }}>📍 Place Done</span>
+                                        <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: 'bold' }}>📍 Godown Done</span>
                                       ) : (
                                         <button
                                           onClick={() => {
@@ -1739,7 +1739,7 @@ const Arrivals: React.FC = () => {
                                             cursor: 'pointer'
                                           }}
                                         >
-                                          📍 Place
+                                          📍 Godown
                                         </button>
                                       )}
                                     </div>
@@ -2032,11 +2032,11 @@ const Arrivals: React.FC = () => {
                                 <td colSpan={ (((user as any)?.role === 'owner' || (user as any)?.role === 'staff' || (user as any)?.role === 'inventory_staff' || (user as any)?.role === 'financial_account' || (user as any)?.role === 'ceo' || (user as any)?.effectiveRole === 'ceo' || (user as any)?.role === 'inventory_head' || (user as any)?.effectiveRole === 'inventory_head' || (user as any)?.role === 'admin' || (user as any)?.role === 'manager') && !(user?.staffType === 'mill')) ? 14 : 13 } style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
                                   <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
-                                      <h4 style={{ margin: 0, color: '#0f172a', fontSize: '13px', fontWeight: 'bold' }}>📍 Set Place Location for {lorryNum.toUpperCase()}</h4>
+                                      <h4 style={{ margin: 0, color: '#0f172a', fontSize: '13px', fontWeight: 'bold' }}>📍 Set Godown Location for {lorryNum.toUpperCase()}</h4>
                                     </div>
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px', marginBottom: '14px' }}>
                                       <div>
-                                        <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Place Date</label>
+                                        <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Godown Date</label>
                                         <input 
                                           type="date" 
                                           value={placeDate}
@@ -2157,18 +2157,18 @@ const Arrivals: React.FC = () => {
                                             }, {
                                               headers: { Authorization: `Bearer ${token}` }
                                             });
-                                            toast.success('Place submitted for approval!');
+                                            toast.success('Godown submitted for approval!');
                                             setSelectedLorryForPlace(null);
                                             setSelectedLorryEntries([]);
                                             setSelectedLorryInspection(null);
                                             fetchInTransitEntries();
                                           } catch (err: any) {
-                                            toast.error(err.response?.data?.error || 'Failed to save Place');
+                                            toast.error(err.response?.data?.error || 'Failed to save Godown');
                                           }
                                         }}
                                         style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', border: 'none', borderRadius: '4px', background: '#1a237e', color: '#fff', cursor: 'pointer' }}
                                       >
-                                        Save Place
+                                        Save Godown
                                       </button>
                                     </div>
                                   </div>
@@ -2285,7 +2285,7 @@ const Arrivals: React.FC = () => {
                     const iqParams = entry.inventoryQualityParameters || [];
                     const approvedFull = iqParams.find((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
                     const approvedLot = iqParams.find((p: any) => p.type === 'lot_avg' && p.status === 'approved');
-                    const iqSource = approvedFull || approvedLot;
+                    const iqSource = approvedLot || approvedFull;
                     const cuttingDisplay = iqSource ? (iqSource.cutting || '-') : getCuttingValue(entry, null);
                     
                     // Format moisture display
@@ -2378,7 +2378,6 @@ const Arrivals: React.FC = () => {
                                   setSelectedDetailEntry({
                                     ...entry,
                                     isBandMalalBook: true,
-                                    isBandMalalBook: true,
                                   });
                                   setIsDetailOpen(true);
                                 } finally {
@@ -2442,7 +2441,7 @@ const Arrivals: React.FC = () => {
                             )}
                           </td>
                           
-                          {/* Column 10: Place */}
+                          {/* Column 10: Godown */}
                           <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: '#7c3aed' }}>
                             {placeDisplay}
                           </td>
@@ -4234,13 +4233,13 @@ const Arrivals: React.FC = () => {
                   </div>
                   <div style={{ padding: '12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                     <div>
-                      <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>Place Type</span>
+                      <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>Godown Type</span>
                       <span style={{ fontSize: '12px', color: '#0f172a', fontWeight: '600' }}>
                         {transitDetail?.placeType ? transitDetail.placeType.toUpperCase() : '-'}
                       </span>
                     </div>
                     <div>
-                      <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>Placement Date</span>
+                      <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>Godown Date</span>
                       <span style={{ fontSize: '12px', color: '#0f172a' }}>
                         {transitDetail?.placeDate ? new Date(transitDetail.placeDate).toLocaleDateString('en-GB') : '-'}
                       </span>
@@ -4252,7 +4251,7 @@ const Arrivals: React.FC = () => {
                       </span>
                     </div>
                     <div>
-                      <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>Place Status</span>
+                      <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>Godown Status</span>
                       <span style={{
                         display: 'inline-block', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold',
                         backgroundColor: transitDetail?.placeStatus === 'approved' ? '#dcfce7' : transitDetail?.placeStatus === 'pending' ? '#fef3c7' : '#f1f5f9',
