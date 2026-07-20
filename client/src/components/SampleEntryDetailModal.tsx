@@ -3999,7 +3999,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
 
                                     {/* 2. Lorry Load Details (Progressive Loads) for Band Mall Book */}
                                     {(detailEntry as any).isBandMalalBook && (() => {
-                                        const insps = (detailEntry as any).physicalInspections || [];
+                                        const insps = inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections)
+                                            ? inspectionsProgress.previousInspections
+                                            : (Array.isArray((detailEntry as any).physicalInspections) ? (detailEntry as any).physicalInspections : []);
                                         if (insps.length === 0) return null;
                                         return (
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '10px' }}>
