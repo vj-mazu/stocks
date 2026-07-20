@@ -2286,10 +2286,10 @@ const Arrivals: React.FC = () => {
                     const approvedFull = iqParams.find((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
                     const approvedLot = iqParams.find((p: any) => p.type === 'lot_avg' && p.status === 'approved');
                     const iqSource = approvedLot || approvedFull;
-                    const cuttingDisplay = iqSource ? (iqSource.cutting || '-') : getCuttingValue(entry, null);
+                    const cuttingDisplay = iqSource ? (iqSource.cutting || '-') : '-';
                     
                     // Format moisture display
-                    const moistureDisplay = iqSource ? `${iqSource.moisture || '-'}%` : (entry.moisture ? `${entry.moisture}%` : '-');
+                    const moistureDisplay = iqSource ? `${iqSource.moisture || '-'}%` : '-';
                     
                     // Determine place display based on type
                     let placeDisplay = '-';
