@@ -3983,7 +3983,21 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 </div>
                                 {/* Standardized Horizontal Tables Section */}
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
-                                    {/* 1. Lorry Load Details (Progressive Loads) for Band Mall Book */}
+                                    {/* 1. Quality Parameters (Sample entry details) */}
+                                    <div style={{ position: 'sticky', top: '0', zIndex: 20, backgroundColor: '#ffffff', paddingBottom: '10px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+                                        {renderHorizontalTable(
+                                            'Quality Parameters', 
+                                            '🔬', 
+                                            '#f97316', 
+                                            progressiveMode
+                                                ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', '', 'ACTIONS']
+                                                : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', ''],
+                                            buildInitialQualityRows(),
+                                            { isQuality: true }
+                                        )}
+                                    </div>
+
+                                    {/* 2. Lorry Load Details (Progressive Loads) for Band Mall Book */}
                                     {(detailEntry as any).isBandMalalBook && (() => {
                                         const insps = (detailEntry as any).physicalInspections || [];
                                         if (insps.length === 0) return null;
@@ -4010,20 +4024,6 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             </div>
                                         );
                                     })()}
-
-                                    {/* 2. Quality Parameters (Sample entry details) */}
-                                    <div style={{ position: 'sticky', top: '0', zIndex: 20, backgroundColor: '#ffffff', paddingBottom: '10px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-                                        {renderHorizontalTable(
-                                            'Quality Parameters', 
-                                            '🔬', 
-                                            '#f97316', 
-                                            progressiveMode
-                                                ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', '', 'ACTIONS']
-                                                : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', ''],
-                                            buildInitialQualityRows(),
-                                            { isQuality: true }
-                                        )}
-                                    </div>
 
                                     {/* 3. Mill Quality Parameters (Inventory Quality) */}
                                     {(detailEntry as any).isBandMalalBook && (detailEntry as any).inventoryQualityParameters && (detailEntry as any).inventoryQualityParameters.length > 0 && (
