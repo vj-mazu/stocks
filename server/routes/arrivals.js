@@ -2751,9 +2751,16 @@ router.post('/:id/wb', auth, requireInventoryRole, async (req, res) => {
           wbStatus: 'approved' // Automatically approved since it is optional/informational
         });
 
-        // Also update LorryTransitDetail to sync party name
+        // Also update LorryTransitDetail to sync party name, wbStatus, wbNo, weights and wbInputType
         await detail.update({
-          partyWbName
+          partyWbName,
+          wbNo,
+          grossWeight: grossWeight ? Number(grossWeight) : null,
+          tareWeight: tareWeight ? Number(tareWeight) : null,
+          netWeight: netWeight ? Number(netWeight) : null,
+          wbStatus: 'approved',
+          wbInputType: 'party',
+          wbApprovedBy: req.user.userId
         });
 
         return res.json({ message: 'Party Weight Bridge added successfully', detail });
@@ -2851,9 +2858,16 @@ router.post('/:id/wb', auth, requireInventoryRole, async (req, res) => {
           });
         }
 
-        // Also update LorryTransitDetail to sync party name
+        // Also update LorryTransitDetail to sync party name, wbStatus, wbNo, weights and wbInputType
         await detail.update({
-          partyWbName
+          partyWbName,
+          wbNo,
+          grossWeight: grossWeight ? Number(grossWeight) : null,
+          tareWeight: tareWeight ? Number(tareWeight) : null,
+          netWeight: netWeight ? Number(netWeight) : null,
+          wbStatus: 'approved',
+          wbInputType: 'party',
+          wbApprovedBy: req.user.userId
         });
 
         return res.json({ message: 'Party Weight Bridge added successfully', detail });
