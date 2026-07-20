@@ -2910,7 +2910,10 @@ router.get('/in-transit', auth, async (req, res) => {
 
           placeStatus: detail.placeStatus,
 
+
           placeDate: detail.placeDate,
+
+        createdAt: detail.createdAt,
 
           placeType: detail.placeType,
 
@@ -3240,7 +3243,10 @@ router.get('/band-malal-book', auth, async (req, res) => {
 
           placeStatus: detail.placeStatus,
 
+
           placeDate: detail.placeDate,
+
+        createdAt: detail.createdAt,
 
           placeType: detail.placeType,
 
@@ -4730,7 +4736,10 @@ router.get('/transit-approvals/pending', auth, async (req, res) => {
 
         placeStatus: detail.placeStatus,
 
+
         placeDate: detail.placeDate,
+
+        createdAt: detail.createdAt,
 
         placeType: detail.placeType,
 
@@ -5994,7 +6003,10 @@ router.post('/:id/wb', auth, requireInventoryRole, async (req, res) => {
 
           placeStatus: detail.placeStatus,
 
+
           placeDate: detail.placeDate,
+
+        createdAt: detail.createdAt,
 
           placeType: detail.placeType,
 

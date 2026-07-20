@@ -1779,16 +1779,18 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                             <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalKadigaColor, fontWeight: '700', width: '80px' }}>
                               {(() => {
                                 const hasColor = !!stageObj.paddyColorEnabled && !!stageObj.paddyColor;
-                                const hasKadiga = (stageObj.kadiga === 'Y' || stageObj.kadiga === 'Yes' || stageObj.kadiga === true || stageObj.kadiga === 'true') || 
-                                                  (stageObj.beforeEdit && (stageObj.beforeEdit.kadiga === 'Y' || stageObj.beforeEdit.kadiga === 'Yes' || stageObj.beforeEdit.kadiga === true || stageObj.beforeEdit.kadiga === 'true'));
+                                const isKYes = (v: any) => v === 'Y' || v === 'Yes' || v === true || v === 'true';
+                                const isKNo = (v: any) => v === 'N' || v === 'No' || v === false || v === 'false';
+                                const hasK = (v: any) => isKYes(v) || isKNo(v);
+                                const hasKadiga = hasK(stageObj.kadiga) || (stageObj.beforeEdit && hasK(stageObj.beforeEdit.kadiga));
                                 if (!hasColor && !hasKadiga) return '-';
                                 return (
                                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
                                     {hasColor && <span>{renderStageCompareCell(stageObj, (obj) => obj.paddyColorEnabled && obj.paddyColor ? obj.paddyColor : '-')}</span>}
                                     {hasColor && hasKadiga && <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />}
                                     {hasKadiga && <span>ಕಡಿಗಾ: {renderStageCompareCell(stageObj, (obj) => {
-                                      const isK = obj.kadiga === 'Y' || obj.kadiga === 'Yes' || obj.kadiga === true || obj.kadiga === 'true';
-                                      return obj.kadiga ? (isK ? 'Yes' : 'No') : '-';
+                                      const isK = isKYes(obj.kadiga);
+                                      return (obj.kadiga !== null && obj.kadiga !== undefined && obj.kadiga !== '') ? (isK ? 'Yes' : 'No') : '-';
                                     })}</span>}
                                   </div>
                                 );

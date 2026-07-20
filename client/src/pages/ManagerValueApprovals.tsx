@@ -748,13 +748,15 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
                             <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'center', color: finalKadigaColor, fontWeight: '700', width: '80px' }}>
                               {(() => {
                                 const hasColor = !!stageObj.paddyColorEnabled && !!stageObj.paddyColor;
-                                const hasKadiga = isKadiga;
+                                const isKadigaYes = stageObj.kadiga === 'Y' || stageObj.kadiga === 'Yes' || stageObj.kadiga === true || stageObj.kadiga === 'true';
+                                const isKadigaNo = stageObj.kadiga === 'N' || stageObj.kadiga === 'No' || stageObj.kadiga === false || stageObj.kadiga === 'false';
+                                const hasKadiga = isKadigaYes || isKadigaNo;
                                 if (!hasColor && !hasKadiga) return '-';
                                 return (
                                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
                                     {hasColor && <span>{formatField(stageObj.paddyColor)}</span>}
                                     {hasColor && hasKadiga && <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />}
-                                    {hasKadiga && <span>ಕಡಿಗಾ: Yes</span>}
+                                    {hasKadiga && <span>ಕಡಿಗಾ: {isKadigaYes ? 'Yes' : 'No'}</span>}
                                   </div>
                                 );
                               })()}

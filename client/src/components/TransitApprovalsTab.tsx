@@ -203,35 +203,32 @@ const TransitApprovalsTab: React.FC = () => {
   }
 
   const CELL: React.CSSProperties = {
-    padding: '8px 10px',
-    borderRight: '1px solid #cbd5e1',
-    borderBottom: '1px solid #cbd5e1',
+    padding: '5px',
+    border: '1px solid #000',
     verticalAlign: 'middle',
-    fontSize: '11.5px',
+    fontSize: '12px',
     textAlign: 'center'
   };
 
   const PLACE_HEAD: React.CSSProperties = {
-    padding: '8px 10px',
-    borderRight: '1px solid #1e40af',
-    borderBottom: '2px solid #1e40af',
+    padding: '5px',
+    border: '1px solid #000',
     textAlign: 'center',
-    fontWeight: '800',
-    fontSize: '11.5px',
+    fontWeight: '700',
+    fontSize: '12px',
     color: '#fff',
-    backgroundColor: '#1e40af',
+    backgroundColor: '#1a237e',
     whiteSpace: 'nowrap'
   };
 
   const WB_HEAD: React.CSSProperties = {
-    padding: '8px 10px',
-    borderRight: '1px solid #c2410c',
-    borderBottom: '2px solid #c2410c',
+    padding: '5px',
+    border: '1px solid #000',
     textAlign: 'center',
-    fontWeight: '800',
-    fontSize: '11.5px',
+    fontWeight: '700',
+    fontSize: '12px',
     color: '#fff',
-    backgroundColor: '#c2410c',
+    backgroundColor: '#1a237e',
     whiteSpace: 'nowrap'
   };
 
@@ -258,7 +255,7 @@ const TransitApprovalsTab: React.FC = () => {
             ✅ No pending Place Location approvals.
           </div>
         ) : (
-          <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid #3b82f6', boxShadow: '0 4px 12px rgba(59,130,246,0.1)' }}>
+          <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid #000', boxShadow: '0 4px 12px rgba(59,130,246,0.1)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: '#fff' }}>
               <thead>
                 <tr>
@@ -271,6 +268,7 @@ const TransitApprovalsTab: React.FC = () => {
                   <th style={PLACE_HEAD}>Warehouse / Outturn</th>
                   <th style={PLACE_HEAD}>Kunchinittu</th>
                   <th style={{ ...PLACE_HEAD, width: '95px' }}>Place Date</th>
+                  <th style={PLACE_HEAD}>WB Name / Slip</th>
                   <th style={{ ...PLACE_HEAD, width: '140px' }}>Actions</th>
                 </tr>
               </thead>
@@ -284,7 +282,7 @@ const TransitApprovalsTab: React.FC = () => {
                   return (
                     <tr key={`place-${entry.id}`} style={{ borderBottom: '1px solid #cbd5e1', background: idx % 2 === 0 ? '#ffffff' : '#f0f9ff' }}>
                       <td style={{ ...CELL, fontWeight: '700', color: '#475569' }}>{idx + 1}</td>
-                      <td style={{ ...CELL, whiteSpace: 'nowrap' }}>{formatDate(entry.createdAt)}</td>
+                      <td style={{ ...CELL, whiteSpace: 'nowrap' }}>{formatDate(entry.createdAt || entry.date)}</td>
                       <td style={{ ...CELL, textAlign: 'left' }}>
                         <div style={{ fontWeight: 'bold', color: '#1e293b' }}>{sampleEntry.partyName || '-'}</div>
                         <div style={{ fontSize: '11px', color: '#1e40af', fontWeight: 'bold', marginTop: '2px' }}>🚚 {lorryNumber.toUpperCase()}</div>
@@ -311,6 +309,23 @@ const TransitApprovalsTab: React.FC = () => {
                         {isProduction ? '-' : (entry.placeKunchinittuData?.name || entry.placeKunchinittuCode || '-')}
                       </td>
                       <td style={{ ...CELL, whiteSpace: 'nowrap' }}>{formatDate(entry.placeDate)}</td>
+                      <td style={CELL}>
+                        <div>
+                          {entry.wbInputType ? <WbTypeBadge type={entry.wbInputType} /> : '-'}
+                        </div>
+                        {entry.wbInputType && (
+                          <div style={{ marginTop: '4px', fontWeight: '700', color: '#78350f' }}>
+                            {entry.wbInputType === 'mill' 
+                              ? (entry.millWeightBridge?.name || entry.millWbName || entry.millWb?.name || '-')
+                              : (entry.partyWbName || '-')}
+                          </div>
+                        )}
+                        {entry.wbNo && (
+                          <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                            Slip: <strong>{entry.wbNo}</strong>
+                          </div>
+                        )}
+                      </td>
                       <td style={{ ...CELL, borderRight: 'none' }}>
                         <div style={{ display: 'inline-flex', gap: '6px' }}>
                           <button
@@ -359,7 +374,7 @@ const TransitApprovalsTab: React.FC = () => {
             ✅ No pending Weight Bridge approvals.
           </div>
         ) : (
-          <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid #ea580c', boxShadow: '0 4px 12px rgba(234,88,12,0.1)' }}>
+          <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid #000', boxShadow: '0 4px 12px rgba(234,88,12,0.1)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: '#fff' }}>
               <thead>
                 <tr>
@@ -385,7 +400,7 @@ const TransitApprovalsTab: React.FC = () => {
                   return (
                     <tr key={`wb-${entry.id}`} style={{ borderBottom: '1px solid #cbd5e1', background: idx % 2 === 0 ? '#ffffff' : '#fffbeb' }}>
                       <td style={{ ...CELL, fontWeight: '700', color: '#475569' }}>{idx + 1}</td>
-                      <td style={{ ...CELL, whiteSpace: 'nowrap' }}>{formatDate(entry.createdAt)}</td>
+                      <td style={{ ...CELL, whiteSpace: 'nowrap' }}>{formatDate(entry.createdAt || entry.date)}</td>
                       <td style={{ ...CELL, textAlign: 'left' }}>
                         <div style={{ fontWeight: 'bold', color: '#1e293b' }}>{sampleEntry.partyName || '-'}</div>
                         <div style={{ fontSize: '11px', color: '#1e40af', fontWeight: 'bold', marginTop: '2px' }}>🚚 {lorryNumber.toUpperCase()}</div>
