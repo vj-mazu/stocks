@@ -1524,22 +1524,21 @@ router.get('/band-malal-book', auth, async (req, res) => {
           attributes: ['id', 'serialNo', 'variety', 'brokerName', 'location', 'partyName', 'lorryNumber', 'entryDate', 'packaging', 'grossWeight', 'tareWeight', 'netWeight', 'wbNo', 'partyWbName']
         }
       ],
-      order: [['placeDate', 'DESC'], ['createdAt', 'DESC']],
+      order: [['placeApprovedAt', 'ASC'], ['createdAt', 'ASC']],
       limit: parseInt(limit)
     });
     
     console.log(`✅ Band Malal Book: Found ${entries.length} transit detail entries (Total: ${totalApprovedCount})`);
     
-    // Map entries with sequential BMB numbers (counting DOWN from total)
+    // Map entries with sequential BMB numbers (counting UP from 1)
     const arrivals = await Promise.all(entries.map(async (detail, index) => {
       try {
         // Get physical inspection and sample entry from the already-loaded associations
         const inspection = detail.physicalInspection;
         const sampleEntry = detail.sampleEntry || {};
         
-        // ✅ FIX: Calculate SL No from total count (newest = highest number)
-        // Since order is DESC (newest first), SL No = totalCount - index
-        const slNo = totalApprovedCount - index;
+        // Calculate SL No starting from 1 for the oldest record at the top
+        const slNo = index + 1;
         
         // DEBUG: Log what we're getting
         console.log(`Entry SL No ${slNo}: Physical Inspection ID=${detail.physicalInspectionId}, Sample Entry ID=${detail.sampleEntryId}`);
@@ -2284,6 +2283,109 @@ router.post('/bulk-reject', auth, authorize('manager', 'admin'), async (req, res
   }
 });
 
+// Get pending Transit approvals (Place or WB) from LorryTransitDetail
+router.get('/transit-approvals/pending', auth, async (req, res) => {
+  try {
+    const { Op } = require('sequelize');
+    const entries = await LorryTransitDetail.findAll({
+      where: {
+        [Op.or]: [
+          { placeStatus: 'pending' },
+          { wbStatus: 'pending' }
+        ]
+      },
+      include: [
+        {
+          model: PhysicalInspection,
+          as: 'physicalInspection',
+          required: false
+        },
+        {
+          model: SampleEntry,
+          as: 'sampleEntry',
+          required: false
+        }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+
+    const formatted = await Promise.all(entries.map(async (detail) => {
+      const inspection = detail.physicalInspection;
+      const sampleEntry = detail.sampleEntry || {};
+
+      // Fetch place kunchinittu and warehouse
+      const placeKunchinittu = detail.placeKunchinittuId 
+        ? await Kunchinittu.findByPk(detail.placeKunchinittuId, { attributes: ['id', 'name', 'code'] })
+        : null;
+      
+      const placeWarehouse = detail.placeWarehouseId 
+        ? await Warehouse.findByPk(detail.placeWarehouseId, { attributes: ['id', 'name', 'code'] })
+        : null;
+      
+      const outturn = detail.outturnId 
+        ? await Outturn.findByPk(detail.outturnId, { attributes: ['id', 'code', 'allottedVariety'] })
+        : null;
+
+      const millWb = detail.millWbId
+        ? await WeightBridge.findByPk(detail.millWbId, { attributes: ['id', 'name'] })
+        : null;
+
+      return {
+        id: detail.id,
+        date: detail.placeDate || detail.createdAt,
+        entryDate: sampleEntry.entryDate || detail.createdAt,
+        movementType: 'purchase',
+        broker: sampleEntry.brokerName || null,
+        variety: sampleEntry.variety || null,
+        bags: inspection?.bags || 0,
+        packaging: parseFloat(sampleEntry.packaging) || 75,
+        fromLocation: sampleEntry.location || null,
+        partyName: sampleEntry.partyName || null,
+        toKunchinittu: placeKunchinittu ? {
+          id: placeKunchinittu.id,
+          name: placeKunchinittu.name,
+          code: placeKunchinittu.code
+        } : null,
+        toWarehouse: placeWarehouse ? {
+          id: placeWarehouse.id,
+          name: placeWarehouse.name,
+          code: placeWarehouse.code
+        } : null,
+        outturn: outturn ? {
+          id: outturn.id,
+          code: outturn.code,
+          allottedVariety: outturn.allottedVariety
+        } : null,
+        moisture: inspection?.samplingStages?.full_avg?.moisture || inspection?.moisture || null,
+        cutting: await getCuttingFromInspection(inspection),
+        wbNo: detail.wbNo || 'PENDING',
+        grossWeight: detail.grossWeight || 0,
+        tareWeight: detail.tareWeight || 0,
+        netWeight: detail.netWeight || 0,
+        lorryNumber: inspection?.lorryNumber || sampleEntry.lorryNumber || 'N/A',
+        placeStatus: detail.placeStatus,
+        placeDate: detail.placeDate,
+        placeType: detail.placeType,
+        wbStatus: detail.wbStatus,
+        wbInputType: detail.wbInputType,
+        millWbId: detail.millWbId,
+        millWb: millWb,
+        partyWbName: detail.partyWbName,
+        placeKunchinittuData: placeKunchinittu,
+        placeWarehouse: placeWarehouse,
+        sampleEntry: sampleEntry,
+        isBandMalalBook: false,
+        transitDetailId: detail.id
+      };
+    }));
+
+    res.json({ arrivals: formatted });
+  } catch (error) {
+    console.error('Error fetching pending transit approvals:', error);
+    res.status(500).json({ error: 'Failed to fetch pending transit approvals' });
+  }
+});
+
 // Get single arrival by ID
 router.get('/:id', auth, async (req, res) => {
   try {
@@ -2436,9 +2538,13 @@ router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
           placeStatus: 'none'
         });
       }
-      if (detail.placeStatus === 'approved') {
+      const isAllowedEdit = ['admin', 'manager', 'ceo'].includes(String(req.user.role || '').toLowerCase()) || ['ceo'].includes(String(req.user.effectiveRole || '').toLowerCase());
+      if (detail.placeStatus === 'approved' && !isAllowedEdit) {
         return res.status(400).json({ error: 'Place already approved for this lorry' });
       }
+
+      const isAdmin = String(req.user.role || '').toLowerCase() === 'admin';
+      const targetStatus = isAdmin ? 'approved' : 'pending';
 
       await detail.update({
         placeDate,
@@ -2446,11 +2552,13 @@ router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
         placeWarehouseId: placeWarehouseId ? Number(placeWarehouseId) : null,
         placeType: placeType || null,
         outturnId: placeType === 'production' ? (outturnId ? Number(outturnId) : null) : null,
-        placeStatus: 'pending',
-        placeRejectReason: null
+        placeStatus: targetStatus,
+        placeRejectReason: null,
+        // Set approval metadata when admin auto-approves
+        ...(isAdmin ? { placeApprovedBy: req.user.userId, placeApprovedAt: new Date() } : {})
       });
 
-      return res.json({ message: 'Place submitted for approval', detail });
+      return res.json({ message: isAdmin ? 'Place updated and auto-approved' : 'Place updated and submitted for approval', detail });
     }
 
     // Fallback: Check if it's an Arrival
@@ -2528,16 +2636,19 @@ router.post('/:id/wb', auth, requireInventoryRole, async (req, res) => {
         return res.json({ message: 'Party Weight Bridge added successfully', detail: transitDetail });
       } else {
         // Mill WB - check if already added (not just approved)
-        if (transitDetail.millWbId && transitDetail.wbStatus !== 'rejected') {
+        const userRole = req.user.role;
+        const effectiveRole = req.user.effectiveRole;
+        const isAllowedEdit = ['admin', 'manager', 'ceo'].includes(String(userRole || '').toLowerCase()) || ['ceo'].includes(String(effectiveRole || '').toLowerCase());
+
+        if (transitDetail.millWbId && transitDetail.wbStatus !== 'rejected' && !isAllowedEdit) {
           return res.status(400).json({ error: 'Mill WB already added for this lorry. Cannot add duplicate WB entry.' });
         }
 
-        // Role-based approval logic
-        const userRole = req.user.role;
-        const isAutoApprove = userRole === 'admin' || userRole === 'owner';
-        const wbStatus = isAutoApprove ? 'approved' : 'pending';
-        const wbApprovedBy = isAutoApprove ? req.user.userId : null;
-        const wbApprovedAt = isAutoApprove ? new Date() : null;
+        // Role-based approval logic - only admin is auto-approved
+        const isAdmin = String(userRole || '').toLowerCase() === 'admin';
+        const wbStatus = isAdmin ? 'approved' : 'pending';
+        const wbApprovedBy = isAdmin ? req.user.userId : null;
+        const wbApprovedAt = isAdmin ? new Date() : null;
 
         await transitDetail.update({
           wbInputType: 'mill',
@@ -2552,7 +2663,7 @@ router.post('/:id/wb', auth, requireInventoryRole, async (req, res) => {
           wbApprovedAt
         });
 
-        if (isAutoApprove) {
+        if (isAdmin) {
           // Find associated physical inspection
           const inspection = await PhysicalInspection.findByPk(transitDetail.physicalInspectionId);
           if (inspection) {
@@ -2577,7 +2688,7 @@ router.post('/:id/wb', auth, requireInventoryRole, async (req, res) => {
           }
         }
 
-        const message = isAutoApprove 
+        const message = isAdmin 
           ? 'Mill WB added and approved successfully' 
           : 'Mill WB submitted for approval';
         
@@ -2813,7 +2924,7 @@ router.post('/:id/wb', auth, requireInventoryRole, async (req, res) => {
           : null;
         
         const millWb = detail.millWbId
-          ? await WeightBridge.findByPk(detail.millWbId, { attributes: ['id', 'name', 'code'] })
+          ? await WeightBridge.findByPk(detail.millWbId, { attributes: ['id', 'name'] })
           : null;
         
         const wbApproverUser = wbApprovedBy
@@ -2949,14 +3060,15 @@ router.post('/:id/approve-place', auth, async (req, res) => {
     const SampleEntry = require('../models/SampleEntry');
     const Sequelize = require('sequelize');
 
-    // First check if id is a PhysicalInspection
-    const inspection = await PhysicalInspection.findByPk(id, {
-      include: [{ model: SampleEntry, as: 'sampleEntry' }]
-    });
+    // 1. Check if id is directly LorryTransitDetail ID
+    let detail = await LorryTransitDetail.findByPk(id);
+    if (!detail) {
+      // 2. Check if id is PhysicalInspection ID
+      detail = await LorryTransitDetail.findOne({ where: { physicalInspectionId: id } });
+    }
 
-    if (inspection) {
-      const detail = await LorryTransitDetail.findOne({ where: { physicalInspectionId: id } });
-      if (!detail || detail.placeStatus !== 'pending') {
+    if (detail) {
+      if (detail.placeStatus !== 'pending') {
         return res.status(400).json({ error: 'No pending place to approve for this lorry' });
       }
 
@@ -2976,19 +3088,24 @@ router.post('/:id/approve-place', auth, async (req, res) => {
       });
     }
 
-    // Fallback: Check if it's an Arrival
-    const arrival = await Arrival.findByPk(id);
-    if (!arrival) return res.status(404).json({ error: 'Inspection or Arrival not found' });
-    if (arrival.placeStatus !== 'pending') {
-      return res.status(400).json({ error: 'No pending place to approve' });
+    // 3. Fallback: Check if it's an Arrival (only if id is numeric/integer)
+    if (!isNaN(id) && Number.isInteger(Number(id))) {
+      const arrival = await Arrival.findByPk(Number(id));
+      if (arrival) {
+        if (arrival.placeStatus !== 'pending') {
+          return res.status(400).json({ error: 'No pending place to approve' });
+        }
+
+        await arrival.update({ 
+          placeStatus: 'approved',
+          placeApprovedBy: req.user.userId,
+          placeApprovedAt: new Date()
+        });
+        return res.json({ message: 'Place approved — entry moved to Band Malal Book', arrival });
+      }
     }
 
-    await arrival.update({ 
-      placeStatus: 'approved',
-      placeApprovedBy: req.user.userId,
-      placeApprovedAt: new Date()
-    });
-    res.json({ message: 'Place approved — entry moved to Band Malal Book', arrival });
+    return res.status(404).json({ error: 'Inspection, Transit Detail, or Arrival not found' });
   } catch (error) {
     console.error('Approve place error:', error);
     res.status(500).json({ error: 'Failed to approve place' });
@@ -3004,11 +3121,15 @@ router.post('/:id/reject-place', auth, async (req, res) => {
     const PhysicalInspection = require('../models/PhysicalInspection');
     const LorryTransitDetail = require('../models/LorryTransitDetail');
 
-    // First check if id is a PhysicalInspection
-    const inspection = await PhysicalInspection.findByPk(id);
-    if (inspection) {
-      const detail = await LorryTransitDetail.findOne({ where: { physicalInspectionId: id } });
-      if (!detail || detail.placeStatus !== 'pending') {
+    // 1. Check if id is directly LorryTransitDetail ID
+    let detail = await LorryTransitDetail.findByPk(id);
+    if (!detail) {
+      // 2. Check if id is PhysicalInspection ID
+      detail = await LorryTransitDetail.findOne({ where: { physicalInspectionId: id } });
+    }
+
+    if (detail) {
+      if (detail.placeStatus !== 'pending') {
         return res.status(400).json({ error: 'No pending place to reject for this lorry' });
       }
 
@@ -3024,22 +3145,27 @@ router.post('/:id/reject-place', auth, async (req, res) => {
       return res.json({ message: 'Place rejected', detail });
     }
 
-    // Fallback: Check if it's an Arrival
-    const arrival = await Arrival.findByPk(id);
-    if (!arrival) return res.status(404).json({ error: 'Inspection or Arrival not found' });
-    if (arrival.placeStatus !== 'pending') {
-      return res.status(400).json({ error: 'No pending place to reject' });
+    // 3. Fallback: Check if it's an Arrival (only if id is numeric/integer)
+    if (!isNaN(id) && Number.isInteger(Number(id))) {
+      const arrival = await Arrival.findByPk(Number(id));
+      if (arrival) {
+        if (arrival.placeStatus !== 'pending') {
+          return res.status(400).json({ error: 'No pending place to reject' });
+        }
+
+        await arrival.update({
+          placeStatus: 'rejected',
+          placeRejectReason: reason || 'Rejected',
+          placeDate: null,
+          placeKunchinittuId: null,
+          placeWarehouseId: null,
+          outturnId: null
+        });
+        return res.json({ message: 'Place rejected', arrival });
+      }
     }
 
-    await arrival.update({
-      placeStatus: 'rejected',
-      placeRejectReason: reason || 'Rejected',
-      placeDate: null,
-      placeKunchinittuId: null,
-      placeWarehouseId: null,
-      outturnId: null
-    });
-    res.json({ message: 'Place rejected', arrival });
+    return res.status(404).json({ error: 'Inspection, Transit Detail, or Arrival not found' });
   } catch (error) {
     console.error('Reject place error:', error);
     res.status(500).json({ error: 'Failed to reject place' });
@@ -3206,7 +3332,8 @@ router.post('/bmb/:transitDetailId/inventory-quality', auth, async (req, res) =>
 
     // Authorization: Mill Staff, Location Staff, Inventory Staff, Inventory Head, Admin, Manager, Owner, CEO
     const canAdd = 
-      (userRole === 'staff' && (staffType === 'mill' || staffType === 'location' || staffType === 'inventory')) ||
+      (userRole === 'staff' && (staffType === 'mill' || staffType === 'location')) ||
+      userRole === 'inventory_staff' ||
       userRole === 'inventory_head' ||
       effectiveRole === 'inventory_head' ||
       userRole === 'admin' ||
@@ -3252,26 +3379,30 @@ router.post('/bmb/:transitDetailId/inventory-quality', auth, async (req, res) =>
       return res.status(400).json({ error: 'Invalid type. Must be lot_avg or full_lorry_avg' });
     }
 
-    // Check for existing approved record of same type
-    const existingApproved = await InventoryQualityParameter.findOne({
+    // Check for existing approved or pending record of same type
+    const { Op } = require('sequelize');
+    const existingRecord = await InventoryQualityParameter.findOne({
       where: {
         lorryTransitDetailId: transitDetailId,
         type: type,
-        status: 'approved'
+        status: { [Op.in]: ['approved', 'pending'] }
       }
     });
 
-    if (existingApproved) {
+    if (existingRecord) {
       return res.status(400).json({ 
-        error: `An approved ${type.replace('_', ' ')} record already exists for this entry` 
+        error: `A ${existingRecord.status} ${type.replace('_', ' ')} record already exists for this entry` 
       });
     }
+
+    // Auto-approve if admin is submitting
+    const isAutoApprove = String(userRole || '').toLowerCase() === 'admin';
 
     // Create new quality parameter
     const qualityParam = await InventoryQualityParameter.create({
       lorryTransitDetailId: transitDetailId,
       type,
-      status: 'pending',
+      status: isAutoApprove ? 'approved' : 'pending',
       moisture,
       dryMoisture,
       cutting,
@@ -3290,7 +3421,8 @@ router.post('/bmb/:transitDetailId/inventory-quality', auth, async (req, res) =>
       paddyWb,
       pColor,
       remarks,
-      reportedByUserId: req.user.userId
+      reportedByUserId: req.user.userId,
+      approvedByUserId: isAutoApprove ? req.user.userId : null
     });
 
     // Fetch with associations
@@ -3301,7 +3433,7 @@ router.post('/bmb/:transitDetailId/inventory-quality', auth, async (req, res) =>
     });
 
     res.status(201).json({ 
-      message: 'Inventory quality parameters submitted successfully',
+      message: isAutoApprove ? 'Inventory quality parameters auto-approved' : 'Inventory quality parameters submitted for approval',
       data: result
     });
   } catch (error) {
@@ -3437,6 +3569,90 @@ router.post('/bmb/inventory-quality/:qualityId/reject', auth, async (req, res) =
   } catch (error) {
     console.error('Error rejecting inventory quality parameters:', error);
     res.status(500).json({ error: 'Failed to reject inventory quality parameters' });
+  }
+});
+
+// Get pending BMB Inventory Quality approvals
+router.get('/bmb/inventory-quality/pending', auth, async (req, res) => {
+  try {
+    const entries = await InventoryQualityParameter.findAll({
+      where: { status: 'pending' },
+      order: [['createdAt', 'DESC']],
+      include: [
+        {
+          model: LorryTransitDetail,
+          as: 'lorryTransitDetail',
+          required: false,
+          include: [
+            {
+              model: SampleEntry,
+              as: 'sampleEntry',
+              attributes: ['id', 'brokerName', 'partyName', 'location', 'variety', 'entryDate', 'lotSelectionDecision']
+            },
+            {
+              model: PhysicalInspection,
+              as: 'physicalInspection',
+              attributes: ['id', 'lorryNumber', 'bags', 'moisture']
+            }
+          ]
+        },
+        { model: User, as: 'reporter', attributes: ['id', 'username', 'fullName', 'role'] }
+      ]
+    });
+
+    const formatted = entries.map((entry) => ({
+      id: entry.id,
+      type: entry.type,
+      status: entry.status,
+      moisture: entry.moisture,
+      dryMoisture: entry.dryMoisture,
+      cutting: entry.cutting,
+      bend: entry.bend,
+      grains: entry.grains,
+      mix: entry.mix,
+      sMix: entry.sMix,
+      lMix: entry.lMix,
+      kandu: entry.kandu,
+      oil: entry.oil,
+      sk: entry.sk,
+      smell: entry.smell,
+      paddyWb: entry.paddyWb,
+      pColor: entry.pColor,
+      remarks: entry.remarks,
+      reportedBy: entry.reporter ? {
+        id: entry.reporter.id,
+        username: entry.reporter.username,
+        fullName: entry.reporter.fullName,
+        role: entry.reporter.role
+      } : null,
+      reportedAt: entry.createdAt,
+      lorryTransitDetail: entry.lorryTransitDetail ? {
+        id: entry.lorryTransitDetail.id,
+        placeDate: entry.lorryTransitDetail.placeDate,
+        placeStatus: entry.lorryTransitDetail.placeStatus,
+        lorryNumber: entry.lorryTransitDetail.lorryNumber,
+        wbNo: entry.lorryTransitDetail.wbNo,
+        sampleEntry: entry.lorryTransitDetail.sampleEntry ? {
+          id: entry.lorryTransitDetail.sampleEntry.id,
+          brokerName: entry.lorryTransitDetail.sampleEntry.brokerName,
+          partyName: entry.lorryTransitDetail.sampleEntry.partyName,
+          location: entry.lorryTransitDetail.sampleEntry.location,
+          variety: entry.lorryTransitDetail.sampleEntry.variety,
+          entryDate: entry.lorryTransitDetail.sampleEntry.entryDate
+        } : null,
+        physicalInspection: entry.lorryTransitDetail.physicalInspection ? {
+          id: entry.lorryTransitDetail.physicalInspection.id,
+          lorryNumber: entry.lorryTransitDetail.physicalInspection.lorryNumber,
+          bags: entry.lorryTransitDetail.physicalInspection.bags,
+          moisture: entry.lorryTransitDetail.physicalInspection.moisture
+        } : null
+      } : null
+    }));
+
+    res.json({ entries: formatted, count: formatted.length });
+  } catch (error) {
+    console.error('Error fetching pending Arrivals inventory quality approvals:', error);
+    res.status(500).json({ error: 'Failed to fetch pending Arrivals inventory quality approvals' });
   }
 });
 

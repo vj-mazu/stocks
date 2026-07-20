@@ -2121,6 +2121,84 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         });
     };
 
+    const buildBmbQualityRows = () => {
+        const params = (detailEntry as any).inventoryQualityParameters || [];
+        return params.map((param: any, idx: number) => {
+            const label = param.type === 'lot_avg' ? 'Lot Avg' : 'Full Lorry Avg';
+            const reportedAt = param.createdAt;
+            
+            const formatQ = (val: any) => {
+                const s = String(val === undefined || val === null ? '' : val).trim();
+                if (!s || s === '0' || s === '0.00') return '-';
+                return s;
+            };
+
+            const moisture = param.moisture ? `${param.moisture}%` : '-';
+            const cutting = param.cutting || '-';
+            const bend = param.bend || '-';
+            const grains = param.grains ? `(${param.grains})` : '-';
+
+            const renderStackedDateTime = (dtStr: any) => {
+                if (!dtStr) return '-';
+                try {
+                    const d = new Date(dtStr);
+                    const dStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    const tStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase();
+                    return (
+                        <div style={{ display: 'flex', flexDirection: 'column', fontSize: '10.5px', lineHeight: '1.2' }}>
+                            <span style={{ fontWeight: '600' }}>{dStr}</span>
+                            <span style={{ color: '#64748b', fontSize: '9.5px' }}>{tStr}</span>
+                        </div>
+                    );
+                } catch {
+                    return '-';
+                }
+            };
+
+            const rowData = [
+                <span style={{ color: '#7c3aed', fontWeight: 'bold' }}>{label}</span>,
+                <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#1e293b' }}>{param.reporter?.username || 'admin'}</span>,
+                renderStackedDateTime(reportedAt),
+                <span style={{ fontSize: '9.5px', fontWeight: '700' }}>{moisture}</span>,
+                cutting,
+                bend,
+                <span style={{ fontSize: '9.5px', fontWeight: '700', color: '#475569' }}>{grains}</span>,
+                formatQ(param.mix),
+                formatQ(param.sMix),
+                formatQ(param.lMix),
+                formatQ(param.kandu),
+                formatQ(param.oil),
+                formatQ(param.sk),
+                formatQ(param.wbR),
+                formatQ(param.wbBk),
+                formatQ(param.wbT),
+                renderBeautifulSmell(param.smell || (param.smellHas ? param.smellType : '-')),
+                formatQ(param.paddyWb)
+            ];
+
+            const isApproved = param.status === 'approved';
+            rowData.push(
+                <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '4px',
+                    padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '700',
+                    background: isApproved ? '#dcfce7' : '#fef3c7',
+                    color: isApproved ? '#166534' : '#92400e',
+                    border: `1px solid ${isApproved ? '#22c55e' : '#f59e0b'}`,
+                    textTransform: 'uppercase', letterSpacing: '0.5px'
+                }}>
+                    {isApproved ? '✅ Approved' : '⏳ Pending'}
+                </span>
+            );
+
+            const smellLabel = param.smell || (param.smellHas ? param.smellType : '-');
+            (rowData as any).hasSmell = param.smellHas === true 
+                || String(param.smellHas).trim().toUpperCase() === 'YES'
+                || (smellLabel && smellLabel !== '-' && smellLabel !== 'No' && smellLabel !== 'No Smell');
+
+            return rowData;
+        });
+    };
+
     const buildTripQualityRows = (insp: any, tripIdx: number) => {
         const rows: any[] = [];
         const stages = insp.samplingStages || {};
@@ -3913,6 +3991,19 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             { isQuality: true }
                                         )}
                                     </div>
+                                    {/* BMB Inventory Quality Parameters */}
+                                    {(detailEntry as any).isBandMalalBook && (detailEntry as any).inventoryQualityParameters && (detailEntry as any).inventoryQualityParameters.length > 0 && (
+                                        <div style={{ marginTop: '8px' }}>
+                                            {renderHorizontalTable(
+                                                'Inventory Quality Parameters', 
+                                                '🔬', 
+                                                '#7c3aed', 
+                                                ['TYPE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'STATUS'],
+                                                buildBmbQualityRows(),
+                                                { isQuality: true }
+                                            )}
+                                        </div>
+                                    )}
                                     {/* Weight Bridge & Place Details for Band Mall Book */}
                                     {(detailEntry as any).isBandMalalBook && (() => {
                                         const hasPartyWb = !!((detailEntry as any).sampleEntry?.partyWbName || (detailEntry as any).partyWbName);

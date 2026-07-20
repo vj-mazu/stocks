@@ -13,7 +13,7 @@ interface SampleApprovalsHubProps {
   onPendingCountChange?: (count: number) => void;
 }
 
-type ApprovalTabKey = 'approval-for-edits' | 'approval-for-manager' | 'lorry-approvals' | 'loading-quality-approvals' | 'rate-linking-approvals' | 'transit-approvals';
+type ApprovalTabKey = 'approval-for-edits' | 'approval-for-manager' | 'lorry-approvals' | 'loading-quality-approvals' | 'bmb-inventory-quality' | 'rate-linking-approvals' | 'transit-approvals';
 
 interface ApprovalTabConfig {
   key: ApprovalTabKey;
@@ -115,6 +115,9 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
   const [rateLinkingCount, setRateLinkingCount] = useState(0);
   const [rateLinkingEntries, setRateLinkingEntries] = useState<any[]>([]);
   const [loadingRateLinking, setLoadingRateLinking] = useState(false);
+  const [pendingInventoryQualityApprovals, setPendingInventoryQualityApprovals] = useState<any[]>([]);
+  const [loadingInventoryQualityApprovals, setLoadingInventoryQualityApprovals] = useState(false);
+  const [inventoryQualityApprovalCount, setInventoryQualityApprovalCount] = useState(0);
 
   const [pendingLorryInspections, setPendingLorryInspections] = useState<any[]>([]);
   const [loadingQuality, setLoadingQuality] = useState(false);
@@ -137,7 +140,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     }
   }, []);
 
-  const canAccessManagerApprovals = ['admin', 'owner'].includes(String(currentUser?.role || '').toLowerCase());
+  const canAccessManagerApprovals = ['admin', 'owner', 'manager', 'ceo'].includes(String(currentUser?.role || '').toLowerCase());
   const canAccessLoadingQuality = ['admin', 'owner', 'manager', 'ceo'].includes(String(currentUser?.role || '').toLowerCase());
 
   const tabs = useMemo<ApprovalTabConfig[]>(() => {
@@ -151,6 +154,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     }
     if (canAccessLoadingQuality) {
       baseTabs.push({ key: 'loading-quality-approvals', label: 'Loading Quality Approvals', color: '#1565c0' });
+      baseTabs.push({ key: 'bmb-inventory-quality', label: 'Arrivals Quality Approvals', color: '#0f766e' });
     }
     if (canAccessManagerApprovals) {
       baseTabs.push({ key: 'transit-approvals', label: 'In Transit Approvals', color: '#d97706' });
@@ -165,13 +169,13 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
       allowedKeys.push('approval-for-manager', 'lorry-approvals', 'rate-linking-approvals', 'transit-approvals');
     }
     if (canAccessLoadingQuality) {
-      allowedKeys.push('loading-quality-approvals');
+      allowedKeys.push('loading-quality-approvals', 'bmb-inventory-quality');
     }
     return (saved && allowedKeys.includes(saved)) ? (saved as ApprovalTabKey) : 'approval-for-edits';
   });
   const totalPendingCount = editApprovalCount + 
     (canAccessManagerApprovals ? (managerApprovalCount + lorryApprovalCount + rateLinkingCount) : 0) + 
-    (canAccessLoadingQuality ? loadingQualityApprovalCount : 0);
+    (canAccessLoadingQuality ? (loadingQualityApprovalCount + inventoryQualityApprovalCount) : 0);
 
   const fetchLoadingQuality = useCallback(async (isSilent = false) => {
     if (!canAccessLoadingQuality) return;
@@ -191,6 +195,28 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     } finally {
       if (!isSilent) {
         setLoadingQuality(false);
+      }
+    }
+  }, [canAccessLoadingQuality]);
+
+  const fetchInventoryQualityApprovals = useCallback(async (isSilent = false) => {
+    if (!canAccessLoadingQuality) return;
+    try {
+      if (!isSilent) {
+        setLoadingInventoryQualityApprovals(true);
+      }
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/arrivals/bmb/inventory-quality/pending`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const entries = response.data.entries || [];
+      setPendingInventoryQualityApprovals(entries);
+      setInventoryQualityApprovalCount(entries.length);
+    } catch (error) {
+      console.error('Error fetching Arrivals inventory quality approvals:', error);
+    } finally {
+      if (!isSilent) {
+        setLoadingInventoryQualityApprovals(false);
       }
     }
   }, [canAccessLoadingQuality]);
@@ -254,7 +280,8 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     }
     if (!canAccessLoadingQuality) {
       setLoadingQualityApprovalCount(0);
-      if (activeTab === 'loading-quality-approvals') {
+      setInventoryQualityApprovalCount(0);
+      if (activeTab === 'loading-quality-approvals' || activeTab === 'bmb-inventory-quality') {
         setActiveTab('approval-for-edits');
       }
     }
@@ -262,13 +289,15 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
 
   useEffect(() => {
     fetchLoadingQuality(false);
+    fetchInventoryQualityApprovals(false);
     fetchCounts();
     const interval = setInterval(() => {
       fetchLoadingQuality(true);
+      fetchInventoryQualityApprovals(true);
       fetchCounts();
     }, 30000);
     return () => clearInterval(interval);
-  }, [fetchLoadingQuality, fetchCounts]);
+  }, [fetchLoadingQuality, fetchInventoryQualityApprovals, fetchCounts]);
 
   useEffect(() => {
     onPendingCountChange?.(totalPendingCount);
@@ -307,6 +336,45 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     } catch (error: any) {
       console.error('Error rejecting lorry quality:', error);
       toast.error(error.response?.data?.error || 'Failed to reject lorry quality');
+    } finally {
+      setProcessingLorry(false);
+    }
+  };
+
+  const handleApproveBmbInventoryQuality = async (qualityId: string) => {
+    try {
+      setProcessingLorry(true);
+      const token = localStorage.getItem('token');
+      await axios.post(`${API_URL}/arrivals/bmb/inventory-quality/${qualityId}/approve`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Inventory quality approved successfully');
+      fetchInventoryQualityApprovals();
+      fetchCounts();
+    } catch (error: any) {
+      console.error('Error approving inventory quality:', error);
+      toast.error(error.response?.data?.error || 'Failed to approve inventory quality');
+    } finally {
+      setProcessingLorry(false);
+    }
+  };
+
+  const handleRejectBmbInventoryQuality = async (qualityId: string) => {
+    const reason = prompt('Enter rejection reason:');
+    if (reason === null || !reason.trim()) return;
+
+    try {
+      setProcessingLorry(true);
+      const token = localStorage.getItem('token');
+      await axios.post(`${API_URL}/arrivals/bmb/inventory-quality/${qualityId}/reject`, { rejectReason: reason.trim() }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Inventory quality rejected successfully');
+      fetchInventoryQualityApprovals();
+      fetchCounts();
+    } catch (error: any) {
+      console.error('Error rejecting inventory quality:', error);
+      toast.error(error.response?.data?.error || 'Failed to reject inventory quality');
     } finally {
       setProcessingLorry(false);
     }
@@ -1212,6 +1280,172 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     );
   };
 
+  const renderBmbInventoryQualityTable = () => {
+    const formatDate = (dateStr: string) => {
+      if (!dateStr) return '-';
+      const d = new Date(dateStr);
+      if (Number.isNaN(d.getTime())) return dateStr;
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}/${month}/${year}`;
+    };
+
+    if (loadingInventoryQualityApprovals) {
+      return <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>Loading arrivals inventory quality approvals...</div>;
+    }
+
+    if (pendingInventoryQualityApprovals.length === 0) {
+      return (
+        <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8' }}>
+          No pending arrivals inventory quality approvals.
+        </div>
+      );
+    }
+
+    const CELL: React.CSSProperties = {
+      padding: '10px 12px',
+      borderRight: '1px solid #e2e8f0',
+      verticalAlign: 'middle',
+      fontSize: '12px'
+    };
+
+    const CELL_HEAD: React.CSSProperties = {
+      padding: '10px 12px',
+      borderRight: '1px solid #e2e8f0',
+      textAlign: 'left',
+      fontWeight: '700',
+      fontSize: '12px',
+      color: '#0f766e',
+      backgroundColor: '#f0fdf4'
+    };
+
+    return (
+      <div>
+        <div style={{ marginBottom: '12px', fontSize: '13px', color: '#374151', fontWeight: 600 }}>
+          📋 {pendingInventoryQualityApprovals.length} pending quality parameter approval{pendingInventoryQualityApprovals.length > 1 ? 's' : ''}
+        </div>
+        <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid #cbd5e1', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: '#fff' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #cbd5e1' }}>
+                <th style={{ ...CELL_HEAD, width: '40px' }}>#</th>
+                <th style={{ ...CELL_HEAD, width: '100px' }}>Date</th>
+                <th style={CELL_HEAD}>Party / Lorry</th>
+                <th style={{ ...CELL_HEAD, width: '70px' }}>Bags</th>
+                <th style={{ ...CELL_HEAD, width: '120px' }}>Type</th>
+                <th style={{ ...CELL_HEAD, minWidth: '380px' }}>📊 Quality Parameters</th>
+                <th style={CELL_HEAD}>Reporter / Remarks</th>
+                <th style={{ ...CELL_HEAD, textAlign: 'center', width: '200px' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pendingInventoryQualityApprovals.map((entry, index) => {
+                const sampleEntry = entry.lorryTransitDetail?.sampleEntry;
+                const inspection = entry.lorryTransitDetail?.physicalInspection;
+                const lorryNumber = entry.lorryTransitDetail?.lorryNumber || inspection?.lorryNumber || '-';
+                const typeLabel = entry.type === 'lot_avg' ? 'Lot Avg' : 'Full Lorry Avg';
+                
+                return (
+                  <tr key={entry.id} style={{ borderBottom: '1px solid #e2e8f0', background: index % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                    <td style={{ ...CELL, fontWeight: 'bold' }}>{index + 1}</td>
+                    <td style={{ ...CELL, whiteSpace: 'nowrap' }}>{formatDate(entry.reportedAt)}</td>
+                    <td style={CELL}>
+                      <div style={{ fontWeight: 'bold', color: '#1e293b' }}>{sampleEntry?.partyName || '-'}</div>
+                      <div style={{ fontSize: '11px', color: '#1e40af', fontWeight: 'bold', marginTop: '2px' }}>🚚 {lorryNumber.toUpperCase()}</div>
+                      <div style={{ fontSize: '11px', color: '#64748b' }}>{sampleEntry?.variety || '-'} | Broker: {sampleEntry?.brokerName || '-'}</div>
+                    </td>
+                    <td style={{ ...CELL, fontWeight: 'bold' }}>{inspection?.bags || sampleEntry?.bags || '-'}</td>
+                    <td style={CELL}>
+                      <span style={{
+                        padding: '3px 8px',
+                        background: entry.type === 'lot_avg' ? '#eff6ff' : '#faf5ff',
+                        color: entry.type === 'lot_avg' ? '#1d4ed8' : '#7c3aed',
+                        border: entry.type === 'lot_avg' ? '1px solid #bfdbfe' : '1px solid #e9d5ff',
+                        borderRadius: '4px',
+                        fontWeight: 'bold',
+                        fontSize: '11px',
+                        display: 'inline-block'
+                      }}>
+                        {typeLabel}
+                      </span>
+                    </td>
+                    <td style={CELL}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', fontSize: '11px' }}>
+                        <div>Moisture: <b>{entry.moisture || '-'}</b></div>
+                        <div>Dry: <b>{entry.dryMoisture || '-'}</b></div>
+                        <div>Cutting: <b>{entry.cutting || '-'}</b></div>
+                        <div>Bend: <b>{entry.bend || '-'}</b></div>
+                        <div>Grains: <b>{entry.grains || '-'}</b></div>
+                        <div>Mix: <b>{entry.mix || '-'}</b></div>
+                        <div>SMix: <b>{entry.sMix || '-'}</b></div>
+                        <div>LMix: <b>{entry.lMix || '-'}</b></div>
+                        <div>SK: <b>{entry.sk || '-'}</b></div>
+                        <div>Kandu: <b>{entry.kandu || '-'}</b></div>
+                        <div>Oil: <b>{entry.oil || '-'}</b></div>
+                        <div>Smell: <b>{entry.smell || '-'}</b></div>
+                        <div>Paddy WB: <b>{entry.paddyWb || '-'}</b></div>
+                        <div>Discolor: <b>{entry.pColor || '-'}</b></div>
+                        <div>Kadiga: <b>{entry.kadiga || '-'}</b></div>
+                      </div>
+                    </td>
+                    <td style={CELL}>
+                      <div style={{ fontSize: '11px', color: '#475569' }}>
+                        Reported: <b>{entry.reportedBy?.fullName || entry.reportedBy?.username || '-'}</b>
+                      </div>
+                      {entry.remarks && (
+                        <div style={{ marginTop: '4px', fontSize: '11px', color: '#b45309', background: '#fffbeb', padding: '4px 8px', borderRadius: '4px', border: '1px solid #fde68a' }}>
+                          💬 {entry.remarks}
+                        </div>
+                      )}
+                    </td>
+                    <td style={{ ...CELL, textAlign: 'center' }}>
+                      <div style={{ display: 'inline-flex', gap: '8px' }}>
+                        <button
+                          onClick={() => handleApproveBmbInventoryQuality(entry.id)}
+                          disabled={processingLorry}
+                          style={{
+                            backgroundColor: '#10b981',
+                            color: '#fff',
+                            border: 'none',
+                            padding: '6px 14px',
+                            borderRadius: '4px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            fontSize: '11px'
+                          }}
+                        >
+                          ✅ Approve
+                        </button>
+                        <button
+                          onClick={() => handleRejectBmbInventoryQuality(entry.id)}
+                          disabled={processingLorry}
+                          style={{
+                            backgroundColor: '#ef4444',
+                            color: '#fff',
+                            border: 'none',
+                            padding: '6px 14px',
+                            borderRadius: '4px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            fontSize: '11px'
+                          }}
+                        >
+                          ❌ Reject
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+
   return (
     <div style={{
       background: '#ffffff',
@@ -1237,7 +1471,9 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                 ? lorryApprovalCount
                 : tab.key === 'rate-linking-approvals'
                   ? rateLinkingCount
-                  : loadingQualityApprovalCount;
+                  : tab.key === 'bmb-inventory-quality'
+                    ? inventoryQualityApprovalCount
+                    : loadingQualityApprovalCount;
           return (
             <button
               key={tab.key}
@@ -1297,6 +1533,11 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
         {canAccessLoadingQuality && activeTab === 'loading-quality-approvals' && (
           <div key={`loading-quality-${refreshKey}`}>
             {renderLorryQualityTable()}
+          </div>
+        )}
+        {canAccessLoadingQuality && activeTab === 'bmb-inventory-quality' && (
+          <div key={`bmb-inventory-quality-${refreshKey}`}>
+            {renderBmbInventoryQualityTable()}
           </div>
         )}
         {canAccessManagerApprovals && activeTab === 'transit-approvals' && (

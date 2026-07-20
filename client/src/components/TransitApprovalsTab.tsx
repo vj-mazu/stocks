@@ -101,15 +101,11 @@ const TransitApprovalsTab: React.FC = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/arrivals?status=approved&limit=200`, {
+      const res = await axios.get(`${API_URL}/arrivals/transit-approvals/pending`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      const allEntries = res.data?.arrivals || res.data?.data || [];
-      // Show entries with pending place OR pending wb
-      const pending = allEntries.filter((e: any) => 
-        e.placeStatus === 'pending' || e.wbStatus === 'pending'
-      );
+      const pending = res.data?.arrivals || res.data?.data || [];
       setPendingEntries(pending);
     } catch (err) {
       console.error('Failed to fetch transit approvals:', err);

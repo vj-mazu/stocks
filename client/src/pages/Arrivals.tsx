@@ -978,7 +978,7 @@ const Arrivals: React.FC = () => {
     smell: '', paddyWb: '', pColor: '', kadiga: '', remarks: ''
   });
   const [inventoryQualityToggle, setInventoryQualityToggle] = useState({
-    dryMoisture: 'Y', sMix: 'Y', lMix: 'Y', paddyWb: 'Y', kadiga: 'Y', smellHas: 'No'
+    dryMoisture: 'N', sMix: 'N', lMix: 'N', paddyWb: 'N', kadiga: 'N', smellHas: 'No'
   });
 
   const sanitizeInventoryQualityField = (field: string, value: string) => {
@@ -1152,7 +1152,8 @@ const Arrivals: React.FC = () => {
 
   // Inventory Quality Parameters Authorization
   const canAddInventoryQuality = user && (
-    (user.role === 'staff' && ['mill', 'location', 'inventory'].includes(user.staffType)) ||
+    (user.role === 'staff' && ['mill', 'location'].includes(user.staffType)) ||
+    user.role === 'inventory_staff' ||
     user.role === 'inventory_head' ||
     user.effectiveRole === 'inventory_head' ||
     user.role === 'admin' ||
@@ -1250,7 +1251,7 @@ const Arrivals: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.post(
+      const response = await axios.post(
         `${API_URL}/arrivals/bmb/${transitDetailId}/inventory-quality`,
         {
           type: inventoryQualityType,
@@ -1260,7 +1261,7 @@ const Arrivals: React.FC = () => {
           headers: { Authorization: `Bearer ${token}` }
         }
       );
-      toast.success('Inventory quality parameters submitted successfully');
+      toast.success(response?.data?.message || 'Inventory quality parameters submitted successfully');
       setExpandedInventoryQuality(null);
       // Reset form
       setInventoryQualityForm({
@@ -1633,7 +1634,20 @@ const Arrivals: React.FC = () => {
                               <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>
                                 {isPlaceholder ? '-' : getCuttingValue(entry, inspection)}
                               </td>
-                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>{wbNoVal}</td>
+                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>
+                                {transitDetail && (wbStatus === 'approved' || wbStatus === 'pending') ? (
+                                  <span style={{ 
+                                    padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold',
+                                    background: wbStatus === 'approved' ? '#dcfce7' : '#fef3c7',
+                                    color: wbStatus === 'approved' ? '#166534' : '#92400e'
+                                  }}>
+                                    {wbNoVal}
+                                    {wbStatus === 'pending' && ' ⏳'}
+                                  </span>
+                                ) : (
+                                  wbNoVal
+                                )}
+                              </td>
                               <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontSize: '11px' }}>
                                 {transitDetail && (placeStatus === 'approved' || placeStatus === 'pending') ? (
                                   <span style={{ 
@@ -1963,9 +1977,6 @@ const Arrivals: React.FC = () => {
                                             }, {
                                               headers: { Authorization: `Bearer ${token}` }
                                             });
-                                          setInventoryQualityToggle({
-                                            dryMoisture: 'Y', sMix: 'Y', lMix: 'Y', paddyWb: 'Y', kadiga: 'Y', smellHas: 'No'
-                                          });
                                             const responseDetail = response?.data?.detail || response?.data || {};
                                             const savedStatus = wbInputType === 'party' ? 'approved' : (responseDetail?.wbStatus || response?.data?.wbStatus || 'pending');
                                             const savedWbNo = responseDetail?.wbNo || response?.data?.wbNo || wbNumber;
@@ -1980,12 +1991,13 @@ const Arrivals: React.FC = () => {
                                               grossWeight: wbGrossWeight,
                                               tareWeight: wbTareWeight
                                             }));
-                                            toast.success('Weight Bridge submitted for approval!');
+                                            toast.success(wbInputType === 'mill' ? 'Mill Weight Bridge saved & submitted for approval!' : 'Party Weight Bridge saved successfully!');
                                             setSelectedLorryForWB(null);
                                             setSelectedLorryEntries([]);
                                             setSelectedLorryInspection(null);
                                             fetchInTransitEntries();
                                           } catch (err: any) {
+                                            console.error('WB save error:', err);
                                             toast.error(err.response?.data?.error || 'Failed to save Weight Bridge');
                                           }
                                         }}
@@ -2283,9 +2295,9 @@ const Arrivals: React.FC = () => {
                     return (
                       <React.Fragment key={`bm-${entry.id}`}>
                         <tr style={{ borderBottom: '1px solid #e2e8f0', background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
-                          {/* Column 1: SL No - sequential starting from 1 */}
+                          {/* Column 1: SL No - persistent index from backend */}
                           <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600' }}>
-                            {idx + 1}
+                            {entry.slNo}
                           </td>
                           
                           {/* Column 2: Date */}
@@ -2394,7 +2406,18 @@ const Arrivals: React.FC = () => {
                           
                           {/* Column 9: WB Number */}
                           <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>
-                            {entry.wbNo || (wbStatus === 'pending' ? 'PENDING' : wbStatus === 'none' ? '⚠️ Required' : '-')}
+                            {wbStatus === 'approved' || wbStatus === 'pending' ? (
+                              <span style={{ 
+                                padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold',
+                                background: wbStatus === 'approved' ? '#dcfce7' : '#fef3c7',
+                                color: wbStatus === 'approved' ? '#166534' : '#92400e'
+                              }}>
+                                {entry.wbNo || 'PENDING'}
+                                {wbStatus === 'pending' && ' ⏳'}
+                              </span>
+                            ) : (
+                              entry.wbNo || (wbStatus === 'none' ? '⚠️ Required' : '-')
+                            )}
                           </td>
                           
                           {/* Column 10: Place */}
@@ -2418,7 +2441,7 @@ const Arrivals: React.FC = () => {
                           </td>
                           
                           {/* Column 13: Actions */}
-                          {(user?.role === 'owner' || user?.role === 'ceo' || user?.effectiveRole === 'ceo' || user?.role === 'inventory_head' || user?.effectiveRole === 'inventory_head' || user?.role === 'admin' || user?.role === 'manager' || (user?.role === 'staff' && ['mill', 'location', 'inventory'].includes(user?.staffType))) && (
+                          {(((user as any)?.role === 'owner' || (user as any)?.role === 'staff' || (user as any)?.role === 'inventory_staff' || (user as any)?.role === 'financial_account' || (user as any)?.role === 'ceo' || (user as any)?.effectiveRole === 'ceo' || (user as any)?.role === 'inventory_head' || (user as any)?.effectiveRole === 'inventory_head' || (user as any)?.role === 'admin' || (user as any)?.role === 'manager')) && (
                             <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
                                 {/* Weight Bridge Actions */}
@@ -2470,45 +2493,90 @@ const Arrivals: React.FC = () => {
                                   )}
                                 </div>
                                 {/* Inventory Quality Button */}
-                                {canAddInventoryQuality && (
-                                  <button
-                                    onClick={() => {
-                                      if (expandedInventoryQuality === entry.transitDetailId) {
-                                        setExpandedInventoryQuality(null);
-                                      } else {
-                                        setExpandedInventoryQuality(entry.transitDetailId);
-                                        setInventoryQualityType('lot_avg');
-                                        setInventoryQualityForm({
-                                          moisture: '', dryMoisture: '', cutting: '', bend: '', grains: '',
-                                          mix: '', sMix: '', lMix: '', kandu: '', oil: '', sk: '',
-                                          smell: '', paddyWb: '', pColor: '', kadiga: '', remarks: ''
-                                        });
-                                      }
-                                    }}
-                                    style={{
-                                      padding: '6px 10px',
-                                      background: expandedInventoryQuality === entry.transitDetailId ? '#9333ea' : '#a855f7',
-                                      color: '#fff',
-                                      border: 'none',
-                                      borderRadius: '6px',
-                                      cursor: 'pointer',
-                                      fontSize: '11px',
-                                      fontWeight: '600',
-                                      width: '100%'
-                                    }}
-                                  >
-                                    🔬 Inventory Quality
-                                  </button>
-                                )}
+                                 {canAddInventoryQuality && (() => {
+                                   const params = entry.inventoryQualityParameters || [];
+                                   const isFullApproved = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
+                                   const isLotApproved = params.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
+                                   const isFullPending = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'pending');
+                                   const isLotPending = params.some((p: any) => p.type === 'lot_avg' && p.status === 'pending');
+                                   
+                                   let btnText = '🔬 Inventory Quality';
+                                   let btnBg = '#a855f7';
+                                   let isBtnDisabled = false;
+
+                                   if (isLotApproved) {
+                                     btnText = '✅ Lot Avg Approved';
+                                     btnBg = '#059669';
+                                     isBtnDisabled = true;
+                                   } else if (isLotPending) {
+                                     btnText = '⏳ Lot Avg Pending';
+                                     btnBg = '#d97706';
+                                     isBtnDisabled = true;
+                                   } else if (isFullApproved) {
+                                     btnText = '🔬 Inventory Quality (Lot)';
+                                     btnBg = '#0284c7';
+                                   } else if (isFullPending) {
+                                     btnText = '⏳ Full Avg Pending';
+                                     btnBg = '#b45309';
+                                     isBtnDisabled = true;
+                                   }
+
+                                   return (
+                                     <button
+                                       disabled={isBtnDisabled}
+                                       onClick={() => {
+                                         if (expandedInventoryQuality === entry.transitDetailId) {
+                                           setExpandedInventoryQuality(null);
+                                         } else {
+                                           setExpandedInventoryQuality(entry.transitDetailId);
+                                           const hasFull = params.some((p: any) => p.type === 'full_lorry_avg' && p.status !== 'rejected');
+                                           const hasLot = params.some((p: any) => p.type === 'lot_avg' && p.status !== 'rejected');
+                                           if (hasFull && !hasLot) {
+                                             setInventoryQualityType('lot_avg');
+                                           } else {
+                                             setInventoryQualityType('full_lorry_avg');
+                                           }
+                                           setInventoryQualityForm({
+                                             moisture: '', dryMoisture: '', cutting: '', bend: '', grains: '',
+                                             mix: '', sMix: '', lMix: '', kandu: '', oil: '', sk: '',
+                                             smell: '', paddyWb: '', pColor: '', kadiga: '', remarks: ''
+                                           });
+                                           setInventoryQualityToggle({
+                                             dryMoisture: 'N', sMix: 'N', lMix: 'N', paddyWb: 'N', kadiga: 'N', smellHas: 'No'
+                                           });
+                                         }
+                                       }}
+                                       style={{
+                                         padding: '6px 10px',
+                                         background: expandedInventoryQuality === entry.transitDetailId ? '#9333ea' : btnBg,
+                                         color: '#fff',
+                                         border: 'none',
+                                         borderRadius: '6px',
+                                         cursor: isBtnDisabled ? 'not-allowed' : 'pointer',
+                                         opacity: isBtnDisabled ? 0.8 : 1,
+                                         fontSize: '11px',
+                                         fontWeight: '600',
+                                         width: '100%',
+                                         whiteSpace: 'nowrap'
+                                       }}
+                                     >
+                                       {btnText}
+                                     </button>
+                                   );
+                                 })()}
                               </div>
                             </td>
                           )}
                         </tr>
                         {/* INVENTORY QUALITY EXPANDED FORM */}
-                        {expandedInventoryQuality === entry.transitDetailId && (
+                        {expandedInventoryQuality === entry.transitDetailId && (() => {
+                          const hasLotAvg = (entry.inventoryQualityParameters || []).some((qp: any) => qp.type === 'lot_avg' && qp.status !== 'rejected');
+                          const hasFullAvg = (entry.inventoryQualityParameters || []).some((qp: any) => qp.type === 'full_lorry_avg' && qp.status !== 'rejected');
+                          
+                          return (
                             <tr>
                               <td colSpan={14} style={{ padding: '16px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
-                                <div style={{ width: '90%', maxWidth: '850px', margin: '0 auto', background: '#fff', border: '1px solid #d8b4fe', borderRadius: '12px', padding: '20px', boxShadow: '0 8px 25px rgba(0,0,0,0.08)' }}>
+                                <div style={{ width: '95%', maxWidth: '520px', margin: '0 auto', background: '#fff', border: '1px solid #d8b4fe', borderRadius: '12px', padding: '20px', boxShadow: '0 8px 25px rgba(0,0,0,0.08)' }}>
                                   {/* Header */}
                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px', marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '14px' }}>
                                     <div>
@@ -2558,12 +2626,6 @@ const Arrivals: React.FC = () => {
                                             <span>Kadiga: <b>{qp.kadiga || '-'}</b></span>
                                           </div>
                                           {qp.reporter && <div style={{ marginTop: '4px', fontSize: '10px', color: '#94a3b8' }}>Reported by: {qp.reporter.fullName || qp.reporter.username}</div>}
-                                          {qp.status === 'pending' && canApproveInventoryQuality && (
-                                            <div style={{ display: 'flex', gap: '6px', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #e2e8f0' }}>
-                                              <button onClick={() => handleApproveInventoryQuality(qp.id)} style={{ padding: '4px 12px', border: 'none', borderRadius: '5px', background: '#16a34a', color: '#fff', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>✅ Approve</button>
-                                              <button onClick={() => { setRejectInventoryQualityId(qp.id); setRejectInventoryQualityReason(''); }} style={{ padding: '4px 12px', border: 'none', borderRadius: '5px', background: '#dc2626', color: '#fff', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>❌ Reject</button>
-                                            </div>
-                                          )}
                                         </div>
                                       ))}
                                     </div>
@@ -2582,108 +2644,121 @@ const Arrivals: React.FC = () => {
                                   )}
 
                                   {/* New Parameters Form - Physical Inspection Style */}
-                                  <div style={{ borderTop: '2px solid #f1f5f9', paddingTop: '16px' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                                      <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#374151' }}>📝 Add New Parameters</span>
-                                      <div style={{ display: 'flex', gap: '4px', background: '#f3f4f6', padding: '3px', borderRadius: '6px' }}>
-                                        <button onClick={() => setInventoryQualityType('lot_avg')} style={{
-                                          padding: '5px 14px', border: 'none', borderRadius: '5px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer',
-                                          background: inventoryQualityType === 'lot_avg' ? '#7c3aed' : 'transparent',
-                                          color: inventoryQualityType === 'lot_avg' ? '#fff' : '#6b7280',
-                                          transition: 'all 0.2s'
-                                        }}>📊 Lot Avg</button>
-                                        <button onClick={() => setInventoryQualityType('full_lorry_avg')} style={{
-                                          padding: '5px 14px', border: 'none', borderRadius: '5px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer',
-                                          background: inventoryQualityType === 'full_lorry_avg' ? '#7c3aed' : 'transparent',
-                                          color: inventoryQualityType === 'full_lorry_avg' ? '#fff' : '#6b7280',
-                                          transition: 'all 0.2s'
-                                        }}>🚛 Full Lorry Avg</button>
-                                      </div>
+                                  {hasLotAvg && hasFullAvg ? (
+                                    <div style={{ borderTop: '2px solid #f1f5f9', paddingTop: '16px', marginTop: '12px', padding: '12px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', color: '#166534', fontSize: '12px', fontWeight: 'bold', textAlign: 'center' }}>
+                                      ✅ Both Lot Avg and Full Lorry Avg quality parameters have already been submitted for this lorry.
                                     </div>
+                                  ) : (
+                                    <div style={{ borderTop: '2px solid #f1f5f9', paddingTop: '16px' }}>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                                        <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#374151' }}>📝 Add New Parameters</span>
+                                        <div style={{ display: 'flex', gap: '4px', background: '#f3f4f6', padding: '3px', borderRadius: '6px' }}>
+                                          {!hasLotAvg && (
+                                            <button onClick={() => setInventoryQualityType('lot_avg')} style={{
+                                              padding: '5px 14px', border: 'none', borderRadius: '5px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer',
+                                              background: inventoryQualityType === 'lot_avg' ? '#7c3aed' : 'transparent',
+                                              color: inventoryQualityType === 'lot_avg' ? '#fff' : '#6b7280',
+                                              transition: 'all 0.2s'
+                                            }}>📊 Lot Avg</button>
+                                          )}
+                                          {!hasFullAvg && (
+                                            <button onClick={() => setInventoryQualityType('full_lorry_avg')} style={{
+                                              padding: '5px 14px', border: 'none', borderRadius: '5px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer',
+                                              background: inventoryQualityType === 'full_lorry_avg' ? '#7c3aed' : 'transparent',
+                                              color: inventoryQualityType === 'full_lorry_avg' ? '#fff' : '#6b7280',
+                                              transition: 'all 0.2s'
+                                            }}>🚛 Full Lorry Avg</button>
+                                          )}
+                                        </div>
+                                      </div>
 
-                                    <div style={{ display: 'grid', gap: '10px' }}>
-                                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                        <div style={{ flex: '1 1 180px', minWidth: '180px' }}>
-                                          <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Moisture *</label>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', fontSize: '13px' }}>
+                                      {/* Row 1: Moisture, Dry Moisture, Grains */}
+                                      <div style={{ display: 'flex', gap: '8px' }}>
+                                        <div style={{ flex: 1 }}>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Moisture *</label>
                                           <input type="text" inputMode="decimal" value={inventoryQualityForm.moisture} onChange={(e) => setInventoryQualityForm(p => ({ ...p, moisture: sanitizeInventoryQualityField('moisture', e.target.value) }))} placeholder="e.g. 16.5" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
                                         </div>
-                                        <div style={{ flex: '1 1 180px', minWidth: '180px' }}>
-                                          <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Dry Moisture</label>
+                                        <div style={{ flex: 1 }}>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Dry Moisture</label>
                                           <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
-                                            <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="dm_toggle" checked={inventoryQualityToggle.dryMoisture === 'Y'} onChange={() => setInventoryQualityToggle(p => ({ ...p, dryMoisture: 'Y' }))} /> Y</label>
-                                            <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="dm_toggle" checked={inventoryQualityToggle.dryMoisture === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, dryMoisture: 'N' })); setInventoryQualityForm(p => ({ ...p, dryMoisture: '' })); }} /> N</label>
+                                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="dm_toggle" checked={inventoryQualityToggle.dryMoisture === 'Y'} onChange={() => setInventoryQualityToggle(p => ({ ...p, dryMoisture: 'Y' }))} /> Y</label>
+                                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="dm_toggle" checked={inventoryQualityToggle.dryMoisture === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, dryMoisture: 'N' })); setInventoryQualityForm(p => ({ ...p, dryMoisture: '' })); }} /> N</label>
                                           </div>
                                           {inventoryQualityToggle.dryMoisture === 'Y' && (
                                             <input type="text" inputMode="decimal" value={inventoryQualityForm.dryMoisture} onChange={(e) => setInventoryQualityForm(p => ({ ...p, dryMoisture: sanitizeInventoryQualityField('dryMoisture', e.target.value) }))} placeholder="Dry Value" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
                                           )}
                                         </div>
-                                        <div style={{ flex: '1 1 180px', minWidth: '180px' }}>
-                                          <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Grains Count *</label>
+                                        <div style={{ flex: 1 }}>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Grains Count *</label>
                                           <input type="text" inputMode="decimal" value={inventoryQualityForm.grains} onChange={(e) => setInventoryQualityForm(p => ({ ...p, grains: sanitizeInventoryQualityField('grains', e.target.value) }))} placeholder="e.g. 85" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
                                         </div>
                                       </div>
 
-                                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                        <div style={{ flex: '1 1 180px', minWidth: '180px' }}>
-                                          <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Cutting *</label>
+                                      {/* Row 2: Cutting, Bend, Mix */}
+                                      <div style={{ display: 'flex', gap: '8px' }}>
+                                        <div style={{ flex: 1 }}>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Cutting *</label>
                                           <input type="text" value={inventoryQualityForm.cutting} onChange={(e) => setInventoryQualityForm(p => ({ ...p, cutting: sanitizeInventoryQualityField('cutting', e.target.value) }))} placeholder="1x" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
                                         </div>
-                                        <div style={{ flex: '1 1 180px', minWidth: '180px' }}>
-                                          <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Bend *</label>
+                                        <div style={{ flex: 1 }}>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Bend *</label>
                                           <input type="text" value={inventoryQualityForm.bend} onChange={(e) => setInventoryQualityForm(p => ({ ...p, bend: sanitizeInventoryQualityField('bend', e.target.value) }))} placeholder="1x" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
                                         </div>
-                                        <div style={{ flex: '1 1 180px', minWidth: '180px' }}>
-                                          <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Mix *</label>
+                                        <div style={{ flex: 1 }}>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Mix *</label>
                                           <input type="text" inputMode="decimal" value={inventoryQualityForm.mix} onChange={(e) => setInventoryQualityForm(p => ({ ...p, mix: sanitizeInventoryQualityField('mix', e.target.value) }))} placeholder="e.g. 5" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
                                         </div>
                                       </div>
 
-                                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                        <div style={{ flex: '1 1 180px', minWidth: '180px' }}>
-                                          <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>SMix</label>
+                                      {/* Row 3: SMix, LMix, SK */}
+                                      <div style={{ display: 'flex', gap: '8px' }}>
+                                        <div style={{ flex: 1 }}>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>SMix</label>
                                           <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
-                                            <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="sm_toggle" checked={inventoryQualityToggle.sMix === 'Y'} onChange={() => setInventoryQualityToggle(p => ({ ...p, sMix: 'Y' }))} /> Y</label>
-                                            <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="sm_toggle" checked={inventoryQualityToggle.sMix === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, sMix: 'N' })); setInventoryQualityForm(p => ({ ...p, sMix: '' })); }} /> N</label>
+                                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="sm_toggle" checked={inventoryQualityToggle.sMix === 'Y'} onChange={() => setInventoryQualityToggle(p => ({ ...p, sMix: 'Y' }))} /> Y</label>
+                                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="sm_toggle" checked={inventoryQualityToggle.sMix === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, sMix: 'N' })); setInventoryQualityForm(p => ({ ...p, sMix: '' })); }} /> N</label>
                                           </div>
                                           {inventoryQualityToggle.sMix === 'Y' && (
                                             <input type="text" inputMode="decimal" value={inventoryQualityForm.sMix} onChange={(e) => setInventoryQualityForm(p => ({ ...p, sMix: sanitizeInventoryQualityField('sMix', e.target.value) }))} placeholder="Value" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
                                           )}
                                         </div>
-                                        <div style={{ flex: '1 1 180px', minWidth: '180px' }}>
-                                          <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>LMix</label>
+                                        <div style={{ flex: 1 }}>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>LMix</label>
                                           <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
-                                            <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="lm_toggle" checked={inventoryQualityToggle.lMix === 'Y'} onChange={() => setInventoryQualityToggle(p => ({ ...p, lMix: 'Y' }))} /> Y</label>
-                                            <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="lm_toggle" checked={inventoryQualityToggle.lMix === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, lMix: 'N' })); setInventoryQualityForm(p => ({ ...p, lMix: '' })); }} /> N</label>
+                                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="lm_toggle" checked={inventoryQualityToggle.lMix === 'Y'} onChange={() => setInventoryQualityToggle(p => ({ ...p, lMix: 'Y' }))} /> Y</label>
+                                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="lm_toggle" checked={inventoryQualityToggle.lMix === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, lMix: 'N' })); setInventoryQualityForm(p => ({ ...p, lMix: '' })); }} /> N</label>
                                           </div>
                                           {inventoryQualityToggle.lMix === 'Y' && (
                                             <input type="text" inputMode="decimal" value={inventoryQualityForm.lMix} onChange={(e) => setInventoryQualityForm(p => ({ ...p, lMix: sanitizeInventoryQualityField('lMix', e.target.value) }))} placeholder="Value" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
                                           )}
                                         </div>
-                                        <div style={{ flex: '1 1 180px', minWidth: '180px' }}>
-                                          <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>SK *</label>
+                                        <div style={{ flex: 1 }}>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>SK *</label>
                                           <input type="text" inputMode="decimal" value={inventoryQualityForm.sk} onChange={(e) => setInventoryQualityForm(p => ({ ...p, sk: sanitizeInventoryQualityField('sk', e.target.value) }))} placeholder="e.g. 0.5" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
                                         </div>
                                       </div>
 
-                                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                        <div style={{ flex: '1 1 180px', minWidth: '180px' }}>
-                                          <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Kandu *</label>
+                                      {/* Row 4: Kandu, Oil, Smell */}
+                                      <div style={{ display: 'flex', gap: '8px' }}>
+                                        <div style={{ flex: 1 }}>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Kandu *</label>
                                           <input type="text" inputMode="decimal" value={inventoryQualityForm.kandu} onChange={(e) => setInventoryQualityForm(p => ({ ...p, kandu: sanitizeInventoryQualityField('kandu', e.target.value) }))} placeholder="e.g. 1" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
                                         </div>
-                                        <div style={{ flex: '1 1 180px', minWidth: '180px' }}>
-                                          <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Oil *</label>
+                                        <div style={{ flex: 1 }}>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Oil *</label>
                                           <input type="text" inputMode="decimal" value={inventoryQualityForm.oil} onChange={(e) => setInventoryQualityForm(p => ({ ...p, oil: sanitizeInventoryQualityField('oil', e.target.value) }))} placeholder="e.g. 0.5" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
                                         </div>
-                                        <div style={{ flex: '1 1 180px', minWidth: '180px' }}>
-                                          <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Smell *</label>
+                                        <div style={{ flex: 1 }}>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Smell *</label>
                                           <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
-                                            <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="smell_has" checked={inventoryQualityToggle.smellHas === 'Yes'} onChange={() => setInventoryQualityToggle(p => ({ ...p, smellHas: 'Yes' }))} /> Yes</label>
-                                            <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="smell_has" checked={inventoryQualityToggle.smellHas === 'No'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, smellHas: 'No' })); setInventoryQualityForm(p => ({ ...p, smell: '' })); }} /> No</label>
+                                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="smell_has" checked={inventoryQualityToggle.smellHas === 'Yes'} onChange={() => setInventoryQualityToggle(p => ({ ...p, smellHas: 'Yes' }))} /> Yes</label>
+                                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="smell_has" checked={inventoryQualityToggle.smellHas === 'No'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, smellHas: 'No' })); setInventoryQualityForm(p => ({ ...p, smell: '' })); }} /> No</label>
                                           </div>
                                           {inventoryQualityToggle.smellHas === 'Yes' && (
                                             <div style={{ display: 'flex', gap: '6px', marginTop: '2px', flexWrap: 'wrap' }}>
                                               {['Light', 'Medium', 'Dark'].map(opt => (
-                                                <label key={opt} style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                                <label key={opt} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
                                                   <input type="radio" name="smell_type" checked={inventoryQualityForm.smell === opt} onChange={() => setInventoryQualityForm(p => ({ ...p, smell: opt }))} /> {opt}
                                                 </label>
                                               ))}
@@ -2692,9 +2767,10 @@ const Arrivals: React.FC = () => {
                                         </div>
                                       </div>
 
+                                      {/* Row 5: Paddy Discolor, Kadiga and Paddy WB */}
                                       <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
                                         <div style={{ flex: 1.2 }}>
-                                          <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Paddy Discolor *</label>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Paddy Discolor *</label>
                                           <select value={inventoryQualityForm.pColor} onChange={(e) => setInventoryQualityForm(p => ({ ...p, pColor: e.target.value }))} style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px', background: '#fff', marginTop: '4px' }}>
                                             <option value=''>Select discolor</option>
                                             <option value='Normal Color'>Normal Color</option>
@@ -2704,32 +2780,33 @@ const Arrivals: React.FC = () => {
                                           </select>
                                         </div>
                                         <div style={{ flex: 0.8 }}>
-                                          <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>ಕಡಿಗಾ *</label>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>ಕಡಿಗಾ *</label>
                                           <div style={{ display: 'flex', gap: '6px', marginTop: '8px', marginBottom: '4px' }}>
-                                            <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="kd_toggle" checked={inventoryQualityToggle.kadiga === 'Y'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, kadiga: 'Y' })); setInventoryQualityForm(p => ({ ...p, kadiga: 'Y' })); }} /> Yes</label>
-                                            <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="kd_toggle" checked={inventoryQualityToggle.kadiga === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, kadiga: 'N' })); setInventoryQualityForm(p => ({ ...p, kadiga: '' })); }} /> No</label>
+                                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="kd_toggle" checked={inventoryQualityToggle.kadiga === 'Y'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, kadiga: 'Y' })); setInventoryQualityForm(p => ({ ...p, kadiga: 'Y' })); }} /> Yes</label>
+                                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="kd_toggle" checked={inventoryQualityToggle.kadiga === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, kadiga: 'N' })); setInventoryQualityForm(p => ({ ...p, kadiga: '' })); }} /> No</label>
                                           </div>
                                         </div>
                                         <div style={{ flex: 0.8 }}>
-                                          <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Paddy WB *</label>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Paddy WB *</label>
                                           <div style={{ display: 'flex', gap: '6px', marginTop: '8px', marginBottom: '4px' }}>
-                                            <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="paddy_wb_toggle" checked={inventoryQualityToggle.paddyWb === 'Y'} onChange={() => setInventoryQualityToggle(p => ({ ...p, paddyWb: 'Y' }))} /> Y</label>
-                                            <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="paddy_wb_toggle" checked={inventoryQualityToggle.paddyWb === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, paddyWb: 'N' })); setInventoryQualityForm(p => ({ ...p, paddyWb: '' })); }} /> N</label>
+                                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="paddy_wb_toggle" checked={inventoryQualityToggle.paddyWb === 'Y'} onChange={() => setInventoryQualityToggle(p => ({ ...p, paddyWb: 'Y' }))} /> Y</label>
+                                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="paddy_wb_toggle" checked={inventoryQualityToggle.paddyWb === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, paddyWb: 'N' })); setInventoryQualityForm(p => ({ ...p, paddyWb: '' })); }} /> N</label>
                                           </div>
                                         </div>
                                         <div style={{ flex: 1.2 }}>
-                                          <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Paddy WB Value</label>
-                                          {inventoryQualityToggle.paddyWb === 'Y' ? (
-                                            <input type="text" inputMode="decimal" value={inventoryQualityForm.paddyWb} onChange={(e) => setInventoryQualityForm(p => ({ ...p, paddyWb: sanitizeInventoryQualityField('paddyWb', e.target.value) }))} placeholder="Value" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-                                          ) : (
-                                            <div style={{ height: '32px' }} />
+                                          {inventoryQualityToggle.paddyWb === 'Y' && (
+                                            <>
+                                              <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Paddy WB Value *</label>
+                                              <input type="text" inputMode="decimal" value={inventoryQualityForm.paddyWb} onChange={(e) => setInventoryQualityForm(p => ({ ...p, paddyWb: sanitizeInventoryQualityField('paddyWb', e.target.value) }))} placeholder="Value" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                                            </>
                                           )}
                                         </div>
                                       </div>
 
-                                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                      {/* Row 6: Remarks */}
+                                      <div style={{ display: 'flex', gap: '8px' }}>
                                         <div style={{ flex: 1 }}>
-                                          <label style={{ display: 'block', fontWeight: 600, marginBottom: '3px', fontSize: '11px' }}>Remarks</label>
+                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Remarks</label>
                                           <textarea value={inventoryQualityForm.remarks} onChange={(e) => setInventoryQualityForm(p => ({ ...p, remarks: e.target.value }))} placeholder='Additional remarks...' rows={2} style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px', resize: 'vertical', fontFamily: 'inherit' }} />
                                         </div>
                                       </div>
@@ -2746,10 +2823,13 @@ const Arrivals: React.FC = () => {
                                       </div>
                                     </div>
                                   </div>
+                                  )}
                                 </div>
                               </td>
                             </tr>
-                        )}                        {selectedLorryForWB === (entry.lorryNumber || 'N/A').toUpperCase() && selectedLorryInspection?.id === entry.id && (
+                          );
+                        })()}
+                        {selectedLorryForWB === (entry.lorryNumber || 'N/A').toUpperCase() && selectedLorryInspection?.id === entry.id && (
                           <tr>
                             <td colSpan={14} style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
                               <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
