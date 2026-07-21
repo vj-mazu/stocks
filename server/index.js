@@ -290,6 +290,14 @@ const startServer = async () => {
       console.warn('⚠️ Column alteration warning:', e.message);
     }
 
+    // Ensure kadiga column exists in inventory_quality_parameters
+    try {
+      await sequelize.query('ALTER TABLE inventory_quality_parameters ADD COLUMN IF NOT EXISTS kadiga VARCHAR(30);');
+      console.log('✅ Checked/created kadiga column in inventory_quality_parameters.');
+    } catch (e) {
+      console.warn('⚠️ Column alteration warning (kadiga):', e.message);
+    }
+
     // Run migrations automatically
     const isVercel = process.env.VERCEL === '1' || !!process.env.VERCEL;
 
