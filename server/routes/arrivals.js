@@ -3062,6 +3062,25 @@ router.get('/band-malal-book', auth, async (req, res) => {
     
 
     console.log(`✅ Band Malal Book: Found ${entries.length} transit detail entries (Total: ${totalApprovedCount})`);
+    
+    console.log("=== BMB ENTRY DIAGNOSTICS ===");
+    entries.forEach((e, idx) => {
+      console.log(`[BMB ${idx}] ID: ${e.id}`);
+      console.log(`  - physicalInspectionId: ${e.physicalInspectionId}`);
+      console.log(`  - physicalInspection association loaded: ${!!e.physicalInspection}`);
+      if (e.physicalInspection) {
+        console.log(`    * PI ID: ${e.physicalInspection.id}`);
+        console.log(`    * PI Lorry: ${e.physicalInspection.lorryNumber}`);
+      }
+      console.log(`  - sampleEntryId: ${e.sampleEntryId}`);
+      console.log(`  - sampleEntry association loaded: ${!!e.sampleEntry}`);
+      if (e.sampleEntry) {
+        console.log(`    * SE ID: ${e.sampleEntry.id}`);
+        console.log(`    * SE Party: ${e.sampleEntry.partyName}`);
+        console.log(`    * SE Lorry: ${e.sampleEntry.lorryNumber}`);
+      }
+    });
+    console.log("===============================");
 
     
 
