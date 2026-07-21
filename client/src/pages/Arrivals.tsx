@@ -4574,13 +4574,13 @@ const Arrivals: React.FC = () => {
 
                     const iqSource = approvedLot || approvedFull;
 
-                    const cuttingDisplay = iqSource ? (iqSource.cutting || '-') : '-';
+                    const cuttingDisplay = iqSource ? (iqSource.cutting || '-') : (entry.cutting || '-');
 
                     
 
                     // Format moisture display
 
-                    const moistureDisplay = iqSource ? `${iqSource.moisture || '-'}%` : '-';
+                    const moistureDisplay = iqSource ? `${iqSource.moisture || '-'}%` : (entry.moisture ? `${entry.moisture}%` : '-');
 
                     
 

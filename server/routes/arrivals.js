@@ -3082,6 +3082,42 @@ router.get('/band-malal-book', auth, async (req, res) => {
           inspection = await PhysicalInspection.findByPk(detail.physicalInspectionId);
         }
 
+        // Auto-heal: If inspection is still not found, try to auto-match using wbNo or sampleEntryId
+        if (!inspection) {
+          console.log(`⚠️ Inspection not found for BMB detail ${detail.id}. Attempting auto-match...`);
+          // 1. Try to find a PhysicalInspection that has the same sampleEntryId if it exists
+          if (detail.sampleEntryId) {
+            inspection = await PhysicalInspection.findOne({ where: { sampleEntryId: detail.sampleEntryId } });
+          }
+          // 2. Try to find by matching wbNo on SampleEntry if we have a wbNo
+          if (!inspection && detail.wbNo && detail.wbNo !== 'PENDING' && detail.wbNo !== '-') {
+            const matchedSample = await SampleEntry.findOne({ where: { wbNo: detail.wbNo } });
+            if (matchedSample) {
+              inspection = await PhysicalInspection.findOne({ where: { sampleEntryId: matchedSample.id } });
+              if (inspection) {
+                detail.sampleEntryId = matchedSample.id;
+                detail.physicalInspectionId = inspection.id;
+                await detail.save();
+              }
+            }
+          }
+          // 3. Try to find by matching netWeight or grossWeight on SampleEntry
+          if (!inspection && detail.netWeight && parseFloat(detail.netWeight) > 0) {
+            const matchedSample = await SampleEntry.findOne({ where: { netWeight: detail.netWeight } });
+            if (matchedSample) {
+              inspection = await PhysicalInspection.findOne({ where: { sampleEntryId: matchedSample.id } });
+              if (inspection) {
+                detail.sampleEntryId = matchedSample.id;
+                detail.physicalInspectionId = inspection.id;
+                await detail.save();
+              }
+            }
+          }
+          if (inspection) {
+            console.log(`🎉 Auto-matched and linked physical inspection ${inspection.id} to detail ${detail.id}`);
+          }
+        }
+
         // Auto-heal: Backfill sampleEntryId on lorry_transit_details if it is missing
         if (inspection && (!detail.sampleEntryId || !sampleEntry)) {
           detail.sampleEntryId = inspection.sampleEntryId;
