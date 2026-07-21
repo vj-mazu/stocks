@@ -13,6 +13,11 @@ const WeightBridge = sequelize.define('WeightBridge', {
         type: DataTypes.STRING(255),
         allowNull: false,
     },
+    location: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        field: 'location',
+    },
     grossWeight: {
         type: DataTypes.DECIMAL(12, 2),
         allowNull: true,

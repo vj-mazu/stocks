@@ -49,7 +49,7 @@ const FormGroup = styled.div`
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  flex: 1 1 300px;
+  flex: 1 1 250px;
 `;
 
 const Label = styled.label`
@@ -115,26 +115,54 @@ const Td = styled.td`
   color: #4b5563;
 `;
 
-const ActionButton = styled.button`
+const ActionButton = styled.button<{ variant?: 'danger' | 'primary' }>`
   padding: 0.5rem 1rem;
   border: none;
   border-radius: 6px;
   font-weight: 600;
   cursor: pointer;
-  background: #ef4444;
+  background: ${props => props.variant === 'danger' ? '#ef4444' : '#2563eb'};
   color: white;
   font-size: 0.875rem;
   transition: all 0.2s ease;
 
   &:hover {
-    background: #dc2626;
+    background: ${props => props.variant === 'danger' ? '#dc2626' : '#1d4ed8'};
   }
+`;
+
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
 `;
 
 const WeightBridgeManagement: React.FC = () => {
   const [bridges, setBridges] = useState<any[]>([]);
   const [name, setName] = useState('');
+  const [location, setLocation] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Edit State
+  const [editingBridge, setEditingBridge] = useState<any | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editLocation, setEditLocation] = useState('');
 
   const fetchBridges = useCallback(async () => {
     try {
@@ -163,14 +191,48 @@ const WeightBridgeManagement: React.FC = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      await axios.post(`${API_URL}/weight-bridges`, { name }, {
+      await axios.post(`${API_URL}/weight-bridges`, { name, location }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success('Weight Bridge created successfully!');
       setName('');
+      setLocation('');
       fetchBridges();
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to create Weight Bridge');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditClick = (bridge: any) => {
+    setEditingBridge(bridge);
+    setEditName(bridge.name || '');
+    setEditLocation(bridge.location || '');
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingBridge) return;
+    if (!editName || !editName.trim()) {
+      toast.error('Weight Bridge Name is required');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      await axios.put(`${API_URL}/weight-bridges/${editingBridge.id}`, {
+        name: editName,
+        location: editLocation
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Weight Bridge updated successfully!');
+      setEditingBridge(null);
+      fetchBridges();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to update Weight Bridge');
     } finally {
       setLoading(false);
     }
@@ -207,6 +269,16 @@ const WeightBridgeManagement: React.FC = () => {
               disabled={loading}
             />
           </FormGroup>
+          <FormGroup>
+            <Label>Location</Label>
+            <Input
+              type="text"
+              placeholder="e.g. Gate 1 / Yard B / Main Mill"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              disabled={loading}
+            />
+          </FormGroup>
           <Button type="submit" disabled={loading}>Create Bridge</Button>
         </Form>
       </Card>
@@ -222,6 +294,7 @@ const WeightBridgeManagement: React.FC = () => {
                 <tr>
                   <Th>SL No</Th>
                   <Th>Name</Th>
+                  <Th>Location</Th>
                   <Th style={{ textAlign: 'center' }}>Actions</Th>
                 </tr>
               </thead>
@@ -229,11 +302,19 @@ const WeightBridgeManagement: React.FC = () => {
                 {bridges.map((bridge, index) => (
                   <tr key={bridge.id}>
                     <Td>{index + 1}</Td>
-                    <Td style={{ fontWeight: 'bold' }}>{bridge.name}</Td>
+                    <Td style={{ fontWeight: 'bold', color: '#1e3a8a' }}>{bridge.name}</Td>
+                    <Td style={{ fontWeight: '600', color: '#059669' }}>{bridge.location || '—'}</Td>
                     <Td style={{ textAlign: 'center' }}>
-                      {!bridge.isUsed && (
-                        <ActionButton onClick={() => handleDelete(bridge.id)}>Delete</ActionButton>
-                      )}
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                        <ActionButton type="button" onClick={() => handleEditClick(bridge)}>
+                          ✏️ Edit
+                        </ActionButton>
+                        {!bridge.isUsed && (
+                          <ActionButton type="button" variant="danger" onClick={() => handleDelete(bridge.id)}>
+                            🗑️ Delete
+                          </ActionButton>
+                        )}
+                      </div>
                     </Td>
                   </tr>
                 ))}
@@ -242,6 +323,51 @@ const WeightBridgeManagement: React.FC = () => {
           </div>
         )}
       </Card>
+
+      {/* Edit Modal */}
+      {editingBridge && (
+        <ModalOverlay>
+          <ModalContent>
+            <h3 style={{ marginTop: 0, marginBottom: '1.5rem', color: '#1e293b' }}>✏️ Edit Weight Bridge</h3>
+            <form onSubmit={handleUpdate}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+                <div>
+                  <Label style={{ display: 'block', marginBottom: '0.5rem' }}>Weight Bridge Name *</Label>
+                  <Input
+                    type="text"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label style={{ display: 'block', marginBottom: '0.5rem' }}>Location</Label>
+                  <Input
+                    type="text"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    value={editLocation}
+                    onChange={(e) => setEditLocation(e.target.value)}
+                    placeholder="e.g. Gate 1 / Yard B"
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingBridge(null)}
+                  style={{ padding: '0.75rem 1.5rem', border: '1px solid #cbd5e1', borderRadius: '8px', background: '#f8fafc', cursor: 'pointer', fontWeight: 600 }}
+                >
+                  Cancel
+                </button>
+                <Button type="submit" disabled={loading}>
+                  Save Changes
+                </Button>
+              </div>
+            </form>
+          </ModalContent>
+        </ModalOverlay>
+      )}
     </Container>
   );
 };

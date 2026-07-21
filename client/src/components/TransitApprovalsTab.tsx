@@ -316,7 +316,7 @@ const TransitApprovalsTab: React.FC = () => {
                         {entry.wbInputType && (
                           <div style={{ marginTop: '4px', fontWeight: '700', color: '#78350f' }}>
                             {entry.wbInputType === 'mill' 
-                              ? (entry.millWeightBridge?.name || entry.millWbName || entry.millWb?.name || '-')
+                              ? (entry.millWeightBridge?.location ? `${entry.millWeightBridge.name} (${entry.millWeightBridge.location})` : (entry.millWb?.location ? `${entry.millWb.name} (${entry.millWb.location})` : (entry.millWeightBridge?.name || entry.millWbName || entry.millWb?.name || '-')))
                               : (entry.partyWbName || '-')}
                           </div>
                         )}
@@ -412,7 +412,7 @@ const TransitApprovalsTab: React.FC = () => {
                       </td>
                       <td style={{ ...CELL, fontWeight: '700', color: '#78350f' }}>
                         {entry.wbInputType === 'mill' 
-                          ? (entry.millWeightBridge?.name || entry.millWbName || '-')
+                          ? (entry.millWeightBridge?.location ? `${entry.millWeightBridge.name} (${entry.millWeightBridge.location})` : (entry.millWb?.location ? `${entry.millWb.name} (${entry.millWb.location})` : (entry.millWeightBridge?.name || entry.millWbName || entry.millWb?.name || '-')))
                           : (entry.partyWbName || '-')}
                       </td>
                       <td style={{ ...CELL, fontWeight: '700' }}>{entry.wbNo || '-'}</td>

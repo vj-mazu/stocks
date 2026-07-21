@@ -33,12 +33,13 @@ router.get('/', auth, async (req, res) => {
 // POST /api/weight-bridges - Create a new weight bridge
 router.post('/', auth, async (req, res) => {
     try {
-        const { name, grossWeight, tareWeight, netWeight } = req.body;
+        const { name, location, grossWeight, tareWeight, netWeight } = req.body;
         if (!name || !name.trim()) {
             return res.status(400).json({ error: 'Weight bridge name is required' });
         }
         const bridge = await WeightBridge.create({
             name: name.trim().toUpperCase(),
+            location: location ? location.trim() : null,
             grossWeight: grossWeight || null,
             tareWeight: tareWeight || null,
             netWeight: netWeight || null,
@@ -55,12 +56,13 @@ router.post('/', auth, async (req, res) => {
 router.put('/:id', auth, async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, grossWeight, tareWeight, netWeight, isActive } = req.body;
+        const { name, location, grossWeight, tareWeight, netWeight, isActive } = req.body;
         const bridge = await WeightBridge.findByPk(id);
         if (!bridge) {
             return res.status(404).json({ error: 'Weight bridge not found' });
         }
         if (name !== undefined) bridge.name = name.trim().toUpperCase();
+        if (location !== undefined) bridge.location = location ? location.trim() : null;
         if (grossWeight !== undefined) bridge.grossWeight = grossWeight;
         if (tareWeight !== undefined) bridge.tareWeight = tareWeight;
         if (netWeight !== undefined) bridge.netWeight = netWeight;

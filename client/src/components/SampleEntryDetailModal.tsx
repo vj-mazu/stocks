@@ -4059,7 +4059,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                         <div>
                                                             <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>WB Name</div>
                                                             <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                                                                {(detailEntry as any).millWb?.name || '-'}
+                                                                {(detailEntry as any).millWb?.location ? `${(detailEntry as any).millWb.name} (${(detailEntry as any).millWb.location})` : ((detailEntry as any).millWb?.name || '-')}
                                                             </div>
                                                         </div>
                                                         <div>

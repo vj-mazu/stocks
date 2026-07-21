@@ -290,6 +290,14 @@ const startServer = async () => {
       console.warn('⚠️ Column alteration warning:', e.message);
     }
 
+    // Ensure location column exists in weight_bridges
+    try {
+      await sequelize.query('ALTER TABLE weight_bridges ADD COLUMN IF NOT EXISTS location VARCHAR(255);');
+      console.log('✅ Checked/created location column in weight_bridges.');
+    } catch (e) {
+      console.warn('⚠️ Column alteration warning (weight_bridges location):', e.message);
+    }
+
     // Ensure kadiga column exists in inventory_quality_parameters
     try {
       await sequelize.query('ALTER TABLE inventory_quality_parameters ADD COLUMN IF NOT EXISTS kadiga VARCHAR(30);');

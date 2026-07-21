@@ -742,7 +742,7 @@ router.post('/', auth, async (req, res) => {
 
 
 
-                attributes: ['id', 'name'],
+                attributes: ['id', 'name', 'location'],
 
 
 
@@ -1586,7 +1586,7 @@ router.post('/', auth, async (req, res) => {
 
 
 
-            attributes: ['id', 'name'],
+            attributes: ['id', 'name', 'location'],
 
 
 
@@ -2062,7 +2062,7 @@ router.post('/', auth, async (req, res) => {
 
 
 
-            attributes: ['id', 'name'],
+            attributes: ['id', 'name', 'location'],
 
 
 
@@ -5686,7 +5686,7 @@ router.get('/in-transit', auth, async (req, res) => {
 
 
 
-          ? await WeightBridge.findByPk(detail.millWbId, { attributes: ['id', 'name'] })
+          ? await WeightBridge.findByPk(detail.millWbId, { attributes: ['id', 'name', 'location'] })
 
 
 
@@ -6461,7 +6461,7 @@ router.get('/band-malal-book', auth, async (req, res) => {
 
 
 
-          ? await WeightBridge.findByPk(detail.millWbId, { attributes: ['id', 'name'] })
+          ? await WeightBridge.findByPk(detail.millWbId, { attributes: ['id', 'name', 'location'] })
 
 
 
@@ -9499,7 +9499,7 @@ router.get('/transit-approvals/pending', auth, async (req, res) => {
 
 
 
-        ? await WeightBridge.findByPk(detail.millWbId, { attributes: ['id', 'name'] })
+        ? await WeightBridge.findByPk(detail.millWbId, { attributes: ['id', 'name', 'location'] })
 
 
 
@@ -9949,7 +9949,7 @@ router.post('/loose', auth, authorize('manager', 'admin'), async (req, res) => {
 
 
 
-        { model: Variety, as: 'variety', attributes: ['id', 'name'] }
+        { model: Variety, as: 'variety', attributes: ['id', 'name', 'location'] }
 
 
 
@@ -12013,7 +12013,7 @@ router.post('/:id/wb', auth, requireInventoryRole, async (req, res) => {
 
 
 
-          ? await WeightBridge.findByPk(detail.millWbId, { attributes: ['id', 'name'] })
+          ? await WeightBridge.findByPk(detail.millWbId, { attributes: ['id', 'name', 'location'] })
 
 
 
@@ -13555,7 +13555,7 @@ router.get('/weight-bridges', auth, async (req, res) => {
 
 
 
-      attributes: ['id', 'name'],
+      attributes: ['id', 'name', 'location'],
 
 
 
