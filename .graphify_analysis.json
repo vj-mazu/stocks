@@ -1,0 +1,3751 @@
+{
+  "communities": {
+    "0": [
+      "auditlogrepository_auditlogrepository",
+      "auditlogrepository_auditlogrepository_create",
+      "auditlogrepository_auditlogrepository_findbyfilters",
+      "auditlogrepository_auditlogrepository_findbyrecord",
+      "auditlogrepository_auditlogrepository_findbyuser",
+      "auditservice_auditservice",
+      "auditservice_auditservice_getauditlogs",
+      "auditservice_auditservice_getrecordhistory",
+      "auditservice_auditservice_getuseractivity",
+      "auditservice_auditservice_logaction",
+      "auditservice_auditservice_logcreate",
+      "auditservice_auditservice_logdelete",
+      "auditservice_auditservice_logupdate",
+      "auditservice_auditservice_logworkflowtransition",
+      "cookingreportservice_cookingreportservice",
+      "cookingreportservice_cookingreportservice_createcookingreport",
+      "cookingreportservice_cookingreportservice_getcookingreportbysampleentry",
+      "cookingreportservice_cookingreportservice_updatecookingreport",
+      "create_physical_supervisor_createphysicalsupervisor",
+      "createdefaultricestocklocations_createdefaultricestocklocations",
+      "createdefaultusers_createdefaultusers",
+      "financialcalculationrepository_financialcalculationrepository",
+      "financialcalculationrepository_financialcalculationrepository_create",
+      "financialcalculationrepository_financialcalculationrepository_findbyid",
+      "financialcalculationrepository_financialcalculationrepository_findbyinventorydataid",
+      "financialcalculationrepository_financialcalculationrepository_update",
+      "financialcalculationrepository_financialcalculationrepository_updatebyinventorydataid",
+      "financialcalculationservice_financialcalculationservice",
+      "financialcalculationservice_financialcalculationservice_createfinancialcalculation",
+      "financialcalculationservice_financialcalculationservice_createmanagerfinancialcalculation",
+      "financialcalculationservice_financialcalculationservice_getfinancialcalculationbyinventorydata",
+      "financialcalculationservice_financialcalculationservice_recalculate",
+      "financialcalculationservice_financialcalculationservice_updatefinancialcalculation",
+      "financialcalculator_financialcalculator",
+      "financialcalculator_financialcalculator_calculatebaserate",
+      "financialcalculator_financialcalculator_calculatebrokerage",
+      "financialcalculator_financialcalculator_calculatecomplete",
+      "financialcalculator_financialcalculator_calculateegb",
+      "financialcalculator_financialcalculator_calculatehamali",
+      "financialcalculator_financialcalculator_calculatelfin",
+      "financialcalculator_financialcalculator_calculatesute",
+      "financialcalculator_financialcalculator_calculatetotalandaverage",
+      "financialcalculator_financialcalculator_getperquintaldivisor",
+      "fix_case_fixcase",
+      "hamaliratesservice_hamaliratesservice",
+      "hamaliratesservice_hamaliratesservice_calculatetotals",
+      "hamaliratesservice_hamaliratesservice_clearcache",
+      "hamaliratesservice_hamaliratesservice_getcurrentrates",
+      "hamaliratesservice_hamaliratesservice_isvaliddecimal",
+      "hamaliratesservice_hamaliratesservice_saverates",
+      "hamaliratesservice_hamaliratesservice_updaterate",
+      "hamaliratesservice_hamaliratesservice_validaterates",
+      "inventorydatarepository_inventorydatarepository_findbyphysicalinspectionid",
+      "inventorydataservice_inventorydataservice",
+      "inventorydataservice_inventorydataservice_createinventorydata",
+      "inventorydataservice_inventorydataservice_getinventorydatabyphysicalinspection",
+      "inventorydataservice_inventorydataservice_updateinventorydata",
+      "lotallotmentservice_lotallotmentservice",
+      "lotallotmentservice_lotallotmentservice_createlotallotment",
+      "lotallotmentservice_lotallotmentservice_getlotallotmentbyid",
+      "lotallotmentservice_lotallotmentservice_getlotallotmentbysampleentry",
+      "lotallotmentservice_lotallotmentservice_updatelotallotment",
+      "physicalinspectionservice_physicalinspectionservice",
+      "physicalinspectionservice_physicalinspectionservice_approvephysicalinspectionstage",
+      "physicalinspectionservice_physicalinspectionservice_createphysicalinspection",
+      "physicalinspectionservice_physicalinspectionservice_getinspectionprogress",
+      "physicalinspectionservice_physicalinspectionservice_holdphysicalinspectionstage",
+      "physicalinspectionservice_physicalinspectionservice_rejectphysicalinspectionstage",
+      "physicalinspectionservice_physicalinspectionservice_revertskipphysicalinspectionstage",
+      "physicalinspectionservice_physicalinspectionservice_updatephysicalinspection",
+      "physicalinspectionservice_physicalinspectionservice_updatephysicalinspectionstage",
+      "physicalinspectionservice_physicalinspectionservice_uploadinspectionimages",
+      "purchase_rates_calculatekunchinintuaveragerate",
+      "qualityparametersrepository_qualityparametersrepository",
+      "qualityparametersrepository_qualityparametersrepository_create",
+      "qualityparametersrepository_qualityparametersrepository_findbysampleentryid",
+      "qualityparametersrepository_qualityparametersrepository_update",
+      "qualityparametersrepository_qualityparametersrepository_updatebysampleentryid",
+      "qualityparametersservice_appendqualityattemptsnapshot",
+      "qualityparametersservice_arequalityattemptsequivalent",
+      "qualityparametersservice_buildqualityattemptsnapshot",
+      "qualityparametersservice_hydratesampleentryworkflowstate",
+      "qualityparametersservice_isresampleworkflowentry",
+      "qualityparametersservice_normalizeattemptvalue",
+      "qualityparametersservice_qualityparametersservice",
+      "qualityparametersservice_qualityparametersservice_addqualityparameters",
+      "qualityparametersservice_qualityparametersservice_getqualityparametersbysampleentry",
+      "qualityparametersservice_qualityparametersservice_resetqualityparameters",
+      "qualityparametersservice_qualityparametersservice_updatequalityparameters",
+      "qualityparametersservice_shouldmoveresampletolotselection",
+      "server_create_physical_supervisor_js",
+      "server_fix_case_js",
+      "server_repositories_auditlogrepository_js",
+      "server_repositories_financialcalculationrepository_js",
+      "server_repositories_qualityparametersrepository_js",
+      "server_repositories_userrepository_js",
+      "server_routes_purchase_rates_js",
+      "server_seeders_createdefaultricestocklocations_js",
+      "server_seeders_createdefaultusers_js",
+      "server_services_auditservice_js",
+      "server_services_cookingreportservice_js",
+      "server_services_financialcalculationservice_js",
+      "server_services_financialcalculator_js",
+      "server_services_hamaliratesservice_js",
+      "server_services_inventorydataservice_js",
+      "server_services_lotallotmentservice_js",
+      "server_services_physicalinspectionservice_js",
+      "server_services_qualityparametersservice_js",
+      "server_services_validationservice_js",
+      "server_services_workflowengine_js",
+      "server_test_cascade_js",
+      "server_test_live_cascade_js",
+      "server_test_orm_flow_js",
+      "test_cascade_testcascade",
+      "test_live_cascade_testlivedb",
+      "test_orm_flow_testcascadeflow",
+      "test_orm_flow_totitlecase",
+      "userrepository_userrepository",
+      "userrepository_userrepository_create",
+      "userrepository_userrepository_findbyid",
+      "userrepository_userrepository_findbyusername",
+      "userrepository_userrepository_update",
+      "userrepository_userrepository_verifypassword",
+      "validationservice_validationservice",
+      "validationservice_validationservice_validatefileupload",
+      "validationservice_validationservice_validatefinancialcalculation",
+      "validationservice_validationservice_validateinventorydata",
+      "validationservice_validationservice_validatenumericrange",
+      "validationservice_validationservice_validatequalityparameters",
+      "validationservice_validationservice_validaterequiredfields",
+      "validationservice_validationservice_validatesampleentry",
+      "validationservice_validationservice_validateweights",
+      "workflowengine_workflowengine",
+      "workflowengine_workflowengine_cantransition",
+      "workflowengine_workflowengine_getalltransitions",
+      "workflowengine_workflowengine_getnextallowedstatuses",
+      "workflowengine_workflowengine_transitionto"
+    ],
+    "1": [
+      "auth_auth",
+      "auth_authorize",
+      "auth_invalidateusercache",
+      "cache_cache",
+      "cache_cache_clear",
+      "cache_cache_clearexpired",
+      "cache_cache_constructor",
+      "cache_cache_delete",
+      "cache_cache_set",
+      "cache_cache_stats",
+      "cache_cachemiddleware",
+      "cache_getcachestats",
+      "cache_invalidatecache",
+      "cache_responsecache",
+      "cache_responsecache_cleanup",
+      "cache_responsecache_constructor",
+      "cache_responsecache_get",
+      "cache_responsecache_getstats",
+      "cache_responsecache_invalidate",
+      "cache_responsecache_set",
+      "cachemiddleware_cachereferencedata",
+      "cachemiddleware_nocache",
+      "cacheservice_cacheservice",
+      "cacheservice_cacheservice_clear",
+      "cacheservice_cacheservice_cleartimer",
+      "cacheservice_cacheservice_constructor",
+      "cacheservice_cacheservice_del",
+      "cacheservice_cacheservice_delpattern",
+      "cacheservice_cacheservice_disable",
+      "cacheservice_cacheservice_enable",
+      "cacheservice_cacheservice_evictlru",
+      "cacheservice_cacheservice_exists",
+      "cacheservice_cacheservice_get",
+      "cacheservice_cacheservice_getorset",
+      "cacheservice_cacheservice_getstats",
+      "cacheservice_cacheservice_removefromaccessorder",
+      "cacheservice_cacheservice_resetstats",
+      "cacheservice_cacheservice_set",
+      "cacheservice_cacheservice_setmaxitems",
+      "cacheservice_cacheservice_updateaccessorder",
+      "client_src_components_ricehamaliratestable_tsx",
+      "client_src_pages_riceproduction_tsx",
+      "client_src_utils_hamalistatusmanager_ts",
+      "editpropagationservice_editpropagationservice",
+      "editpropagationservice_editpropagationservice_geteditpropagationhistory",
+      "editpropagationservice_editpropagationservice_handlepaltieditpropagation",
+      "editpropagationservice_editpropagationservice_invalidaterelatedcaches",
+      "editpropagationservice_editpropagationservice_logeditpropagation",
+      "editpropagationservice_editpropagationservice_propagatericeproductionedit",
+      "editpropagationservice_editpropagationservice_propagatericestockmovementedit",
+      "editpropagationservice_editpropagationservice_recalculateoutturnyield",
+      "editpropagationservice_editpropagationservice_updatehamalientriesproportionally",
+      "editpropagationservice_editpropagationservice_updatepaddystockforriceproduction",
+      "editpropagationservice_editpropagationservice_updatericestockbalances",
+      "editpropagationservice_editpropagationservice_validateeditpropagation",
+      "hamalistatusmanager_hamalistatusmanager",
+      "hamalistatusmanager_hamalistatusmanager_clearallcache",
+      "hamalistatusmanager_hamalistatusmanager_clearcache",
+      "hamalistatusmanager_hamalistatusmanager_clearexpiredcache",
+      "hamalistatusmanager_hamalistatusmanager_clearspecificcache",
+      "hamalistatusmanager_hamalistatusmanager_fetchpaddyhamalistatus",
+      "hamalistatusmanager_hamalistatusmanager_fetchricehamalistatus",
+      "hamalistatusmanager_hamalistatusmanager_getcached",
+      "hamalistatusmanager_hamalistatusmanager_getcachekey",
+      "hamalistatusmanager_hamalistatusmanager_getcachestats",
+      "hamalistatusmanager_hamalistatusmanager_getpaddyhamalistatus",
+      "hamalistatusmanager_hamalistatusmanager_getricehamalistatus",
+      "hamalistatusmanager_hamalistatusmanager_getstatusindicators",
+      "hamalistatusmanager_hamalistatusmanager_gettotalcount",
+      "hamalistatusmanager_hamalistatusmanager_hashamali",
+      "hamalistatusmanager_hamalistatusmanager_iscached",
+      "hamalistatusmanager_hamalistatusmanager_refreshstatusimmediate",
+      "hamalistatusmanager_hamalistatusmanager_setcache",
+      "locations_getcached",
+      "locations_invalidatecache",
+      "locations_setcache",
+      "queryoptimizer_cachedroute",
+      "queryoptimizer_generatecachekey",
+      "queryoptimizer_invalidatecache",
+      "queryoptimizer_queryoptimizer",
+      "recordsmanagement_toggledate",
+      "rediscacheservice_rediscacheservice",
+      "rediscacheservice_rediscacheservice_cleanuplocalcache",
+      "rediscacheservice_rediscacheservice_clear",
+      "rediscacheservice_rediscacheservice_constructor",
+      "rediscacheservice_rediscacheservice_del",
+      "rediscacheservice_rediscacheservice_delpattern",
+      "rediscacheservice_rediscacheservice_get",
+      "rediscacheservice_rediscacheservice_getorset",
+      "rediscacheservice_rediscacheservice_getstats",
+      "rediscacheservice_rediscacheservice_initializeredis",
+      "rediscacheservice_rediscacheservice_isready",
+      "rediscacheservice_rediscacheservice_set",
+      "ricehamaliratestable_fetchrates",
+      "ricehamaliratestable_handledelete",
+      "ricehamaliratestable_handleedit",
+      "ricehamaliratestable_handlesubmit",
+      "ricehamaliratestable_resetform",
+      "riceproduction_calculatefrombags",
+      "riceproduction_fetchavailablepaddybags",
+      "riceproduction_fetchoutturns",
+      "riceproduction_fetchpackagings",
+      "riceproduction_fetchproductions",
+      "riceproduction_fetchricestocklocations",
+      "riceproduction_handleapprove",
+      "riceproduction_handledelete",
+      "riceproduction_handleedit",
+      "riceproduction_handlesubmit",
+      "riceproduction_resetform",
+      "riceproduction_validatedate",
+      "roleresolver_resolveeffectiverole",
+      "server_middleware_auth_js",
+      "server_middleware_cache_js",
+      "server_middleware_cachemiddleware_js",
+      "server_middleware_queryoptimizer_js",
+      "server_routes_locations_js",
+      "server_services_cacheservice_js",
+      "server_services_editpropagationservice_js",
+      "server_services_rediscacheservice_js",
+      "server_utils_cache_js",
+      "server_utils_roleresolver_js"
+    ],
+    "2": [
+      "balancevalidator_validatebalancecalculations",
+      "balancevalidator_validateopeningbalance",
+      "byproductsyncservice_byproductsyncservice",
+      "byproductsyncservice_byproductsyncservice_getfieldfromproducttype",
+      "byproductsyncservice_byproductsyncservice_normalizedate",
+      "byproductsyncservice_byproductsyncservice_syncoutturn",
+      "check_all_inspections_run",
+      "check_entry_v2_run",
+      "check_privacy_go",
+      "cookingreportrepository_cookingreportrepository",
+      "cookingreportrepository_cookingreportrepository_create",
+      "cookingreportrepository_cookingreportrepository_findbysampleentryid",
+      "cookingreportrepository_cookingreportrepository_findbystatus",
+      "cookingreportrepository_cookingreportrepository_update",
+      "cookingreportrepository_cookingreportrepository_updatebysampleentryid",
+      "debug_recheck_debugentries",
+      "debug_recheck_js",
+      "deep_seeder_deepseed",
+      "deep_seeder_getweightedstatus",
+      "fix_historical_paddy_stock_migrate",
+      "hamalientriesservice_hamalientriesservice",
+      "hamalientriesservice_hamalientriesservice_approveentry",
+      "hamalientriesservice_hamalientriesservice_calculateentrytotals",
+      "hamalientriesservice_hamalientriesservice_createentry",
+      "hamalientriesservice_hamalientriesservice_deleteentry",
+      "hamalientriesservice_hamalientriesservice_formatentry",
+      "hamalientriesservice_hamalientriesservice_getdailysummary",
+      "hamalientriesservice_hamalientriesservice_getentries",
+      "hamalientriesservice_hamalientriesservice_getentriesbyarrivalids",
+      "hamalientriesservice_hamalientriesservice_getentrybyarrivalid",
+      "hamalientriesservice_hamalientriesservice_getentrybyid",
+      "hamalientriesservice_hamalientriesservice_getsourcedestination",
+      "hamalientriesservice_hamalientriesservice_updateentry",
+      "hamalientriesservice_hamalientriesservice_validateentry",
+      "heavy_perf_seeder_getrandomdate",
+      "heavy_perf_seeder_seed",
+      "lotallotmentrepository_lotallotmentrepository",
+      "lotallotmentrepository_lotallotmentrepository_create",
+      "lotallotmentrepository_lotallotmentrepository_findbyid",
+      "lotallotmentrepository_lotallotmentrepository_findbyphysicalsupervisorid",
+      "lotallotmentrepository_lotallotmentrepository_findbysampleentryid",
+      "lotallotmentrepository_lotallotmentrepository_hasallotment",
+      "lotallotmentrepository_lotallotmentrepository_update",
+      "lotallotmentservice_lotallotmentservice_getlotallotmentsbysupervisor",
+      "openingbalanceservice_openingbalanceservice",
+      "openingbalanceservice_openingbalanceservice_calculatebalancefromdate",
+      "openingbalanceservice_openingbalanceservice_calculateopeningbalance",
+      "openingbalanceservice_openingbalanceservice_getopeningbalance",
+      "openingbalanceservice_openingbalanceservice_getopeningbalancehistory",
+      "openingbalanceservice_openingbalanceservice_setopeningbalance",
+      "openingbalanceservice_openingbalanceservice_validateopeningbalancedata",
+      "openingbalancevalidator_openingbalancevalidator",
+      "openingbalancevalidator_openingbalancevalidator_validateagainstrecenttransactions",
+      "openingbalancevalidator_openingbalancevalidator_validatebalanceconsistency",
+      "openingbalancevalidator_openingbalancevalidator_validatebasicfields",
+      "openingbalancevalidator_openingbalancevalidator_validatebusinessrules",
+      "openingbalancevalidator_openingbalancevalidator_validatedeletion",
+      "openingbalancevalidator_openingbalancevalidator_validateentityexistence",
+      "openingbalancevalidator_openingbalancevalidator_validateopeningbalancedata",
+      "query_sample_main",
+      "queryoptimizationservice_queryoptimizationservice",
+      "queryoptimizationservice_queryoptimizationservice_bulkapprovearrivals",
+      "queryoptimizationservice_queryoptimizationservice_getarrivalswithpagination",
+      "queryoptimizationservice_queryoptimizationservice_getdashboardstats",
+      "queryoptimizationservice_queryoptimizationservice_getstockbykunchinittu",
+      "queryoptimizationservice_queryoptimizationservice_getstockbyvariety",
+      "querysafety_applyquerysafety",
+      "querysafety_fetchwithpagination",
+      "querysafety_querytimingmiddleware",
+      "render_lightweight_seeder_getrandomdate",
+      "render_lightweight_seeder_seed",
+      "runningbalancecalculator_runningbalancecalculator",
+      "runningbalancecalculator_runningbalancecalculator_calculaterunningbalances",
+      "runningbalancecalculator_runningbalancecalculator_calculatetransactioneffect",
+      "runningbalancecalculator_runningbalancecalculator_detectbalanceanomalies",
+      "runningbalancecalculator_runningbalancecalculator_getbalancesummary",
+      "runningbalancecalculator_runningbalancecalculator_recalculatefromdate",
+      "runningbalancecalculator_runningbalancecalculator_validatebalanceconsistency",
+      "scripts_fix_historical_paddy_stock_js",
+      "server_check_all_inspections_js",
+      "server_check_entry_v2_js",
+      "server_check_privacy_js",
+      "server_debug_recheck_js",
+      "server_middleware_querysafety_js",
+      "server_repositories_cookingreportrepository_js",
+      "server_repositories_lotallotmentrepository_js",
+      "server_scripts_query_sample_js",
+      "server_seeders_deep_seeder_js",
+      "server_seeders_heavy_perf_seeder_js",
+      "server_seeders_render_lightweight_seeder_js",
+      "server_services_byproductsyncservice_js",
+      "server_services_hamalientriesservice_js",
+      "server_services_openingbalanceservice_js",
+      "server_services_queryoptimizationservice_js",
+      "server_services_runningbalancecalculator_js",
+      "server_services_transactionprocessor_js",
+      "server_services_yieldcalculationservice_js",
+      "server_validators_balancevalidator_js",
+      "server_validators_openingbalancevalidator_js",
+      "test_audit_js",
+      "test_audit_test",
+      "transactionprocessor_transactionprocessor",
+      "transactionprocessor_transactionprocessor_batchprocesstransactions",
+      "transactionprocessor_transactionprocessor_calculatetransactionsummary",
+      "transactionprocessor_transactionprocessor_getprocessingstatistics",
+      "transactionprocessor_transactionprocessor_processsingletransaction",
+      "transactionprocessor_transactionprocessor_processtransactionschronologically",
+      "transactionprocessor_transactionprocessor_reprocesstransactionsfromdate",
+      "transactionprocessor_transactionprocessor_validatetransactionsequence",
+      "userrepository_userrepository_findall",
+      "yieldcalculationservice_yieldcalculationservice",
+      "yieldcalculationservice_yieldcalculationservice_calculateandupdateyield",
+      "yieldcalculationservice_yieldcalculationservice_recalculateallyields"
+    ],
+    "3": [
+      "addricesalemodal_checkavailablestock",
+      "addricesalemodal_fetchlocations",
+      "addricesalemodal_fetchpackagings",
+      "addricesalemodal_handleinputchange",
+      "addricesalemodal_handlesubmit",
+      "addricesalemodal_handlevarietychange",
+      "adminsamplebook2_loadsupervisors",
+      "arrivals_fetchbrokers",
+      "arrivals_fetchnextslno",
+      "arrivals_fetchoutturns",
+      "arrivals_fetchstocklocations",
+      "arrivals_handleloadmore",
+      "arrivals_handlerefreshtransit",
+      "arrivals_handlereset",
+      "arrivals_handlesubmit",
+      "assigningsupervisor_geteffectivedate",
+      "assigningsupervisor_handleassign",
+      "assigningsupervisor_handleassignclick",
+      "assigningsupervisor_handlesupervisorchange",
+      "assigningsupervisor_hasegbforratetype",
+      "assigningsupervisor_haslfforratetype",
+      "assigningsupervisor_haspositiveamount",
+      "assigningsupervisor_loadentries",
+      "assigningsupervisor_loadsupervisors",
+      "assigningsupervisor_opendetailentry",
+      "bulkapprovalmodal_fetchpendingarrivals",
+      "bulkapprovalmodal_getdestination",
+      "bulkapprovalmodal_handlebulkapprove",
+      "bulkapprovalmodal_handlebulkreject",
+      "bulkapprovalmodal_handleselectall",
+      "bulkapprovalmodal_handleselectone",
+      "cache_cache_get",
+      "client_src_components_addricesalemodal_tsx",
+      "client_src_components_bulkapprovalmodal_tsx",
+      "client_src_components_editarrivalmodal_tsx",
+      "client_src_components_enhancedpaltimodal_tsx",
+      "client_src_components_simplepaltimodal_tsx",
+      "client_src_components_simplesalemodal_tsx",
+      "client_src_pages_arrivals_tsx",
+      "client_src_pages_assigningsupervisor_tsx",
+      "client_src_pages_dashboard_tsx",
+      "client_src_pages_hamali_tsx",
+      "client_src_pages_hamalibook_tsx",
+      "client_src_pages_hamalibooknew_tsx",
+      "cookingreport_normalizeusers",
+      "dashboard_fetchdashboardstats",
+      "editarrivalmodal_fetchlocations",
+      "editarrivalmodal_handlechange",
+      "editarrivalmodal_handlesubmit",
+      "enhancedpaltimodal_addtarget",
+      "enhancedpaltimodal_fetchlocations",
+      "enhancedpaltimodal_fetchpackagings",
+      "enhancedpaltimodal_gettargetweight",
+      "enhancedpaltimodal_handledatechange",
+      "enhancedpaltimodal_handlemousedown",
+      "enhancedpaltimodal_handlemousemove",
+      "enhancedpaltimodal_handlemouseup",
+      "enhancedpaltimodal_handlesubmit",
+      "enhancedpaltimodal_handlevarietychange",
+      "enhancedpaltimodal_removetarget",
+      "enhancedpaltimodal_resetform",
+      "enhancedpaltimodal_updatetarget",
+      "enhancedpaltimodal_validate",
+      "hamali_fetchhamalirecords",
+      "hamali_fetchpaddyhamalientries",
+      "hamali_fetchricehamalientries",
+      "hamali_fetchricestock",
+      "hamali_handlecanceledit",
+      "hamali_handleeditentry",
+      "hamali_handlesaveedit",
+      "hamali_if",
+      "hamalibook_fetchsummary",
+      "hamalibook_formatdate",
+      "hamalibook_processotherhamalidata",
+      "hamalibook_processpaddyhamalidata",
+      "hamalibooknew_fetchsummary",
+      "hamalibooknew_formatdate",
+      "hamalibooknew_formatlocationdisplay",
+      "hamalibooknew_renderotherhamalisection",
+      "loadinglots_fetchsupervisors",
+      "loadinglots_opendetailentry",
+      "locationstockqueryengine_locationstockqueryengine",
+      "locationstockqueryengine_locationstockqueryengine_clearcache",
+      "locationstockqueryengine_locationstockqueryengine_createlocationstockview",
+      "locationstockqueryengine_locationstockqueryengine_createoptimizedindexes",
+      "locationstockqueryengine_locationstockqueryengine_getfrequentcombinations",
+      "locationstockqueryengine_locationstockqueryengine_getoptimizedlocationstock",
+      "locationstockqueryengine_locationstockqueryengine_initialize",
+      "locationstockqueryengine_locationstockqueryengine_preloadfrequentcombinations",
+      "sampleentrydetailmodal_fetchusers",
+      "server_services_locationstockqueryengine_js",
+      "server_test_api_js",
+      "server_test_cascade_flow_js",
+      "simplepaltimodal_calculateshortage",
+      "simplepaltimodal_fetchlocations",
+      "simplepaltimodal_fetchpackagings",
+      "simplepaltimodal_handleinputchange",
+      "simplepaltimodal_handlesubmit",
+      "simplesalemodal_addlineitem",
+      "simplesalemodal_calculatetotals",
+      "simplesalemodal_fetchlocations",
+      "simplesalemodal_fetchpackagings",
+      "simplesalemodal_handlemousedown",
+      "simplesalemodal_handlemousemove",
+      "simplesalemodal_handlemouseup",
+      "simplesalemodal_handlesubmit",
+      "simplesalemodal_handlevarietychange",
+      "simplesalemodal_removelineitem",
+      "simplesalemodal_updatelineitem",
+      "test_api_testapi",
+      "test_cascade_flow_testcascade"
+    ],
+    "4": [
+      "addhamalimodal_calculateloadingtotal",
+      "addhamalimodal_calculateloosetotal",
+      "addhamalimodal_calculateunloadingtotal",
+      "addhamalimodal_fetchrates",
+      "addhamalimodal_handlesave",
+      "addhamalimodal_handleunloadingtypechange",
+      "addpaddyhamalimodal_fetchrates",
+      "addpaddyhamalimodal_getbagsfortype",
+      "addpaddyhamalimodal_handlemousedown",
+      "addpaddyhamalimodal_handlemousemove",
+      "addpaddyhamalimodal_handlemouseup",
+      "addpaddyhamalimodal_handlesave",
+      "addpaddyhamalimodal_handletypeselection",
+      "addpurchaserate_fetchdata",
+      "addpurchaserate_handlecancel",
+      "addpurchaserate_handleinputchange",
+      "addpurchaserate_handlesave",
+      "addpurchaserate_validateform",
+      "client_src_components_addhamalimodal_tsx",
+      "client_src_components_addpaddyhamalimodal_tsx",
+      "client_src_components_hamaliapprovalmodal_tsx",
+      "client_src_components_hierarchicalvarietybifurcation_tsx",
+      "client_src_components_inlinepaddyhamaliform_tsx",
+      "client_src_components_paddyhamaliratestable_tsx",
+      "client_src_pages_addpurchaserate_tsx",
+      "client_src_pages_finalreviewpage_tsx",
+      "client_src_pages_hamalibooksimple_tsx",
+      "client_src_pages_login_tsx",
+      "client_src_pages_managerfinancialpage_tsx",
+      "client_src_pages_ownerfinancialpage_tsx",
+      "client_src_pages_ricesamplebook_tsx",
+      "client_src_pages_usermanagement_tsx",
+      "finalreviewpage_formatdecimal",
+      "finalreviewpage_handlecomplete",
+      "finalreviewpage_loadentries",
+      "finalreviewpage_loadsingleentry",
+      "finalreviewpage_totitlecase",
+      "full_system_spec_ensurebasereachable",
+      "full_system_spec_login",
+      "full_system_spec_visitroutes",
+      "hamaliapprovalmodal_fetchpendingentries",
+      "hamaliapprovalmodal_formatdate",
+      "hamaliapprovalmodal_handleapprove",
+      "hamaliapprovalmodal_handlebulkapprove",
+      "hamalibooksimple_calculatebatchtotals",
+      "hamalibooksimple_fetchricehamalisummary",
+      "hamalibooksimple_fetchsummary",
+      "hamalibooksimple_formatdate",
+      "hamalibooksimple_formatlocationdisplay",
+      "hamalibooksimple_formatlocationforpdf",
+      "hamalibooksimple_formatsplitsinfo",
+      "hamalibooksimple_generatepdfcontenthtml",
+      "hamalibooksimple_handledownloadpdf",
+      "hamalibooksimple_if",
+      "hamalibooksimple_renderpaddysection",
+      "hamalibooksimple_rendersplitsinfo",
+      "hierarchicalvarietybifurcation_fetchhierarchicaldata",
+      "hierarchicalvarietybifurcation_formatdate",
+      "hierarchicalvarietybifurcation_handledatechange",
+      "hierarchicalvarietybifurcation_togglevarietyexpansion",
+      "inlinepaddyhamaliform_addworker",
+      "inlinepaddyhamaliform_fetchrates",
+      "inlinepaddyhamaliform_getbagsfortype",
+      "inlinepaddyhamaliform_handlesave",
+      "inlinepaddyhamaliform_handletypeselection",
+      "inlinepaddyhamaliform_removeworker",
+      "inlinepaddyhamaliform_updateworker",
+      "login_handlesubmit",
+      "managerfinancialpage_fmt",
+      "managerfinancialpage_getallitems",
+      "managerfinancialpage_handlesubmit",
+      "managerfinancialpage_loadentries",
+      "managerfinancialpage_openentry",
+      "managerfinancialpage_selectitem",
+      "ownerfinancialpage_calc",
+      "ownerfinancialpage_fmt",
+      "ownerfinancialpage_getallitems",
+      "ownerfinancialpage_handlesave",
+      "ownerfinancialpage_loadentries",
+      "ownerfinancialpage_openentry",
+      "ownerfinancialpage_resetform",
+      "paddyhamaliratestable_fetchrates",
+      "paddyhamaliratestable_handlecancel",
+      "paddyhamaliratestable_handleedit",
+      "paddyhamaliratestable_handleratechange",
+      "paddyhamaliratestable_handlesave",
+      "physicalinspection_handlepartyclick",
+      "ricesamplebook_fmt",
+      "ricesamplebook_fmtb",
+      "ricesamplebook_fmtval",
+      "ricesamplebook_fmtwhole",
+      "ricesamplebook_formatpackaginglabel",
+      "ricesamplebook_handleapplyfilters",
+      "ricesamplebook_handleclearfilters",
+      "ricesamplebook_loadentries",
+      "ricesamplebook_tosentencecase",
+      "ricesamplebook_totitlecase",
+      "sampleentry_setloading",
+      "sampleentryservice_sampleentryservice_getsampleentriesbyrole",
+      "sampleentryservice_sampleentryservice_getsampleentrybyid",
+      "tests_full_system_spec_js",
+      "usermanagement_fetchusers",
+      "usermanagement_getauthconfig",
+      "usermanagement_handlechangerole",
+      "usermanagement_handlecreate",
+      "usermanagement_handledelete",
+      "usermanagement_handleedit",
+      "usermanagement_handlesubmit",
+      "usermanagement_handletogglestatus"
+    ],
+    "5": [
+      "adminsamplebook2_buildmaphref",
+      "adminsamplebook2_catch",
+      "adminsamplebook2_fmtval",
+      "adminsamplebook2_formatdateinputvalue",
+      "adminsamplebook2_formatindiancurrency",
+      "adminsamplebook2_formatpackaginglabel",
+      "adminsamplebook2_formatrateunitlabel",
+      "adminsamplebook2_formatshortdatetime",
+      "adminsamplebook2_formattoggleunitlabel",
+      "adminsamplebook2_geteffectivedate",
+      "adminsamplebook2_getpartydisplayparts",
+      "adminsamplebook2_getpartylabel",
+      "adminsamplebook2_getpopupsmellsummary",
+      "adminsamplebook2_getqualityattemptsforentry",
+      "adminsamplebook2_getqualityattemptsmelllabel",
+      "adminsamplebook2_getresampleroundlabel",
+      "adminsamplebook2_getsamplinglabel",
+      "adminsamplebook2_gettimevalue",
+      "adminsamplebook2_hasalphaorpositivevalue",
+      "adminsamplebook2_hasdisplayablequalitysnapshot",
+      "adminsamplebook2_hasexplicitdetailedqualityraw",
+      "adminsamplebook2_hasqualitysnapshot",
+      "adminsamplebook2_hasresamplewbactivationsnapshot",
+      "adminsamplebook2_isprovidedalpha",
+      "adminsamplebook2_isprovidednumeric",
+      "adminsamplebook2_resolvemediaurl",
+      "adminsamplebook2_tonumbertext",
+      "adminsamplebook2_tosentencecase",
+      "adminsamplebook2_totitlecase",
+      "allottedsupervisors_applyfilters",
+      "allottedsupervisors_formatbend",
+      "allottedsupervisors_formatcutting",
+      "allottedsupervisors_formatdecimal",
+      "allottedsupervisors_formateditdecimal",
+      "allottedsupervisors_formatfield",
+      "allottedsupervisors_formatmoisture",
+      "allottedsupervisors_formattitlecase",
+      "allottedsupervisors_getapprovedfullavgbags",
+      "allottedsupervisors_geteffectivedate",
+      "allottedsupervisors_getnitavglabel",
+      "allottedsupervisors_getpendingdisputerequests",
+      "allottedsupervisors_getprogresscolor",
+      "allottedsupervisors_getvaluewithfallback",
+      "allottedsupervisors_handlebendinput",
+      "allottedsupervisors_handlecloselot",
+      "allottedsupervisors_handlecompletelot",
+      "allottedsupervisors_handlecuttinginput",
+      "allottedsupervisors_handleeditinspection",
+      "allottedsupervisors_handlehamalitoggle",
+      "allottedsupervisors_handleopeneditvalues",
+      "allottedsupervisors_handlepartyclick",
+      "allottedsupervisors_handlereassign",
+      "allottedsupervisors_handlesaveeditvalues",
+      "allottedsupervisors_handlesaveinspection",
+      "allottedsupervisors_handlesupervisorchange",
+      "allottedsupervisors_loadentries",
+      "allottedsupervisors_loadinspectionprogress",
+      "allottedsupervisors_loadsupervisors",
+      "allottedsupervisors_normalizependingmanagerapprovalqueue",
+      "allottedsupervisors_opendetailentry",
+      "allottedsupervisors_resolvemediaurl",
+      "allottedsupervisors_toggleexpand",
+      "allottedsupervisors_triggercompletelot",
+      "client_src_pages_adminsamplebook2_tsx",
+      "client_src_pages_allottedsupervisors_tsx",
+      "client_src_pages_sampleentryledger_tsx",
+      "client_src_utils_sampleentrypdfgenerator_ts",
+      "cookingreport_resolvemediaurl",
+      "finalpasslots_isvalidofferkey",
+      "loadinglots_ismeaningfulcellvalue",
+      "pendingapprovals_resolvemediaurl",
+      "physicalinspection_handlebendinput",
+      "physicalinspection_handlecuttinginput",
+      "physicalinspection_handlestageinputchange",
+      "physicalinspection_resolvemediaurl",
+      "sampleentrydetailmodal_resolvemediaurl",
+      "sampleentryledger_applyfilters",
+      "sampleentryledger_fmt",
+      "sampleentryledger_handlebendinput",
+      "sampleentryledger_handleclearfilters",
+      "sampleentryledger_handlecuttinginput",
+      "sampleentryledger_handleeditformchange",
+      "sampleentryledger_handlefilterchange",
+      "sampleentryledger_handleinspectionchange",
+      "sampleentryledger_handlesaveedit",
+      "sampleentryledger_hasmultiplelorries",
+      "sampleentryledger_loadbrokers",
+      "sampleentryledger_loadvarieties",
+      "sampleentryledger_openeditmodal",
+      "sampleentrypdfgenerator_generatesampleentrypdf",
+      "sampleentrypdfgenerator_geteffectivedate",
+      "sampleentrypdfgenerator_hasalphaorpositivevalue",
+      "sampleentrypdfgenerator_savepdfwithfallback",
+      "sampleentrypdfgenerator_totitlecase",
+      "server_verify_db_js",
+      "verify_db_test"
+    ],
+    "6": [
+      "client_src_pages_loadinglots_tsx",
+      "client_src_pages_paddyhamalibook_tsx",
+      "cookingreport_buildcookingstatusrows",
+      "loadinglots_buildattemptrows",
+      "loadinglots_buildorderednamelist",
+      "loadinglots_cellstyle",
+      "loadinglots_compactstatustext",
+      "loadinglots_displayval",
+      "loadinglots_fmtval",
+      "loadinglots_formatattemptvalue",
+      "loadinglots_formatbendpair",
+      "loadinglots_formatchargeunitlabel",
+      "loadinglots_formatcuttingpair",
+      "loadinglots_formatindiancurrency",
+      "loadinglots_formatindiannumber",
+      "loadinglots_formatmanagerchargevalue",
+      "loadinglots_formatmanagerratevalue",
+      "loadinglots_formatmanagersutevalue",
+      "loadinglots_formatoilkandu",
+      "loadinglots_formatpackaginglabel",
+      "loadinglots_formatpaymentcondition",
+      "loadinglots_formatqualitymix",
+      "loadinglots_formatratetypelabel",
+      "loadinglots_formatrateunitlabel",
+      "loadinglots_formatrswithunitlabel",
+      "loadinglots_formatsuteunitlabel",
+      "loadinglots_formatwbrows",
+      "loadinglots_getattemptfingerprint",
+      "loadinglots_getattemptlabel",
+      "loadinglots_getcantriggerloadingresample",
+      "loadinglots_getcollectedattemptnames",
+      "loadinglots_getcollectedbydisplay",
+      "loadinglots_getcollectorlabel",
+      "loadinglots_getcreatorlabel",
+      "loadinglots_getentrysmelllabel",
+      "loadinglots_getentrytypecode",
+      "loadinglots_getfinalrateactormeta",
+      "loadinglots_getfrozencellstyle",
+      "loadinglots_getofferactormeta",
+      "loadinglots_getofferactorrole",
+      "loadinglots_getqualityattemptlabel",
+      "loadinglots_getsamplinglabel",
+      "loadinglots_handleassignresample",
+      "loadinglots_handlecancelsubmit",
+      "loadinglots_handlemanagervaluesmodalopen",
+      "loadinglots_handleopenfinaledit",
+      "loadinglots_handleopenofferedit",
+      "loadinglots_handleopenqualitypopup",
+      "loadinglots_handleresize",
+      "loadinglots_handlesavefinaledit",
+      "loadinglots_handlesaveofferedit",
+      "loadinglots_handlesavevalues",
+      "loadinglots_handlesendtoresample",
+      "loadinglots_hascookingactivity",
+      "loadinglots_hasdisplayablequalitysnapshot",
+      "loadinglots_hasegbforratetype",
+      "loadinglots_hasexplicitdetailedqualityraw",
+      "loadinglots_haslfforratetype",
+      "loadinglots_haspositiveamount",
+      "loadinglots_hasqualitysnapshot",
+      "loadinglots_hasresamplewbactivationsnapshot",
+      "loadinglots_hasvalue",
+      "loadinglots_isenabled",
+      "loadinglots_isprovided",
+      "loadinglots_isprovidedalpha",
+      "loadinglots_isprovidednumeric",
+      "loadinglots_modaleditmode",
+      "loadinglots_normalizecaseinsensitivelist",
+      "loadinglots_normalizecollectedbyfilter",
+      "loadinglots_normalizecookingstatus",
+      "loadinglots_parseoptionalnumber",
+      "loadinglots_sanitizeamountinput",
+      "loadinglots_sanitizemoistureinput",
+      "loadinglots_scrollbyviewport",
+      "loadinglots_scrollhorizontalbyviewport",
+      "loadinglots_toenteredamounttext",
+      "loadinglots_tonumbertext",
+      "loadinglots_tooptionalinputvalue",
+      "loadinglots_tosentencecase",
+      "loadinglots_totitlecase",
+      "loadinglots_tots",
+      "loadinglots_trimzeros",
+      "loadinglots_unitlabel",
+      "paddyhamalibook_fetchentries",
+      "paddyhamalibook_formatcurrency",
+      "paddyhamalibook_formatdate"
+    ],
+    "7": [
+      "123_add_resample_trigger_workflow_state_down",
+      "123_add_resample_trigger_workflow_state_up",
+      "127_add_dispute_and_revised_fields_to_offerings_down",
+      "127_add_dispute_and_revised_fields_to_offerings_ensurecolumn",
+      "127_add_dispute_and_revised_fields_to_offerings_up",
+      "128_add_revised_rate_option_to_offerings_down",
+      "128_add_revised_rate_option_to_offerings_ensurecolumn",
+      "128_add_revised_rate_option_to_offerings_up",
+      "20250125_add_product_types_enum_down",
+      "20250125_add_product_types_enum_up",
+      "95_add_sample_workflow_enhancements_up",
+      "client_src_pages_ricesampleentry_tsx",
+      "client_src_pages_sampleentry_tsx",
+      "client_src_utils_sampleentryqualitymodallogic_ts",
+      "cookingreport_if",
+      "ricesampleentry_acquiresubmissionlock",
+      "ricesampleentry_handleapplyfilters",
+      "ricesampleentry_handlebendinput",
+      "ricesampleentry_handleclearfilters",
+      "ricesampleentry_handlecuttinginput",
+      "ricesampleentry_handleeditentry",
+      "ricesampleentry_handleinputchange",
+      "ricesampleentry_handlenextclick",
+      "ricesampleentry_handlequalityinput",
+      "ricesampleentry_handlesaveedit",
+      "ricesampleentry_handlesubmit",
+      "ricesampleentry_handlesubmitqualityparameters",
+      "ricesampleentry_handlesubmitqualityparameterswithconfirm",
+      "ricesampleentry_handlesubmitwithconfirm",
+      "ricesampleentry_handleviewentry",
+      "ricesampleentry_loaddropdowndata",
+      "ricesampleentry_loadentries",
+      "ricesampleentry_releasesubmissionlock",
+      "ricesampleentry_tosentencecase",
+      "ricesampleentry_totitlecase",
+      "sampleentry_async",
+      "sampleentry_buildorderedcollectornames",
+      "sampleentry_buildstoredcollectorvalue",
+      "sampleentry_catch",
+      "sampleentry_formatdateinputvalue",
+      "sampleentry_formatinputtitlecase",
+      "sampleentry_formatshortdatetime",
+      "sampleentry_getbrokerdisplayname",
+      "sampleentry_getcollectedbydisplay",
+      "sampleentry_getcollectorlabel",
+      "sampleentry_getcreatorlabel",
+      "sampleentry_geteffectivedate",
+      "sampleentry_getlatestfirstcyclecollector",
+      "sampleentry_getoriginalcollector",
+      "sampleentry_getresamplecollectornames",
+      "sampleentry_getvarietydisplayname",
+      "sampleentry_handlelocationsupdated",
+      "sampleentry_handlenextclick",
+      "sampleentry_handleresampletrigger",
+      "sampleentry_handlestorage",
+      "sampleentry_hasprovided",
+      "sampleentry_hassavedresamplequalityattempt",
+      "sampleentry_if",
+      "sampleentry_isprovidednumeric",
+      "sampleentry_isresampleworkflowentry",
+      "sampleentry_openrequestedquality",
+      "sampleentry_parsestoredcollectorpair",
+      "sampleentry_raworempty",
+      "sampleentry_renderuploadbutton",
+      "sampleentry_resolvemediaurl",
+      "sampleentry_tonumbertext",
+      "sampleentry_tosentencecase",
+      "sampleentry_totitlecase",
+      "sampleentry_zerotoempty",
+      "sampleentryqualitymodallogic_getdisplayqualityparameters",
+      "sampleentryqualitymodallogic_getexplicitresamplestarttime",
+      "sampleentryqualitymodallogic_hassavedresampleattemptfromhistory",
+      "sampleentryqualitymodallogic_shouldpreservegpsprefill",
+      "sampleentryqualitymodallogic_shouldrefillqualitymodal",
+      "sampleentryqualitymodallogic_shouldshowqualityupdatemode",
+      "sampleentryqualitymodallogic_totimevalue",
+      "server_migrations_123_add_resample_trigger_workflow_state_js",
+      "server_migrations_127_add_dispute_and_revised_fields_to_offerings_js",
+      "server_migrations_128_add_revised_rate_option_to_offerings_js",
+      "server_migrations_20250125_add_product_types_enum_js",
+      "server_migrations_95_add_sample_workflow_enhancements_js"
+    ],
+    "8": [
+      "client_src_pages_inventoryentry_tsx",
+      "client_src_pages_physicalinspection_tsx",
+      "finalpasslots_getactiveoffer",
+      "finalpasslots_getlatestoffer",
+      "finalpasslots_normalizeofferversions",
+      "finalpasslots_setselectedentry",
+      "inventoryentry_fetchoutturns",
+      "inventoryentry_handleopenmodal",
+      "inventoryentry_handlesubmit",
+      "inventoryentry_loadentries",
+      "physicalinspection_checkifwbvariety",
+      "physicalinspection_formatbendforui",
+      "physicalinspection_formatcuttingforui",
+      "physicalinspection_formatdecimal",
+      "physicalinspection_getcardheader",
+      "physicalinspection_getcurrenttripstages",
+      "physicalinspection_getentrybyid",
+      "physicalinspection_getlorrystages",
+      "physicalinspection_getprogresscolor",
+      "physicalinspection_getrulesmode",
+      "physicalinspection_getsamplingstatusandcolor",
+      "physicalinspection_getstageattemptno",
+      "physicalinspection_getstagebasekey",
+      "physicalinspection_getstagedisplaylabel",
+      "physicalinspection_getstageholdinfo",
+      "physicalinspection_getstageobjfromstages",
+      "physicalinspection_getvaluewithfallback",
+      "physicalinspection_handleaddstage",
+      "physicalinspection_handleeditstagefromdetail",
+      "physicalinspection_handleinputchange",
+      "physicalinspection_handlelorrynumberchange",
+      "physicalinspection_handleresumelorry",
+      "physicalinspection_handlerevertskip",
+      "physicalinspection_handlesavestage",
+      "physicalinspection_handleskipbalancedlot",
+      "physicalinspection_handleupdatestage",
+      "physicalinspection_hascurrenttripnitorhalf",
+      "physicalinspection_hasholdonpreviousday",
+      "physicalinspection_hasstageinstages",
+      "physicalinspection_hasunresolvedpendingorhold",
+      "physicalinspection_initializeinspectiondata",
+      "physicalinspection_isanyfullavgsavedorapproved",
+      "physicalinspection_isbalancedlotdisabled",
+      "physicalinspection_iscurrenttripfullavgapproved",
+      "physicalinspection_isfirstreallorrytrip",
+      "physicalinspection_isfirsttrip",
+      "physicalinspection_isfullavgeligibleforbalanced",
+      "physicalinspection_islocationsampleentry",
+      "physicalinspection_islooseentry",
+      "physicalinspection_islorryfreezed",
+      "physicalinspection_islotavgrequiredforlorry",
+      "physicalinspection_isrulesmodecommitted",
+      "physicalinspection_isstageapprovedforfirsttriplotavg",
+      "physicalinspection_isstageapprovedforlot",
+      "physicalinspection_isstageapprovedinstages",
+      "physicalinspection_isstagedisabledforentry",
+      "physicalinspection_isstagelockedforlot",
+      "physicalinspection_isstagependingforlot",
+      "physicalinspection_isstagependinginstages",
+      "physicalinspection_isstagesubmittedforlot",
+      "physicalinspection_isstagevisibleforentry",
+      "physicalinspection_istripmissingbalancedlotrestrictive",
+      "physicalinspection_isworkflowstagekey",
+      "physicalinspection_loadentries",
+      "physicalinspection_loadinspectionprogress",
+      "physicalinspection_syncactivelorrystages",
+      "physicalinspection_toggleexpand",
+      "physicalinspection_totitlecase",
+      "physicalinspection_validatestagebeforesave",
+      "physicalinspection_zerotoempty"
+    ],
+    "9": [
+      "finalpasslots_hasqualitysnapshot",
+      "sampleentry_isprovidedalpha",
+      "sampleentryservice_arequalityattemptsequivalent",
+      "sampleentryservice_buildofferpayload",
+      "sampleentryservice_canaddresamplecookingreport",
+      "sampleentryservice_createofferkey",
+      "sampleentryservice_creatependingmanagerapprovalrequest",
+      "sampleentryservice_ensureofferversions",
+      "sampleentryservice_getactiveoffer",
+      "sampleentryservice_getlatestoffer",
+      "sampleentryservice_getnextofferkey",
+      "sampleentryservice_getofferindex",
+      "sampleentryservice_getofferlabel",
+      "sampleentryservice_getqualityattemptsforentry",
+      "sampleentryservice_hasalphaorpositivevalue",
+      "sampleentryservice_hasanydetailedquality",
+      "sampleentryservice_hasassignedresamplecollector",
+      "sampleentryservice_hascompletedresampleattempt",
+      "sampleentryservice_hasegbforratetype",
+      "sampleentryservice_hasfinalizedresampleworkflow",
+      "sampleentryservice_hasfullqualitysnapshot",
+      "sampleentryservice_haslfforratetype",
+      "sampleentryservice_haspostresampleattempt",
+      "sampleentryservice_hasqualitysnapshot",
+      "sampleentryservice_hasresamplecookingsource",
+      "sampleentryservice_hasresamplepasswithcookingdecision",
+      "sampleentryservice_hassamplebookreadysnapshot",
+      "sampleentryservice_hastriggeredresampleflow",
+      "sampleentryservice_isprovidedalphavalue",
+      "sampleentryservice_isprovidednumericvalue",
+      "sampleentryservice_isresampleworkflowentry",
+      "sampleentryservice_isvalidofferkey",
+      "sampleentryservice_mirroroffertocolumns",
+      "sampleentryservice_normalizeattemptvalue",
+      "sampleentryservice_normalizepaymentunit",
+      "sampleentryservice_normalizepaymentvalue",
+      "sampleentryservice_normalizependingmanagerapprovalqueue",
+      "sampleentryservice_normalizerateunit",
+      "sampleentryservice_normalizesuteunit",
+      "sampleentryservice_normalizetoggleunit",
+      "sampleentryservice_sampleentryservice",
+      "sampleentryservice_sampleentryservice_assertpricingaccess",
+      "sampleentryservice_sampleentryservice_createsampleentry",
+      "sampleentryservice_sampleentryservice_formatofferingpayload",
+      "sampleentryservice_sampleentryservice_getofferingdata",
+      "sampleentryservice_sampleentryservice_setfinalprice",
+      "sampleentryservice_sampleentryservice_updateofferingprice",
+      "sampleentryservice_sampleentryservice_updatesampleentry",
+      "sampleentryservice_toboolean",
+      "sampleentryservice_tonullablenumber",
+      "sampleentryservice_tonumberordefault",
+      "sampleentryservice_totimevalue",
+      "sampleentryservice_totitlecasewords",
+      "sampleentryservice_wasoriginallypasswithcooking",
+      "server_services_sampleentryservice_js",
+      "test_resample_trigger_getqualityattemptsforentry",
+      "test_resample_trigger_getresamplecollectornames",
+      "test_resample_trigger_hassamplebookreadysnapshot",
+      "test_resample_trigger_js",
+      "test_resample_trigger_runtests",
+      "test_resample_trigger_shouldshowtriggerbutton"
+    ],
+    "10": [
+      "client_src_pages_recordsmanagement_recordsmanagement_tsx",
+      "recordsmanagement_async",
+      "recordsmanagement_calculategrouptotals",
+      "recordsmanagement_calculatepaddybagsdeducted",
+      "recordsmanagement_checktimeandrefresh",
+      "recordsmanagement_confirmclearoutturn",
+      "recordsmanagement_convertdateformat",
+      "recordsmanagement_deepcopy",
+      "recordsmanagement_executedeletericemovement",
+      "recordsmanagement_exportpdf",
+      "recordsmanagement_fetchallriceproductions",
+      "recordsmanagement_fetchavailablebags",
+      "recordsmanagement_fetchbyproducts",
+      "recordsmanagement_fetchhamalientries",
+      "recordsmanagement_fetchlocationsdata",
+      "recordsmanagement_fetchopeningbalance",
+      "recordsmanagement_fetchoutturns",
+      "recordsmanagement_fetchpackagings",
+      "recordsmanagement_fetchpendingmovements",
+      "recordsmanagement_fetchproductionrecords",
+      "recordsmanagement_fetchrecords",
+      "recordsmanagement_fetchricestock",
+      "recordsmanagement_fetchricestocklocations",
+      "recordsmanagement_findoutturnkey",
+      "recordsmanagement_getbusinessdate",
+      "recordsmanagement_getcurrentmonthlabel",
+      "recordsmanagement_getmovementcolor",
+      "recordsmanagement_getpaltimatchkey",
+      "recordsmanagement_groupdatabyproducttype",
+      "recordsmanagement_grouppaltibysource",
+      "recordsmanagement_handleadminapprove",
+      "recordsmanagement_handleapprove",
+      "recordsmanagement_handleapprovemovement",
+      "recordsmanagement_handlebulkapprove",
+      "recordsmanagement_handlebulkreject",
+      "recordsmanagement_handledelete",
+      "recordsmanagement_handledeletericemovement",
+      "recordsmanagement_handleedit",
+      "recordsmanagement_handleeditsuccess",
+      "recordsmanagement_handlerateinputchange",
+      "recordsmanagement_handlericeproductionsubmit",
+      "recordsmanagement_handlesaverate",
+      "recordsmanagement_handlesubmitbyproducts",
+      "recordsmanagement_handletabchange",
+      "recordsmanagement_handleupdatericemovement",
+      "recordsmanagement_mdl_mdwb",
+      "recordsmanagement_navigatemonth",
+      "recordsmanagement_navigatetooutturn",
+      "recordsmanagement_normalize",
+      "recordsmanagement_normalizekeyfn",
+      "recordsmanagement_processricestockdata",
+      "recordsmanagement_safeupdatestock",
+      "recordsmanagement_togglealldates",
+      "recordsmanagement_togglemovementselection",
+      "recordsmanagement_togglerateform",
+      "recordsmanagement_toggleselectallmovements"
+    ],
+    "11": [
+      "historyutil_arequalityattemptsequivalent",
+      "historyutil_dedupequalityattempts",
+      "historyutil_getqualityattemptcompletenessscore",
+      "historyutil_hasalphaorpositive",
+      "historyutil_hascookingdata",
+      "historyutil_hasqualitydata",
+      "historyutil_isprovidedalpha",
+      "historyutil_isprovidednumeric",
+      "historyutil_normalizeattemptvalue",
+      "historyutil_normalizeauditmetadata",
+      "historyutil_shouldmergeintolatestqualityattempt",
+      "sample_entries_arequalityattemptsequivalent",
+      "sample_entries_canlocationstaffeditquality",
+      "sample_entries_creatependingmanagerapprovalrequest",
+      "sample_entries_getqualityattemptsforentry",
+      "sample_entries_getrecheckstate",
+      "sample_entries_getrecheckstateforentries",
+      "sample_entries_getworkflowrole",
+      "sample_entries_hasalphaorpositive",
+      "sample_entries_hasanydetailedquality",
+      "sample_entries_hasassignedresamplecollector",
+      "sample_entries_hascompletedresamplesamplebookattempt",
+      "sample_entries_hasfullqualitysnapshot",
+      "sample_entries_haspersistedresamplequalityattempt",
+      "sample_entries_haspostresamplesamplebookattempt",
+      "sample_entries_hasqualitysnapshot",
+      "sample_entries_hasresamplecollectortimeline",
+      "sample_entries_hasresamplecookingprepsnapshot",
+      "sample_entries_hassamplebookreadysnapshot",
+      "sample_entries_invalidatesampleentrytabcaches",
+      "sample_entries_isconvertedlocationresample",
+      "sample_entries_isfinalpassvisibleentry",
+      "sample_entries_ispostfinalresampleflow",
+      "sample_entries_isprovided",
+      "sample_entries_isprovidedalphavalue",
+      "sample_entries_isprovidednumericvalue",
+      "sample_entries_isresampleworkflowmarker",
+      "sample_entries_istruthyflag",
+      "sample_entries_isusermatchingassigned",
+      "sample_entries_normalizealphanumeric",
+      "sample_entries_normalizeattemptvalue",
+      "sample_entries_normalizeauditmetadata",
+      "sample_entries_normalizegramsreport",
+      "sample_entries_normalizependingmanagerapprovalqueue",
+      "sample_entries_normalizeraw",
+      "sample_entries_parseboolflag",
+      "sample_entries_parsefloatsafe",
+      "sample_entries_parseintsafe",
+      "sample_entries_resolvequalitysmellinput",
+      "sample_entries_shouldcreatenewresamplequalityattempt",
+      "sample_entries_totimevalue",
+      "sample_entries_totitlecasewords",
+      "sample_entries_validaterequiredentryfields",
+      "server_routes_sample_entries_js",
+      "server_utils_historyutil_js"
+    ],
+    "12": [
+      "client_src_components_sampleentrydetailmodal_tsx",
+      "sampleentrydetailmodal_fetchinspectionprogress",
+      "sampleentrydetailmodal_findvalue",
+      "sampleentrydetailmodal_formatbend",
+      "sampleentrydetailmodal_formatcutting",
+      "sampleentrydetailmodal_formatdateinputvalue",
+      "sampleentrydetailmodal_formatfield",
+      "sampleentrydetailmodal_formatflexiblevalue",
+      "sampleentrydetailmodal_formatindiancurrency",
+      "sampleentrydetailmodal_formatindiancurrencyflexible",
+      "sampleentrydetailmodal_formatmeasurementtext",
+      "sampleentrydetailmodal_formatmoisture",
+      "sampleentrydetailmodal_formatpaymenttext",
+      "sampleentrydetailmodal_formatq",
+      "sampleentrydetailmodal_formatrateunitlabel",
+      "sampleentrydetailmodal_formatshortdatetime",
+      "sampleentrydetailmodal_formatstagebend",
+      "sampleentrydetailmodal_formatstagecutting",
+      "sampleentrydetailmodal_formatstagegrains",
+      "sampleentrydetailmodal_formatstagemoisture",
+      "sampleentrydetailmodal_formattoggleunitlabel",
+      "sampleentrydetailmodal_formatunitvaluetext",
+      "sampleentrydetailmodal_getchargetext",
+      "sampleentrydetailmodal_getfinalratetext",
+      "sampleentrydetailmodal_getofferindex",
+      "sampleentrydetailmodal_getofferratetext",
+      "sampleentrydetailmodal_getofferslotlabel",
+      "sampleentrydetailmodal_getpartydisplayparts",
+      "sampleentrydetailmodal_getpartylabel",
+      "sampleentrydetailmodal_getpendingstageoftrip",
+      "sampleentrydetailmodal_getpopupsmellsummary",
+      "sampleentrydetailmodal_getpricingrows",
+      "sampleentrydetailmodal_getqualityattemptsforentry",
+      "sampleentrydetailmodal_getqualityattemptsmelllabel",
+      "sampleentrydetailmodal_getresampleroundlabel",
+      "sampleentrydetailmodal_getsamplinglabel",
+      "sampleentrydetailmodal_getsmelllabelrobust",
+      "sampleentrydetailmodal_gettimevalue",
+      "sampleentrydetailmodal_hasalphaorpositivevalue",
+      "sampleentrydetailmodal_haspaddy100gsnapshot",
+      "sampleentrydetailmodal_hasqualitysnapshot",
+      "sampleentrydetailmodal_if",
+      "sampleentrydetailmodal_isprovidedalpha",
+      "sampleentrydetailmodal_isprovidednumeric",
+      "sampleentrydetailmodal_normalizependingmanagerapprovalqueue",
+      "sampleentrydetailmodal_tonumbertext",
+      "sampleentrydetailmodal_tosentencecase",
+      "sampleentrydetailmodal_totitlecase",
+      "sampleentrydetailmodal_tots",
+      "sampleentrydetailmodal_triprate"
+    ],
+    "13": [
+      "client_src_pages_cookingreport_tsx",
+      "cookingreport_arequalityattemptsequivalent",
+      "cookingreport_canuseindependentresamplecookingflow",
+      "cookingreport_closereportmodal",
+      "cookingreport_createemptycookingdata",
+      "cookingreport_createemptyresampleprepdata",
+      "cookingreport_formatchargeunitlabel",
+      "cookingreport_formatdateinputvalue",
+      "cookingreport_formatindiancurrency",
+      "cookingreport_formatpackaginglabel",
+      "cookingreport_formatrateunitlabel",
+      "cookingreport_formatshortdatetime",
+      "cookingreport_getcollectedbydisplay",
+      "cookingreport_getcollectorlabel",
+      "cookingreport_getcreatorlabel",
+      "cookingreport_getcurrentcyclecookinghistory",
+      "cookingreport_getcurrentcyclequalitysnapshot",
+      "cookingreport_geteffectivedate",
+      "cookingreport_getentrymoisturelabel",
+      "cookingreport_getentrysmelllabel",
+      "cookingreport_getlatestmatchinghistoryitem",
+      "cookingreport_getpartydisplayparts",
+      "cookingreport_getpartylabel",
+      "cookingreport_getqualityattemptsforentry",
+      "cookingreport_getsamplinglabel",
+      "cookingreport_gettimevalue",
+      "cookingreport_hasalphaorpositivevalue",
+      "cookingreport_hasanydetailedquality",
+      "cookingreport_hascurrentcyclequalitydata",
+      "cookingreport_hasfullqualitysnapshot",
+      "cookingreport_hasqualitysnapshot",
+      "cookingreport_hasresample100gsnapshot",
+      "cookingreport_iscurrentcyclequalitysnapshot",
+      "cookingreport_isprovidedalphavalue",
+      "cookingreport_isprovidednumericvalue",
+      "cookingreport_isresampleworkflowentry",
+      "cookingreport_isresolvedresampleentry",
+      "cookingreport_loadresamplecookingcount",
+      "cookingreport_normalizeattemptvalue",
+      "cookingreport_normalizestatus",
+      "cookingreport_raworempty",
+      "cookingreport_resetreportformstate",
+      "cookingreport_resetresampleprepstate",
+      "cookingreport_splithistorybyresamplestart",
+      "cookingreport_tonumbertext",
+      "cookingreport_tosentencecase",
+      "cookingreport_totitlecase"
+    ],
+    "14": [
+      "client_src_pages_finalpasslots_tsx",
+      "finalpasslots_acquiresubmissionlock",
+      "finalpasslots_cookingstatuslabel",
+      "finalpasslots_createofferkey",
+      "finalpasslots_formatchargeunitlabel",
+      "finalpasslots_formatdateinputvalue",
+      "finalpasslots_formatindiancurrency",
+      "finalpasslots_formatindiannumber",
+      "finalpasslots_formatpackaginglabel",
+      "finalpasslots_formatratetypelabel",
+      "finalpasslots_formatrateunitlabel",
+      "finalpasslots_getcollectorlabel",
+      "finalpasslots_getcreatorlabel",
+      "finalpasslots_getentrysmellcolor",
+      "finalpasslots_getentrysmelllabel",
+      "finalpasslots_getnextofferkey",
+      "finalpasslots_getofferindex",
+      "finalpasslots_getofferlabel",
+      "finalpasslots_getpartydisplay",
+      "finalpasslots_getqualityattemptsforentry",
+      "finalpasslots_hasegbforratetype",
+      "finalpasslots_haslfforratetype",
+      "finalpasslots_if",
+      "finalpasslots_isbrokerofficename",
+      "finalpasslots_loadresampleassignmentcount",
+      "finalpasslots_loadsupervisors",
+      "finalpasslots_opendetailentry",
+      "finalpasslots_parseoptionalnumber",
+      "finalpasslots_pushassignment",
+      "finalpasslots_releasesubmissionlock",
+      "finalpasslots_sanitizeamountinput",
+      "finalpasslots_sanitizeintegerinput",
+      "finalpasslots_sanitizemoistureinput",
+      "finalpasslots_setfinalresample",
+      "finalpasslots_tonumbertext",
+      "finalpasslots_tooptionalinputvalue",
+      "finalpasslots_topercenttext",
+      "finalpasslots_tosentencecase",
+      "finalpasslots_totitlecase"
+    ],
+    "15": [
+      "client_src_pages_locations_tsx",
+      "client_src_pages_production_tsx",
+      "inventoryentry_fetchkunchinittus",
+      "locations_fetchbrokers",
+      "locations_fetchhamalirates",
+      "locations_fetchoutturns",
+      "locations_fetchpackagings",
+      "locations_fetchricestocklocations",
+      "locations_getpagetitle",
+      "locations_handlecanceledit",
+      "locations_handlecancelhamaliedit",
+      "locations_handlecanceloutturnedit",
+      "locations_handlecreatebroker",
+      "locations_handlecreatekunchinittu",
+      "locations_handlecreateoutturn",
+      "locations_handlecreatepackaging",
+      "locations_handlecreatericestocklocation",
+      "locations_handlecreatericevariety",
+      "locations_handlecreatevariety",
+      "locations_handlecreatewarehouse",
+      "locations_handledelete",
+      "locations_handledeletebroker",
+      "locations_handledeleteoutturn",
+      "locations_handledeletepackaging",
+      "locations_handledeletericestocklocation",
+      "locations_handleedit",
+      "locations_handleeditbroker",
+      "locations_handleedithamalirates",
+      "locations_handleeditoutturn",
+      "locations_handleeditpackaging",
+      "locations_handleeditricestocklocation",
+      "locations_handlesavehamalirates",
+      "locations_handletogglebrokerstatus",
+      "locations_notifylocationsupdated",
+      "locations_totitlecase",
+      "production_fetchoutturns",
+      "production_fetchvarieties",
+      "production_handledelete",
+      "production_handlesubmit"
+    ],
+    "16": [
+      "executericestockmigration_ricestockmigrationexecutor",
+      "executericestockmigration_ricestockmigrationexecutor_completemigration",
+      "executericestockmigration_ricestockmigrationexecutor_constructor",
+      "executericestockmigration_ricestockmigrationexecutor_createnewoutturns",
+      "executericestockmigration_ricestockmigrationexecutor_executeautomaticmappings",
+      "executericestockmigration_ricestockmigrationexecutor_executemigration",
+      "executericestockmigration_ricestockmigrationexecutor_executereviewmappings",
+      "executericestockmigration_ricestockmigrationexecutor_initializemigrationlog",
+      "executericestockmigration_ricestockmigrationexecutor_logmigrationerror",
+      "executericestockmigration_ricestockmigrationexecutor_logmigrationstep",
+      "executericestockmigration_ricestockmigrationexecutor_printanalysissummary",
+      "executericestockmigration_ricestockmigrationexecutor_printreviewvarieties",
+      "executericestockmigration_ricestockmigrationexecutor_validatemigrationresults",
+      "ricestockmigrationexecution_ricestockmigrationexecutionservice",
+      "ricestockmigrationexecution_ricestockmigrationexecutionservice_createoutturnfromvariety",
+      "ricestockmigrationexecution_ricestockmigrationexecutionservice_executericestockmigration",
+      "ricestockmigrationexecution_ricestockmigrationexecutionservice_getmigrationstatus",
+      "ricestockmigrationexecution_ricestockmigrationexecutionservice_getsystemuser",
+      "ricestockmigrationexecution_ricestockmigrationexecutionservice_parsevarietystring",
+      "ricestockmigrationexecution_ricestockmigrationexecutionservice_processvarietymigration",
+      "ricestockmigrationexecution_ricestockmigrationexecutionservice_rollbackvarietymigration",
+      "ricestockmigrationexecution_ricestockmigrationexecutionservice_updatericestockmovements",
+      "ricestockvarietyanalysis_ricestockvarietyanalysisservice",
+      "ricestockvarietyanalysis_ricestockvarietyanalysisservice_analyzericestockvarieties",
+      "ricestockvarietyanalysis_ricestockvarietyanalysisservice_calculateconfidence",
+      "ricestockvarietyanalysis_ricestockvarietyanalysisservice_calculatesimilarity",
+      "ricestockvarietyanalysis_ricestockvarietyanalysisservice_findpotentialmatches",
+      "ricestockvarietyanalysis_ricestockvarietyanalysisservice_generateanalysissummary",
+      "ricestockvarietyanalysis_ricestockvarietyanalysisservice_getautomappablevarieties",
+      "ricestockvarietyanalysis_ricestockvarietyanalysisservice_getrecommendedaction",
+      "ricestockvarietyanalysis_ricestockvarietyanalysisservice_getvarietiesneedingnewoutturns",
+      "ricestockvarietyanalysis_ricestockvarietyanalysisservice_getvarietiesneedingreview",
+      "ricestockvarietyanalysis_ricestockvarietyanalysisservice_levenshteindistance",
+      "ricestockvarietyanalysis_ricestockvarietyanalysisservice_matchabbreviations",
+      "ricestockvarietyanalysis_ricestockvarietyanalysisservice_performfuzzymatching",
+      "server_scripts_executericestockmigration_js",
+      "server_services_ricestockmigrationexecution_js",
+      "server_services_ricestockvarietyanalysis_js"
+    ],
+    "17": [
+      "38_create_rice_hamali_entries_table_createricehamalientriestable",
+      "39_fix_rice_hamali_entries_table_fixricehamalientriestable",
+      "40_create_rice_stock_management_system_createricestockmanagementsystem",
+      "41_add_rice_stock_movement_hamali_support_addricestockmovementhamalisupport",
+      "42_fix_rice_hamali_constraint_fixricehamaliconstraint",
+      "69_add_status_to_rice_hamali_entries_addstatustoricehamalientries",
+      "add_critical_indexes_addcriticalindexes",
+      "add_grams_report_to_quality_addgramsreporttoquality",
+      "add_linked_shifting_id_addlinkedshiftingid",
+      "add_loose_movement_type_addloosemovementtype",
+      "add_rice_hamali_system_down",
+      "add_rice_hamali_system_up",
+      "add_rice_production_indexes_addriceproductionindexes",
+      "fix_rate_type_enum_fixratetypeenum",
+      "index_startserver",
+      "run_all_migrations_runallmigrations",
+      "seed_other_hamali_works_seedotherhamaliworks",
+      "server_index_js",
+      "server_migrations_38_create_rice_hamali_entries_table_js",
+      "server_migrations_39_fix_rice_hamali_entries_table_js",
+      "server_migrations_40_create_rice_stock_management_system_js",
+      "server_migrations_41_add_rice_stock_movement_hamali_support_js",
+      "server_migrations_42_fix_rice_hamali_constraint_js",
+      "server_migrations_69_add_status_to_rice_hamali_entries_js",
+      "server_migrations_add_grams_report_to_quality_js",
+      "server_migrations_add_linked_shifting_id_js",
+      "server_migrations_add_loose_movement_type_js",
+      "server_migrations_add_rice_hamali_system_js",
+      "server_migrations_add_rice_production_indexes_js",
+      "server_migrations_fix_rate_type_enum_js",
+      "server_migrations_update_loose_entries_variety_js",
+      "server_migrations_update_rice_production_product_types_js",
+      "server_run_all_migrations_js",
+      "server_scripts_add_critical_indexes_js",
+      "server_seeders_seed_other_hamali_works_js",
+      "update_loose_entries_variety_updatelooseentriesvariety",
+      "update_rice_production_product_types_updatericeproductionproducttypes"
+    ],
+    "18": [
+      "client_src_pages_pendingapprovals_tsx",
+      "pendingapprovals_fetchdata",
+      "pendingapprovals_formatbend",
+      "pendingapprovals_formatcutting",
+      "pendingapprovals_formatfield",
+      "pendingapprovals_formatmoisture",
+      "pendingapprovals_getdestination",
+      "pendingapprovals_getnitavglabel",
+      "pendingapprovals_handleapprovelorryquality",
+      "pendingapprovals_handlebulkapprovearrivals",
+      "pendingapprovals_handlebulkapprovepaddyhamali",
+      "pendingapprovals_handlebulkapproveproductions",
+      "pendingapprovals_handlebulkapproverates",
+      "pendingapprovals_handlebulkapprovericehamali",
+      "pendingapprovals_handlebulkapprovericestock",
+      "pendingapprovals_handlebulkrejectarrivals",
+      "pendingapprovals_handlebulkrejectpaddyhamali",
+      "pendingapprovals_handlebulkrejectproductions",
+      "pendingapprovals_handlebulkrejectrates",
+      "pendingapprovals_handlebulkrejectricehamali",
+      "pendingapprovals_handlebulkrejectricestock",
+      "pendingapprovals_handlemodalconfirm",
+      "pendingapprovals_handlerejectlorryquality",
+      "pendingapprovals_handleselectallarrivals",
+      "pendingapprovals_handleselectallpaddyhamali",
+      "pendingapprovals_handleselectallproductions",
+      "pendingapprovals_handleselectallrates",
+      "pendingapprovals_handleselectallricehamali",
+      "pendingapprovals_handleselectallricestock",
+      "pendingapprovals_handleselectarrival",
+      "pendingapprovals_handleselectpaddyhamali",
+      "pendingapprovals_handleselectproduction",
+      "pendingapprovals_handleselectrate",
+      "pendingapprovals_handleselectricehamali",
+      "pendingapprovals_handleselectricestock",
+      "pendingapprovals_if"
+    ],
+    "19": [
+      "cookingreportservice_cookingreportservice_getcookingreportsbystatus",
+      "cursorpagination_buildcompositecursorwhere",
+      "cursorpagination_buildcursorquery",
+      "cursorpagination_formatcursorresponse",
+      "cursorpagination_normalizefields",
+      "cursorpagination_parsecursorvalue",
+      "historyutil_attachloadinglotshistories",
+      "sample_entries_formatymd",
+      "sample_entries_hydratesampleentryworkflowstate",
+      "sampleentrypagination_fetchhydratedsampleentrypage",
+      "sampleentrypagination_hydraterowsbyids",
+      "sampleentrypagination_mergewhereclauses",
+      "sampleentrypagination_orderrowsbyids",
+      "sampleentryrepository_buildnonresamplemarkerclause",
+      "sampleentryrepository_buildresamplemarkerclause",
+      "sampleentryrepository_sampleentryrepository",
+      "sampleentryrepository_sampleentryrepository_buildfullincludes",
+      "sampleentryrepository_sampleentryrepository_buildincludesforrole",
+      "sampleentryrepository_sampleentryrepository_create",
+      "sampleentryrepository_sampleentryrepository_findbyid",
+      "sampleentryrepository_sampleentryrepository_findbyroleandfilters",
+      "sampleentryrepository_sampleentryrepository_findbystatus",
+      "sampleentryrepository_sampleentryrepository_getledger",
+      "sampleentryrepository_sampleentryrepository_update",
+      "sampleentryservice_sampleentryservice_getsampleentriesbystatus",
+      "sampleentryservice_sampleentryservice_getsampleentryledger",
+      "server_repositories_sampleentryrepository_js",
+      "server_utils_cursorpagination_js",
+      "server_utils_sampleentrypagination_js",
+      "test_history_check",
+      "test_history_js",
+      "test_query_js",
+      "test_query_test"
+    ],
+    "20": [
+      "client_src_utils_recordspdfgenerator_ts",
+      "recordsmanagement_if",
+      "recordspdfgenerator_addfooter",
+      "recordspdfgenerator_addheader",
+      "recordspdfgenerator_addsummary",
+      "recordspdfgenerator_calculatepaddybagsdeducted",
+      "recordspdfgenerator_formatamountformula",
+      "recordspdfgenerator_formatdate",
+      "recordspdfgenerator_formatdatedisplay",
+      "recordspdfgenerator_formatfilename",
+      "recordspdfgenerator_formatmovementtype",
+      "recordspdfgenerator_formatnumber",
+      "recordspdfgenerator_generatearrivalspdf",
+      "recordspdfgenerator_generateoptimizedtable",
+      "recordspdfgenerator_generateoutturnreportpdf",
+      "recordspdfgenerator_generatepaddystockpdf",
+      "recordspdfgenerator_generatepurchasepdf",
+      "recordspdfgenerator_generatericemovementspdf",
+      "recordspdfgenerator_generatericestockpdf",
+      "recordspdfgenerator_generateshiftingpdf",
+      "recordspdfgenerator_getbasetablestyles",
+      "recordspdfgenerator_getfromlocation",
+      "recordspdfgenerator_getheaderstyles",
+      "recordspdfgenerator_getproducttypecolor",
+      "recordspdfgenerator_gettolocation",
+      "recordspdfgenerator_processinchunks",
+      "recordspdfgenerator_renderproductcard",
+      "recordspdfgenerator_savepdfwithfallback",
+      "recordspdfgenerator_truncatetext"
+    ],
+    "21": [
+      "locationbifurcationservice_locationbifurcationservice",
+      "locationbifurcationservice_locationbifurcationservice_buildvarietymatching",
+      "locationbifurcationservice_locationbifurcationservice_generatestocksuggestions",
+      "locationbifurcationservice_locationbifurcationservice_generatevarietyaliases",
+      "locationbifurcationservice_locationbifurcationservice_getavailablelocationsforvariety",
+      "locationbifurcationservice_locationbifurcationservice_gethierarchicalvarietybifurcation",
+      "locationbifurcationservice_locationbifurcationservice_getlocationstockbreakdown",
+      "locationbifurcationservice_locationbifurcationservice_normalize",
+      "locationbifurcationservice_locationbifurcationservice_resolvepackaginginfo",
+      "locationbifurcationservice_locationbifurcationservice_totitlecase",
+      "locationbifurcationservice_locationbifurcationservice_updatestockafterpalti",
+      "locationbifurcationservice_locationbifurcationservice_validatepaltibylocation",
+      "locationbifurcationservice_locationbifurcationservice_validatesaleafterpalti",
+      "ricestockcalculationservice_ricestockcalculationservice",
+      "ricestockcalculationservice_ricestockcalculationservice_buildenhancedvarietymatching",
+      "ricestockcalculationservice_ricestockcalculationservice_buildexactvarietymatching",
+      "ricestockcalculationservice_ricestockcalculationservice_calculateavailablestock",
+      "ricestockcalculationservice_ricestockcalculationservice_calculateopeningstockbalance",
+      "ricestockcalculationservice_ricestockcalculationservice_calculatestockbalance",
+      "ricestockcalculationservice_ricestockcalculationservice_determineproductcategory",
+      "ricestockcalculationservice_ricestockcalculationservice_generatecomprehensivevarietyaliases",
+      "ricestockcalculationservice_ricestockcalculationservice_getstandardizedvarietyinfo",
+      "ricestockcalculationservice_ricestockcalculationservice_getvarietybifurcation",
+      "ricestockcalculationservice_ricestockcalculationservice_normalize",
+      "ricestockcalculationservice_ricestockcalculationservice_resolvepackaginginfo",
+      "ricestockcalculationservice_ricestockcalculationservice_totitlecase",
+      "ricestockcalculationservice_ricestockcalculationservice_validatestockavailability",
+      "server_services_locationbifurcationservice_js",
+      "server_services_ricestockcalculationservice_js"
+    ],
+    "22": [
+      "client_src_pages_lotselection_tsx",
+      "lotselection_arequalityattemptsequivalent",
+      "lotselection_buildorderedcollectornames",
+      "lotselection_catch",
+      "lotselection_fmtricedecimal",
+      "lotselection_fmtval",
+      "lotselection_fmtwhole",
+      "lotselection_formatdateinputvalue",
+      "lotselection_formatgramsreport",
+      "lotselection_getcollectedbydisplay",
+      "lotselection_getcollectorlabel",
+      "lotselection_getcreatorlabel",
+      "lotselection_getentrysmellcolor",
+      "lotselection_getentrysmelllabel",
+      "lotselection_getoriginalcollector",
+      "lotselection_getqualityattemptsforentry",
+      "lotselection_getselectiondisplaydate",
+      "lotselection_gettimevalue",
+      "lotselection_hasalphaorpositivevalue",
+      "lotselection_hasqualitysnapshot",
+      "lotselection_isprovided",
+      "lotselection_isprovidedalphavalue",
+      "lotselection_isprovidednumericvalue",
+      "lotselection_isresampleworkflowentry",
+      "lotselection_loadsupervisors",
+      "lotselection_normalizeattemptvalue",
+      "lotselection_tosentencecase",
+      "lotselection_totitlecase"
+    ],
+    "23": [
+      "client_src_utils_ricestockpdfgenerator_new_ts",
+      "ricestockpdfgenerator_new_calculateclosingstock",
+      "ricestockpdfgenerator_new_categorizeproduct",
+      "ricestockpdfgenerator_new_formatdate",
+      "ricestockpdfgenerator_new_formatdatedisplay",
+      "ricestockpdfgenerator_new_generatericestockpdf",
+      "ricestockpdfgenerator_new_groupdatabydate",
+      "ricestockpdfgenerator_new_groupdatabyproducttype",
+      "ricestockpdfgenerator_new_parsedate",
+      "ricestockpdfgenerator_new_renderbottomrow",
+      "ricestockpdfgenerator_new_renderclosingstock",
+      "ricestockpdfgenerator_new_rendercolumnheaders",
+      "ricestockpdfgenerator_new_renderdateheader",
+      "ricestockpdfgenerator_new_renderdatepage",
+      "ricestockpdfgenerator_new_rendergroupedpalti",
+      "ricestockpdfgenerator_new_rendermovementgroup",
+      "ricestockpdfgenerator_new_rendermovementrow",
+      "ricestockpdfgenerator_new_rendermovements",
+      "ricestockpdfgenerator_new_renderopeningstock",
+      "ricestockpdfgenerator_new_renderpageheader",
+      "ricestockpdfgenerator_new_renderpaltihierarchical",
+      "ricestockpdfgenerator_new_renderproductsection",
+      "ricestockpdfgenerator_new_rendersinglepalti"
+    ],
+    "24": [
+      "client_src_pages_kunchinintuledger_tsx",
+      "client_src_utils_ledgerpdfgenerator_ts",
+      "kunchinintuledger_calculatecuttingtotal",
+      "kunchinintuledger_cancelcloseconfirmation",
+      "kunchinintuledger_confirmclosekunchinittu",
+      "kunchinintuledger_downloadkunchinintupdf",
+      "kunchinintuledger_exportpdf",
+      "kunchinintuledger_fetchkunchinittusandwarehouses",
+      "kunchinintuledger_fetchledger",
+      "kunchinintuledger_filterkunchinintusbywarehouse",
+      "kunchinintuledger_formatcutting",
+      "kunchinintuledger_formatdate",
+      "kunchinintuledger_getwarehousename",
+      "kunchinintuledger_groupbywarehouse",
+      "kunchinintuledger_handleaddloose",
+      "kunchinintuledger_handlelooseinputchange",
+      "kunchinintuledger_handleloosesuccess",
+      "kunchinintuledger_handlesaveloose",
+      "kunchinintuledger_showcloseconfirmation",
+      "ledgerpdfgenerator_generatekunchinintuledgerpdf",
+      "ledgerpdfgenerator_generatekunchinintuportraitpdf"
+    ],
+    "25": [
+      "ricestockerrorhandler_ricestockerrorhandler",
+      "ricestockerrorhandler_ricestockerrorhandler_categorizeerror",
+      "ricestockerrorhandler_ricestockerrorhandler_generaterequestid",
+      "ricestockerrorhandler_ricestockerrorhandler_generateuserfriendlyerror",
+      "ricestockerrorhandler_ricestockerrorhandler_geterrorseverity",
+      "ricestockerrorhandler_ricestockerrorhandler_geterrorstatistics",
+      "ricestockerrorhandler_ricestockerrorhandler_geterrorstatuscode",
+      "ricestockerrorhandler_ricestockerrorhandler_getstockdetails",
+      "ricestockerrorhandler_ricestockerrorhandler_gettimecondition",
+      "ricestockerrorhandler_ricestockerrorhandler_getvalidationdetails",
+      "ricestockerrorhandler_ricestockerrorhandler_getvalidationsuggestions",
+      "ricestockerrorhandler_ricestockerrorhandler_getvarietysuggestions",
+      "ricestockerrorhandler_ricestockerrorhandler_getvarietyvalidationdetails",
+      "ricestockerrorhandler_ricestockerrorhandler_handlericestockerrors",
+      "ricestockerrorhandler_ricestockerrorhandler_initializeerrorlogging",
+      "ricestockerrorhandler_ricestockerrorhandler_isricestockrequest",
+      "ricestockerrorhandler_ricestockerrorhandler_logricestockerror",
+      "ricestockerrorhandler_ricestockerrorhandler_logtodatabase",
+      "ricestockerrorhandler_ricestockerrorhandler_logtofile",
+      "ricestockerrorhandler_ricestockerrorhandler_sanitizerequestbody",
+      "server_middleware_ricestockerrorhandler_js"
+    ],
+    "26": [
+      "client_src_pages_managervalueapprovals_tsx",
+      "managervalueapprovals_buildoriginalsummary",
+      "managervalueapprovals_buildpendingsummary",
+      "managervalueapprovals_formatbend",
+      "managervalueapprovals_formatchargeunit",
+      "managervalueapprovals_formatcutting",
+      "managervalueapprovals_formatfield",
+      "managervalueapprovals_formatmoisture",
+      "managervalueapprovals_formatpackaginglabel",
+      "managervalueapprovals_formatpaddywb",
+      "managervalueapprovals_formatreportedby",
+      "managervalueapprovals_getnitavglabel",
+      "managervalueapprovals_handledecision",
+      "managervalueapprovals_handlepartyclick",
+      "managervalueapprovals_haspendingfieldchanged",
+      "managervalueapprovals_normalizecomparablevalue",
+      "managervalueapprovals_resolvemediaurl",
+      "managervalueapprovals_todisplaynumber",
+      "managervalueapprovals_totitlecase"
+    ],
+    "27": [
+      "client_src_utils_sampletypedisplay_ts",
+      "sampletypedisplay_applycurrentuserhighlight",
+      "sampletypedisplay_buildorderedcollectornames",
+      "sampletypedisplay_extractcollectorvalue",
+      "sampletypedisplay_formatstoredcollectorvalue",
+      "sampletypedisplay_getcollectedbydisplay",
+      "sampletypedisplay_getcollectorlabel",
+      "sampletypedisplay_getconvertedentrytypecode",
+      "sampletypedisplay_getdisplayedentrytypecode",
+      "sampletypedisplay_getentrytypecode",
+      "sampletypedisplay_getentrytypetextcolor",
+      "sampletypedisplay_getlatestfirstcyclecollector",
+      "sampletypedisplay_getoriginalentrytypecode",
+      "sampletypedisplay_getresamplecollectornames",
+      "sampletypedisplay_isconvertedresampletype",
+      "sampletypedisplay_issupervisorname",
+      "sampletypedisplay_parsestoredcollectorpair",
+      "sampletypedisplay_splitcollectedbyline",
+      "sampletypedisplay_totitlecase"
+    ],
+    "28": [
+      "client_src_pages_sampleapprovalshub_tsx",
+      "sampleapprovalshub_async",
+      "sampleapprovalshub_catch",
+      "sampleapprovalshub_formatdate",
+      "sampleapprovalshub_formatfield",
+      "sampleapprovalshub_getlorrybadgestyle",
+      "sampleapprovalshub_getpendingstage",
+      "sampleapprovalshub_getsmelllabel",
+      "sampleapprovalshub_getstageattemptno",
+      "sampleapprovalshub_getstagebasekey",
+      "sampleapprovalshub_getstagedisplaylabel",
+      "sampleapprovalshub_getstatusbadgestyle",
+      "sampleapprovalshub_handleapprovelorryquality",
+      "sampleapprovalshub_handlerejectlorryquality",
+      "sampleapprovalshub_if",
+      "sampleapprovalshub_normalizesmell",
+      "sampleapprovalshub_resolvemediaurl",
+      "sampleapprovalshub_totitlecase"
+    ],
+    "29": [
+      "test_hold_logic_complete_checkifwbvariety",
+      "test_hold_logic_complete_getentrybyid",
+      "test_hold_logic_complete_getrulesmode",
+      "test_hold_logic_complete_getstagebasekey",
+      "test_hold_logic_complete_getstageholdinfo",
+      "test_hold_logic_complete_getstageobjfromstages",
+      "test_hold_logic_complete_hasstageinstages",
+      "test_hold_logic_complete_hasunresolvedpendingorhold",
+      "test_hold_logic_complete_islotavgrequiredforlorry",
+      "test_hold_logic_complete_isstageapprovedforlot",
+      "test_hold_logic_complete_isstageapprovedinstages",
+      "test_hold_logic_complete_isstagedisabledforentry",
+      "test_hold_logic_complete_isstagelockedforlot",
+      "test_hold_logic_complete_isstagependingforlot",
+      "test_hold_logic_complete_isworkflowstagekey",
+      "test_hold_logic_complete_js",
+      "test_hold_logic_complete_runsuite"
+    ],
+    "30": [
+      "client_src_pages_completedlots_tsx",
+      "completedlots_formatindiancurrency",
+      "completedlots_formatpackaginglabel",
+      "completedlots_formatshortdate",
+      "completedlots_getconvertedentrytypecode",
+      "completedlots_getdisplayedentrytypecode",
+      "completedlots_getentrytypetextcolor",
+      "completedlots_getoriginalentrytypecode",
+      "completedlots_getvaluewithfallback",
+      "completedlots_handleactionclick",
+      "completedlots_handlenextpage",
+      "completedlots_handleopendetailmodal",
+      "completedlots_handleprevpage",
+      "completedlots_isconvertedresampletype",
+      "completedlots_toggleexpand",
+      "completedlots_tonumbertext",
+      "completedlots_totitlecase"
+    ],
+    "31": [
+      "client_src_pages_resampleallotment_tsx",
+      "resampleallotment_fetchsupervisors",
+      "resampleallotment_getcollectordisplayparts",
+      "resampleallotment_getcollectorlabel",
+      "resampleallotment_getdisplaypartyname",
+      "resampleallotment_getlatestresampleassignedname",
+      "resampleallotment_getoriginalcollector",
+      "resampleallotment_getresampledate",
+      "resampleallotment_getresampletimelinenames",
+      "resampleallotment_handleassign",
+      "resampleallotment_isresampleassigned",
+      "resampleallotment_issupervisorname",
+      "resampleallotment_loadentries",
+      "resampleallotment_parsestoredcollectorpair",
+      "resampleallotment_totitlecase"
+    ],
+    "32": [
+      "ricestockbackwardcompatibility_ricestockbackwardcompatibilitylayer",
+      "ricestockbackwardcompatibility_ricestockbackwardcompatibilitylayer_ensurevarietycompatibility",
+      "ricestockbackwardcompatibility_ricestockbackwardcompatibilitylayer_findoutturnbyvariety",
+      "ricestockbackwardcompatibility_ricestockbackwardcompatibilitylayer_getcompatibilitystatus",
+      "ricestockbackwardcompatibility_ricestockbackwardcompatibilitylayer_handlericestockcompatibility",
+      "ricestockbackwardcompatibility_ricestockbackwardcompatibilitylayer_isricestockendpoint",
+      "ricestockbackwardcompatibility_ricestockbackwardcompatibilitylayer_normalizevariety",
+      "ricestockbackwardcompatibility_ricestockbackwardcompatibilitylayer_transformincomingdata",
+      "ricestockbackwardcompatibility_ricestockbackwardcompatibilitylayer_transformlegacydata",
+      "ricestockbackwardcompatibility_ricestockbackwardcompatibilitylayer_transformoutgoingdata",
+      "ricestockbackwardcompatibility_ricestockbackwardcompatibilitylayer_transformstockitem",
+      "ricestockbackwardcompatibility_ricestockbackwardcompatibilitylayer_transformstockitems",
+      "ricestockbackwardcompatibility_ricestockbackwardcompatibilitylayer_validatecompatibility",
+      "server_middleware_ricestockbackwardcompatibility_js"
+    ],
+    "33": [
+      "client_src_pages_outturnreport_tsx",
+      "outturnreport_calculatefrombags",
+      "outturnreport_calculateremainingbags",
+      "outturnreport_confirmclearoutturn",
+      "outturnreport_fetchavailablepaddybags",
+      "outturnreport_fetchbyproducts",
+      "outturnreport_fetchlocations",
+      "outturnreport_fetchoutturns",
+      "outturnreport_fetchpackagings",
+      "outturnreport_getbyproductquantity",
+      "outturnreport_handleclearoutturn",
+      "outturnreport_handleoutturnchange",
+      "outturnreport_handlesubmit"
+    ],
+    "34": [
+      "client_src_utils_paltidisplayhelpers_ts",
+      "paltidisplayhelpers_getbagsdisplay",
+      "paltidisplayhelpers_getbillnumberdisplay",
+      "paltidisplayhelpers_getlocationdisplay",
+      "paltidisplayhelpers_getlorrynumberdisplay",
+      "paltidisplayhelpers_getmovementtypedisplay",
+      "paltidisplayhelpers_getpackagingdisplay",
+      "paltidisplayhelpers_getpaltidisplaydata",
+      "paltidisplayhelpers_getquantitydisplay",
+      "paltidisplayhelpers_getrowbackgroundcolor",
+      "paltidisplayhelpers_getshortagedisplay",
+      "paltidisplayhelpers_getvarietydisplay",
+      "paltidisplayhelpers_ispaltimovement"
+    ],
+    "35": [
+      "loadtest_api",
+      "loadtest_batchinsert",
+      "loadtest_createbasedata",
+      "loadtest_generatearrivalrecord",
+      "loadtest_generatericeproductionrecord",
+      "loadtest_generatewbno",
+      "loadtest_login",
+      "loadtest_randombetween",
+      "loadtest_randomdate",
+      "loadtest_randomelement",
+      "loadtest_runloadtest",
+      "loadtest_sleep",
+      "server_scripts_loadtest_js"
+    ],
+    "36": [
+      "rollbackricestockmigration_ricestockmigrationrollback",
+      "rollbackricestockmigration_ricestockmigrationrollback_completerollback",
+      "rollbackricestockmigration_ricestockmigrationrollback_constructor",
+      "rollbackricestockmigration_ricestockmigrationrollback_createbackup",
+      "rollbackricestockmigration_ricestockmigrationrollback_executerollback",
+      "rollbackricestockmigration_ricestockmigrationrollback_executerollbackoperations",
+      "rollbackricestockmigration_ricestockmigrationrollback_initializerollbacklog",
+      "rollbackricestockmigration_ricestockmigrationrollback_listavailablemigrations",
+      "rollbackricestockmigration_ricestockmigrationrollback_logrollbackerror",
+      "rollbackricestockmigration_ricestockmigrationrollback_logrollbackstep",
+      "rollbackricestockmigration_ricestockmigrationrollback_validaterollbackresults",
+      "rollbackricestockmigration_ricestockmigrationrollback_validaterollbacktarget",
+      "server_scripts_rollbackricestockmigration_js"
+    ],
+    "37": [
+      "client_src_utils_paltidataprocessor_ts",
+      "paltidataprocessor_extractfield",
+      "paltidataprocessor_getcompatiblefieldvalue",
+      "paltidataprocessor_getpackagingdisplay",
+      "paltidataprocessor_getpaltifieldfallbacks",
+      "paltidataprocessor_getshortagedisplay",
+      "paltidataprocessor_ispaltimovement",
+      "paltidataprocessor_normalizepaltimovement",
+      "paltidataprocessor_processpaltimovements",
+      "paltidataprocessor_safeparseint",
+      "paltidataprocessor_safeparsenumber",
+      "paltidataprocessor_safeparsestring"
+    ],
+    "38": [
+      "client_src_pages_recordsmanagement_recordsmanagementtypes_ts",
+      "export_checknewpage",
+      "export_drawsectionheader",
+      "export_drawtableheader",
+      "export_drawtablerow",
+      "export_formatdate",
+      "export_getweekrange",
+      "recordsmanagementtypes_formatcutting",
+      "recordsmanagementtypes_getweekkey",
+      "recordsmanagementtypes_getweekrange",
+      "server_routes_export_js"
+    ],
+    "39": [
+      "fileuploadservice_fileuploadservice",
+      "fileuploadservice_fileuploadservice_compressimage",
+      "fileuploadservice_fileuploadservice_constructor",
+      "fileuploadservice_fileuploadservice_deletefile",
+      "fileuploadservice_fileuploadservice_ensureuploaddir",
+      "fileuploadservice_fileuploadservice_filefilter",
+      "fileuploadservice_fileuploadservice_getmulterstorage",
+      "fileuploadservice_fileuploadservice_getuploadmiddleware",
+      "fileuploadservice_fileuploadservice_uploadfile",
+      "fileuploadservice_fileuploadservice_validatefile",
+      "server_services_fileuploadservice_js"
+    ],
+    "40": [
+      "performancemonitor_performancemonitor",
+      "performancemonitor_performancemonitor_checkthresholds",
+      "performancemonitor_performancemonitor_cleanupoldmetrics",
+      "performancemonitor_performancemonitor_constructor",
+      "performancemonitor_performancemonitor_getmetrics",
+      "performancemonitor_performancemonitor_getpercentilemetrics",
+      "performancemonitor_performancemonitor_getslowestendpoints",
+      "performancemonitor_performancemonitor_logrequest",
+      "performancemonitor_performancemonitor_logslowquery",
+      "performancemonitor_performancemonitor_starttimer",
+      "server_utils_performancemonitor_js"
+    ],
+    "41": [
+      "client_src_pages_hamalienhanced_tsx",
+      "hamalienhanced_fetchpaddyhamalientries",
+      "hamalienhanced_fetchrecords",
+      "hamalienhanced_fetchricehamalientries",
+      "hamalienhanced_formatdate",
+      "hamalienhanced_getbusinessdate",
+      "hamalienhanced_getcurrenthamalientries",
+      "hamalienhanced_gethamalistatus",
+      "hamalienhanced_handlesearch",
+      "hamalienhanced_toggledateexpansion"
+    ],
+    "42": [
+      "hamaliintegrationservice_hamaliintegrationservice",
+      "hamaliintegrationservice_hamaliintegrationservice_createdefaultpaltirate",
+      "hamaliintegrationservice_hamaliintegrationservice_createpaltihamalientry",
+      "hamaliintegrationservice_hamaliintegrationservice_deletepaltihamalientry",
+      "hamaliintegrationservice_hamaliintegrationservice_generatepaltihamaliremarks",
+      "hamaliintegrationservice_hamaliintegrationservice_getpaltihamalientries",
+      "hamaliintegrationservice_hamaliintegrationservice_getpaltihamalirate",
+      "hamaliintegrationservice_hamaliintegrationservice_getpaltihamalisummary",
+      "hamaliintegrationservice_hamaliintegrationservice_updatepaltihamalientry",
+      "server_services_hamaliintegrationservice_js"
+    ],
+    "43": [
+      "server_services_statusmanagementservice_js",
+      "statusmanagementservice_statusmanagementservice",
+      "statusmanagementservice_statusmanagementservice_cleanupoldstatuses",
+      "statusmanagementservice_statusmanagementservice_deletestatus",
+      "statusmanagementservice_statusmanagementservice_getbatchstatuses",
+      "statusmanagementservice_statusmanagementservice_getentriesbystatus",
+      "statusmanagementservice_statusmanagementservice_getstatus",
+      "statusmanagementservice_statusmanagementservice_getstatussummary",
+      "statusmanagementservice_statusmanagementservice_updatebatchstatuses",
+      "statusmanagementservice_statusmanagementservice_updatestatus"
+    ],
+    "44": [
+      "physicalinspectionrepository_physicalinspectionrepository",
+      "physicalinspectionrepository_physicalinspectionrepository_create",
+      "physicalinspectionrepository_physicalinspectionrepository_findbyid",
+      "physicalinspectionrepository_physicalinspectionrepository_findbylotallotmentid",
+      "physicalinspectionrepository_physicalinspectionrepository_findbysampleentryid",
+      "physicalinspectionrepository_physicalinspectionrepository_update",
+      "physicalinspectionrepository_physicalinspectionrepository_updatebylotallotmentid",
+      "physicalinspectionservice_physicalinspectionservice_getphysicalinspectionbylotallotment",
+      "server_repositories_physicalinspectionrepository_js"
+    ],
+    "45": [
+      "test_progressive_holds_getstagebasekey",
+      "test_progressive_holds_hasstageinstages",
+      "test_progressive_holds_isfullavgeligibleforbalanced",
+      "test_progressive_holds_isnewcroptripincomplete",
+      "test_progressive_holds_isstageapprovedinstages",
+      "test_progressive_holds_js",
+      "test_progressive_holds_runtests"
+    ],
+    "46": [
+      "client_src_components_inlinericehamaliform_tsx",
+      "inlinericehamaliform_addworker",
+      "inlinericehamaliform_fetchricerates",
+      "inlinericehamaliform_handlericetypeselection",
+      "inlinericehamaliform_handlesave",
+      "inlinericehamaliform_removeworker",
+      "inlinericehamaliform_updateworker"
+    ],
+    "47": [
+      "client_src_components_responsivewrapper_tsx",
+      "client_src_hooks_useresponsive_ts",
+      "responsivewrapper_responsivegridcomponent",
+      "responsivewrapper_responsivetable",
+      "responsivewrapper_responsivewrapper",
+      "useresponsive_usebreakpointvalue",
+      "useresponsive_useresponsive"
+    ],
+    "48": [
+      "server_middleware_validaterequest_js",
+      "validaterequest_sanitizeobject",
+      "validaterequest_sanitizerequest",
+      "validaterequest_sanitizestring",
+      "validaterequest_validatenumeric",
+      "validaterequest_validatepagination",
+      "validaterequest_validaterequired"
+    ],
+    "49": [
+      "inventorydatarepository_inventorydatarepository",
+      "inventorydatarepository_inventorydatarepository_countbysampleentryid",
+      "inventorydatarepository_inventorydatarepository_create",
+      "inventorydatarepository_inventorydatarepository_findbyid",
+      "inventorydatarepository_inventorydatarepository_update",
+      "inventorydatarepository_inventorydatarepository_updatebyphysicalinspectionid",
+      "server_repositories_inventorydatarepository_js"
+    ],
+    "50": [
+      "imageprocessor_imageprocessor",
+      "imageprocessor_imageprocessor_compressimage",
+      "imageprocessor_imageprocessor_converttowebp",
+      "imageprocessor_imageprocessor_createthumbnail",
+      "imageprocessor_imageprocessor_getmetadata",
+      "imageprocessor_imageprocessor_optimizeforweb",
+      "server_utils_imageprocessor_js"
+    ],
+    "51": [
+      "client_src_utils_testsmelldisplay_js",
+      "testsmelldisplay_getgrainscolumnsmell",
+      "testsmelldisplay_getrowcolor",
+      "testsmelldisplay_hassmell",
+      "testsmelldisplay_islightsmell",
+      "testsmelldisplay_runtests"
+    ],
+    "52": [
+      "67_final_performance_indexes_verified_createindexsafely",
+      "67_final_performance_indexes_verified_removeindexsafely",
+      "72_add_performance_indexes_outturn_purchase_down",
+      "72_add_performance_indexes_outturn_purchase_up",
+      "server_migrations_67_final_performance_indexes_verified_js",
+      "server_migrations_72_add_performance_indexes_outturn_purchase_js"
+    ],
+    "53": [
+      "rice_stock_createstockkey",
+      "rice_stock_findmatchingstockfordeduction",
+      "rice_stock_formattransaction",
+      "rice_stock_normalize",
+      "rice_stock_processtransaction",
+      "server_routes_rice_stock_js"
+    ],
+    "54": [
+      "seeddatabase_escstr",
+      "seeddatabase_randombetween",
+      "seeddatabase_randomdate",
+      "seeddatabase_randomelement",
+      "seeddatabase_seeddatabase",
+      "server_scripts_seeddatabase_js"
+    ],
+    "55": [
+      "ricestockbackwardcompatibility_test_createtestrequestdata",
+      "ricestockbackwardcompatibility_test_validatecompatibilityresult",
+      "ricestockbackwardcompatibility_test_validatedatatransformation",
+      "ricestockbackwardcompatibility_test_validateoutturnlookup",
+      "ricestockbackwardcompatibility_test_validatevarietynormalization",
+      "server_tests_ricestockbackwardcompatibility_test_js"
+    ],
+    "56": [
+      "ricestockerrorlogging_test_createmockrequest",
+      "ricestockerrorlogging_test_validateerrorcategory",
+      "ricestockerrorlogging_test_validateerrorseverity",
+      "ricestockerrorlogging_test_validaterequestid",
+      "ricestockerrorlogging_test_validateuserfriendlyerror",
+      "server_tests_ricestockerrorlogging_test_js"
+    ],
+    "57": [
+      "ricestockreportconsistency_test_validatelegacyvarietyhandling",
+      "ricestockreportconsistency_test_validateoutturntraceability",
+      "ricestockreportconsistency_test_validatestandardizedvarietynaming",
+      "ricestockreportconsistency_test_validatestockcontinuity",
+      "ricestockreportconsistency_test_validatevarietyconsistencyinday",
+      "server_tests_ricestockreportconsistency_test_js"
+    ],
+    "58": [
+      "client_src_types_palti_ts",
+      "palti_paltiprocessingerror",
+      "palti_paltiprocessingerror_constructor",
+      "palti_paltivalidationerror",
+      "palti_paltivalidationerror_constructor"
+    ],
+    "59": [
+      "client_src_utils_logger_ts",
+      "logger_deverror",
+      "logger_devlog",
+      "logger_devtable",
+      "logger_devwarn"
+    ],
+    "60": [
+      "ricestockmanagement_normalize",
+      "ricestockvalidationservice_validatecompletepaltidimensions",
+      "ricestockvalidationservice_validatedimensionspresent",
+      "server_routes_ricestockmanagement_js",
+      "server_services_ricestockvalidationservice_js"
+    ],
+    "61": [
+      "permissionchecker_canaccessworkflowphase",
+      "permissionchecker_cancreateuserrole",
+      "permissionchecker_canperformaction",
+      "permissionchecker_getaccessibleworkflowphases",
+      "server_utils_permissionchecker_js"
+    ],
+    "62": [
+      "producttypecategories_canconverttypes",
+      "producttypecategories_getproducttypecategory",
+      "producttypecategories_getproducttypesincategory",
+      "producttypecategories_isvalidproducttype",
+      "server_utils_producttypecategories_js"
+    ],
+    "63": [
+      "client_src_components_paginationcontrols_tsx",
+      "paginationcontrols_getpagenumbers",
+      "paginationcontrols_handlenext",
+      "paginationcontrols_handleprevious"
+    ],
+    "64": [
+      "backup_db_backup",
+      "backup_db_gettables",
+      "backup_db_restore",
+      "server_scripts_backup_db_js"
+    ],
+    "65": [
+      "client_src_components_confirmationmodal_tsx",
+      "confirmationmodal_geticon",
+      "confirmationmodal_getvariant"
+    ],
+    "66": [
+      "client_src_components_customnotification_tsx",
+      "customnotification_getgradient",
+      "customnotification_notification"
+    ],
+    "67": [
+      "client_src_components_errorboundary_tsx",
+      "errorboundary_componentdidcatch",
+      "errorboundary_getderivedstatefromerror"
+    ],
+    "68": [
+      "client_src_components_ricestockvarietydropdown_tsx",
+      "ricestockvarietydropdown_handlefilterchange",
+      "ricestockvarietydropdown_handleselectionchange"
+    ],
+    "69": [
+      "authcontext_authprovider",
+      "authcontext_useauth",
+      "client_src_contexts_authcontext_tsx"
+    ],
+    "70": [
+      "client_src_contexts_locationcontext_tsx",
+      "locationcontext_locationprovider",
+      "locationcontext_uselocation"
+    ],
+    "71": [
+      "client_src_hooks_usestatusmanagement_ts",
+      "usestatusmanagement_usebulkstatusmanagement",
+      "usestatusmanagement_usestatusmanagement"
+    ],
+    "72": [
+      "database_maskdatabaseurl",
+      "database_sanitizedatabaseurl",
+      "server_config_database_js"
+    ],
+    "73": [
+      "100_add_cooking_done_by_down",
+      "100_add_cooking_done_by_up",
+      "server_migrations_100_add_cooking_done_by_js"
+    ],
+    "74": [
+      "101_allow_null_status_down",
+      "101_allow_null_status_up",
+      "server_migrations_101_allow_null_status_js"
+    ],
+    "75": [
+      "106_add_serial_no_to_sample_entries_down",
+      "106_add_serial_no_to_sample_entries_up",
+      "server_migrations_106_add_serial_no_to_sample_entries_js"
+    ],
+    "76": [
+      "110_add_final_remarks_to_sample_entry_offerings_down",
+      "110_add_final_remarks_to_sample_entry_offerings_up",
+      "server_migrations_110_add_final_remarks_to_sample_entry_offerings_js"
+    ],
+    "77": [
+      "115_add_staff_edit_limits_down",
+      "115_add_staff_edit_limits_up",
+      "server_migrations_115_add_staff_edit_limits_js"
+    ],
+    "78": [
+      "120_add_sample_entry_edit_approval_workflow_ensurecolumn",
+      "120_add_sample_entry_edit_approval_workflow_up",
+      "server_migrations_120_add_sample_entry_edit_approval_workflow_js"
+    ],
+    "79": [
+      "121_add_quality_attempt_fields_to_sample_entries_ensurecolumn",
+      "121_add_quality_attempt_fields_to_sample_entries_up",
+      "server_migrations_121_add_quality_attempt_fields_to_sample_entries_js"
+    ],
+    "80": [
+      "122_add_fail_remarks_to_sample_entries_ensurecolumn",
+      "122_add_fail_remarks_to_sample_entries_up",
+      "server_migrations_122_add_fail_remarks_to_sample_entries_js"
+    ],
+    "81": [
+      "124_add_sample_entry_workflow_query_indexes_down",
+      "124_add_sample_entry_workflow_query_indexes_up",
+      "server_migrations_124_add_sample_entry_workflow_query_indexes_js"
+    ],
+    "82": [
+      "125_add_final_report_tracking_to_offerings_down",
+      "125_add_final_report_tracking_to_offerings_up",
+      "server_migrations_125_add_final_report_tracking_to_offerings_js"
+    ],
+    "83": [
+      "126_add_manager_value_approval_to_offerings_ensurecolumn",
+      "126_add_manager_value_approval_to_offerings_up",
+      "server_migrations_126_add_manager_value_approval_to_offerings_js"
+    ],
+    "84": [
+      "129_add_pending_manager_value_approval_queue_to_offerings_down",
+      "129_add_pending_manager_value_approval_queue_to_offerings_up",
+      "server_migrations_129_add_pending_manager_value_approval_queue_to_offerings_js"
+    ],
+    "85": [
+      "130_add_dispute_versions_to_offerings_down",
+      "130_add_dispute_versions_to_offerings_up",
+      "server_migrations_130_add_dispute_versions_to_offerings_js"
+    ],
+    "86": [
+      "131_add_sampling_stages_to_physical_inspections_down",
+      "131_add_sampling_stages_to_physical_inspections_up",
+      "server_migrations_131_add_sampling_stages_to_physical_inspections_js"
+    ],
+    "87": [
+      "132_alter_bags_allow_null_physical_inspections_down",
+      "132_alter_bags_allow_null_physical_inspections_up",
+      "server_migrations_132_alter_bags_allow_null_physical_inspections_js"
+    ],
+    "88": [
+      "133_add_jsonb_performance_indexes_down",
+      "133_add_jsonb_performance_indexes_up",
+      "server_migrations_133_add_jsonb_performance_indexes_js"
+    ],
+    "89": [
+      "36_add_complete_rice_hamali_rates_down",
+      "36_add_complete_rice_hamali_rates_up",
+      "server_migrations_36_add_complete_rice_hamali_rates_js"
+    ],
+    "90": [
+      "37_fix_rice_hamali_rates_from_images_down",
+      "37_fix_rice_hamali_rates_from_images_up",
+      "server_migrations_37_fix_rice_hamali_rates_from_images_js"
+    ],
+    "91": [
+      "40_comprehensive_system_enhancements_down",
+      "40_comprehensive_system_enhancements_up",
+      "server_migrations_40_comprehensive_system_enhancements_js"
+    ],
+    "92": [
+      "42_add_rice_stock_approval_and_palti_system_down",
+      "42_add_rice_stock_approval_and_palti_system_up",
+      "server_migrations_42_add_rice_stock_approval_and_palti_system_js"
+    ],
+    "93": [
+      "55_add_closed_remaining_bags_down",
+      "55_add_closed_remaining_bags_up",
+      "server_migrations_55_add_closed_remaining_bags_js"
+    ],
+    "94": [
+      "56_relax_packaging_constraints_down",
+      "56_relax_packaging_constraints_up",
+      "server_migrations_56_relax_packaging_constraints_js"
+    ],
+    "95": [
+      "57_add_source_bags_to_rice_stock_movements_down",
+      "57_add_source_bags_to_rice_stock_movements_up",
+      "server_migrations_57_add_source_bags_to_rice_stock_movements_js"
+    ],
+    "96": [
+      "60_add_rice_stock_variety_standardization_down",
+      "60_add_rice_stock_variety_standardization_up",
+      "server_migrations_60_add_rice_stock_variety_standardization_js"
+    ],
+    "97": [
+      "62_add_performance_indexes_addindexifnotexists",
+      "62_add_performance_indexes_indexexists",
+      "server_migrations_62_add_performance_indexes_js"
+    ],
+    "98": [
+      "63_add_rate_amount_to_rice_hamali_entries_down",
+      "63_add_rate_amount_to_rice_hamali_entries_up",
+      "server_migrations_63_add_rate_amount_to_rice_hamali_entries_js"
+    ],
+    "99": [
+      "64_create_performance_metrics_table_down",
+      "64_create_performance_metrics_table_up",
+      "server_migrations_64_create_performance_metrics_table_js"
+    ],
+    "100": [
+      "65_add_comprehensive_performance_indexes_down",
+      "65_add_comprehensive_performance_indexes_up",
+      "server_migrations_65_add_comprehensive_performance_indexes_js"
+    ],
+    "101": [
+      "66_fix_performance_indexes_correct_columns_createindexsafely",
+      "66_fix_performance_indexes_correct_columns_removeindexsafely",
+      "server_migrations_66_fix_performance_indexes_correct_columns_js"
+    ],
+    "102": [
+      "70_add_rejection_columns_to_rice_stock_movements_down",
+      "70_add_rejection_columns_to_rice_stock_movements_up",
+      "server_migrations_70_add_rejection_columns_to_rice_stock_movements_js"
+    ],
+    "103": [
+      "71_add_rejection_columns_to_hamali_entries_down",
+      "71_add_rejection_columns_to_hamali_entries_up",
+      "server_migrations_71_add_rejection_columns_to_hamali_entries_js"
+    ],
+    "104": [
+      "74_add_sample_entry_user_roles_down",
+      "74_add_sample_entry_user_roles_up",
+      "server_migrations_74_add_sample_entry_user_roles_js"
+    ],
+    "105": [
+      "75_create_sample_entries_table_down",
+      "75_create_sample_entries_table_up",
+      "server_migrations_75_create_sample_entries_table_js"
+    ],
+    "106": [
+      "76_create_quality_parameters_table_down",
+      "76_create_quality_parameters_table_up",
+      "server_migrations_76_create_quality_parameters_table_js"
+    ],
+    "107": [
+      "77_create_cooking_reports_table_down",
+      "77_create_cooking_reports_table_up",
+      "server_migrations_77_create_cooking_reports_table_js"
+    ],
+    "108": [
+      "78_create_lot_allotments_table_down",
+      "78_create_lot_allotments_table_up",
+      "server_migrations_78_create_lot_allotments_table_js"
+    ],
+    "109": [
+      "79_create_physical_inspections_table_down",
+      "79_create_physical_inspections_table_up",
+      "server_migrations_79_create_physical_inspections_table_js"
+    ],
+    "110": [
+      "80_create_inventory_data_table_down",
+      "80_create_inventory_data_table_up",
+      "server_migrations_80_create_inventory_data_table_js"
+    ],
+    "111": [
+      "81_create_financial_calculations_table_down",
+      "81_create_financial_calculations_table_up",
+      "server_migrations_81_create_financial_calculations_table_js"
+    ],
+    "112": [
+      "82_create_sample_entry_audit_logs_table_down",
+      "82_create_sample_entry_audit_logs_table_up",
+      "server_migrations_82_create_sample_entry_audit_logs_table_js"
+    ],
+    "113": [
+      "84_add_reported_by_text_to_quality_parameters_down",
+      "84_add_reported_by_text_to_quality_parameters_up",
+      "server_migrations_84_add_reported_by_text_to_quality_parameters_js"
+    ],
+    "114": [
+      "85_remove_phoo_from_quality_parameters_down",
+      "85_remove_phoo_from_quality_parameters_up",
+      "server_migrations_85_remove_phoo_from_quality_parameters_js"
+    ],
+    "115": [
+      "88_add_kunchinittu_outturn_to_inventory_data_down",
+      "88_add_kunchinittu_outturn_to_inventory_data_up",
+      "server_migrations_88_add_kunchinittu_outturn_to_inventory_data_js"
+    ],
+    "116": [
+      "90_ultra_performance_composite_indexes_down",
+      "90_ultra_performance_composite_indexes_up",
+      "server_migrations_90_ultra_performance_composite_indexes_js"
+    ],
+    "117": [
+      "91_add_ultimate_performance_indexes_down",
+      "91_add_ultimate_performance_indexes_up",
+      "server_migrations_91_add_ultimate_performance_indexes_js"
+    ],
+    "118": [
+      "92_add_close_lot_fields_down",
+      "92_add_close_lot_fields_up",
+      "server_migrations_92_add_close_lot_fields_js"
+    ],
+    "119": [
+      "96_add_bend2_to_physical_inspections_down",
+      "96_add_bend2_to_physical_inspections_up",
+      "server_migrations_96_add_bend2_to_physical_inspections_js"
+    ],
+    "120": [
+      "add_outturn_clearing_fields_addoutturnclearingfields",
+      "add_outturn_clearing_fields_removeoutturnclearingfields",
+      "server_migrations_add_outturn_clearing_fields_js"
+    ],
+    "121": [
+      "add_paddy_bags_deducted_column_addpaddybagsdeductedcolumn",
+      "add_paddy_bags_deducted_column_removepaddybagsdeductedcolumn",
+      "server_migrations_add_paddy_bags_deducted_column_js"
+    ],
+    "122": [
+      "add_performance_indexes_down",
+      "add_performance_indexes_up",
+      "server_migrations_add_performance_indexes_js"
+    ],
+    "123": [
+      "add_type_to_outturns_addtypetooutturns",
+      "add_type_to_outturns_removetypefromoutturns",
+      "server_migrations_add_type_to_outturns_js"
+    ],
+    "124": [
+      "admin_users_hasusercreateddata",
+      "admin_users_normalizename",
+      "server_routes_admin_users_js"
+    ],
+    "125": [
+      "server_services_stockcalculationservice_js",
+      "stockcalculationservice_calculatekunchinintustock",
+      "stockcalculationservice_calculateweightedaverage"
+    ],
+    "126": [
+      "logger_formatmessage",
+      "logger_shouldlog",
+      "server_utils_logger_js"
+    ],
+    "127": [
+      "qualityentryintent_normalizequalityentryintent",
+      "qualityentryintent_shouldcreatenewqualityattempt",
+      "server_utils_qualityentryintent_js"
+    ],
+    "128": [
+      "ricestockapifiltering_test_validatereportfiltering",
+      "ricestockapifiltering_test_validatevarietiesfiltering",
+      "server_tests_ricestockapifiltering_test_js"
+    ],
+    "129": [
+      "ricestockrollbackintegrity_test_capturesystemstate",
+      "ricestockrollbackintegrity_test_validaterollbackintegrity",
+      "server_tests_ricestockrollbackintegrity_test_js"
+    ],
+    "130": [
+      "client_src_reportwebvitals_ts",
+      "reportwebvitals_reportwebvitals"
+    ],
+    "131": [
+      "addloosebagsmodal_addloosebagsmodal",
+      "client_src_components_addloosebagsmodal_tsx"
+    ],
+    "132": [
+      "addricepurchasemodal_addricepurchasemodal",
+      "client_src_components_addricepurchasemodal_tsx"
+    ],
+    "133": [
+      "client_src_components_inlinepaltiform_tsx",
+      "inlinepaltiform_inlinepaltiform"
+    ],
+    "134": [
+      "client_src_components_layout_tsx",
+      "layout_layout"
+    ],
+    "135": [
+      "client_src_components_navbar_tsx",
+      "navbar_isactive"
+    ],
+    "136": [
+      "client_src_components_searchableselect_tsx",
+      "searchableselect_searchableselect"
+    ],
+    "137": [
+      "client_src_components_simplepurchasemodal_tsx",
+      "simplepurchasemodal_simplepurchasemodal"
+    ],
+    "138": [
+      "client_src_components_unifiedvarietydropdown_tsx",
+      "unifiedvarietydropdown_unifiedvarietydropdown"
+    ],
+    "139": [
+      "api_getapiurl",
+      "client_src_config_api_ts"
+    ],
+    "140": [
+      "client_src_contexts_notificationcontext_tsx",
+      "notificationcontext_usenotification"
+    ],
+    "141": [
+      "client_src_pages_sampleeditapprovals_tsx",
+      "sampleeditapprovals_sampleeditapprovals"
+    ],
+    "142": [
+      "client_src_pages_sampleworkflow_tsx",
+      "sampleworkflow_rendertabcontent"
+    ],
+    "143": [
+      "client_src_utils_toast_ts",
+      "toast_setnotificationcallback"
+    ],
+    "144": [
+      "create_default_admin_createdefaultadmin",
+      "server_create_default_admin_js"
+    ],
+    "145": [
+      "dump_state_dump",
+      "server_dump_state_js"
+    ],
+    "146": [
+      "dump_dump",
+      "server_dump_js"
+    ],
+    "147": [
+      "fix_desync_fixdesync",
+      "server_fix_desync_js"
+    ],
+    "148": [
+      "fix_varieties_syncvarieties",
+      "server_fix_varieties_js"
+    ],
+    "149": [
+      "print_vars_dump",
+      "server_print_vars_js"
+    ],
+    "150": [
+      "run_migration_runmigration",
+      "server_run_migration_js"
+    ],
+    "151": [
+      "server_test_merge_js",
+      "test_merge_mergewhereclauses"
+    ],
+    "152": [
+      "performancemonitor_performancemonitormiddleware",
+      "server_middleware_performancemonitor_js"
+    ],
+    "153": [
+      "46_add_10_lakh_optimization_indexes_up",
+      "server_migrations_46_add_10_lakh_optimization_indexes_js"
+    ],
+    "154": [
+      "52_add_is_direct_load_to_rice_stock_locations_up",
+      "server_migrations_52_add_is_direct_load_to_rice_stock_locations_js"
+    ],
+    "155": [
+      "94_add_10lakh_composite_indexes_up",
+      "server_migrations_94_add_10lakh_composite_indexes_js"
+    ],
+    "156": [
+      "add_cancelled_status_up",
+      "server_migrations_add_cancelled_status_js"
+    ],
+    "157": [
+      "add_from_outturn_id_addfromoutturnidcolumn",
+      "server_migrations_add_from_outturn_id_js"
+    ],
+    "158": [
+      "create_edit_propagation_logs_createeditpropagationlogstable",
+      "server_migrations_create_edit_propagation_logs_js"
+    ],
+    "159": [
+      "create_rice_production_tables_migrate",
+      "server_migrations_create_rice_production_tables_js"
+    ],
+    "160": [
+      "server_migrations_update_yield_percentage_precision_js",
+      "update_yield_percentage_precision_updateyieldpercentageprecision"
+    ],
+    "161": [
+      "paddyhamalientry_setuparrivalassociation",
+      "server_models_paddyhamalientry_js"
+    ],
+    "162": [
+      "purchaserate_setuparrivalassociation",
+      "server_models_purchaserate_js"
+    ],
+    "163": [
+      "arrivals_generateslno",
+      "server_routes_arrivals_js"
+    ],
+    "164": [
+      "rice_productions_calculatepaddybagsdeducted",
+      "server_routes_rice_productions_js"
+    ],
+    "165": [
+      "factoryreset_factoryreset",
+      "server_scripts_factoryreset_js"
+    ],
+    "166": [
+      "recreatedatabase_recreatedatabase",
+      "server_scripts_recreatedatabase_js"
+    ],
+    "167": [
+      "search_client_searchdir",
+      "server_scripts_search_client_js"
+    ],
+    "168": [
+      "search_discolor_client_searchdir",
+      "server_scripts_search_discolor_client_js"
+    ],
+    "169": [
+      "search_paddy_discolor_searchdir",
+      "server_scripts_search_paddy_discolor_js"
+    ],
+    "170": [
+      "server_scripts_test_raw_query_js",
+      "test_raw_query_main"
+    ],
+    "171": [
+      "createdefaultwarehouses_createdefaultwarehouses",
+      "server_seeders_createdefaultwarehouses_js"
+    ],
+    "172": [
+      "ricestockmigrationintegration_test_createsamplericestockdata",
+      "server_tests_ricestockmigrationintegration_test_js"
+    ],
+    "173": [
+      "server_tests_helpers_testhelpers_js",
+      "testhelpers_generatetesttoken"
+    ],
+    "174": [
+      "edit_sample_entry_modal_ps1"
+    ],
+    "175": [
+      "edit_sample_modal_ps1"
+    ],
+    "176": [
+      "fix_modal_ps1"
+    ],
+    "177": [
+      "playwright_config_js"
+    ],
+    "178": [
+      "client_vite_config_ts"
+    ],
+    "179": [
+      "client_src_app_tsx"
+    ],
+    "180": [
+      "client_src_index_tsx"
+    ],
+    "181": [
+      "client_src_react_app_env_d_ts"
+    ],
+    "182": [
+      "client_src_setuptests_ts"
+    ],
+    "183": [
+      "client_src_update_cooking_report_js"
+    ],
+    "184": [
+      "client_src_vite_env_d_ts"
+    ],
+    "185": [
+      "client_src_components_inlinehamaliform_tsx"
+    ],
+    "186": [
+      "client_src_components_paddyhamalisection_tsx"
+    ],
+    "187": [
+      "client_src_components_protectedroute_tsx"
+    ],
+    "188": [
+      "client_src_components_responsivetest_tsx"
+    ],
+    "189": [
+      "client_src_components_statusindicator_tsx"
+    ],
+    "190": [
+      "client_src_components_virtualizedtable_tsx"
+    ],
+    "191": [
+      "client_src_pages_adminsamplebook_tsx"
+    ],
+    "192": [
+      "client_src_pages_allottingsupervisors_tsx"
+    ],
+    "193": [
+      "client_src_pages_brokermanagement_tsx"
+    ],
+    "194": [
+      "client_src_pages_egbledger_tsx"
+    ],
+    "195": [
+      "client_src_pages_kunchinintumanagement_tsx"
+    ],
+    "196": [
+      "client_src_pages_managersamplereports_tsx"
+    ],
+    "197": [
+      "client_src_pages_ownerdashboard_tsx"
+    ],
+    "198": [
+      "client_src_pages_ownersamplereports_tsx"
+    ],
+    "199": [
+      "client_src_pages_packagingmanagement_tsx"
+    ],
+    "200": [
+      "client_src_pages_paddyhamalimanagement_tsx"
+    ],
+    "201": [
+      "client_src_pages_paddystock_tsx"
+    ],
+    "202": [
+      "client_src_pages_productionmanagement_tsx"
+    ],
+    "203": [
+      "client_src_pages_ricehamalimanagement_tsx"
+    ],
+    "204": [
+      "client_src_pages_riceledger_tsx"
+    ],
+    "205": [
+      "client_src_pages_ricesamplereports_tsx"
+    ],
+    "206": [
+      "client_src_pages_ricestocklocationmanagement_tsx"
+    ],
+    "207": [
+      "client_src_pages_sampleledger_tsx"
+    ],
+    "208": [
+      "client_src_pages_varietymanagement_tsx"
+    ],
+    "209": [
+      "client_src_pages_warehousemanagement_tsx"
+    ],
+    "210": [
+      "client_src_pages_recordsmanagement_index_ts"
+    ],
+    "211": [
+      "client_src_pages_recordsmanagement_recordsmanagementstyles_ts"
+    ],
+    "212": [
+      "client_src_types_sampleentry_ts"
+    ],
+    "213": [
+      "client_src_utils_notificationmessages_ts"
+    ],
+    "214": [
+      "client_src_utils_sampleentryapi_ts"
+    ],
+    "215": [
+      "client_src_utils_sampleentryqualitymodallogic_test_ts"
+    ],
+    "216": [
+      "client_src_tests_bug1_party_name_popup_test_tsx"
+    ],
+    "217": [
+      "client_src_tests_paddy_sample_display_fixes_test_tsx"
+    ],
+    "218": [
+      "client_src_tests_sample_entry_detail_modal_history_test_tsx"
+    ],
+    "219": [
+      "client_src_tests_sample_entry_detail_modal_smell_history_test_tsx"
+    ],
+    "220": [
+      "client_src_tests_sample_entry_quality_modal_logic_test_ts"
+    ],
+    "221": [
+      "server_jest_config_js"
+    ],
+    "222": [
+      "server_config_performance_js"
+    ],
+    "223": [
+      "server_migrations_102_add_cooking_approved_by_js"
+    ],
+    "224": [
+      "server_migrations_103_add_cooking_indexes_js"
+    ],
+    "225": [
+      "server_migrations_104_add_rice_sample_type_js"
+    ],
+    "226": [
+      "server_migrations_105_add_soldout_to_lot_selection_decision_js"
+    ],
+    "227": [
+      "server_migrations_107_add_final_pass_lots_indexes_js"
+    ],
+    "228": [
+      "server_migrations_108_add_multi_offer_fields_js"
+    ],
+    "229": [
+      "server_migrations_109_make_payment_condition_decimal_js"
+    ],
+    "230": [
+      "server_migrations_111_add_sample_entry_20m_indexes_js"
+    ],
+    "231": [
+      "server_migrations_112_add_user_fields_full_name_id_quality_js"
+    ],
+    "232": [
+      "server_migrations_113_add_location_sample_extra_fields_js"
+    ],
+    "233": [
+      "server_migrations_114_change_quality_params_to_string_js"
+    ],
+    "234": [
+      "server_migrations_116_add_quality_raw_fields_js"
+    ],
+    "235": [
+      "server_migrations_117_add_sample_entry_party_location_indexes_js"
+    ],
+    "236": [
+      "server_migrations_118_add_entry_type_and_handed_over_indexes_js"
+    ],
+    "237": [
+      "server_migrations_119_add_smell_to_quality_parameters_js"
+    ],
+    "238": [
+      "server_migrations_134_add_sampling_rules_mode_to_lot_allotments_js"
+    ],
+    "239": [
+      "server_migrations_135_add_shortcut_phone_ceo_role_js"
+    ],
+    "240": [
+      "server_migrations_136_add_user_sub_roles_js"
+    ],
+    "241": [
+      "server_migrations_137_add_linked_patti_rate_to_physical_inspections_js"
+    ],
+    "242": [
+      "server_migrations_20260609_update_brokers_type_js"
+    ],
+    "243": [
+      "server_migrations_20260609_update_warehouses_type_js"
+    ],
+    "244": [
+      "server_migrations_25_add_yield_percentage_to_outturns_js"
+    ],
+    "245": [
+      "server_migrations_30_add_average_rate_to_kunchinittus_js"
+    ],
+    "246": [
+      "server_migrations_31_add_average_rate_to_outturns_js"
+    ],
+    "247": [
+      "server_migrations_32_fix_sizer_broken_check_constraint_js"
+    ],
+    "248": [
+      "server_migrations_43_create_automatic_rice_hamali_system_js"
+    ],
+    "249": [
+      "server_migrations_44_disable_auto_hamali_trigger_js"
+    ],
+    "250": [
+      "server_migrations_47_add_h_calculation_method_to_purchase_rates_js"
+    ],
+    "251": [
+      "server_migrations_48_add_is_closed_to_kunchinittus_js"
+    ],
+    "252": [
+      "server_migrations_53_create_rice_varieties_js"
+    ],
+    "253": [
+      "server_migrations_54_seed_direct_load_js"
+    ],
+    "254": [
+      "server_migrations_58_backfill_source_bags_for_palti_js"
+    ],
+    "255": [
+      "server_migrations_60_add_sample_workflow_indexes_js"
+    ],
+    "256": [
+      "server_migrations_61_add_staff_type_to_users_js"
+    ],
+    "257": [
+      "server_migrations_61_add_stock_group_index_js"
+    ],
+    "258": [
+      "server_migrations_68_add_purchase_rate_approval_workflow_js"
+    ],
+    "259": [
+      "server_migrations_73_add_hamali_book_performance_indexes_js"
+    ],
+    "260": [
+      "server_migrations_83_create_brokers_table_js"
+    ],
+    "261": [
+      "server_migrations_86_add_offering_price_to_sample_entries_js"
+    ],
+    "262": [
+      "server_migrations_87_enable_multiple_physical_inspections_js"
+    ],
+    "263": [
+      "server_migrations_89_add_lot_selection_fields_js"
+    ],
+    "264": [
+      "server_migrations_95_add_rate_linking_approval_fields_js"
+    ],
+    "265": [
+      "server_migrations_96_add_sample_entry_performance_indexes_js"
+    ],
+    "266": [
+      "server_migrations_97_add_offering_final_price_fields_js"
+    ],
+    "267": [
+      "server_migrations_98_add_manager_fallback_toggles_js"
+    ],
+    "268": [
+      "server_migrations_99_add_dry_moisture_and_quality_columns_js"
+    ],
+    "269": [
+      "server_migrations_99_add_history_to_cooking_reports_js"
+    ],
+    "270": [
+      "server_migrations_add_base_rate_calculation_method_js"
+    ],
+    "271": [
+      "server_migrations_add_comprehensive_indexes_js"
+    ],
+    "272": [
+      "server_migrations_add_description_to_other_hamali_entries_js"
+    ],
+    "273": [
+      "server_migrations_add_rj_broken_column_to_byproducts_js"
+    ],
+    "274": [
+      "server_migrations_add_rj_broken_to_byproducts_js"
+    ],
+    "275": [
+      "server_migrations_add_rj_rice_to_byproducts_js"
+    ],
+    "276": [
+      "server_migrations_add_sizer_broken_to_rice_production_js"
+    ],
+    "277": [
+      "server_migrations_add_status_to_hamali_entries_js"
+    ],
+    "278": [
+      "server_migrations_add_sute_to_purchase_rates_js"
+    ],
+    "279": [
+      "server_migrations_add_unique_kunchinittu_name_js"
+    ],
+    "280": [
+      "server_migrations_add_unpolished_to_byproducts_js"
+    ],
+    "281": [
+      "server_migrations_add_worker_batch_to_paddy_hamali_js"
+    ],
+    "282": [
+      "server_migrations_create_balance_audit_trails_table_js"
+    ],
+    "283": [
+      "server_migrations_create_hamali_entries_table_js"
+    ],
+    "284": [
+      "server_migrations_create_hamali_rates_table_js"
+    ],
+    "285": [
+      "server_migrations_create_opening_balances_table_js"
+    ],
+    "286": [
+      "server_migrations_create_other_hamali_entries_table_js"
+    ],
+    "287": [
+      "server_migrations_create_other_hamali_works_table_js"
+    ],
+    "288": [
+      "server_migrations_create_paddy_hamali_entries_table_js"
+    ],
+    "289": [
+      "server_migrations_create_paddy_hamali_rates_table_js"
+    ],
+    "290": [
+      "server_migrations_create_purchase_rates_table_js"
+    ],
+    "291": [
+      "server_migrations_create_rag_tables_js"
+    ],
+    "292": [
+      "server_migrations_create_rice_stock_locations_table_js"
+    ],
+    "293": [
+      "server_migrations_drop_rag_tables_js"
+    ],
+    "294": [
+      "server_migrations_fix_net_weight_js"
+    ],
+    "295": [
+      "server_migrations_fix_purchase_rates_columns_js"
+    ],
+    "296": [
+      "server_migrations_fix_purchase_rates_null_rate_type_js"
+    ],
+    "297": [
+      "server_migrations_update_for_production_to_purchase_js"
+    ],
+    "298": [
+      "server_migrations_update_kunchinittu_constraints_js"
+    ],
+    "299": [
+      "server_migrations_update_packaging_kg_to_decimal_js"
+    ],
+    "300": [
+      "server_migrations_update_rate_type_enum_js"
+    ],
+    "301": [
+      "server_models_arrival_js"
+    ],
+    "302": [
+      "server_models_balanceaudittrail_js"
+    ],
+    "303": [
+      "server_models_broker_js"
+    ],
+    "304": [
+      "server_models_byproduct_js"
+    ],
+    "305": [
+      "server_models_cookingreport_js"
+    ],
+    "306": [
+      "server_models_financialcalculation_js"
+    ],
+    "307": [
+      "server_models_hamalientry_js"
+    ],
+    "308": [
+      "server_models_hamalirate_js"
+    ],
+    "309": [
+      "server_models_index_js"
+    ],
+    "310": [
+      "server_models_inventorydata_js"
+    ],
+    "311": [
+      "server_models_location_js"
+    ],
+    "312": [
+      "server_models_lotallotment_js"
+    ],
+    "313": [
+      "server_models_openingbalance_js"
+    ],
+    "314": [
+      "server_models_otherhamalientry_js"
+    ],
+    "315": [
+      "server_models_otherhamaliwork_js"
+    ],
+    "316": [
+      "server_models_outturn_js"
+    ],
+    "317": [
+      "server_models_packaging_js"
+    ],
+    "318": [
+      "server_models_paddyhamalirate_js"
+    ],
+    "319": [
+      "server_models_physicalinspection_js"
+    ],
+    "320": [
+      "server_models_qualityparameters_js"
+    ],
+    "321": [
+      "server_models_ricehamalientry_js"
+    ],
+    "322": [
+      "server_models_ricehamalirate_js"
+    ],
+    "323": [
+      "server_models_riceproduction_js"
+    ],
+    "324": [
+      "server_models_ricestocklocation_js"
+    ],
+    "325": [
+      "server_models_ricevariety_js"
+    ],
+    "326": [
+      "server_models_sampleentry_js"
+    ],
+    "327": [
+      "server_models_sampleentryauditlog_js"
+    ],
+    "328": [
+      "server_models_sampleentryoffering_js"
+    ],
+    "329": [
+      "server_models_user_js"
+    ],
+    "330": [
+      "server_routes_auth_js"
+    ],
+    "331": [
+      "server_routes_byproducts_js"
+    ],
+    "332": [
+      "server_routes_dashboard_js"
+    ],
+    "333": [
+      "server_routes_date_export_js"
+    ],
+    "334": [
+      "server_routes_hamali_book_js"
+    ],
+    "335": [
+      "server_routes_hamali_entries_js"
+    ],
+    "336": [
+      "server_routes_hamali_rates_js"
+    ],
+    "337": [
+      "server_routes_ledger_js"
+    ],
+    "338": [
+      "server_routes_metrics_js"
+    ],
+    "339": [
+      "server_routes_otherhamalientries_js"
+    ],
+    "340": [
+      "server_routes_otherhamaliworks_js"
+    ],
+    "341": [
+      "server_routes_outturns_js"
+    ],
+    "342": [
+      "server_routes_outturn_export_js"
+    ],
+    "343": [
+      "server_routes_packagings_js"
+    ],
+    "344": [
+      "server_routes_paddy_hamali_entries_js"
+    ],
+    "345": [
+      "server_routes_paddy_hamali_rates_js"
+    ],
+    "346": [
+      "server_routes_performance_metrics_js"
+    ],
+    "347": [
+      "server_routes_records_js"
+    ],
+    "348": [
+      "server_routes_rice_stock_varieties_js"
+    ],
+    "349": [
+      "server_routes_ricehamalientries_js"
+    ],
+    "350": [
+      "server_routes_ricehamalientriessimple_js"
+    ],
+    "351": [
+      "server_routes_ricehamalirates_js"
+    ],
+    "352": [
+      "server_routes_status_js"
+    ],
+    "353": [
+      "server_routes_unified_varieties_js"
+    ],
+    "354": [
+      "server_routes_yield_js"
+    ],
+    "355": [
+      "server_scripts_check_collected_by_display_js"
+    ],
+    "356": [
+      "server_scripts_check_sample_entry_page_js"
+    ],
+    "357": [
+      "server_scripts_check_table_cells_js"
+    ],
+    "358": [
+      "server_scripts_search_detail_modal_js"
+    ],
+    "359": [
+      "server_scripts_search_detail_modal_columns_js"
+    ],
+    "360": [
+      "server_scripts_search_detail_modal_headers_list_js"
+    ],
+    "361": [
+      "server_scripts_search_detail_modal_helpers_js"
+    ],
+    "362": [
+      "server_scripts_search_detail_modal_nit_js"
+    ],
+    "363": [
+      "server_scripts_search_pi_js"
+    ],
+    "364": [
+      "server_scripts_search_pi_full_lorry_js"
+    ],
+    "365": [
+      "server_scripts_search_pi_stages_js"
+    ],
+    "366": [
+      "server_scripts_search_pi_strike_js"
+    ],
+    "367": [
+      "server_scripts_search_render_horizontal_table_js"
+    ],
+    "368": [
+      "server_tests_directloadlocationhandling_property_test_js"
+    ],
+    "369": [
+      "server_tests_finalpriceallotmentrevision_test_js"
+    ],
+    "370": [
+      "server_tests_index_creation_test_js"
+    ],
+    "371": [
+      "server_tests_loadinglotsqualityhistory_test_js"
+    ],
+    "372": [
+      "server_tests_locationbifurcationaccuracy_property_test_js"
+    ],
+    "373": [
+      "server_tests_openingstockcalculation_test_js"
+    ],
+    "374": [
+      "server_tests_paltistockconservation_property_test_js"
+    ],
+    "375": [
+      "server_tests_paltivalidationlogic_property_test_js"
+    ],
+    "376": [
+      "server_tests_perfectstockbifurcation_property_test_js"
+    ],
+    "377": [
+      "server_tests_performance_monitoring_property_test_js"
+    ],
+    "378": [
+      "server_tests_qualityentryintent_test_js"
+    ],
+    "379": [
+      "server_tests_resamplecookingfilter_test_js"
+    ],
+    "380": [
+      "server_tests_ricestockapiresponsestandardization_property_test_js"
+    ],
+    "381": [
+      "server_tests_ricestockcalculationaccuracy_test_js"
+    ],
+    "382": [
+      "server_tests_ricestockintegration_test_js"
+    ],
+    "383": [
+      "server_tests_ricestockmigrationdatapreservation_test_js"
+    ],
+    "384": [
+      "server_tests_ricestockvarietystandardization_simple_test_js"
+    ],
+    "385": [
+      "server_tests_ricestockvarietystandardization_test_js"
+    ],
+    "386": [
+      "server_tests_ricestockvarietyvalidation_property_test_js"
+    ],
+    "387": [
+      "server_tests_setup_js"
+    ]
+  },
+  "cohesion": {
+    "0": 0.03,
+    "1": 0.03,
+    "2": 0.03,
+    "3": 0.02,
+    "4": 0.02,
+    "5": 0.03,
+    "6": 0.04,
+    "7": 0.04,
+    "8": 0.08,
+    "9": 0.08,
+    "10": 0.07,
+    "11": 0.06,
+    "12": 0.07,
+    "13": 0.08,
+    "14": 0.07,
+    "15": 0.08,
+    "16": 0.1,
+    "17": 0.05,
+    "18": 0.06,
+    "19": 0.1,
+    "20": 0.17,
+    "21": 0.13,
+    "22": 0.1,
+    "23": 0.15,
+    "24": 0.12,
+    "25": 0.18,
+    "26": 0.15,
+    "27": 0.2,
+    "28": 0.14,
+    "29": 0.26,
+    "30": 0.12,
+    "31": 0.23,
+    "32": 0.19,
+    "33": 0.23,
+    "34": 0.28,
+    "35": 0.36,
+    "36": 0.28,
+    "37": 0.27,
+    "38": 0.2,
+    "39": 0.24,
+    "40": 0.18,
+    "41": 0.29,
+    "42": 0.31,
+    "43": 0.22,
+    "44": 0.25,
+    "45": 0.52,
+    "46": 0.29,
+    "47": 0.43,
+    "48": 0.38,
+    "49": 0.33,
+    "50": 0.33,
+    "51": 0.4,
+    "52": 0.33,
+    "53": 0.67,
+    "54": 0.6,
+    "55": 0.33,
+    "56": 0.33,
+    "57": 0.33,
+    "58": 0.4,
+    "59": 0.4,
+    "60": 0.4,
+    "61": 0.4,
+    "62": 0.6,
+    "63": 0.5,
+    "64": 0.67,
+    "65": 0.67,
+    "66": 0.67,
+    "67": 0.67,
+    "68": 0.67,
+    "69": 0.67,
+    "70": 0.67,
+    "71": 0.67,
+    "72": 0.67,
+    "73": 0.67,
+    "74": 0.67,
+    "75": 0.67,
+    "76": 0.67,
+    "77": 0.67,
+    "78": 1.0,
+    "79": 1.0,
+    "80": 1.0,
+    "81": 0.67,
+    "82": 0.67,
+    "83": 1.0,
+    "84": 0.67,
+    "85": 0.67,
+    "86": 0.67,
+    "87": 0.67,
+    "88": 0.67,
+    "89": 0.67,
+    "90": 0.67,
+    "91": 0.67,
+    "92": 0.67,
+    "93": 0.67,
+    "94": 0.67,
+    "95": 0.67,
+    "96": 0.67,
+    "97": 1.0,
+    "98": 0.67,
+    "99": 0.67,
+    "100": 0.67,
+    "101": 0.67,
+    "102": 0.67,
+    "103": 0.67,
+    "104": 0.67,
+    "105": 0.67,
+    "106": 0.67,
+    "107": 0.67,
+    "108": 0.67,
+    "109": 0.67,
+    "110": 0.67,
+    "111": 0.67,
+    "112": 0.67,
+    "113": 0.67,
+    "114": 0.67,
+    "115": 0.67,
+    "116": 0.67,
+    "117": 0.67,
+    "118": 0.67,
+    "119": 0.67,
+    "120": 0.67,
+    "121": 0.67,
+    "122": 0.67,
+    "123": 0.67,
+    "124": 0.67,
+    "125": 0.67,
+    "126": 0.67,
+    "127": 1.0,
+    "128": 0.67,
+    "129": 1.0,
+    "130": 1.0,
+    "131": 1.0,
+    "132": 1.0,
+    "133": 1.0,
+    "134": 1.0,
+    "135": 1.0,
+    "136": 1.0,
+    "137": 1.0,
+    "138": 1.0,
+    "139": 1.0,
+    "140": 1.0,
+    "141": 1.0,
+    "142": 1.0,
+    "143": 1.0,
+    "144": 1.0,
+    "145": 1.0,
+    "146": 1.0,
+    "147": 1.0,
+    "148": 1.0,
+    "149": 1.0,
+    "150": 1.0,
+    "151": 1.0,
+    "152": 1.0,
+    "153": 1.0,
+    "154": 1.0,
+    "155": 1.0,
+    "156": 1.0,
+    "157": 1.0,
+    "158": 1.0,
+    "159": 1.0,
+    "160": 1.0,
+    "161": 1.0,
+    "162": 1.0,
+    "163": 1.0,
+    "164": 1.0,
+    "165": 1.0,
+    "166": 1.0,
+    "167": 1.0,
+    "168": 1.0,
+    "169": 1.0,
+    "170": 1.0,
+    "171": 1.0,
+    "172": 1.0,
+    "173": 1.0,
+    "174": 1.0,
+    "175": 1.0,
+    "176": 1.0,
+    "177": 1.0,
+    "178": 1.0,
+    "179": 1.0,
+    "180": 1.0,
+    "181": 1.0,
+    "182": 1.0,
+    "183": 1.0,
+    "184": 1.0,
+    "185": 1.0,
+    "186": 1.0,
+    "187": 1.0,
+    "188": 1.0,
+    "189": 1.0,
+    "190": 1.0,
+    "191": 1.0,
+    "192": 1.0,
+    "193": 1.0,
+    "194": 1.0,
+    "195": 1.0,
+    "196": 1.0,
+    "197": 1.0,
+    "198": 1.0,
+    "199": 1.0,
+    "200": 1.0,
+    "201": 1.0,
+    "202": 1.0,
+    "203": 1.0,
+    "204": 1.0,
+    "205": 1.0,
+    "206": 1.0,
+    "207": 1.0,
+    "208": 1.0,
+    "209": 1.0,
+    "210": 1.0,
+    "211": 1.0,
+    "212": 1.0,
+    "213": 1.0,
+    "214": 1.0,
+    "215": 1.0,
+    "216": 1.0,
+    "217": 1.0,
+    "218": 1.0,
+    "219": 1.0,
+    "220": 1.0,
+    "221": 1.0,
+    "222": 1.0,
+    "223": 1.0,
+    "224": 1.0,
+    "225": 1.0,
+    "226": 1.0,
+    "227": 1.0,
+    "228": 1.0,
+    "229": 1.0,
+    "230": 1.0,
+    "231": 1.0,
+    "232": 1.0,
+    "233": 1.0,
+    "234": 1.0,
+    "235": 1.0,
+    "236": 1.0,
+    "237": 1.0,
+    "238": 1.0,
+    "239": 1.0,
+    "240": 1.0,
+    "241": 1.0,
+    "242": 1.0,
+    "243": 1.0,
+    "244": 1.0,
+    "245": 1.0,
+    "246": 1.0,
+    "247": 1.0,
+    "248": 1.0,
+    "249": 1.0,
+    "250": 1.0,
+    "251": 1.0,
+    "252": 1.0,
+    "253": 1.0,
+    "254": 1.0,
+    "255": 1.0,
+    "256": 1.0,
+    "257": 1.0,
+    "258": 1.0,
+    "259": 1.0,
+    "260": 1.0,
+    "261": 1.0,
+    "262": 1.0,
+    "263": 1.0,
+    "264": 1.0,
+    "265": 1.0,
+    "266": 1.0,
+    "267": 1.0,
+    "268": 1.0,
+    "269": 1.0,
+    "270": 1.0,
+    "271": 1.0,
+    "272": 1.0,
+    "273": 1.0,
+    "274": 1.0,
+    "275": 1.0,
+    "276": 1.0,
+    "277": 1.0,
+    "278": 1.0,
+    "279": 1.0,
+    "280": 1.0,
+    "281": 1.0,
+    "282": 1.0,
+    "283": 1.0,
+    "284": 1.0,
+    "285": 1.0,
+    "286": 1.0,
+    "287": 1.0,
+    "288": 1.0,
+    "289": 1.0,
+    "290": 1.0,
+    "291": 1.0,
+    "292": 1.0,
+    "293": 1.0,
+    "294": 1.0,
+    "295": 1.0,
+    "296": 1.0,
+    "297": 1.0,
+    "298": 1.0,
+    "299": 1.0,
+    "300": 1.0,
+    "301": 1.0,
+    "302": 1.0,
+    "303": 1.0,
+    "304": 1.0,
+    "305": 1.0,
+    "306": 1.0,
+    "307": 1.0,
+    "308": 1.0,
+    "309": 1.0,
+    "310": 1.0,
+    "311": 1.0,
+    "312": 1.0,
+    "313": 1.0,
+    "314": 1.0,
+    "315": 1.0,
+    "316": 1.0,
+    "317": 1.0,
+    "318": 1.0,
+    "319": 1.0,
+    "320": 1.0,
+    "321": 1.0,
+    "322": 1.0,
+    "323": 1.0,
+    "324": 1.0,
+    "325": 1.0,
+    "326": 1.0,
+    "327": 1.0,
+    "328": 1.0,
+    "329": 1.0,
+    "330": 1.0,
+    "331": 1.0,
+    "332": 1.0,
+    "333": 1.0,
+    "334": 1.0,
+    "335": 1.0,
+    "336": 1.0,
+    "337": 1.0,
+    "338": 1.0,
+    "339": 1.0,
+    "340": 1.0,
+    "341": 1.0,
+    "342": 1.0,
+    "343": 1.0,
+    "344": 1.0,
+    "345": 1.0,
+    "346": 1.0,
+    "347": 1.0,
+    "348": 1.0,
+    "349": 1.0,
+    "350": 1.0,
+    "351": 1.0,
+    "352": 1.0,
+    "353": 1.0,
+    "354": 1.0,
+    "355": 1.0,
+    "356": 1.0,
+    "357": 1.0,
+    "358": 1.0,
+    "359": 1.0,
+    "360": 1.0,
+    "361": 1.0,
+    "362": 1.0,
+    "363": 1.0,
+    "364": 1.0,
+    "365": 1.0,
+    "366": 1.0,
+    "367": 1.0,
+    "368": 1.0,
+    "369": 1.0,
+    "370": 1.0,
+    "371": 1.0,
+    "372": 1.0,
+    "373": 1.0,
+    "374": 1.0,
+    "375": 1.0,
+    "376": 1.0,
+    "377": 1.0,
+    "378": 1.0,
+    "379": 1.0,
+    "380": 1.0,
+    "381": 1.0,
+    "382": 1.0,
+    "383": 1.0,
+    "384": 1.0,
+    "385": 1.0,
+    "386": 1.0,
+    "387": 1.0
+  },
+  "gods": [
+    {
+      "id": "sampleentry_setloading",
+      "label": "setLoading()",
+      "degree": 43
+    },
+    {
+      "id": "verify_db_test",
+      "label": "test()",
+      "degree": 38
+    },
+    {
+      "id": "finalpasslots_setselectedentry",
+      "label": "setSelectedEntry()",
+      "degree": 24
+    },
+    {
+      "id": "ricestockerrorhandler_ricestockerrorhandler",
+      "label": "RiceStockErrorHandler",
+      "degree": 20
+    },
+    {
+      "id": "hamalistatusmanager_hamalistatusmanager",
+      "label": "HamaliStatusManager",
+      "degree": 18
+    },
+    {
+      "id": "cacheservice_cacheservice",
+      "label": "CacheService",
+      "degree": 18
+    },
+    {
+      "id": "index_startserver",
+      "label": "startServer()",
+      "degree": 17
+    },
+    {
+      "id": "physicalinspection_isstagedisabledforentry",
+      "label": "isStageDisabledForEntry()",
+      "degree": 16
+    },
+    {
+      "id": "physicalinspection_getentrybyid",
+      "label": "getEntryById()",
+      "degree": 15
+    },
+    {
+      "id": "recordsmanagement_fetchrecords",
+      "label": "fetchRecords()",
+      "degree": 15
+    }
+  ],
+  "surprises": [
+    {
+      "source": "handleSubmit()",
+      "target": "setLoading()",
+      "source_files": [
+        "client\\src\\components\\EditArrivalModal.tsx",
+        "client\\src\\pages\\SampleEntry.tsx"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities; peripheral node `handleSubmit()` unexpectedly reaches hub `setLoading()`"
+    },
+    {
+      "source": "resolveMediaUrl()",
+      "target": "test()",
+      "source_files": [
+        "client\\src\\pages\\ManagerValueApprovals.tsx",
+        "server\\verify-db.js"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities; peripheral node `resolveMediaUrl()` unexpectedly reaches hub `test()`"
+    },
+    {
+      "source": "resolveMediaUrl()",
+      "target": "test()",
+      "source_files": [
+        "client\\src\\pages\\SampleApprovalsHub.tsx",
+        "server\\verify-db.js"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities; peripheral node `resolveMediaUrl()` unexpectedly reaches hub `test()`"
+    },
+    {
+      "source": "resolveMediaUrl()",
+      "target": "test()",
+      "source_files": [
+        "client\\src\\pages\\SampleEntry.tsx",
+        "server\\verify-db.js"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities; peripheral node `resolveMediaUrl()` unexpectedly reaches hub `test()`"
+    },
+    {
+      "source": "normalizeAlphaNumeric()",
+      "target": "test()",
+      "source_files": [
+        "server\\routes\\sample-entries.js",
+        "server\\verify-db.js"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities; peripheral node `normalizeAlphaNumeric()` unexpectedly reaches hub `test()`"
+    }
+  ],
+  "questions": [
+    {
+      "type": "bridge_node",
+      "question": "Why does `test()` connect `Community 5` to `Community 0`, `Community 1`, `Community 2`, `Community 6`, `Community 7`, `Community 9`, `Community 11`, `Community 12`, `Community 13`, `Community 15`, `Community 22`, `Community 26`, `Community 28`?",
+      "why": "High betweenness centrality (0.099) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `setLoading()` connect `Community 4` to `Community 1`, `Community 3`, `Community 5`, `Community 6`, `Community 7`, `Community 8`, `Community 41`, `Community 10`, `Community 15`, `Community 18`, `Community 24`, `Community 31`?",
+      "why": "High betweenness centrality (0.090) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `testCascade()` connect `Community 3` to `Community 0`, `Community 1`?",
+      "why": "High betweenness centrality (0.053) - this node is a cross-community bridge."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 42 inferred relationships involving `setLoading()` (e.g. with `fetchRates()` and `handleSave()`) actually correct?",
+      "why": "`setLoading()` has 42 INFERRED edges - model-reasoned connections that need verification."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 37 inferred relationships involving `test()` (e.g. with `resolveMediaUrl()` and `hasAlphaOrPositiveValue()`) actually correct?",
+      "why": "`test()` has 37 INFERRED edges - model-reasoned connections that need verification."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 20 inferred relationships involving `setSelectedEntry()` (e.g. with `closeReportModal()` and `.get()`) actually correct?",
+      "why": "`setSelectedEntry()` has 20 INFERRED edges - model-reasoned connections that need verification."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Community 0` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.03 - nodes in this community are weakly interconnected."
+    }
+  ]
+}

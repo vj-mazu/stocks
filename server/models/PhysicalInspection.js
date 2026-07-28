@@ -1,0 +1,201 @@
+/**
+ * PhysicalInspection Model
+ * 
+ * Stores physical inspection data by Physical Supervisors.
+ */
+
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
+
+const PhysicalInspection = sequelize.define('PhysicalInspection', {
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
+  },
+  sampleEntryId: {
+    type: DataTypes.UUID,
+    allowNull: false,
+    field: 'sample_entry_id',
+    references: {
+      model: 'sample_entries',
+      key: 'id'
+    }
+  },
+  lotAllotmentId: {
+    type: DataTypes.UUID,
+    allowNull: false,
+    field: 'lot_allotment_id',
+    references: {
+      model: 'lot_allotments',
+      key: 'id'
+    }
+  },
+  reportedByUserId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    field: 'reported_by_user_id',
+    references: {
+      model: 'users',
+      key: 'id'
+    }
+  },
+  inspectionDate: {
+    type: DataTypes.DATEONLY,
+    allowNull: false,
+    field: 'inspection_date'
+  },
+  bags: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    validate: {
+      min: 1
+    }
+  },
+  lorryNumber: {
+    type: DataTypes.STRING(50),
+    allowNull: false,
+    field: 'lorry_number'
+  },
+  cutting1: {
+    type: DataTypes.DECIMAL(5, 2),
+    allowNull: false,
+    field: 'cutting1'
+  },
+  cutting2: {
+    type: DataTypes.DECIMAL(5, 2),
+    allowNull: true,
+    field: 'cutting2'
+  },
+  bend: {
+    type: DataTypes.DECIMAL(5, 2),
+    allowNull: false
+  },
+  bend2: {
+    type: DataTypes.DECIMAL(5, 2),
+    allowNull: true,
+    field: 'bend2'
+  },
+  halfLorryImageUrl: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+    field: 'half_lorry_image_url'
+  },
+  fullLorryImageUrl: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+    field: 'full_lorry_image_url'
+  },
+  remarks: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  isComplete: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+    field: 'is_complete'
+  },
+  samplingStages: {
+    type: DataTypes.JSONB,
+    allowNull: true,
+    defaultValue: {},
+    field: 'sampling_stages'
+  },
+  linkedPattiRate: {
+    type: DataTypes.JSONB,
+    allowNull: true,
+    defaultValue: null,
+    field: 'linked_patti_rate'
+  },
+  finalBaseRate: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    field: 'final_base_rate'
+  },
+  finalBaseRateType: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    field: 'final_base_rate_type'
+  },
+  finalSute: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    field: 'final_sute'
+  },
+  finalSuteUnit: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    field: 'final_sute_unit'
+  },
+  moisture: {
+    type: DataTypes.DECIMAL(5, 2),
+    allowNull: true,
+    field: 'moisture'
+  },
+  revisedHamali: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    field: 'revised_hamali'
+  },
+  hamaliUnit: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    field: 'hamali_unit'
+  },
+  revisedLf: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    field: 'revised_lf'
+  },
+  lfUnit: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    field: 'lf_unit'
+  }
+}, {
+  tableName: 'physical_inspections',
+  underscored: true,
+  indexes: [
+    { fields: ['sample_entry_id'] },
+    { fields: ['lot_allotment_id'] },
+    { fields: ['reported_by_user_id'] },
+    { fields: ['inspection_date'] },
+    { fields: ['lorry_number'] },
+    { fields: ['sample_entry_id', 'is_complete'] },
+    {
+      name: 'physical_inspections_sampling_stages_gin',
+      using: 'gin',
+      fields: ['sampling_stages']
+    }
+  ]
+});
+
+PhysicalInspection.associate = (models) => {
+  PhysicalInspection.belongsTo(models.SampleEntry, {
+    foreignKey: 'sampleEntryId',
+    as: 'sampleEntry'
+  });
+
+  PhysicalInspection.belongsTo(models.LotAllotment, {
+    foreignKey: 'lotAllotmentId',
+    as: 'lotAllotment'
+  });
+
+  PhysicalInspection.belongsTo(models.User, {
+    foreignKey: 'reportedByUserId',
+    as: 'reportedBy'
+  });
+
+  PhysicalInspection.hasOne(models.InventoryData, {
+    foreignKey: 'physicalInspectionId',
+    as: 'inventoryData'
+  });
+
+  PhysicalInspection.hasOne(models.LorryTransitDetail, {
+    foreignKey: 'physicalInspectionId',
+    as: 'lorryTransitDetail'
+  });
+};
+
+module.exports = PhysicalInspection;
