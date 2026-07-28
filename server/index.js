@@ -1834,6 +1834,15 @@ const startServer = async () => {
         console.log('⚠️ Migration missing quality columns warning:', error.message);
       }
 
+      // Migration 147: Add missing indexes for inventory_quality_parameters and pg_trgm coverage
+      try {
+        const addMissingInventoryIndexes = require('./migrations/147_add_missing_inventory_indexes');
+        await addMissingInventoryIndexes.up();
+        console.log('✅ Migration 147: Inventory quality indexes and pg_trgm coverage added');
+      } catch (error) {
+        console.log('⚠️ Migration 147 warning:', error.message);
+      }
+
     // Default warehouses removed - users should create their own warehouses
 
     // Create default users if they don't exist
@@ -1863,10 +1872,30 @@ const startServer = async () => {
     // Use the isVercel variable defined earlier
     const isTest = process.env.NODE_ENV === 'test';
     if (!isVercel && !isTest) {
-      app.listen(PORT, () => {
+      const server = app.listen(PORT, () => {
         console.log(`🚀 Mother India Stock Management Server running on port ${PORT}`);
         console.log(`🌐 API Base URL: http://localhost:${PORT}/api`);
       });
+
+      // HTTP request timeout: prevents hung connections from blocking the pool
+      server.timeout = 120000;
+
+      // Graceful shutdown: drain connections on SIGTERM/SIGINT
+      const shutdown = (signal) => {
+        console.log(`\n🛑 ${signal} received. Starting graceful shutdown...`);
+        server.close(() => {
+          console.log('✅ HTTP server closed. Exiting.');
+          process.exit(0);
+        });
+        // Force exit after 15s if connections don't drain
+        setTimeout(() => {
+          console.error('⚠️ Forced shutdown after 15s timeout');
+          process.exit(1);
+        }, 15000);
+      };
+
+      process.on('SIGTERM', () => shutdown('SIGTERM'));
+      process.on('SIGINT', () => shutdown('SIGINT'));
     } else if (isTest) {
       console.log('🧪 Test environment detected: Skipping app.listen() to allow parallel tests.');
     } else {
