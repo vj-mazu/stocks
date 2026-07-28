@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center align-items-center min-vh-80 animate__animated animate__fadeIn">
+  <div class="col-md-7">
+    <div class="card shadow-lg border-0 p-4 animate__animated animate__zoomIn">
+      <div class="text-center mb-3">
+        <img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=facearea&w=400&q=80" class="rounded mb-2" style="width:90px; box-shadow:0 2px 8px #0002;" alt="gaging image">
+        <h2 class="fw-bold mb-2" style="color:#1976d2;">
+          <i class="bi bi-droplet-half"></i> Gaging
+        </h2>
+        <p class="text-secondary mb-2">Enter gaging details for a bill</p>
+      </div>
+      <form method="POST" autocomplete="off">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <input type="text" name="bill_number" class="form-control form-control-lg shadow-sm" placeholder="Bill Number" required>
+          </div>
+          <div class="col-md-6">
+            <input type="number" name="waste_weight" class="form-control form-control-lg shadow-sm" placeholder="Waste Weight (kg)" step="0.01" required>
+          </div>
+          <div class="col-md-6">
+            <input type="number" name="gaging_cost" class="form-control form-control-lg shadow-sm" placeholder="Gaging Cost" step="0.01" required>
+          </div>
+          <div class="col-md-6">
+            <input type="text" name="vehicle_number" class="form-control form-control-lg shadow-sm" placeholder="Vehicle Number" required>
+          </div>
+        </div>
+        <button class="btn btn-success btn-lg mt-4 w-100 ripple" type="submit">
+          <i class="bi bi-droplet"></i> Save Gaging
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

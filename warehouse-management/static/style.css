@@ -1,0 +1,241 @@
+/* Animate.css for motion/fade-in, ripple button effect, extra polish */
+body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #eaf1fb;
+}
+input, select, button {
+    border-radius: 8px !important;
+}
+h2 {
+    color: #1976d2;
+    font-weight: bold;
+    letter-spacing: .5px;
+}
+.btn.ripple {
+    position: relative;
+    overflow: hidden;
+    transition: box-shadow .2s;
+}
+.btn.ripple:after {
+    content: "";
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 0; height: 0;
+    background: rgba(255,255,255,.4);
+    border-radius: 100%;
+    transform: translate(-50%,-50%);
+    opacity: 0;
+    transition: width .6s cubic-bezier(0.4,0,0.2,1), height .6s cubic-bezier(0.4,0,0.2,1), opacity .6s;
+}
+.btn.ripple:active:after {
+    width: 200px; height: 200px;
+    opacity: 1;
+    transition: 0s;
+}
+table.table-hover tbody tr:hover {
+    background: #f0f8ff;
+    transition: background .2s;
+}
+.animate__animated { animation-duration: 1s; }
+.alert { font-size: 1.1rem; }
+.card { transition: transform .2s, box-shadow .2s; }
+.card:hover { transform: translateY(-4px) scale(1.03); box-shadow: 0 8px 32px #1976d233; }
+.min-vh-80 { min-height: 80vh; }
+.ripple {
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow .2s;
+}
+.ripple:after {
+  content: "";
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 0; height: 0;
+  background: rgba(255,255,255,.2);
+  border-radius: 100%;
+  transform: translate(-50%,-50%);
+  opacity: 0;
+  transition: width .6s cubic-bezier(0.4,0,0.2,1), height .6s cubic-bezier(0.4,0,0.2,1), opacity .6s;
+}
+.ripple:active:after {
+  width: 200px; height: 200px;
+  opacity: 1;
+  transition: 0s;
+}
+.min-vh-80 { min-height: 80vh; }
+.ripple {
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow .2s;
+}
+.ripple:after {
+  content: "";
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 0; height: 0;
+  background: rgba(255,255,255,.2);
+  border-radius: 100%;
+  transform: translate(-50%,-50%);
+  opacity: 0;
+  transition: width .6s cubic-bezier(0.4,0,0.2,1), height .6s cubic-bezier(0.4,0,0.2,1), opacity .6s;
+}
+.ripple:active:after {
+  width: 200px; height: 200px;
+  opacity: 1;
+  transition: 0s;
+}
+.card { transition: transform .2s, box-shadow .2s; }
+.card:hover { transform: translateY(-4px) scale(1.03); box-shadow: 0 8px 32px #1976d233; }
+.table-row-transition {
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.table-row-transition:hover {
+  background: #e3f0ff !important;
+  box-shadow: 0 1px 10px #1976d230;
+}
+.table-row-transition {
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.table-row-transition:hover {
+  background: #e3f0ff !important;
+  box-shadow: 0 1px 10px #1976d230;
+}
+.table thead th, .table thead td {
+  vertical-align: middle;
+}
+.ripple {
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow .2s;
+}
+.ripple:after {
+  content: "";
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 0; height: 0;
+  background: rgba(255,255,255,.2);
+  border-radius: 100%;
+  transform: translate(-50%,-50%);
+  opacity: 0;
+  transition: width .6s cubic-bezier(0.4,0,0.2,1), height .6s cubic-bezier(0.4,0,0.2,1), opacity .6s;
+}
+.ripple:active:after {
+  width: 200px; height: 200px;
+  opacity: 1;
+  transition: 0s;
+}
+.table-row-transition {
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.table-row-transition:hover {
+  background: #e3f0ff !important;
+  box-shadow: 0 1px 10px #1976d230;
+}
+.table thead th, .table thead td {
+  vertical-align: middle;
+}
+.table-row-transition {
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.table-row-transition:hover {
+  background: #e3f0ff !important;
+  box-shadow: 0 2px 12px #1976d220;
+}
+.card {
+  border-radius: 1.2rem;
+  box-shadow: 0 2px 16px #1976d220;
+  margin-bottom: 2rem;
+}
+.table th, .table td {
+  vertical-align: middle;
+  font-size: 1.07rem;
+}
+.table-row-transition {
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.table-row-transition:hover {
+  background: #e3f0ff !important;
+  box-shadow: 0 2px 12px #1976d220;
+}
+.card {
+  border-radius: 1.2rem;
+  box-shadow: 0 2px 16px #1976d220;
+  margin-bottom: 2rem;
+}
+.table th, .table td {
+  vertical-align: middle;
+  font-size: 1.07rem;
+}
+.table-row-transition {
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.table-row-transition:hover {
+  background: #e3f0ff !important;
+  box-shadow: 0 2px 12px #1976d220;
+}
+.card {
+  border-radius: 1.2rem;
+  box-shadow: 0 2px 16px #1976d220;
+  margin-bottom: 2rem;
+}
+.table th, .table td {
+  vertical-align: middle;
+  font-size: 1.07rem;
+}
+.table-row-transition {
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.table-row-transition:hover {
+  background: #e3f0ff !important;
+  box-shadow: 0 2px 12px #1976d220;
+}
+.card {
+  border-radius: 1.2rem;
+  box-shadow: 0 2px 16px #1976d220;
+  margin-bottom: 2rem;
+}
+.table th, .table td {
+  vertical-align: middle;
+  font-size: 1.07rem;
+}.table-row-transition {
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.table-row-transition:hover {
+  background: #e3f0ff !important;
+  box-shadow: 0 2px 12px #1976d220;
+}
+.card {
+  border-radius: 1.2rem;
+  box-shadow: 0 2px 16px #1976d220;
+  margin-bottom: 2rem;
+}
+.table th, .table td {
+  vertical-align: middle;
+  font-size: 1.07rem;
+}
+.table-row-transition {
+  transition: background 0.3s, box-shadow 0.2s, transform 0.2s;
+}
+.table-row-transition:hover {
+  background: #fffde7 !important;
+  box-shadow: 0 2px 18px #ffb30033;
+  transform: scale(1.02);
+  z-index: 2;
+  position: relative;
+}
+.card {
+  border-radius: 1.2rem;
+  box-shadow: 0 4px 24px #1976d241;
+  margin-bottom: 2rem;
+  overflow: hidden;
+}
+.table th, .table td {
+  vertical-align: middle;
+  font-size: 1.09rem;
+  border-bottom: 2px solid #f5f5f5;
+}
+.bg-gradient {
+  background: linear-gradient(90deg,#80d8ff 10%,#ffd180 90%) !important;
+}
+
+/* Animate.css and ripple code from earlier replies should already be here */

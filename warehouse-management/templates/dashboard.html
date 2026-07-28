@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card shadow-lg border-0 h-100 animate__animated animate__fadeInLeft">
+            <div class="card-body text-center">
+                <div class="display-4 mb-2 text-primary"><i class="bi bi-truck"></i></div>
+                <h5 class="card-title">Total Items</h5>
+                <p class="card-text fs-2 fw-bold">{{ item_count }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-lg border-0 h-100 animate__animated animate__fadeInUp">
+            <div class="card-body text-center">
+                <div class="display-4 mb-2 text-success"><i class="bi bi-droplet-half"></i></div>
+                <h5 class="card-title">Gaging Entries</h5>
+                <p class="card-text fs-2 fw-bold">{{ gaging_count }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-lg border-0 h-100 animate__animated animate__fadeInRight">
+            <div class="card-body text-center">
+                <div class="display-4 mb-2 text-danger"><i class="bi bi-send"></i></div>
+                <h5 class="card-title">Dispatches</h5>
+                <p class="card-text fs-2 fw-bold">{{ dispatch_count }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="d-flex flex-wrap gap-3 justify-content-center mb-4">
+    <a class="btn btn-primary btn-lg shadow ripple" href="{{ url_for('add_item') }}"><i class="bi bi-plus-circle"></i> Add Item</a>
+    <a class="btn btn-success btn-lg shadow ripple" href="{{ url_for('gaging') }}"><i class="bi bi-droplet"></i> Gaging</a>
+    <a class="btn btn-danger btn-lg shadow ripple" href="{{ url_for('dispatch') }}"><i class="bi bi-truck"></i> Dispatch</a>
+    <a class="btn btn-secondary btn-lg shadow ripple" href="{{ url_for('view_items') }}"><i class="bi bi-table"></i> View All Items</a>
+</div>
+{% endblock %}

@@ -1,0 +1,80 @@
+<div class="row justify-content-center mt-2 animate__animated animate__fadeIn">
+  <div class="col-lg-12">
+    <div class="card shadow-lg border-0" style="background: linear-gradient(135deg, #e0f7fa 60%, #fffde7 100%);">
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-hover table-striped align-middle mb-0" style="background:rgba(255,255,255,0.85); border-radius:12px;">
+            <thead class="text-center" style="background:linear-gradient(90deg,#1976d2 60%,#ffb300 100%); color:white; font-size:1.15rem;">
+              <tr>
+                <th><i class="bi bi-file-earmark-text"></i> Bill #</th>
+                <th><i class="bi bi-truck"></i> Vehicle #</th>
+                <th><i class="bi bi-person"></i> Shipper</th>
+                <th><i class="bi bi-bar-chart"></i> Weight (kg)</th>
+                <th><i class="bi bi-box-seam"></i> Item Name</th>
+                <th><i class="bi bi-geo-alt"></i> City From</th>
+                <th><i class="bi bi-droplet-half"></i> Waste</th>
+                <th><i class="bi bi-cash-coin"></i> Gaging Cost</th>
+                <th><i class="bi bi-person-badge"></i> Customer (In Transit)</th>
+                <th><i class="bi bi-geo"></i> Destination</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in items %}
+              <tr class="table-row-transition text-center">
+                <td class="fw-bold text-primary-emphasis">{{ item.bill_number|upper }}</td>
+                <td class="text-success-emphasis">{{ item.vehicle_number|upper }}</td>
+                <td>{{ item.shipper_name }}</td>
+                <td><span class="badge bg-gradient bg-info text-dark">{{ item.weight }}</span></td>
+                <td>
+                  <span class="d-flex align-items-center justify-content-center gap-2">
+                    <i class="bi bi-box-seam text-primary"></i> 
+                    <span class="badge bg-warning-subtle text-dark">{{ item.item_name }}</span>
+                  </span>
+                </td>
+                <td><span class="badge bg-info-subtle text-dark">{{ item.city_from }}</span></td>
+                <td>
+                  {% if gaging.get(item.bill_number) %}
+                  <span class="badge bg-info bg-opacity-75 text-dark">{{ gaging[item.bill_number].waste_weight }}</span>
+                  {% else %}
+                  <span class="badge bg-light text-secondary">-</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if gaging.get(item.bill_number) %}
+                  <span class="badge bg-success bg-opacity-75 text-light">{{ gaging[item.bill_number].gaging_cost }}</span>
+                  {% else %}
+                  <span class="badge bg-light text-secondary">-</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if dispatches.get(item.bill_number) %}
+                  <span class="badge bg-warning bg-opacity-75 text-dark">
+                    <i class="bi bi-truck"></i> {{ dispatches[item.bill_number].customer_name }}
+                  </span>
+                  {% else %}
+                  <span class="badge bg-light text-secondary">-</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if dispatches.get(item.bill_number) %}
+                  <span class="badge bg-secondary bg-opacity-75 text-light">{{ dispatches[item.bill_number].destination_place }}</span>
+                  {% else %}
+                  <span class="badge bg-light text-secondary">-</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="10" class="text-center text-muted py-4">
+                  <i class="bi bi-inbox" style="font-size:2rem; display:block; margin-bottom:8px;"></i>
+                  No items found. Add some items!
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
