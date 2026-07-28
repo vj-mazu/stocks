@@ -710,19 +710,25 @@ class SampleEntryService {
           if (isLoose) {
             return true; // Keep loose entries visible in approvals
           }
-          const inspections = entry.physicalInspections || (entry.lotAllotment && entry.lotAllotment.physicalInspections) || [];
+          const inspections = (entry.physicalInspections || (entry.lotAllotment && entry.lotAllotment.physicalInspections) || []).filter(Boolean);
           // Keep entries where Full Lorry (full_avg) exists - ensures full lorry entries show in In Transit
           const hasFullLorry = inspections.some((insp) => {
-            const stages = insp.samplingStages || {};
+            if (!insp || !insp.samplingStages) return false;
+            const stages = insp.samplingStages;
+            if (typeof stages !== 'object' || stages === null) return false;
             return Object.keys(stages).some((key) => {
-              const base = (stages[key]?.baseStage || key).replace(/_hold_\d+$/, '').replace(/_reattempt_\d+$/, '');
+              const stageVal = stages[key];
+              if (!stageVal || typeof stageVal !== 'object') return false;
+              const base = (stageVal.baseStage || key).replace(/_hold_\d+$/, '').replace(/_reattempt_\d+$/, '');
               return base === 'full_avg' || base === 'full_avg_lorry';
             });
           });
           if (hasFullLorry) return true;
           // Keep entries with any pending stage
           return inspections.some((insp) => {
-            const stages = insp.samplingStages || {};
+            if (!insp || !insp.samplingStages) return false;
+            const stages = insp.samplingStages;
+            if (typeof stages !== 'object' || stages === null) return false;
             return Object.values(stages).some((stage) => stage && stage.approvalStatus === 'pending');
           });
         });
