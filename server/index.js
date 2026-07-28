@@ -1838,6 +1838,15 @@ const startServer = async () => {
         console.log('⚠️ Migration missing quality columns warning:', error.message);
       }
 
+      // Add Final Rate 2 fields to sample_entry_offerings
+      try {
+        const addFinalRate2Fields = require('./migrations/146_add_final_rate_2_fields');
+        await addFinalRate2Fields.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('✅ Migration: Final Rate 2 fields check and create successful');
+      } catch (error) {
+        console.log('⚠️ Migration final rate 2 warning:', error.message);
+      }
+
     // Default warehouses removed - users should create their own warehouses
 
     // Create default users if they don't exist
