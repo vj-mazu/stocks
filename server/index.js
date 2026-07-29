@@ -1856,6 +1856,15 @@ const startServer = async () => {
         console.log('⚠️ Migration 147 warning:', error.message);
       }
 
+      // Migration 148: Ensure all Final Rate 2 columns exist (safety net for Render deploys)
+      try {
+        const addFinalRate2Columns = require('./migrations/148_add_final_rate_2_columns');
+        await addFinalRate2Columns.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('✅ Migration 148: Final Rate 2 columns ensured');
+      } catch (error) {
+        console.log('⚠️ Migration 148 warning:', error.message);
+      }
+
     // Default warehouses removed - users should create their own warehouses
 
     // Create default users if they don't exist

@@ -10,26 +10,24 @@ module.exports = {
       // ============================================
       
       // Index on placeStatus (most important - used in In-Transit and Band Malal Book filters)
-      await queryInterface.addIndex('lorry_transit_details', ['place_status'], {
-        name: 'idx_lorry_transit_details_place_status',
+      await queryInterface.addIndex('lorry_transit_details', ['placeStatus'], {
+        name: 'idx_lorry_transit_details_placeStatus',
         using: 'BTREE'
       });
-      console.log('  ✅ idx_lorry_transit_details_place_status');
+      console.log('  ✅ idx_lorry_transit_details_placeStatus');
       
-      // Index on wbStatus (used for filtering WB pending/approved entries)
-      await queryInterface.addIndex('lorry_transit_details', ['wb_status'], {
-        name: 'idx_lorry_transit_details_wb_status',
+      await queryInterface.addIndex('lorry_transit_details', ['wbStatus'], {
+        name: 'idx_lorry_transit_details_wbStatus',
         using: 'BTREE'
       });
-      console.log('  ✅ idx_lorry_transit_details_wb_status');
+      console.log('  ✅ idx_lorry_transit_details_wbStatus');
       
-      // Index on placeDate DESC (used for sorting in Band Malal Book)
-      await queryInterface.addIndex('lorry_transit_details', ['place_date'], {
-        name: 'idx_lorry_transit_details_place_date_desc',
+      await queryInterface.addIndex('lorry_transit_details', ['placeDate'], {
+        name: 'idx_lorry_transit_details_placeDate_desc',
         using: 'BTREE',
-        order: [['place_date', 'DESC']]
+        order: [['placeDate', 'DESC']]
       });
-      console.log('  ✅ idx_lorry_transit_details_place_date_desc');
+      console.log('  ✅ idx_lorry_transit_details_placeDate_desc');
       
       // Index on createdAt DESC (used for sorting in In-Transit)
       await queryInterface.addIndex('lorry_transit_details', ['created_at'], {
@@ -40,20 +38,19 @@ module.exports = {
       console.log('  ✅ idx_lorry_transit_details_created_desc');
       
       // Composite index on placeStatus + placeDate (optimizes Band Malal Book query)
-      await queryInterface.addIndex('lorry_transit_details', ['place_status', 'place_date'], {
-        name: 'idx_lorry_transit_details_place_status_date',
+      await queryInterface.addIndex('lorry_transit_details', ['placeStatus', 'placeDate'], {
+        name: 'idx_lorry_transit_details_placeStatus_date',
         using: 'BTREE',
-        order: [['place_status', 'ASC'], ['place_date', 'DESC']]
+        order: [['placeStatus', 'ASC'], ['placeDate', 'DESC']]
       });
-      console.log('  ✅ idx_lorry_transit_details_place_status_date');
+      console.log('  ✅ idx_lorry_transit_details_placeStatus_date');
       
-      // Composite index on placeStatus + createdAt (optimizes In-Transit query)
-      await queryInterface.addIndex('lorry_transit_details', ['place_status', 'created_at'], {
-        name: 'idx_lorry_transit_details_place_status_created',
+      await queryInterface.addIndex('lorry_transit_details', ['placeStatus', 'created_at'], {
+        name: 'idx_lorry_transit_details_placeStatus_created',
         using: 'BTREE',
-        order: [['place_status', 'ASC'], ['created_at', 'DESC']]
+        order: [['placeStatus', 'ASC'], ['created_at', 'DESC']]
       });
-      console.log('  ✅ idx_lorry_transit_details_place_status_created');
+      console.log('  ✅ idx_lorry_transit_details_placeStatus_created');
       
       // Foreign key indexes for JOIN optimization
       await queryInterface.addIndex('lorry_transit_details', ['physical_inspection_id'], {
@@ -68,29 +65,29 @@ module.exports = {
       });
       console.log('  ✅ idx_lorry_transit_details_sample_entry_id');
       
-      await queryInterface.addIndex('lorry_transit_details', ['mill_wb_id'], {
-        name: 'idx_lorry_transit_details_mill_wb_id',
+      await queryInterface.addIndex('lorry_transit_details', ['millWbId'], {
+        name: 'idx_lorry_transit_details_millWbId',
         using: 'BTREE'
       });
-      console.log('  ✅ idx_lorry_transit_details_mill_wb_id');
+      console.log('  ✅ idx_lorry_transit_details_millWbId');
       
-      await queryInterface.addIndex('lorry_transit_details', ['place_kunchinittu_id'], {
-        name: 'idx_lorry_transit_details_place_kunchinittu_id',
+      await queryInterface.addIndex('lorry_transit_details', ['placeKunchinittuId'], {
+        name: 'idx_lorry_transit_details_placeKunchinittuId',
         using: 'BTREE'
       });
-      console.log('  ✅ idx_lorry_transit_details_place_kunchinittu_id');
+      console.log('  ✅ idx_lorry_transit_details_placeKunchinittuId');
       
-      await queryInterface.addIndex('lorry_transit_details', ['place_warehouse_id'], {
-        name: 'idx_lorry_transit_details_place_warehouse_id',
+      await queryInterface.addIndex('lorry_transit_details', ['placeWarehouseId'], {
+        name: 'idx_lorry_transit_details_placeWarehouseId',
         using: 'BTREE'
       });
-      console.log('  ✅ idx_lorry_transit_details_place_warehouse_id');
+      console.log('  ✅ idx_lorry_transit_details_placeWarehouseId');
       
-      await queryInterface.addIndex('lorry_transit_details', ['outturn_id'], {
-        name: 'idx_lorry_transit_details_outturn_id',
+      await queryInterface.addIndex('lorry_transit_details', ['outturnId'], {
+        name: 'idx_lorry_transit_details_outturnId',
         using: 'BTREE'
       });
-      console.log('  ✅ idx_lorry_transit_details_outturn_id');
+      console.log('  ✅ idx_lorry_transit_details_outturnId');
       
       // ============================================
       // INVENTORY QUALITY PARAMETERS - INDEXES
@@ -137,18 +134,18 @@ module.exports = {
         'idx_inventory_quality_created_desc',
         'idx_inventory_quality_status',
         'idx_inventory_quality_lorry_transit_detail_id',
-        'idx_lorry_transit_details_outturn_id',
-        'idx_lorry_transit_details_place_warehouse_id',
-        'idx_lorry_transit_details_place_kunchinittu_id',
-        'idx_lorry_transit_details_mill_wb_id',
+        'idx_lorry_transit_details_outturnId',
+        'idx_lorry_transit_details_placeWarehouseId',
+        'idx_lorry_transit_details_placeKunchinittuId',
+        'idx_lorry_transit_details_millWbId',
         'idx_lorry_transit_details_sample_entry_id',
         'idx_lorry_transit_details_physical_inspection_id',
-        'idx_lorry_transit_details_place_status_created',
-        'idx_lorry_transit_details_place_status_date',
+        'idx_lorry_transit_details_placeStatus_created',
+        'idx_lorry_transit_details_placeStatus_date',
         'idx_lorry_transit_details_created_desc',
-        'idx_lorry_transit_details_place_date_desc',
-        'idx_lorry_transit_details_wb_status',
-        'idx_lorry_transit_details_place_status'
+        'idx_lorry_transit_details_placeDate_desc',
+        'idx_lorry_transit_details_wbStatus',
+        'idx_lorry_transit_details_placeStatus'
       ];
       
       for (const indexName of indexes) {
