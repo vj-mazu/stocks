@@ -6054,7 +6054,15 @@ const Arrivals: React.FC = () => {
 
 
 
-                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Net Weight</th>
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '6%' }}>Sute</th>
+
+
+
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '6%' }}>Sute</th>
+
+
+
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Net Weight</th>
 
 
 
@@ -6904,7 +6912,11 @@ const Arrivals: React.FC = () => {
 
 
 
-                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700' }}>{displayNetWeight !== '-' ? `${displayNetWeight} Kg` : '-'}</td>
+                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700' }}>{suteVal ? `${suteVal} Kg` : '-'}</td>
+
+
+
+                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700' }}>{netWeightVal !== '-' && netWeightVal !== null ? `${netWeightVal} Kg` : '-'}</td>
 
 
 
@@ -9295,11 +9307,17 @@ const Arrivals: React.FC = () => {
 
 
 
+                          <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: '#d97706' }}>
+
+
+                            {entry.sute ? `${entry.sute} Kg` : '-'}
+
+
+                          </td>
                           <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700', color: '#059669' }}>
 
 
-
-                            {entry.sute ? `${netWeightVal} Kg (${entry.sute})` : (netWeightVal ? `${netWeightVal} Kg` : '-')}
+                            {netWeightVal ? `${netWeightVal} Kg` : '-'}
 
 
 
