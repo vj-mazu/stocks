@@ -265,6 +265,7 @@ router.get('/in-transit', auth, async (req, res) => {
           grossWeight: detail.grossWeight || 0,
           tareWeight: detail.tareWeight || 0,
           netWeight: detail.netWeight || 0,
+          suteNetWeight: detail.suteNetWeight || null,
           lorryNumber: inspection?.lorryNumber || sampleEntry.lorryNumber || 'N/A',
           placeStatus: detail.placeStatus,
           placeDate: detail.placeDate,

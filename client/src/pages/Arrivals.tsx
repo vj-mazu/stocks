@@ -6058,11 +6058,9 @@ const Arrivals: React.FC = () => {
 
 
 
-                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '6%' }}>Sute</th>
-
-
-
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Net Weight</th>
+
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Sute Net Wt</th>
 
 
 
@@ -6424,6 +6422,8 @@ const Arrivals: React.FC = () => {
 
                         const suteVal = transitDetail?.sute || null;
 
+                        const suteNetWeightVal = transitDetail?.suteNetWeight || null;
+
 
 
                         const displayNetWeight = netWeightVal !== '-' && netWeightVal !== null ? 
@@ -6714,7 +6714,7 @@ const Arrivals: React.FC = () => {
                                         </div>
                                       ) : (<span style={{ fontSize: '9px', color: '#92400e', fontWeight: 'bold' }}>⏳ Pending</span>);
                                     } else if (wbSt === 'approved') {
-                                      return <div><span style={{ fontSize: '9px', color: '#16a34a', fontWeight: 'bold' }}>✅ WB Done</span>{!tDetail?.partyWbName ? <button onClick={() => { const rk = isPlaceholder ? 'p-' + entry.id : 'i-' + inspection?.id; if (selectedLorryForWB === rk) { setSelectedLorryForWB(null); setSelectedLorryInspection(null); } else { setSelectedLorryForWB(rk); setSelectedLorryForPlace(null); setSelectedLorryInspection(inspection || entry); setWbInputType('mill'); setWbNumber(''); setPartyWbName(''); setWbGrossWeight(''); setWbTareWeight(''); setWbNetWeight(''); setWbSute(''); setPartyWbEnabled(''); setPartyWbNo(''); setPartyWbDate(new Date().toISOString().split('T')[0]); setPartyGrossWeight(''); setPartyTareWeight(''); setPartyNetWeight(''); setPartySute(''); setWbDate(new Date().toISOString().split('T')[0]) } }} style={{ padding: '1px 4px', border: 'none', borderRadius: '3px', background: '#2563eb', color: '#fff', fontWeight: 'bold', fontSize: '8px', cursor: 'pointer', marginLeft: '4px' }}>+ Party WB</button> : null}</div>;
+                                      return <div><span style={{ fontSize: '9px', color: '#16a34a', fontWeight: 'bold' }}>✅ WB Done</span>{!tDetail?.partyWbName ? <button onClick={() => { const rk = isPlaceholder ? 'p-' + entry.id : 'i-' + inspection?.id; if (selectedLorryForWB === rk) { setSelectedLorryForWB(null); setSelectedLorryInspection(null); } else { setSelectedLorryForWB(rk); setSelectedLorryForPlace(null); setSelectedLorryInspection(inspection || entry); setWbInputType('party'); setWbNumber(''); setPartyWbName(''); setWbGrossWeight(''); setWbTareWeight(''); setWbNetWeight(''); setWbSute(''); setPartyWbEnabled(''); setPartyWbNo(''); setPartyWbDate(new Date().toISOString().split('T')[0]); setPartyGrossWeight(''); setPartyTareWeight(''); setPartyNetWeight(''); setPartySute(''); setWbDate(new Date().toISOString().split('T')[0]) } }} style={{ padding: '1px 4px', border: 'none', borderRadius: '3px', background: '#2563eb', color: '#fff', fontWeight: 'bold', fontSize: '8px', cursor: 'pointer', marginLeft: '4px' }}>+ Party WB</button> : null}</div>;
                                     } else {
                                       return (
                                         <button onClick={() => { const rk = isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id); if (selectedLorryForWB === rk) { setSelectedLorryForWB(null); setSelectedLorryEntries([]); setSelectedLorryInspection(null); } else { setSelectedLorryForWB(rk); setSelectedLorryForPlace(null); setSelectedLorryEntries([entry]); setSelectedLorryInspection(inspection || entry); setWbInputType('mill'); setWbNumber(tDetail?.wbNo || ''); setWbGrossWeight(''); setWbTareWeight(''); setWbNetWeight(''); setWbSute(''); setPartyWbEnabled(''); setPartyWbNo(''); setPartyWbDate(new Date().toISOString().split('T')[0]); setPartyGrossWeight(''); setPartyTareWeight(''); setPartyNetWeight(''); setPartySute(''); setWbDate(new Date().toISOString().split('T')[0]) } }} style={{ padding: '2px 5px', border: 'none', borderRadius: '3px', background: selectedLorryForWB === (isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id)) ? '#64748b' : 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer', whiteSpace: 'nowrap' }}>⚖️ WB</button>
@@ -6918,7 +6918,7 @@ const Arrivals: React.FC = () => {
 
                               <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700' }}>{netWeightVal !== '-' && netWeightVal !== null ? `${netWeightVal} Kg` : '-'}</td>
 
-
+                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700' }}>{suteNetWeightVal ? `${suteNetWeightVal} Kg` : '-'}</td>
 
                               <td style={{ border: '1px solid #000', padding: '5px', fontWeight: '800', color: '#1e40af' }}>{lorryNum.toUpperCase()}</td>
 
@@ -7393,77 +7393,41 @@ const Arrivals: React.FC = () => {
 
                                         onClick={async () => {
 
-
-
-                                          if (!wbNumber || !millWbId) {
-
-
+                                          if (!wbNumber || (wbInputType === 'mill' && !millWbId) || (wbInputType === 'party' && !partyWbName)) {
 
                                             toast.error('Please fill required fields (WB Number & Mill/Party WB Name)');
 
-
-
                                             return;
 
-
-
                                           }
-
-
 
                                           if (!wbGrossWeight || !wbTareWeight) {
 
-
-
                                             toast.error('Please enter both Gross Weight and Tare Weight');
-
-
 
                                             return;
 
-
-
                                           }
-
-
 
                                           if (parseFloat(wbGrossWeight) <= parseFloat(wbTareWeight)) {
 
-
-
                                             toast.error('Gross Weight must be strictly greater than Tare Weight');
-
-
 
                                             return;
 
-
-
                                           }
-
-
 
                                           try {
 
-
-
                                             const token = localStorage.getItem('token');
-
-
 
                                             const response = await axios.post(`${API_URL}/arrivals/${selectedLorryInspection.id}/wb`, {
 
+                                              wbInputType,
 
+                                              millWbId: wbInputType === 'mill' ? (millWbId ? Number(millWbId) : null) : null,
 
-                                              wbInputType: 'mill',
-
-
-
-                                              millWbId: millWbId ? Number(millWbId) : null,
-
-
-
-                                              partyWbName: partyWbEnabled === 'yes' ? partyWbName : null,
+                                              partyWbName: wbInputType === 'party' ? partyWbName : null,
 
 
 
@@ -7537,11 +7501,7 @@ const Arrivals: React.FC = () => {
 
                                               partyWbName: wbInputType === 'party' ? partyWbName : (responseDetail?.partyWbName || undefined),
 
-
-
-                                              wbInputType: 'mill',
-
-
+                                              wbInputType,
 
                                               millWbId: wbInputType === 'mill' ? millWbId : undefined,
 

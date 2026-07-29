@@ -8672,11 +8672,11 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-    if (!wbInputType) {
+    if (!millWbId && !partyWbName && !wbInputType) {
 
 
 
-      return res.status(400).json({ error: 'WB input type is required (mill or party)' });
+      return res.status(400).json({ error: 'At least Mill WB or Party WB is required' });
 
 
 
@@ -8752,7 +8752,7 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-      if (wbInputType === 'party') {
+      if (partyWbName) {
 
 
 
@@ -8832,6 +8832,10 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
+          millWbId: millWbId ? Number(millWbId) : null,
+
+
+
           wbNo,
 
 
@@ -8852,7 +8856,7 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-          wbInputType: 'party',
+          wbInputType: transitDetail.millWbId ? 'both' : 'party',
 
 
 
@@ -8989,6 +8993,7 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
           millWbId: Number(millWbId),
+          partyWbName: partyWbName || transitDetail.partyWbName,
 
 
 
@@ -9336,7 +9341,7 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-      if (wbInputType === 'party') {
+      if (partyWbName) {
 
 
 
@@ -9424,7 +9429,7 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-          wbInputType: 'party',
+          wbInputType: detail.millWbId ? 'both' : 'party',
 
 
 
@@ -9812,7 +9817,7 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-      if (wbInputType === 'party') {
+      if (partyWbName) {
 
 
 
@@ -9912,7 +9917,7 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-          wbInputType: 'party',
+          wbInputType: detail.millWbId ? 'both' : 'party',
 
 
 
@@ -10562,7 +10567,7 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-    if (wbInputType === 'party') {
+    if (partyWbName) {
 
 
 
