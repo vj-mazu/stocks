@@ -7406,7 +7406,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                              millWbId,
+                                              millWbId: millWbId ? Number(millWbId) : null,
 
 
 
