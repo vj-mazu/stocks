@@ -5462,39 +5462,10 @@ const Arrivals: React.FC = () => {
 
 
 
+      {/* Auto-redirect removed: Location and Mill Staff now have access to In Transit tab (WB only, no Godown) */}
 
 
-
-
-      {/* Auto-redirect Location and Mill Staff to Band Mall Book sub-tab */}
-
-
-
-      {(() => {
-
-
-
-        const isLocOrMill = user && (user as any).role === 'staff' && ['mill', 'location'].includes((user as any).staffType);
-
-
-
-        if (isLocOrMill && arrivalsActiveSubTab !== 'bandmalal') {
-
-
-
-          setTimeout(() => setArrivalsActiveSubTab('bandmalal'), 0);
-
-
-
-        }
-
-
-
-        return null;
-
-
-
-      })()}
+      {}
 
 
 
@@ -5502,7 +5473,7 @@ const Arrivals: React.FC = () => {
 
 
 
-      {!(user && (user as any).role === 'staff' && ['mill', 'location'].includes((user as any).staffType)) && (
+      {}
 
 
 
@@ -5703,10 +5674,6 @@ const Arrivals: React.FC = () => {
 
 
         </div>
-
-
-
-      )}
 
 
 
@@ -6762,6 +6729,14 @@ const Arrivals: React.FC = () => {
 
 
                                     <span style={{ fontSize: '10px', color: '#2563eb', fontWeight: 'bold' }}>📍 Placed ✅</span>
+
+
+                                  ) : (user && (user as any).role === 'staff' && ['mill', 'location'].includes((user as any).staffType)) ? (
+
+
+
+                                    <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 'bold' }}>🔒 No Godown Access</span>
+
 
 
                                   ) : (
@@ -9371,7 +9346,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                {!(user && (user as any).role === 'staff' && ['mill', 'location'].includes((user as any).staffType)) && (
+
 
 
 
@@ -9563,7 +9538,6 @@ const Arrivals: React.FC = () => {
 
 
 
-                                )}
 
 
 
