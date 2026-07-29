@@ -3110,7 +3110,7 @@ const Arrivals: React.FC = () => {
 
 
 
-    (parseFloat(grossWeight) - parseFloat(tareWeight)).toFixed(2) : '0.00';
+    ((parseFloat(grossWeight || 0) - parseFloat(tareWeight || 0)) || 0).toFixed(2) : '0.00';
 
 
 
@@ -7346,7 +7346,7 @@ const Arrivals: React.FC = () => {
                                         <div>
                                           <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Sute Net Weight</label>
                                           <div style={{ padding: '6px 8px', background: '#f0fdf4', border: '1.5px solid #10b981', borderRadius: '6px', fontWeight: '700', color: '#059669', fontSize: '12px', textAlign: 'center' }}>
-                                            {(wbGrossWeight && wbTareWeight && (parseFloat(wbGrossWeight) - parseFloat(wbTareWeight) - parseFloat(wbSute || 0))).toFixed(2)} Kg
+                                            {((parseFloat(wbGrossWeight || 0) - parseFloat(wbTareWeight || 0) - parseFloat(wbSute || 0)) || 0).toFixed(2)} Kg
                                           </div>
                                         </div>
                                         <div>
