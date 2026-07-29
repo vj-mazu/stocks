@@ -7004,7 +7004,26 @@ const Arrivals: React.FC = () => {
 
 
 
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px', marginBottom: '14px' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px', marginBottom: '14px' }}>
+
+                                      <div>
+
+                                        <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Date</label>
+
+                                        <input
+
+                                          type="date"
+
+                                          value={wbDate}
+
+                                          onChange={(e) => setWbDate(e.target.value)}
+
+                                          style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
+
+                                        />
+
+                                      </div>
+
 
 
 
@@ -7332,7 +7351,6 @@ const Arrivals: React.FC = () => {
 
 
 
-                                    </div>
                                         <div>
                                           <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Sute (Deduction)</label>
                                           <input 
@@ -7344,14 +7362,14 @@ const Arrivals: React.FC = () => {
                                           />
                                         </div>
                                         <div>
-                                          <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Sute Net Weight</label>
+                                          <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Sute Net Wt</label>
                                           <div style={{ padding: '6px 8px', background: '#f0fdf4', border: '1.5px solid #10b981', borderRadius: '6px', fontWeight: '700', color: '#059669', fontSize: '12px', textAlign: 'center' }}>
                                             {((parseFloat(wbGrossWeight || 0) - parseFloat(wbTareWeight || 0) - parseFloat(wbSute || 0)) || 0).toFixed(2)} Kg
                                           </div>
                                         </div>
                                         <div>
                                           <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Party WB</label>
-                                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                                             <label style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
                                               <input type="radio" name="partyWbEnabled" value="yes" checked={partyWbEnabled === 'yes'} onChange={() => setPartyWbEnabled('yes')} /> Yes
                                             </label>
@@ -7363,6 +7381,23 @@ const Arrivals: React.FC = () => {
                                             )}
                                           </div>
                                         </div>
+
+                                    </div>
+
+                                    {partyWbEnabled === 'yes' && (
+                                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', marginBottom: '14px', padding: '10px', background: '#fef3c7', borderRadius: '6px', border: '1px dashed #d97706' }}>
+                                        <div>
+                                          <label style={{ display: 'block', fontSize: '11px', color: '#92400e', fontWeight: 'bold', marginBottom: '4px' }}>Party WB Name</label>
+                                          <input
+                                            type="text"
+                                            value={partyWbName}
+                                            onChange={(e) => setPartyWbName(e.target.value)}
+                                            placeholder="Enter Party WB name"
+                                            style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px' }}
+                                          />
+                                        </div>
+                                      </div>
+                                    )}
 
 
 
