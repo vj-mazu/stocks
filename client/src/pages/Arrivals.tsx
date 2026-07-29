@@ -6667,9 +6667,24 @@ const Arrivals: React.FC = () => {
                                     const isApprov = user && ['admin', 'ceo', 'manager', 'inventory_head'].includes((user as any).role);
                                     if (wbSt === 'pending') {
                                       return isApprov ? (
-                                        <div style={{ display: 'flex', gap: '3px', justifyContent: 'center' }}>
-                                          <button onClick={() => handleApproveWb(inspection?.id || entry?.id, transitDetail)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>Approve WB</button>
-                                          <button onClick={() => handleRejectWb(inspection?.id || entry?.id, transitDetail)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#ef4444', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>Reject WB</button>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center' }}>
+                                          <div style={{ fontSize: '8px', color: '#64748b', lineHeight: '1.3' }}>
+                                            {tDetail?.wbInputType === 'mill' ? (tDetail?.millWb?.name || tDetail?.millWeightBridge?.name || 'Mill WB') : (tDetail?.partyWbName || 'Party WB')}
+                                          </div>
+                                          <div style={{ fontSize: '8px', color: '#475569', lineHeight: '1.3' }}>
+                                            {tDetail?.wbNo ? `Slip: ${tDetail.wbNo}` : ''}
+                                          </div>
+                                          <div style={{ fontSize: '8px', color: '#475569', lineHeight: '1.3' }}>
+                                            {tDetail?.grossWeight ? `G: ${tDetail.grossWeight}Kg` : ''}
+                                            {tDetail?.tareWeight ? ` / T: ${tDetail.tareWeight}Kg` : ''}
+                                          </div>
+                                          <div style={{ fontSize: '9px', color: '#16a34a', fontWeight: 'bold' }}>
+                                            Net: {tDetail?.netWeight ? `${tDetail.netWeight} Kg` : '-'}
+                                          </div>
+                                          <div style={{ display: 'flex', gap: '3px', justifyContent: 'center', marginTop: '2px' }}>
+                                            <button onClick={() => handleApproveWb(inspection?.id || entry?.id, transitDetail)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>Approve WB</button>
+                                            <button onClick={() => handleRejectWb(inspection?.id || entry?.id, transitDetail)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#ef4444', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>Reject WB</button>
+                                          </div>
                                         </div>
                                       ) : (<span style={{ fontSize: '9px', color: '#92400e', fontWeight: 'bold' }}>⏳ Pending</span>);
                                     } else if (wbSt === 'approved') {
