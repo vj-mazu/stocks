@@ -8602,7 +8602,17 @@ router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
 
 
 
-router.post('/:id/wb', auth, requireInventoryRole, async (req, res) => {
+router.post('/:id/wb', auth, async (req, res) => {
+
+  // Allow: location_staff, mill_staff, inventory_staff, inventory_head, admin, manager, ceo
+  const userRole = String(req.user.role || '').toLowerCase();
+  const staffType = String(req.user.staffType || '').toLowerCase();
+  const effectiveRole = String(req.user.effectiveRole || '').toLowerCase();
+  const allowedWbRoles = ['inventory_staff', 'inventory_head', 'admin', 'manager', 'ceo'];
+  const isAllowedStaff = userRole === 'staff' && (staffType === 'mill' || staffType === 'location');
+  if (!allowedWbRoles.includes(userRole) && !allowedWbRoles.includes(effectiveRole) && !isAllowedStaff) {
+    return res.status(403).json({ error: 'Access denied. You do not have permission to add weighbridge data.' });
+  }
 
 
 
@@ -8946,15 +8956,15 @@ router.post('/:id/wb', auth, requireInventoryRole, async (req, res) => {
 
 
 
-        const wbStatus = isAdmin ? 'approved' : 'pending';
+        const wbStatus = isAutoApproveWb ? 'approved' : 'pending';
 
 
 
-        const wbApprovedBy = isAdmin ? req.user.userId : null;
+        const wbApprovedBy = isAutoApproveWb ? req.user.userId : null;
 
 
 
-        const wbApprovedAt = isAdmin ? new Date() : null;
+        const wbApprovedAt = isAutoApproveWb ? new Date() : null;
 
 
 
@@ -9038,7 +9048,7 @@ router.post('/:id/wb', auth, requireInventoryRole, async (req, res) => {
 
 
 
-        if (isAdmin) {
+        if (isAutoApproveWb) {
 
 
 
@@ -9138,7 +9148,7 @@ router.post('/:id/wb', auth, requireInventoryRole, async (req, res) => {
 
 
 
-        const message = isAdmin 
+        const message = isAutoApproveWb 
 
 
 
