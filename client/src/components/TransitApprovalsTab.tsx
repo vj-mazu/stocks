@@ -248,6 +248,7 @@ const TransitApprovalsTab: React.FC = () => {
                   <th style={WB_HEAD}>Slip No</th>
                   <th style={WB_HEAD}>Gross Wt</th>
                   <th style={WB_HEAD}>Tare Wt</th>
+                  <th style={WB_HEAD}>Sute</th>
                   <th style={WB_HEAD}>Net Wt</th>
                   <th style={{ ...WB_HEAD, width: '140px' }}>Actions</th>
                 </tr>
@@ -269,16 +270,33 @@ const TransitApprovalsTab: React.FC = () => {
                       </td>
                       <td style={{ ...CELL, fontWeight: 'bold' }}>{inspection.bags || sampleEntry.bags || '-'}</td>
                       <td style={CELL}>
-                        <WbTypeBadge type={entry.wbInputType} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                          {(entry.millWbId || entry.millWeightBridge || entry.millWb) && <WbTypeBadge type="mill" />}
+                          {entry.partyWbName && <WbTypeBadge type="party" />}
+                          {!(entry.millWbId || entry.millWeightBridge || entry.millWb) && !entry.partyWbName && <span>-</span>}
+                        </div>
                       </td>
                       <td style={{ ...CELL, fontWeight: '700', color: '#78350f' }}>
-                        {entry.wbInputType === 'mill' 
-                          ? (entry.millWeightBridge?.location ? `${entry.millWeightBridge.name} (${entry.millWeightBridge.location})` : (entry.millWb?.location ? `${entry.millWb.name} (${entry.millWb.location})` : (entry.millWeightBridge?.name || entry.millWbName || entry.millWb?.name || '-')))
-                          : (entry.partyWbName || '-')}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          {(entry.millWbId || entry.millWeightBridge || entry.millWb) && (
+                            <div style={{ color: '#1d4ed8' }}>
+                              {entry.millWeightBridge?.location
+                                ? `${entry.millWeightBridge.name} (${entry.millWeightBridge.location})`
+                                : (entry.millWb?.location
+                                    ? `${entry.millWb.name} (${entry.millWb.location})`
+                                    : (entry.millWeightBridge?.name || entry.millWbName || entry.millWb?.name || '-'))}
+                            </div>
+                          )}
+                          {entry.partyWbName && (
+                            <div style={{ color: '#9d174d' }}>{entry.partyWbName}</div>
+                          )}
+                          {!(entry.millWbId || entry.millWeightBridge || entry.millWb) && !entry.partyWbName && <span>-</span>}
+                        </div>
                       </td>
                       <td style={{ ...CELL, fontWeight: '700' }}>{entry.wbNo || '-'}</td>
                       <td style={CELL}>{entry.grossWeight ? `${entry.grossWeight} Kg` : '-'}</td>
                       <td style={CELL}>{entry.tareWeight ? `${entry.tareWeight} Kg` : '-'}</td>
+                      <td style={CELL}>{entry.sute ? `${entry.sute} Kg` : '-'}</td>
                       <td style={{ ...CELL, fontWeight: '700', color: '#16a34a' }}>{entry.netWeight ? `${entry.netWeight} Kg` : '-'}</td>
                       <td style={{ ...CELL, borderRight: 'none' }}>
                         <div style={{ display: 'inline-flex', gap: '6px' }}>

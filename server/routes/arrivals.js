@@ -7616,6 +7616,14 @@ router.get('/transit-approvals/pending', auth, async (req, res) => {
         netWeight: detail.netWeight || 0,
 
 
+        sute: detail.sute || 0,
+
+
+        suteNetWeight: detail.suteNetWeight || 0,
+
+
+        partyWbEnabled: detail.partyWbEnabled || 'no',
+
 
         lorryNumber: inspection?.lorryNumber || sampleEntry.lorryNumber || 'N/A',
 
