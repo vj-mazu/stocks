@@ -3846,6 +3846,7 @@ const Arrivals: React.FC = () => {
 
 
   const [partyWbEnabled, setPartyWbEnabled] = useState<'yes' | 'no' | ''>('');
+  const [wbConfirmDialog, setWbConfirmDialog] = useState<any>(null);
   const [partyWbNo, setPartyWbNo] = useState('');
   const [partyWbDate, setPartyWbDate] = useState(new Date().toISOString().split('T')[0]);
   const [partyGrossWeight, setPartyGrossWeight] = useState('');
@@ -4439,7 +4440,23 @@ const Arrivals: React.FC = () => {
 
 
 
-  const handleApproveWb = async (id: string) => {
+  const handleApproveWb = async (id: string, detail?: any) => {
+
+
+
+    if (detail && !wbConfirmDialog) {
+
+
+
+      setWbConfirmDialog({ id, action: 'approve', detail });
+
+
+
+      return;
+
+
+
+    }
 
 
 
@@ -4464,6 +4481,10 @@ const Arrivals: React.FC = () => {
 
 
       toast.success('Weigh Bridge approved!');
+
+
+
+      setWbConfirmDialog(null);
 
 
 
@@ -4495,7 +4516,23 @@ const Arrivals: React.FC = () => {
 
 
 
-  const handleRejectWb = async (id: string) => {
+  const handleRejectWb = async (id: string, detail?: any) => {
+
+
+
+    if (detail && !wbConfirmDialog) {
+
+
+
+      setWbConfirmDialog({ id, action: 'reject', detail });
+
+
+
+      return;
+
+
+
+    }
 
 
 
@@ -4528,6 +4565,10 @@ const Arrivals: React.FC = () => {
 
 
       toast.success('Weigh Bridge rejected!');
+
+
+
+      setWbConfirmDialog(null);
 
 
 
@@ -6660,8 +6701,8 @@ const Arrivals: React.FC = () => {
                                     if (wbSt === 'pending') {
                                       return isApprov ? (
                                         <div style={{ display: 'flex', gap: '3px', justifyContent: 'center' }}>
-                                          <button onClick={() => handleApproveWb(inspection?.id || entry?.id)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>Approve WB</button>
-                                          <button onClick={() => handleRejectWb(inspection?.id || entry?.id)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#ef4444', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>Reject WB</button>
+                                          <button onClick={() => handleApproveWb(inspection?.id || entry?.id, transitDetail)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>Approve WB</button>
+                                          <button onClick={() => handleRejectWb(inspection?.id || entry?.id, transitDetail)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#ef4444', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>Reject WB</button>
                                         </div>
                                       ) : (<span style={{ fontSize: '9px', color: '#92400e', fontWeight: 'bold' }}>⏳ Pending</span>);
                                     } else if (wbSt === 'approved') {
@@ -9346,11 +9387,11 @@ const Arrivals: React.FC = () => {
 
 
 
-                                        <button onClick={() => handleApproveWb(entry.id)} style={{ padding: '4px 6px', border: 'none', borderRadius: '4px', background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer' }}>Approve</button>
+                                        <button onClick={() => handleApproveWb(entry.id, detail)} style={{ padding: '4px 6px', border: 'none', borderRadius: '4px', background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer' }}>Approve</button>
 
 
 
-                                        <button onClick={() => handleRejectWb(entry.id)} style={{ padding: '4px 6px', border: 'none', borderRadius: '4px', background: '#ef4444', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer' }}>Reject</button>
+                                        <button onClick={() => handleRejectWb(entry.id, detail)} style={{ padding: '4px 6px', border: 'none', borderRadius: '4px', background: '#ef4444', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer' }}>Reject</button>
 
 
 
@@ -16763,6 +16804,61 @@ const Arrivals: React.FC = () => {
 
       })()}
 
+
+
+
+      {wbConfirmDialog && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: '12px', padding: '24px', maxWidth: '500px', width: '90%',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+          }}>
+            <h3 style={{ margin: '0 0 16px 0', color: '#0f172a', fontSize: '16px', fontWeight: 'bold', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
+              {wbConfirmDialog.action === 'approve' ? '✅ Confirm WB Approval' : '❌ Confirm WB Rejection'}
+            </h3>
+            <div style={{ fontSize: '12px', color: '#475569', marginBottom: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', background: '#f8fafc', padding: '10px', borderRadius: '8px' }}>
+                <div><strong>WB Number:</strong> {wbConfirmDialog.detail?.wbNo || '-'}</div>
+                <div><strong>Mill WB:</strong> {wbConfirmDialog.detail?.millWbId ? 'Selected' : '-'}</div>
+                <div><strong>Gross Wt:</strong> {wbConfirmDialog.detail?.grossWeight || '-'} Kg</div>
+                <div><strong>Tare Wt:</strong> {wbConfirmDialog.detail?.tareWeight || '-'} Kg</div>
+                <div><strong>Net Wt:</strong> {wbConfirmDialog.detail?.netWeight || '-'} Kg</div>
+                <div><strong>Sute:</strong> {wbConfirmDialog.detail?.sute || '-'} Kg</div>
+                <div><strong>Date:</strong> {wbConfirmDialog.detail?.wbDate || '-'}</div>
+                <div><strong>Party WB:</strong> {wbConfirmDialog.detail?.partyWbName || '-'}</div>
+              </div>
+            </div>
+            <div style={{ fontSize: '12px', color: '#ef4444', marginBottom: '16px', background: '#fef2f2', padding: '8px', borderRadius: '6px' }}>
+              {wbConfirmDialog.action === 'approve' 
+                ? 'Are you sure you want to APPROVE this weighbridge?'
+                : 'Are you sure you want to REJECT this weighbridge?'}
+            </div>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setWbConfirmDialog(null)} style={{
+                padding: '8px 20px', border: '1px solid #cbd5e1', borderRadius: '6px', background: '#fff',
+                fontSize: '13px', fontWeight: 'bold', cursor: 'pointer'
+              }}>Cancel</button>
+              <button onClick={() => {
+                if (wbConfirmDialog.action === 'approve') {
+                  handleApproveWb(wbConfirmDialog.id);
+                } else {
+                  handleRejectWb(wbConfirmDialog.id);
+                }
+              }} style={{
+                padding: '8px 20px', border: 'none', borderRadius: '6px',
+                background: wbConfirmDialog.action === 'approve' ? '#10b981' : '#ef4444',
+                color: '#fff', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer'
+              }}>
+                {wbConfirmDialog.action === 'approve' ? 'Confirm Approve' : 'Confirm Reject'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
 
     </Container>
