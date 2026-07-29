@@ -8732,11 +8732,27 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-    // First check if id is a LorryTransitDetail (from Band Malal Book)
+    // First check if id is a LorryTransitDetail (from Band Malal Book / In Transit tab)
 
 
 
-    const transitDetail = await LorryTransitDetail.findByPk(id);
+    let transitDetail = await LorryTransitDetail.findByPk(id);
+
+
+
+    // Also look up by physicalInspectionId (WB submit from In Transit tab sends inspection ID)
+
+
+
+    if (!transitDetail) {
+
+
+
+      transitDetail = await LorryTransitDetail.findOne({ where: { physicalInspectionId: id } });
+
+
+
+    }
 
 
 
