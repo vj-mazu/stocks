@@ -6659,7 +6659,7 @@ const Arrivals: React.FC = () => {
                                         </div>
                                       ) : (<span style={{ fontSize: '9px', color: '#92400e', fontWeight: 'bold' }}>⏳ Pending</span>);
                                     } else if (wbSt === 'approved') {
-                                      return <div><span style={{ fontSize: '9px', color: '#16a34a', fontWeight: 'bold' }}>✅ WB Done</span>{!tDetail?.partyWbName ? <button onClick={() => { const rk = isPlaceholder ? 'p-' + entry.id : 'i-' + inspection?.id; if (selectedLorryForWB === rk) { setSelectedLorryForWB(null); setSelectedLorryInspection(null); } else { setSelectedLorryForWB(rk); setSelectedLorryForPlace(null); setSelectedLorryInspection(inspection || entry); setWbInputType('party'); setWbNumber(''); setPartyWbName(''); setWbGrossWeight(''); setWbTareWeight(''); setWbNetWeight(''); setWbSute(''); setPartyWbEnabled(''); setWbDate(new Date().toISOString().split('T')[0]) } }} style={{ padding: '1px 4px', border: 'none', borderRadius: '3px', background: '#2563eb', color: '#fff', fontWeight: 'bold', fontSize: '8px', cursor: 'pointer', marginLeft: '4px' }}>+ Party WB</button> : null}</div>;
+                                      return <div><span style={{ fontSize: '9px', color: '#16a34a', fontWeight: 'bold' }}>✅ WB Done</span>{!tDetail?.partyWbName ? <button onClick={() => { const rk = isPlaceholder ? 'p-' + entry.id : 'i-' + inspection?.id; if (selectedLorryForWB === rk) { setSelectedLorryForWB(null); setSelectedLorryInspection(null); } else { setSelectedLorryForWB(rk); setSelectedLorryForPlace(null); setSelectedLorryInspection(inspection || entry); setWbInputType('mill'); setWbNumber(''); setPartyWbName(''); setWbGrossWeight(''); setWbTareWeight(''); setWbNetWeight(''); setWbSute(''); setPartyWbEnabled(''); setWbDate(new Date().toISOString().split('T')[0]) } }} style={{ padding: '1px 4px', border: 'none', borderRadius: '3px', background: '#2563eb', color: '#fff', fontWeight: 'bold', fontSize: '8px', cursor: 'pointer', marginLeft: '4px' }}>+ Party WB</button> : null}</div>;
                                     } else {
                                       return (
                                         <button onClick={() => { const rk = isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id); if (selectedLorryForWB === rk) { setSelectedLorryForWB(null); setSelectedLorryEntries([]); setSelectedLorryInspection(null); } else { setSelectedLorryForWB(rk); setSelectedLorryForPlace(null); setSelectedLorryEntries([entry]); setSelectedLorryInspection(inspection || entry); setWbInputType('mill'); setWbNumber(tDetail?.wbNo || ''); setWbGrossWeight(''); setWbTareWeight(''); setWbNetWeight(''); setWbSute(''); setPartyWbEnabled(''); setWbDate(new Date().toISOString().split('T')[0]) } }} style={{ padding: '2px 5px', border: 'none', borderRadius: '3px', background: selectedLorryForWB === (isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id)) ? '#64748b' : 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer', whiteSpace: 'nowrap' }}>⚖️ WB</button>
@@ -6904,99 +6904,6 @@ const Arrivals: React.FC = () => {
 
 
 
-                                      <div style={{ display: 'flex', gap: '8px' }}>
-
-
-
-                                        <button 
-
-
-
-                                          onClick={() => setWbInputType('mill')}
-
-
-
-                                          style={{
-
-
-
-                                            padding: '4px 10px', fontSize: '11px', fontWeight: 'bold', borderRadius: '4px', border: '1px solid #cbd5e1',
-
-
-
-                                            background: wbInputType === 'mill' ? '#1a237e' : '#fff',
-
-
-
-                                            color: wbInputType === 'mill' ? '#fff' : '#475569',
-
-
-
-                                            cursor: 'pointer'
-
-
-
-                                          }}
-
-
-
-                                        >
-
-
-
-                                          Mill Weight Bridge
-
-
-
-                                        </button>
-
-
-
-                                        <button 
-
-
-
-                                          onClick={() => setWbInputType('party')}
-
-
-
-                                          style={{
-
-
-
-                                            padding: '4px 10px', fontSize: '11px', fontWeight: 'bold', borderRadius: '4px', border: '1px solid #cbd5e1',
-
-
-
-                                            background: wbInputType === 'party' ? '#1a237e' : '#fff',
-
-
-
-                                            color: wbInputType === 'party' ? '#fff' : '#475569',
-
-
-
-                                            cursor: 'pointer'
-
-
-
-                                          }}
-
-
-
-                                        >
-
-
-
-                                          Party Weight Bridge
-
-
-
-                                        </button>
-
-
-
-                                      </div>
 
 
 
@@ -7071,7 +6978,6 @@ const Arrivals: React.FC = () => {
 
 
 
-                                      {wbInputType === 'mill' ? (
 
 
 
@@ -7127,51 +7033,6 @@ const Arrivals: React.FC = () => {
 
 
 
-                                      ) : (
-
-
-
-                                        <div>
-
-
-
-                                          <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Party WB Name</label>
-
-
-
-                                          <input 
-
-
-
-                                            type="text" 
-
-
-
-                                            value={partyWbName}
-
-
-
-                                            onChange={(e) => setPartyWbName(e.target.value)}
-
-
-
-                                            placeholder="Enter Party WB name"
-
-
-
-                                            style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
-
-
-
-                                          />
-
-
-
-                                        </div>
-
-
-
-                                      )}
 
 
 
@@ -7437,7 +7298,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                          if (!wbNumber || (wbInputType === 'mill' && !millWbId) || (wbInputType === 'party' && !partyWbName)) {
+                                          if (!wbNumber || !millWbId) {
 
 
 
@@ -7497,15 +7358,15 @@ const Arrivals: React.FC = () => {
 
 
 
-                                              wbInputType,
+                                              wbInputType: 'mill',
 
 
 
-                                              millWbId: wbInputType === 'mill' ? millWbId : null,
+                                              millWbId,
 
 
 
-                                              partyWbName: wbInputType === 'party' ? partyWbName : null,
+                                              partyWbName: partyWbEnabled === 'yes' ? partyWbName : null,
 
 
 
@@ -7581,7 +7442,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                              wbInputType,
+                                              wbInputType: 'mill',
 
 
 
@@ -7601,7 +7462,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                            toast.success(wbInputType === 'mill' ? 'Mill Weight Bridge saved & submitted for approval!' : 'Party Weight Bridge saved successfully!');
+                                            toast.success('Weight Bridge saved & submitted for approval!');
 
 
 
