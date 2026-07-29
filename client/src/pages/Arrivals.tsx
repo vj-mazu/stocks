@@ -3846,6 +3846,12 @@ const Arrivals: React.FC = () => {
 
 
   const [partyWbEnabled, setPartyWbEnabled] = useState<'yes' | 'no' | ''>('');
+  const [partyWbNo, setPartyWbNo] = useState('');
+  const [partyWbDate, setPartyWbDate] = useState(new Date().toISOString().split('T')[0]);
+  const [partyGrossWeight, setPartyGrossWeight] = useState('');
+  const [partyTareWeight, setPartyTareWeight] = useState('');
+  const [partyNetWeight, setPartyNetWeight] = useState('');
+  const [partySute, setPartySute] = useState('');
 
 
 
@@ -6659,10 +6665,10 @@ const Arrivals: React.FC = () => {
                                         </div>
                                       ) : (<span style={{ fontSize: '9px', color: '#92400e', fontWeight: 'bold' }}>⏳ Pending</span>);
                                     } else if (wbSt === 'approved') {
-                                      return <div><span style={{ fontSize: '9px', color: '#16a34a', fontWeight: 'bold' }}>✅ WB Done</span>{!tDetail?.partyWbName ? <button onClick={() => { const rk = isPlaceholder ? 'p-' + entry.id : 'i-' + inspection?.id; if (selectedLorryForWB === rk) { setSelectedLorryForWB(null); setSelectedLorryInspection(null); } else { setSelectedLorryForWB(rk); setSelectedLorryForPlace(null); setSelectedLorryInspection(inspection || entry); setWbInputType('mill'); setWbNumber(''); setPartyWbName(''); setWbGrossWeight(''); setWbTareWeight(''); setWbNetWeight(''); setWbSute(''); setPartyWbEnabled(''); setWbDate(new Date().toISOString().split('T')[0]) } }} style={{ padding: '1px 4px', border: 'none', borderRadius: '3px', background: '#2563eb', color: '#fff', fontWeight: 'bold', fontSize: '8px', cursor: 'pointer', marginLeft: '4px' }}>+ Party WB</button> : null}</div>;
+                                      return <div><span style={{ fontSize: '9px', color: '#16a34a', fontWeight: 'bold' }}>✅ WB Done</span>{!tDetail?.partyWbName ? <button onClick={() => { const rk = isPlaceholder ? 'p-' + entry.id : 'i-' + inspection?.id; if (selectedLorryForWB === rk) { setSelectedLorryForWB(null); setSelectedLorryInspection(null); } else { setSelectedLorryForWB(rk); setSelectedLorryForPlace(null); setSelectedLorryInspection(inspection || entry); setWbInputType('mill'); setWbNumber(''); setPartyWbName(''); setWbGrossWeight(''); setWbTareWeight(''); setWbNetWeight(''); setWbSute(''); setPartyWbEnabled(''); setPartyWbNo(''); setPartyWbDate(new Date().toISOString().split('T')[0]); setPartyGrossWeight(''); setPartyTareWeight(''); setPartyNetWeight(''); setPartySute(''); setWbDate(new Date().toISOString().split('T')[0]) } }} style={{ padding: '1px 4px', border: 'none', borderRadius: '3px', background: '#2563eb', color: '#fff', fontWeight: 'bold', fontSize: '8px', cursor: 'pointer', marginLeft: '4px' }}>+ Party WB</button> : null}</div>;
                                     } else {
                                       return (
-                                        <button onClick={() => { const rk = isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id); if (selectedLorryForWB === rk) { setSelectedLorryForWB(null); setSelectedLorryEntries([]); setSelectedLorryInspection(null); } else { setSelectedLorryForWB(rk); setSelectedLorryForPlace(null); setSelectedLorryEntries([entry]); setSelectedLorryInspection(inspection || entry); setWbInputType('mill'); setWbNumber(tDetail?.wbNo || ''); setWbGrossWeight(''); setWbTareWeight(''); setWbNetWeight(''); setWbSute(''); setPartyWbEnabled(''); setWbDate(new Date().toISOString().split('T')[0]) } }} style={{ padding: '2px 5px', border: 'none', borderRadius: '3px', background: selectedLorryForWB === (isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id)) ? '#64748b' : 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer', whiteSpace: 'nowrap' }}>⚖️ WB</button>
+                                        <button onClick={() => { const rk = isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id); if (selectedLorryForWB === rk) { setSelectedLorryForWB(null); setSelectedLorryEntries([]); setSelectedLorryInspection(null); } else { setSelectedLorryForWB(rk); setSelectedLorryForPlace(null); setSelectedLorryEntries([entry]); setSelectedLorryInspection(inspection || entry); setWbInputType('mill'); setWbNumber(tDetail?.wbNo || ''); setWbGrossWeight(''); setWbTareWeight(''); setWbNetWeight(''); setWbSute(''); setPartyWbEnabled(''); setPartyWbNo(''); setPartyWbDate(new Date().toISOString().split('T')[0]); setPartyGrossWeight(''); setPartyTareWeight(''); setPartyNetWeight(''); setPartySute(''); setWbDate(new Date().toISOString().split('T')[0]) } }} style={{ padding: '2px 5px', border: 'none', borderRadius: '3px', background: selectedLorryForWB === (isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id)) ? '#64748b' : 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer', whiteSpace: 'nowrap' }}>⚖️ WB</button>
                                       );
                                     }
                                   })()}
@@ -7246,16 +7252,54 @@ const Arrivals: React.FC = () => {
                                     </div>
 
                                     {partyWbEnabled === 'yes' && (
-                                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', marginBottom: '14px', padding: '10px', background: '#fef3c7', borderRadius: '6px', border: '1px dashed #d97706' }}>
-                                        <div>
-                                          <label style={{ display: 'block', fontSize: '11px', color: '#92400e', fontWeight: 'bold', marginBottom: '4px' }}>Party WB Name</label>
-                                          <input
-                                            type="text"
-                                            value={partyWbName}
-                                            onChange={(e) => setPartyWbName(e.target.value)}
-                                            placeholder="Enter Party WB name"
-                                            style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px' }}
-                                          />
+                                      <div style={{ padding: '12px', background: '#fffbeb', borderRadius: '8px', border: '2px solid #f59e0b', marginBottom: '14px' }}>
+                                        <h5 style={{ margin: '0 0 10px 0', color: '#92400e', fontSize: '12px', fontWeight: 'bold', borderBottom: '1px solid #fcd34d', paddingBottom: '6px' }}>
+                                          &#x26A1; Party WeighBridge Details
+                                        </h5>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
+                                          <div>
+                                            <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Party WB Date</label>
+                                            <input type="date" value={partyWbDate} onChange={(e) => setPartyWbDate(e.target.value)}
+                                              style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px' }} />
+                                          </div>
+                                          <div>
+                                            <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Party WB Number</label>
+                                            <input type="text" value={partyWbNo} onChange={(e) => setPartyWbNo(e.target.value.toUpperCase())} placeholder="Party WB No"
+                                              style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px' }} />
+                                          </div>
+                                          <div>
+                                            <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Party WB Name</label>
+                                            <input type="text" value={partyWbName} onChange={(e) => setPartyWbName(e.target.value)} placeholder="Party WB Name"
+                                              style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px' }} />
+                                          </div>
+                                          <div>
+                                            <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Gross Weight (Kg)</label>
+                                            <input type="number" value={partyGrossWeight}
+                                              onChange={(e) => { const v = e.target.value; setPartyGrossWeight(v); if (v && partyTareWeight) setPartyNetWeight(String(Number(v) - Number(partyTareWeight))); }}
+                                              placeholder="Party Gross" style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px' }} />
+                                          </div>
+                                          <div>
+                                            <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Tare Weight (Kg)</label>
+                                            <input type="number" value={partyTareWeight}
+                                              onChange={(e) => { const v = e.target.value; setPartyTareWeight(v); if (partyGrossWeight && v) setPartyNetWeight(String(Number(partyGrossWeight) - Number(v))); }}
+                                              placeholder="Party Tare" style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px' }} />
+                                          </div>
+                                          <div>
+                                            <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Net Weight (Kg)</label>
+                                            <input type="text" value={partyNetWeight} disabled
+                                              style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px', background: '#fef3c7' }} />
+                                          </div>
+                                          <div>
+                                            <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Sute (Deduction)</label>
+                                            <input type="number" value={partySute} onChange={(e) => setPartySute(e.target.value)} placeholder="Party Sute"
+                                              style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px' }} />
+                                          </div>
+                                          <div>
+                                            <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Sute Net Weight</label>
+                                            <div style={{ padding: '6px 8px', background: '#fef3c7', border: '1.5px solid #d97706', borderRadius: '6px', fontWeight: '700', color: '#92400e', fontSize: '12px', textAlign: 'center' }}>
+                                              {((parseFloat(partyGrossWeight || 0) - parseFloat(partyTareWeight || 0) - parseFloat(partySute || 0)) || 0).toFixed(2)} Kg
+                                            </div>
+                                          </div>
                                         </div>
                                       </div>
                                     )}
@@ -7270,7 +7314,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                        onClick={() => setSelectedLorryForWB(null)}
+                                        onClick={() => { setSelectedLorryForWB(null); setPartyWbNo(''); setPartyWbDate(new Date().toISOString().split('T')[0]); setPartyGrossWeight(''); setPartyTareWeight(''); setPartyNetWeight(''); setPartySute(''); }}
 
 
 
@@ -9394,7 +9438,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                                setWbNetWeight(''); setWbSute(''); setPartyWbEnabled(''); setWbDate(new Date().toISOString().split('T')[0])
+                                                setWbNetWeight(''); setWbSute(''); setPartyWbEnabled(''); setPartyWbNo(''); setPartyWbDate(new Date().toISOString().split('T')[0]); setPartyGrossWeight(''); setPartyTareWeight(''); setPartyNetWeight(''); setPartySute(''); setWbDate(new Date().toISOString().split('T')[0])
 
 
 
@@ -11534,7 +11578,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                        setWbNetWeight('');; setWbSute(''); setPartyWbEnabled(''); setWbDate(new Date().toISOString().split('T')[0]) 
+                                        setWbNetWeight('');; setWbSute(''); setPartyWbEnabled(''); setPartyWbNo(''); setPartyWbDate(new Date().toISOString().split('T')[0]); setPartyGrossWeight(''); setPartyTareWeight(''); setPartyNetWeight(''); setPartySute(''); setWbDate(new Date().toISOString().split('T')[0]) 
 
 
 
