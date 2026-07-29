@@ -6670,21 +6670,44 @@ const Arrivals: React.FC = () => {
                                     const wbSt = tDetail?.wbStatus || '';
                                     const isApprov = user && ['admin', 'ceo', 'manager', 'inventory_head'].includes((user as any).role);
                                     if (wbSt === 'pending') {
+                                      const hasMillWb = tDetail?.millWbId;
+                                      const hasPartyWb = tDetail?.partyWbName || tDetail?.sampleEntry?.partyWbName;
                                       return isApprov ? (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center' }}>
-                                          <div style={{ fontSize: '8px', color: '#64748b', lineHeight: '1.3' }}>
-                                            {tDetail?.wbInputType === 'mill' ? (tDetail?.millWb?.name || tDetail?.millWeightBridge?.name || 'Mill WB') : (tDetail?.partyWbName || 'Party WB')}
-                                          </div>
-                                          <div style={{ fontSize: '8px', color: '#475569', lineHeight: '1.3' }}>
-                                            {tDetail?.wbNo ? `Slip: ${tDetail.wbNo}` : ''}
-                                          </div>
-                                          <div style={{ fontSize: '8px', color: '#475569', lineHeight: '1.3' }}>
-                                            {tDetail?.grossWeight ? `G: ${tDetail.grossWeight}Kg` : ''}
-                                            {tDetail?.tareWeight ? ` / T: ${tDetail.tareWeight}Kg` : ''}
-                                          </div>
-                                          <div style={{ fontSize: '9px', color: '#16a34a', fontWeight: 'bold' }}>
-                                            Net: {tDetail?.netWeight ? `${tDetail.netWeight} Kg` : '-'}
-                                          </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'center' }}>
+                                          {hasMillWb && (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', alignItems: 'center', background: '#fffbeb', padding: '3px 5px', borderRadius: '4px', border: '1px solid #fde68a' }}>
+                                              <div style={{ fontSize: '8px', color: '#b45309', fontWeight: 'bold', lineHeight: '1.3' }}>
+                                                {tDetail?.millWb?.name || tDetail?.millWeightBridge?.name ? `${tDetail.millWb?.name || tDetail.millWeightBridge?.name}` : 'Mill WB'}
+                                              </div>
+                                              <div style={{ fontSize: '7px', color: '#78716c', lineHeight: '1.2' }}>
+                                                {tDetail?.wbNo ? `Slip: ${tDetail.wbNo}` : ''}
+                                              </div>
+                                              <div style={{ fontSize: '7px', color: '#78716c', lineHeight: '1.2' }}>
+                                                {tDetail?.grossWeight ? `G: ${tDetail.grossWeight}Kg` : ''}
+                                                {tDetail?.tareWeight ? ` / T: ${tDetail.tareWeight}Kg` : ''}
+                                              </div>
+                                              <div style={{ fontSize: '8px', color: '#16a34a', fontWeight: 'bold' }}>
+                                                Net: {tDetail?.netWeight ? `${tDetail.netWeight} Kg` : '-'}
+                                              </div>
+                                            </div>
+                                          )}
+                                          {hasPartyWb && (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', alignItems: 'center', background: '#fdf2f8', padding: '3px 5px', borderRadius: '4px', border: '1px solid #f9a8d4' }}>
+                                              <div style={{ fontSize: '8px', color: '#9d174d', fontWeight: 'bold', lineHeight: '1.3' }}>
+                                                {tDetail?.partyWbName || tDetail?.sampleEntry?.partyWbName || 'Party WB'}
+                                              </div>
+                                              <div style={{ fontSize: '7px', color: '#78716c', lineHeight: '1.2' }}>
+                                                {tDetail?.sampleEntry?.wbNo || tDetail?.wbNo ? `Slip: ${tDetail.sampleEntry?.wbNo || tDetail.wbNo}` : ''}
+                                              </div>
+                                              <div style={{ fontSize: '7px', color: '#78716c', lineHeight: '1.2' }}>
+                                                {tDetail?.sampleEntry?.grossWeight ? `G: ${tDetail.sampleEntry.grossWeight}Kg` : ''}
+                                                {tDetail?.sampleEntry?.tareWeight ? ` / T: ${tDetail.sampleEntry.tareWeight}Kg` : ''}
+                                              </div>
+                                              <div style={{ fontSize: '8px', color: '#16a34a', fontWeight: 'bold' }}>
+                                                Net: {tDetail?.sampleEntry?.netWeight ? `${tDetail.sampleEntry.netWeight} Kg` : (tDetail?.netWeight ? `${tDetail.netWeight} Kg` : '-')}
+                                              </div>
+                                            </div>
+                                          )}
                                           <div style={{ display: 'flex', gap: '3px', justifyContent: 'center', marginTop: '2px' }}>
                                             <button onClick={() => handleApproveWb(inspection?.id || entry?.id, transitDetail)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>Approve WB</button>
                                             <button onClick={() => handleRejectWb(inspection?.id || entry?.id, transitDetail)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#ef4444', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>Reject WB</button>
