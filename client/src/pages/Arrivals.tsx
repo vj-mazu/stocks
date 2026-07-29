@@ -6025,6 +6025,10 @@ const Arrivals: React.FC = () => {
 
 
 
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Sute Net Wt</th>
+
+
+
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '12%' }}>Lorry Number</th>
 
 
@@ -6389,7 +6393,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                          `${netWeightVal}${suteVal ? ` (${suteVal})` : ''}` : '-';
+                          `${netWeightVal}` : '-';
 
 
 
@@ -6445,7 +6449,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                <td colSpan={9} style={{ padding: 0, height: '20px', backgroundColor: '#f1f5f9', border: 'none' }} />
+                                <td colSpan={10} style={{ padding: 0, height: '20px', backgroundColor: '#f1f5f9', border: 'none' }} />
 
 
 
@@ -6898,6 +6902,10 @@ const Arrivals: React.FC = () => {
 
 
 
+                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700', color: '#d97706' }}>{transitDetail?.suteNetWeight ? `${transitDetail.suteNetWeight} Kg` : '-'}</td>
+
+
+
                               <td style={{ border: '1px solid #000', padding: '5px', fontWeight: '800', color: '#1e40af' }}>{lorryNum.toUpperCase()}</td>
 
 
@@ -6925,7 +6933,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                <td colSpan={ (((user as any)?.role === 'inventory_staff' || (user as any)?.role === 'inventory_head' || (user as any)?.effectiveRole === 'inventory_head' || (user as any)?.role === 'ceo' || (user as any)?.effectiveRole === 'ceo' || (user as any)?.role === 'admin' || (user as any)?.role === 'manager') && !(user?.staffType === 'mill')) ? 12 : 12 } style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
+                                <td colSpan={ (((user as any)?.role === 'inventory_staff' || (user as any)?.role === 'inventory_head' || (user as any)?.effectiveRole === 'inventory_head' || (user as any)?.role === 'ceo' || (user as any)?.effectiveRole === 'ceo' || (user as any)?.role === 'admin' || (user as any)?.role === 'manager') && !(user?.staffType === 'mill')) ? 13 : 13 } style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
 
 
 
@@ -7629,7 +7637,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                <td colSpan={ (((user as any)?.role === 'inventory_staff' || (user as any)?.role === 'inventory_head' || (user as any)?.effectiveRole === 'inventory_head' || (user as any)?.role === 'ceo' || (user as any)?.effectiveRole === 'ceo' || (user as any)?.role === 'admin' || (user as any)?.role === 'manager') && !(user?.staffType === 'mill')) ? 12 : 12 } style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
+                                <td colSpan={ (((user as any)?.role === 'inventory_staff' || (user as any)?.role === 'inventory_head' || (user as any)?.effectiveRole === 'inventory_head' || (user as any)?.role === 'ceo' || (user as any)?.effectiveRole === 'ceo' || (user as any)?.role === 'admin' || (user as any)?.role === 'manager') && !(user?.staffType === 'mill')) ? 13 : 13 } style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
 
 
 
@@ -8569,6 +8577,10 @@ const Arrivals: React.FC = () => {
 
 
 
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Sute Net Wt</th>
+
+
+
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '12%' }}>Lorry Number</th>
 
 
@@ -8613,7 +8625,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                    const displayNetWeight = netWeightVal ? `${netWeightVal}${suteVal ? ` (${suteVal})` : ''}` : '-';
+                    const displayNetWeight = netWeightVal ? `${netWeightVal}` : '-';
 
 
 
@@ -9289,7 +9301,23 @@ const Arrivals: React.FC = () => {
 
 
 
-                            {entry.sute ? `${netWeightVal} Kg (${entry.sute})` : (netWeightVal ? `${netWeightVal} Kg` : '-')}
+                            {netWeightVal ? `${netWeightVal} Kg` : '-'}
+
+
+
+                          </td>
+
+
+
+                          {/* Column 12: Sute Net Weight */}
+
+
+
+                          <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700', color: '#d97706' }}>
+
+
+
+                            {detail?.suteNetWeight ? `${detail.suteNetWeight} Kg` : '-'}
 
 
 
@@ -9888,7 +9916,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                              <td colSpan={14} style={{ padding: '16px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
+                              <td colSpan={15} style={{ padding: '16px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
 
 
 
@@ -10912,7 +10940,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                            <td colSpan={14} style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
+                            <td colSpan={15} style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
 
 
 
