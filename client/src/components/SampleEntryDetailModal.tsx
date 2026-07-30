@@ -1173,43 +1173,43 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
 
     const renderHorizontalTable = (title: React.ReactNode, icon: string, headerColor: string, columns: string[], rows: any[], options: { isQuality?: boolean; compact?: boolean } = {}) => {
         if (rows.length === 0) return null;
-        const isCompact = options.compact === true;
+        const isCompact = options.compact === true || Boolean(detailEntry.isBandMalal || detailEntry.isBandMalalBook || detailEntry.transitDetailId || (detailEntry as any).isTransit);
 
         return (
-            <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #cbd5e1', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', width: isCompact ? 'fit-content' : '100%', maxWidth: '100%', alignSelf: 'flex-start' }}>
+            <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #cbd5e1', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', width: isCompact ? '100%' : '100%', maxWidth: '100%', alignSelf: 'flex-start', margin: isCompact ? '2px 0' : '8px 0' }}>
                 {/* Section Header - gradient bar */}
                 <div style={{
                     background: `linear-gradient(135deg, ${headerColor}, ${headerColor}cc)`,
-                    padding: '12px 18px',
+                    padding: isCompact ? '4px 8px' : '12px 18px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     gap: '8px'
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '17px' }}>{icon}</span>
-                        <span style={{ color: 'white', fontSize: '16px', fontWeight: 700, letterSpacing: '0.4px', fontStyle: 'italic' }}>{title}</span>
+                        <span style={{ fontSize: isCompact ? '13px' : '17px' }}>{icon}</span>
+                        <span style={{ color: 'white', fontSize: isCompact ? '12px' : '16px', fontWeight: 700, letterSpacing: '0.4px', fontStyle: 'italic' }}>{title}</span>
                     </div>
                     {options.isQuality && detailEntry.lorryNumber && getPartyDisplayParts(detailEntry).label !== detailEntry.lorryNumber.toUpperCase() && (
-                        <span style={{ color: 'white', fontSize: '16px', fontWeight: 900, letterSpacing: '1px' }}>
+                        <span style={{ color: 'white', fontSize: isCompact ? '12px' : '16px', fontWeight: 900, letterSpacing: '1px' }}>
                             {detailEntry.lorryNumber.toUpperCase()}
                         </span>
                     )}
                 </div>
                 {/* Table */}
-                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: isCompact ? 'fit-content' : '100%', maxWidth: '100%' }}>
-                    <table style={{ width: isCompact ? 'auto' : '100%', minWidth: isCompact ? '760px' : undefined, borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #000000' }}>
+                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%', maxWidth: '100%' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: isCompact ? '9.5px' : '11px', border: '1px solid #000000' }}>
                         <thead>
                             <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '2px solid #000000' }}>
                                 {columns.map((col, i) => {
                                     const name = col.toUpperCase().trim();
                                     const thStyle: React.CSSProperties = {
-                                        padding: '6px 4px',
+                                        padding: isCompact ? '3px 2px' : '6px 4px',
                                         textAlign: 'left',
                                         color: '#495057',
                                         fontWeight: 800,
                                         textTransform: 'uppercase',
-                                        fontSize: '10.5px',
+                                        fontSize: isCompact ? '9px' : '10.5px',
                                         whiteSpace: 'nowrap',
                                         letterSpacing: '0.2px',
                                         border: '1px solid #000000'
@@ -1285,7 +1285,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 if (row && row.type === 'header') {
                                     return (
                                         <tr key={i} style={{ backgroundColor: '#e2e8f0', borderBottom: '2px solid #cbd5e1' }}>
-                                            <td colSpan={columns.length} style={{ padding: '8px 10px', fontWeight: '800', color: '#1e293b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.4px', border: '1px solid #000000' }}>
+                                            <td colSpan={columns.length} style={{ padding: isCompact ? '4px 6px' : '8px 10px', fontWeight: '800', color: '#1e293b', fontSize: isCompact ? '10px' : '12px', textTransform: 'uppercase', letterSpacing: '0.4px', border: '1px solid #000000' }}>
                                                 {row.content}
                                             </td>
                                         </tr>
@@ -1293,8 +1293,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 }
                                 if (row && row.type === 'spacer') {
                                     return (
-                                        <tr key={i} style={{ height: '8px', backgroundColor: 'transparent' }}>
-                                            <td colSpan={columns.length} style={{ padding: 0, height: '8px', border: 'none' }}></td>
+                                        <tr key={i} style={{ height: isCompact ? '2px' : '8px', backgroundColor: 'transparent' }}>
+                                            <td colSpan={columns.length} style={{ padding: 0, height: isCompact ? '2px' : '8px', border: 'none' }}></td>
                                         </tr>
                                     );
                                 }
@@ -1311,11 +1311,11 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         {row.map((cell: any, j: number) => {
                                             const colName = columns[j] || '';
                                             const cellStyle: React.CSSProperties = {
-                                                padding: '6px 4px',
+                                                padding: isCompact ? '3px 2px' : '6px 4px',
                                                 color: '#1e293b',
                                                 fontWeight: j === 0 ? 700 : 500,
                                                 whiteSpace: j === 0 || j === 1 || j === 2 || colName === 'ACTIONS' ? 'normal' : 'nowrap',
-                                                fontSize: '11px',
+                                                fontSize: isCompact ? '9.5px' : '11px',
                                                 border: '1px solid #000000',
                                             };
                                             
@@ -3737,15 +3737,17 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
 
     if (!detailEntry) return null;
 
+    const isCompact = Boolean(detailEntry.isBandMalal || detailEntry.isBandMalalBook || detailEntry.transitDetailId || (detailEntry as any).isTransit);
+
     return (
         <>
             {/* Detail Popup — same design as AdminSampleBook */}
             {
                 detailEntry && (() => {
                     return (
-                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '12px 8px' }}
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: isCompact ? '4px' : '12px 8px' }}
                         onClick={() => setDetailEntry(null)}>
-                        <div style={{ backgroundColor: 'white', borderRadius: '8px', width: '96vw', maxWidth: '1400px', maxHeight: '90vh', overflowY: 'auto', overflowX: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}
+                        <div style={{ backgroundColor: 'white', borderRadius: '8px', width: '98vw', maxWidth: '1500px', maxHeight: '98vh', overflowY: 'auto', overflowX: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}
                             onClick={e => e.stopPropagation()}>
                             {/* Redesigned Header — Green Background, Aligned Items */}
                             <div style={{
@@ -3754,45 +3756,45 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                     : detailEntry.entryType === 'LOCATION_SAMPLE'
                                         ? '#e67e22'
                                         : '#4caf50',
-                                padding: '16px 20px', borderRadius: '8px 8px 0 0', color: 'white',
+                                padding: isCompact ? '6px 12px' : '16px 20px', borderRadius: '8px 8px 0 0', color: 'white',
                                 position: 'relative'
                             }}>
-                                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginBottom: '4px' }}>
-                                    <div style={{ fontSize: '13px', fontWeight: '800', opacity: 0.9, textAlign: 'left' }}>
+                                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginBottom: isCompact ? '2px' : '4px' }}>
+                                    <div style={{ fontSize: isCompact ? '11px' : '13px', fontWeight: '800', opacity: 0.9, textAlign: 'left' }}>
                                         {new Date(detailEntry.entryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
                                     </div>
-                                    <div style={{ fontSize: '18px', fontWeight: '900', letterSpacing: '1.5px', textTransform: 'uppercase', textAlign: 'center' }}>
+                                    <div style={{ fontSize: isCompact ? '13px' : '18px', fontWeight: '900', letterSpacing: '1.5px', textTransform: 'uppercase', textAlign: 'center' }}>
                                         {detailEntry.entryType === 'DIRECT_LOADED_VEHICLE' ? 'Ready Lorry' : detailEntry.entryType === 'LOCATION_SAMPLE' ? 'Location Sample' : 'Mill Sample'}
                                     </div>
                                     <div></div>
                                 </div>
                                 <div style={{
-                                    fontSize: '28px', fontWeight: '900', letterSpacing: '-0.5px', marginTop: '4px',
+                                    fontSize: isCompact ? '18px' : '28px', fontWeight: '900', letterSpacing: '-0.5px', marginTop: isCompact ? '2px' : '4px',
                                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '85%'
                                 }}>
                                     {toTitleCase(detailEntry.brokerName) || '-'}
                                 </div>
                                 <button onClick={() => setDetailEntry(null)} style={{
-                                    position: 'absolute', top: '16px', right: '16px',
+                                    position: 'absolute', top: isCompact ? '8px' : '16px', right: isCompact ? '8px' : '16px',
                                     background: 'rgba(255,255,255,0.25)', border: 'none', borderRadius: '50%',
-                                    width: '32px', height: '32px', cursor: 'pointer', fontSize: '16px',
+                                    width: isCompact ? '24px' : '32px', height: isCompact ? '24px' : '32px', cursor: 'pointer', fontSize: isCompact ? '12px' : '16px',
                                     color: 'white', fontWeight: '900', display: 'flex', alignItems: 'center',
                                     justifyContent: 'center', transition: 'all 0.2s',
                                     boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
                                 }}>✕</button>
                             </div>
-                            <div style={{ padding: '20px', backgroundColor: '#fff', borderBottomLeftRadius: '10px', borderBottomRightRadius: '10px', position: 'relative' }}>
+                            <div style={{ padding: isCompact ? '8px' : '20px', backgroundColor: '#fff', borderBottomLeftRadius: '10px', borderBottomRightRadius: '10px', position: 'relative' }}>
                                 {/* Basic Info Grid */}
-                                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '16px', maxWidth: '100%' }}>
+                                <div  className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: isCompact ? '4px' : '12px', marginBottom: isCompact ? '6px' : '16px', maxWidth: '100%' }}>
                                     {[
                                         ['Date', new Date(detailEntry.entryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })],
                                         ['Total Bags', detailEntry.bags?.toLocaleString('en-IN')],
                                         ['Packaging', `${detailEntry.packaging || '75'} Kg`],
                                         ['Variety', toTitleCase(detailEntry.variety || '-')],
                                     ].map(([label, value], i) => (
-                                        <div key={i} style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                            <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
-                                            <div style={{ fontSize: '17px', fontWeight: '700', color: '#1e293b' }}>{value || '-'}</div>
+                                        <div key={i} style={{ background: '#f8fafc', padding: isCompact ? '4px 6px' : '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                            <div style={{ fontSize: isCompact ? '10px' : '12px', color: '#64748b', marginBottom: isCompact ? '2px' : '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
+                                            <div style={{ fontSize: isCompact ? '14px' : '17px', fontWeight: '700', color: '#1e293b' }}>{value || '-'}</div>
                                         </div>
                                     ))}
                                 </div>
@@ -3803,12 +3805,12 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         (getPopupSmellSummary(detailEntry as any) ? 1 : 0) +
                                         (detailEntry.lotAllotment?.supervisor ? 1 : 0)
                                     }, 1fr)`,
-                                    gap: '12px',
-                                    marginBottom: '24px',
+                                    gap: isCompact ? '4px' : '12px',
+                                    marginBottom: isCompact ? '8px' : '24px',
                                     maxWidth: '100%'
                                 }}>
-                                    <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                        <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    <div style={{ background: '#f8fafc', padding: isCompact ? '4px 6px' : '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                        <div style={{ fontSize: isCompact ? '10px' : '12px', color: '#64748b', marginBottom: isCompact ? '2px' : '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                                             {detailEntry.entryType === 'DIRECT_LOADED_VEHICLE' || (detailEntry.partyName || '').toUpperCase() === 'DIRECT LOADED VEHICLE' ? 'Lorry Number' : 'Party Name'}
                                         </div>
                                         {(() => {
@@ -3893,8 +3895,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             );
                                         })()}
                                     </div>
-                                    <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                        <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Location</div>
+                                    <div style={{ background: '#f8fafc', padding: isCompact ? '4px 6px' : '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                        <div style={{ fontSize: isCompact ? '10px' : '12px', color: '#64748b', marginBottom: isCompact ? '2px' : '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Location</div>
                                         {(() => {
                                             const locationName = toTitleCase(detailEntry.location || '').trim();
                                             const hasLocation = locationName && locationName !== '-';
@@ -3920,13 +3922,13 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                     console.error('Error fetching location entries:', err);
                                                                 }
                                                             }}
-                                                            style={{ fontSize: '17px', fontWeight: '700', color: '#1565c0', cursor: 'pointer', textDecoration: 'underline' }}
+                                                            style={{ fontSize: isCompact ? '14px' : '17px', fontWeight: '700', color: '#1565c0', cursor: 'pointer', textDecoration: 'underline' }}
                                                             title={`Click to view all entries at ${locationName}`}
                                                         >
                                                             {locationName}
                                                         </span>
                                                     ) : (
-                                                        <div style={{ fontSize: '17px', fontWeight: '700', color: '#1e293b' }}>{toTitleCase(detailEntry.location || '-')}</div>
+                                                        <div style={{ fontSize: isCompact ? '14px' : '17px', fontWeight: '700', color: '#1e293b' }}>{toTitleCase(detailEntry.location || '-')}</div>
                                                     )}
                                                     {detailEntry.entryType === 'LOCATION_SAMPLE' && (detailEntry as any).gpsCoordinates && (() => {
                                                         const gps = (detailEntry as any).gpsCoordinates;
@@ -3937,7 +3939,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                 target="_blank"
                                                                 rel="noopener noreferrer"
                                                                 title="View on Map"
-                                                                style={{ fontSize: '14px', textDecoration: 'none' }}
+                                                                style={{ fontSize: isCompact ? '12px' : '14px', textDecoration: 'none' }}
                                                             >
                                                                 📍
                                                             </a>
@@ -3947,8 +3949,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             );
                                         })()}
                                     </div>
-                                    <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                        <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Collected By</div>
+                                    <div style={{ background: '#f8fafc', padding: isCompact ? '4px 6px' : '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                        <div style={{ fontSize: isCompact ? '10px' : '12px', color: '#64748b', marginBottom: isCompact ? '2px' : '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Collected By</div>
                                         {(() => {
                                             const collectedByDisplay = getCollectedByDisplay(detailEntry);
                                             if (collectedByDisplay.secondary) {
@@ -3957,7 +3959,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                         {(() => {
                                                             const primaryLine = splitCollectedByLine(collectedByDisplay.primary);
                                                             return (
-                                                                <span style={{ fontSize: '17px', fontWeight: '700' }}>
+                                                                <span style={{ fontSize: isCompact ? '14px' : '17px', fontWeight: '700' }}>
                                                                     <span style={{ color: collectedByDisplay.highlightPrimary ? '#9c27b0' : '#1e293b' }}>{primaryLine.text}</span>
                                                                     {primaryLine.accent ? <><span style={{ color: '#94a3b8' }}> | </span><span style={{ color: '#9c27b0' }}>{primaryLine.accent}</span></> : null}
                                                                 </span>
@@ -3967,7 +3969,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                         {(() => {
                                                             const secondaryLine = splitCollectedByLine(collectedByDisplay.secondary);
                                                             return (
-                                                                <span style={{ fontSize: '14px', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                <span style={{ fontSize: isCompact ? '12px' : '14px', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                     <span style={{ color: collectedByDisplay.highlightSecondary ? '#9c27b0' : '#333' }}>{secondaryLine.text}</span>
                                                                     {secondaryLine.accent ? <><span style={{ color: '#94a3b8' }}> | </span><span style={{ color: '#9c27b0' }}>{secondaryLine.accent}</span></> : null}
                                                                 </span>
@@ -3980,7 +3982,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                 (() => {
                                                     const primaryLine = splitCollectedByLine(collectedByDisplay.primary);
                                                     return (
-                                                        <div style={{ fontSize: '17px', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                        <div style={{ fontSize: isCompact ? '14px' : '17px', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                             <span style={{ color: collectedByDisplay.highlightPrimary ? '#9c27b0' : '#1e293b' }}>{primaryLine.text}</span>
                                                             {primaryLine.accent ? <><span style={{ color: '#94a3b8' }}> | </span><span style={{ color: '#9c27b0' }}>{primaryLine.accent}</span></> : null}
                                                         </div>
@@ -4010,8 +4012,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         })()}
                                     </div>
                                 </div>
-                                {/* Standardized Horizontal Tables Section */}
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+                                 {/* Standardized Horizontal Tables Section */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: isCompact ? '4px' : '16px', marginTop: isCompact ? '4px' : '16px' }}>
                                     {/* 1. Lorry Load Details (Progressive Loads) for Band Mall Book */}
                                     {(detailEntry as any).isBandMalalBook && (() => {
                                         const insps = (inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections)
@@ -4023,7 +4025,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             });
                                         if (insps.length === 0) return null;
                                         return (
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '10px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: isCompact ? '4px' : '15px', marginTop: isCompact ? '2px' : '10px' }}>
                                                 {insps.map((insp: any, idx: number) => {
                                                     const stages = insp.samplingStages || {};
                                                     const bagsLoaded = getApprovedFullAvgBags(stages, insp.bags);
@@ -4048,7 +4050,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
 
                                     {/* 2. Mill Quality Parameters (Inventory Quality) */}
                                     {(detailEntry as any).isBandMalalBook && (detailEntry as any).inventoryQualityParameters && (detailEntry as any).inventoryQualityParameters.length > 0 && (
-                                        <div style={{ marginTop: '8px' }}>
+                                        <div style={{ marginTop: isCompact ? '2px' : '8px' }}>
                                             {renderHorizontalTable(
                                                 'Mill Quality Parameters', 
                                                 '🔬', 
@@ -4061,7 +4063,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                     )}
 
                                     {/* 3. Quality Parameters (Sample entry details) */}
-                                    <div style={{ position: 'sticky', top: '0', zIndex: 20, backgroundColor: '#ffffff', paddingBottom: '10px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+                                    <div style={{ position: isCompact ? 'relative' : 'sticky', top: '0', zIndex: 20, backgroundColor: '#ffffff', paddingBottom: isCompact ? '2px' : '10px', boxShadow: isCompact ? 'none' : '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
                                         {renderHorizontalTable(
                                             'Quality Parameters', 
                                             '🔬', 
@@ -4074,146 +4076,163 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         )}
                                     </div>
 
-                                    {/* 4. Weight Bridge & Godown Details for Band Mall Book */}
-                                    {(detailEntry as any).isBandMalalBook && (() => {
-                                        const hasPartyWb = !!((detailEntry as any).sampleEntry?.partyWbName || (detailEntry as any).partyWbName);
+                                    {/* 4. Weight Bridge & Godown Details for Band Mall Book and In-Transit */}
+                                    {((detailEntry as any).isBandMalalBook || (detailEntry as any).wbNo || (detailEntry as any).wbStatus) && (() => {
+                                        const de = detailEntry as any;
+                                        // Mill WB name comes ONLY from the WeightBridge machine relation (millWeightBridge)
+                                        // partyWbName is the party's own WB name - must NOT show in Mill WB row
+                                        const millWbName = de.millWeightBridge?.location
+                                            ? `${de.millWeightBridge.name} (${de.millWeightBridge.location})`
+                                            : (de.millWeightBridge?.name || '-');
+                                        const millWbNo = de.wbNo || '-';
+                                        const millGross = de.grossWeight ? `${de.grossWeight} Kg` : '-';
+                                        const millTare = de.tareWeight ? `${de.tareWeight} Kg` : '-';
+                                        const millNet = de.netWeight ? `${de.netWeight} Kg` : '-';
+                                        const millSute = (de.sute != null && de.sute !== '') ? de.sute : '-';
+                                        const millSuteNet = de.suteNetWeight ? `${de.suteNetWeight} Kg` : '-';
+                                        const millStatus = de.wbStatus && de.wbStatus !== 'none' ? toTitleCase(de.wbStatus) : '-';
+                                        // wbAddedBy is now a resolved object {fullName, username} from the API
+                                        const millAddedBy = de.wbAddedBy?.fullName || de.wbAddedBy?.username || '-';
+                                        const millAddedAt = de.wbAddedAt || de.createdAt || null;
+
+                                        // Party WB — fields come directly on the object (not nested in sampleEntry) for In-Transit
+                                        const hasPartyWb = !!(de.partyWbName && (de.partyWbEnabled === 'yes' || de.partyGrossWeight || de.partyNetWeight || (de.sampleEntry?.partyWbName && de.sampleEntry?.grossWeight)));
+                                        const partyWbName = de.partyWbName || de.sampleEntry?.partyWbName || '-';
+                                        const partyWbNo = de.partyWbNo || de.sampleEntry?.partyWbNo || '-';
+                                        const partyGross = de.partyGrossWeight ? `${de.partyGrossWeight} Kg` : (de.sampleEntry?.grossWeight ? `${de.sampleEntry.grossWeight} Kg` : '-');
+                                        const partyTare = de.partyTareWeight ? `${de.partyTareWeight} Kg` : (de.sampleEntry?.tareWeight ? `${de.sampleEntry.tareWeight} Kg` : '-');
+                                        const partyNet = de.partyNetWeight ? `${de.partyNetWeight} Kg` : (de.sampleEntry?.netWeight ? `${de.sampleEntry.netWeight} Kg` : '-');
+                                        const partySute = (de.partySute != null && de.partySute !== '') ? de.partySute : '-';
+                                        const partySuteNet = de.partySuteNetWeight ? `${de.partySuteNetWeight} Kg` : '-';
+                                        const partyStatus = de.wbStatus && de.wbStatus !== 'none' ? toTitleCase(de.wbStatus) : '-';
+                                        const partyAddedBy = de.wbAddedBy?.fullName || de.wbAddedBy?.username || '-';
+                                        const partyAddedAt = de.partyWbDate || de.wbAddedAt || null;
+
+
+                                        const fmtDt = (dt: any) => {
+                                            if (!dt) return '-';
+                                            try {
+                                                const d = new Date(dt);
+                                                const date = d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Kolkata' });
+                                                const time = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' }).toLowerCase();
+
+                                                return `${date} ${time}`;
+                                            } catch { return '-'; }
+                                        };
+
+                                        const placeType = de.placeType === 'production' ? 'Production' : de.placeType === 'kunchinittu' ? 'Kunchinittu' : (de.placeType || '-');
+                                        const placeLocation = (() => {
+                                            if (de.placeType === 'production' && de.outturn) return `Outturn: ${de.outturn.code}`;
+                                            if (de.placeType === 'kunchinittu') {
+                                                const kc = de.placeKunchinittuData?.name || de.toKunchinittu?.name || '';
+                                                const wh = de.placeWarehouse?.name || de.toWarehouse?.name || '';
+                                                return kc && wh ? `${kc} (${wh})` : (kc || wh || '-');
+                                            }
+                                            return de.godown || '-';
+                                        })();
+                                        const placeStatus = de.placeStatus && de.placeStatus !== 'none' ? toTitleCase(de.placeStatus) : '-';
+                                        const placeApprover = de.placeApprover?.fullName || de.placeApprover?.username || de.placeApproverUser?.fullName || de.placeApproverUser?.username || '-';
+                                        const placeDate = de.placeApprovedAt ? fmtDt(de.placeApprovedAt) : (de.placeDate ? fmtDt(de.placeDate) : '-');
+
+
+                                        const thS: React.CSSProperties = { padding: '6px 8px', fontWeight: 800, fontSize: '10.5px', textTransform: 'uppercase', letterSpacing: '0.3px', textAlign: 'center', border: '1px solid #000', whiteSpace: 'nowrap', color: '#fff' };
+                                        const tdS: React.CSSProperties = { padding: '6px 8px', fontSize: '12px', fontWeight: '600', textAlign: 'center', border: '1px solid #000', whiteSpace: 'nowrap' };
+                                        const labelS: React.CSSProperties = { padding: '6px 8px', fontSize: '11.5px', fontWeight: '700', textAlign: 'left', border: '1px solid #000', whiteSpace: 'nowrap' };
+
                                         return (
-                                            <div style={{ display: 'grid', gridTemplateColumns: hasPartyWb ? '1fr 1fr 1fr' : '1fr 1fr', gap: '16px', marginTop: '16px' }}>
-                                                {/* Mill Weight Bridge Card */}
-                                                <div style={{ background: '#f0fdf4', padding: '16px', borderRadius: '12px', border: '1.5px solid #bbf7d0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                                                    <div style={{ fontSize: '13px', color: '#15803d', marginBottom: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                        <span>🏢</span> Mill Weight Bridge Details
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+
+                                                {/* Weight Bridge Table */}
+                                                <div>
+                                                    <div style={{ backgroundColor: '#15803d', color: '#fff', padding: '8px 12px', fontWeight: '800', fontSize: '12px', borderTopLeftRadius: '6px', borderTopRightRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        <span>⚖️</span> Weight Bridge Details
                                                     </div>
-                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                                                        <div>
-                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>WB Name</div>
-                                                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                                                                {(detailEntry as any).millWb?.location ? `${(detailEntry as any).millWb.name} (${(detailEntry as any).millWb.location})` : ((detailEntry as any).millWb?.name || '-')}
-                                                            </div>
-                                                        </div>
-                                                        <div>
-                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>WB Number</div>
-                                                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                                                                {(detailEntry as any).wbNo || 'PENDING'}
-                                                            </div>
-                                                        </div>
-                                                        <div>
-                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Gross Weight</div>
-                                                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                                                                {(detailEntry as any).grossWeight ? `${(detailEntry as any).grossWeight} Kg` : '-'}
-                                                            </div>
-                                                        </div>
-                                                        <div>
-                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Tare Weight</div>
-                                                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                                                                {(detailEntry as any).tareWeight ? `${(detailEntry as any).tareWeight} Kg` : '-'}
-                                                            </div>
-                                                        </div>
-                                                        <div>
-                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Net Weight</div>
-                                                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                                                                {(detailEntry as any).netWeight ? `${(detailEntry as any).netWeight} Kg` : '-'}
-                                                            </div>
-                                                        </div>
-                                                        <div>
-                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>WB Status</div>
-                                                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                                                                {(detailEntry as any).wbStatus ? toTitleCase((detailEntry as any).wbStatus) : '-'}
-                                                            </div>
-                                                        </div>
+                                                    <div style={{ overflowX: 'auto' }}>
+                                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #000' }}>
+                                                            <thead>
+                                                                <tr style={{ background: '#15803d' }}>
+                                                                    <th style={{ ...thS, textAlign: 'left', width: '90px' }}>TYPE</th>
+                                                                    <th style={thS}>WB NAME</th>
+                                                                    <th style={thS}>WB NO.</th>
+                                                                    <th style={thS}>GROSS (Kg)</th>
+                                                                    <th style={thS}>TARE (Kg)</th>
+                                                                    <th style={thS}>NET (Kg)</th>
+                                                                    <th style={thS}>SUTE</th>
+                                                                    <th style={thS}>SUTE NET (Kg)</th>
+                                                                    <th style={thS}>STATUS</th>
+                                                                    <th style={thS}>ADDED BY</th>
+                                                                    <th style={thS}>DATE & TIME</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr style={{ background: '#f0fdf4' }}>
+                                                                    <td style={{ ...labelS, background: '#dcfce7', color: '#15803d' }}>🏢 Mill WB</td>
+                                                                    <td style={tdS}>{millWbName}</td>
+                                                                    <td style={{ ...tdS, fontWeight: '800', color: '#1e293b' }}>{millWbNo}</td>
+                                                                    <td style={tdS}>{millGross}</td>
+                                                                    <td style={tdS}>{millTare}</td>
+                                                                    <td style={{ ...tdS, fontWeight: '800', color: '#059669' }}>{millNet}</td>
+                                                                    <td style={tdS}>{millSute}</td>
+                                                                    <td style={{ ...tdS, fontWeight: '800', color: '#0369a1' }}>{millSuteNet}</td>
+                                                                    <td style={{ ...tdS, color: millStatus === 'Approved' ? '#15803d' : millStatus === 'Pending' ? '#d97706' : '#1e293b', fontWeight: '700' }}>{millStatus}</td>
+                                                                    <td style={{ ...tdS, color: '#7c3aed' }}>{millAddedBy}</td>
+                                                                    <td style={{ ...tdS, fontSize: '10.5px', color: '#64748b' }}>{fmtDt(millAddedAt)}</td>
+                                                                </tr>
+                                                                {hasPartyWb && (
+                                                                    <tr style={{ background: '#fffbeb' }}>
+                                                                        <td style={{ ...labelS, background: '#fef3c7', color: '#b45309' }}>⚖️ Party WB</td>
+                                                                        <td style={tdS}>{partyWbName}</td>
+                                                                        <td style={{ ...tdS, fontWeight: '800', color: '#1e293b' }}>{partyWbNo}</td>
+                                                                        <td style={tdS}>{partyGross}</td>
+                                                                        <td style={tdS}>{partyTare}</td>
+                                                                        <td style={{ ...tdS, fontWeight: '800', color: '#059669' }}>{partyNet}</td>
+                                                                        <td style={tdS}>{partySute}</td>
+                                                                        <td style={{ ...tdS, fontWeight: '800', color: '#0369a1' }}>{partySuteNet}</td>
+                                                                        <td style={{ ...tdS, color: partyStatus === 'Approved' ? '#15803d' : partyStatus === 'Pending' ? '#d97706' : '#1e293b', fontWeight: '700' }}>{partyStatus}</td>
+                                                                        <td style={{ ...tdS, color: '#7c3aed' }}>{partyAddedBy}</td>
+                                                                        <td style={{ ...tdS, fontSize: '10.5px', color: '#64748b' }}>{fmtDt(partyAddedAt)}</td>
+                                                                    </tr>
+                                                                )}
+                                                            </tbody>
+                                                        </table>
                                                     </div>
                                                 </div>
 
-                                                {hasPartyWb && (
-                                                    <div style={{ background: '#fffbeb', padding: '16px', borderRadius: '12px', border: '1.5px solid #fef3c7', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                                                        <div style={{ fontSize: '13px', color: '#b45309', marginBottom: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                            <span>⚖️</span> Party Weight Bridge Details
+                                                {/* Godown / Place Details Table */}
+                                                {(de.placeType || de.godown || de.placeStatus) && (
+                                                    <div>
+                                                        <div style={{ backgroundColor: '#6d28d9', color: '#fff', padding: '8px 12px', fontWeight: '800', fontSize: '12px', borderTopLeftRadius: '6px', borderTopRightRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                            <span>📍</span> Godown / Place Details
                                                         </div>
-                                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                                                            <div style={{ gridColumn: 'span 2' }}>
-                                                                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>WB Name</div>
-                                                                <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                                                                    {(detailEntry as any).sampleEntry?.partyWbName || (detailEntry as any).partyWbName || '-'}
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>WB Number</div>
-                                                                <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                                                                    {(detailEntry as any).sampleEntry?.wbNo || '-'}
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Gross Weight</div>
-                                                                <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                                                                    {(detailEntry as any).sampleEntry?.grossWeight ? `${(detailEntry as any).sampleEntry?.grossWeight} Kg` : '-'}
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Tare Weight</div>
-                                                                <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                                                                    {(detailEntry as any).sampleEntry?.tareWeight ? `${(detailEntry as any).sampleEntry?.tareWeight} Kg` : '-'}
-                                                                </div>
-                                                            </div>
-                                                            <div style={{ gridColumn: 'span 2' }}>
-                                                                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Net Weight</div>
-                                                                <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                                                                    {(detailEntry as any).sampleEntry?.netWeight ? `${(detailEntry as any).sampleEntry?.netWeight} Kg` : '-'}
-                                                                </div>
-                                                            </div>
+                                                        <div style={{ overflowX: 'auto' }}>
+                                                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #000' }}>
+                                                                <thead>
+                                                                    <tr style={{ background: '#6d28d9' }}>
+                                                                        <th style={thS}>DESTINATION TYPE</th>
+                                                                        <th style={thS}>LOCATION / GODOWN</th>
+                                                                        <th style={thS}>PLACE STATUS</th>
+                                                                        <th style={thS}>APPROVED BY</th>
+                                                                        <th style={thS}>DATE & TIME</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    <tr style={{ background: '#faf5ff' }}>
+                                                                        <td style={{ ...tdS, fontWeight: '700', color: '#6d28d9' }}>{placeType}</td>
+                                                                        <td style={{ ...tdS, fontWeight: '700', color: '#1e293b' }}>{placeLocation}</td>
+                                                                        <td style={{ ...tdS, color: placeStatus === 'Placed' ? '#15803d' : placeStatus === 'Pending' ? '#d97706' : '#1e293b', fontWeight: '700' }}>{placeStatus}</td>
+                                                                        <td style={{ ...tdS, color: '#7c3aed' }}>{placeApprover}</td>
+                                                                        <td style={{ ...tdS, fontSize: '10.5px', color: '#64748b' }}>{placeDate}</td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
                                                         </div>
                                                     </div>
                                                 )}
 
-                                                {/* Place Card */}
-                                                <div style={{ background: '#faf5ff', padding: '16px', borderRadius: '12px', border: '1.5px solid #e9d5ff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                                                    <div style={{ fontSize: '13px', color: '#6d28d9', marginBottom: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                        <span>📍</span> Godown Details
-                                                    </div>
-                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                                                        <div>
-                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Destination Type</div>
-                                                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                                                                {(detailEntry as any).placeType === 'production' ? 'Production' : (detailEntry as any).placeType === 'kunchinittu' ? 'Kunchinittu' : '-'}
-                                                            </div>
-                                                        </div>
-                                                        <div>
-                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Location Name</div>
-                                                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                                                                {(() => {
-                                                                    if ((detailEntry as any).placeType === 'production' && (detailEntry as any).outturn) {
-                                                                        return `Outturn: ${(detailEntry as any).outturn.code}`;
-                                                                    } else if ((detailEntry as any).placeType === 'kunchinittu') {
-                                                                        const kc = (detailEntry as any).placeKunchinittuData?.name || (detailEntry as any).toKunchinittu?.name || '';
-                                                                        const wh = (detailEntry as any).placeWarehouse?.name || (detailEntry as any).toWarehouse?.name || '';
-                                                                        return kc && wh ? `${kc} (${wh})` : (kc || wh || '-');
-                                                                    }
-                                                                    return '-';
-                                                                })()}
-                                                            </div>
-                                                        </div>
-                                                        <div>
-                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Place Status</div>
-                                                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                                                                {(detailEntry as any).placeStatus ? toTitleCase((detailEntry as any).placeStatus) : '-'}
-                                                            </div>
-                                                        </div>
-                                                        <div>
-                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Approved By</div>
-                                                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                                                                {(detailEntry as any).placeApprover?.username || (detailEntry as any).placeApproverUser?.username || (detailEntry as any).placeApproverUser?.fullName || (detailEntry as any).placeApprover?.fullName || '-'}
-                                                            </div>
-                                                        </div>
-                                                        <div style={{ gridColumn: 'span 2' }}>
-                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Place Date</div>
-                                                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                                                                {(detailEntry as any).placeDate ? new Date((detailEntry as any).placeDate).toLocaleDateString('en-GB') : '-'}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
                                             </div>
                                         );
                                     })()}
+
 
                                     {/* 5. Patti Rate Linking Details */}
                                     {(detailEntry as any).isBandMalalBook && (() => {

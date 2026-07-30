@@ -1865,6 +1865,15 @@ const startServer = async () => {
         console.log('⚠️ Migration 148 warning:', error.message);
       }
 
+      // Migration 149: Repair lorry_transit_details and inventory_quality_parameters tables
+      try {
+        const fixLorryTransitAndQuality = require('./migrations/149_fix_lorry_transit_details_and_quality_parameters');
+        await fixLorryTransitAndQuality.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('✅ Migration 149: Lorry transit details and quality parameter tables repaired');
+      } catch (error) {
+        console.log('⚠️ Migration 149 warning:', error.message);
+      }
+
     // Default warehouses removed - users should create their own warehouses
 
     // Create default users if they don't exist

@@ -2,14 +2,18 @@ const express = require('express');
 const { Op, Sequelize } = require('sequelize');
 const { sequelize } = require('../config/database');
 const { auth } = require('../middleware/auth');
-const LorryTransitDetail = require('../models/LorryTransitDetail');
-const PhysicalInspection = require('../models/PhysicalInspection');
-const SampleEntry = require('../models/SampleEntry');
-const Arrival = require('../models/Arrival');
-const User = require('../models/User');
-const Outturn = require('../models/Outturn');
-const WeightBridge = require('../models/WeightBridge');
-const { Warehouse, Kunchinittu } = require('../models/Location');
+const { requireApproverRole } = require('../middleware/roleAuth');
+const {
+  LorryTransitDetail,
+  PhysicalInspection,
+  SampleEntry,
+  Arrival,
+  User,
+  Outturn,
+  WeightBridge,
+  Warehouse,
+  Kunchinittu
+} = require('../models');
 const cacheService = require('../services/cacheService');
 
 // Initialize all associations globally
@@ -232,6 +236,16 @@ router.get('/in-transit', auth, async (req, res) => {
           ? await WeightBridge.findByPk(detail.millWbId, { attributes: ['id', 'name', 'location'] })
           : null;
 
+        // Resolve wbAddedBy user name
+        const wbAddedByUser = detail.wbAddedBy
+          ? await User.findByPk(detail.wbAddedBy, { attributes: ['id', 'username', 'fullName'] })
+          : null;
+
+        // Resolve placeApprover user name
+        const placeApproverUser = detail.placeApprovedBy
+          ? await User.findByPk(detail.placeApprovedBy, { attributes: ['id', 'username', 'fullName'] })
+          : null;
+
         return {
           id: detail.id,
           slNo: index + 1,
@@ -261,27 +275,47 @@ router.get('/in-transit', auth, async (req, res) => {
           } : null,
           moisture: inspection?.samplingStages?.full_avg?.moisture || inspection?.moisture || null,
           cutting: await getCuttingFromInspection(inspection),
-          wbNo: detail.wbNo || 'PENDING',
-          grossWeight: detail.grossWeight || 0,
-          tareWeight: detail.tareWeight || 0,
-          netWeight: detail.netWeight || 0,
-          lorryNumber: inspection?.lorryNumber || sampleEntry.lorryNumber || 'N/A',
-          placeStatus: detail.placeStatus,
-          placeDate: detail.placeDate,
-          createdAt: detail.createdAt,
-          placeType: detail.placeType,
+          // Mill WB fields
+          wbNo: detail.wbNo || null,
+          grossWeight: detail.grossWeight || null,
+          tareWeight: detail.tareWeight || null,
+          netWeight: detail.netWeight || null,
+          sute: detail.sute || null,
+          suteNetWeight: detail.suteNetWeight || null,
+          wbDate: detail.wbDate || null,
           wbStatus: detail.wbStatus || 'none',
           wbInputType: detail.wbInputType,
           millWbId: detail.millWbId,
-          millWb: millWb,
-          partyWbName: detail.partyWbName,
+          millWeightBridge: millWb,
+          wbAddedBy: wbAddedByUser ? { id: wbAddedByUser.id, username: wbAddedByUser.username, fullName: wbAddedByUser.fullName } : null,
+          wbAddedAt: detail.wbAddedAt || null,
+          wbApprovedBy: detail.wbApprovedBy || null,
+          // Party WB fields
+          partyWbEnabled: detail.partyWbEnabled || null,
+          partyWbName: detail.partyWbName || null,
+          partyWbNo: detail.partyWbNo || null,
+          partyGrossWeight: detail.partyGrossWeight || null,
+          partyTareWeight: detail.partyTareWeight || null,
+          partyNetWeight: detail.partyNetWeight || null,
+          partySute: detail.partySute || null,
+          partySuteNetWeight: detail.partySuteNetWeight || null,
+          partyWbDate: detail.partyWbDate || null,
+          // Place fields
+          lorryNumber: inspection?.lorryNumber || sampleEntry.lorryNumber || 'N/A',
+          placeStatus: detail.placeStatus,
+          placeDate: detail.placeDate,
+          placeApprovedAt: detail.placeApprovedAt || null,
+          createdAt: detail.createdAt,
+          placeType: detail.placeType,
           placeKunchinittuData: placeKunchinittu,
           placeWarehouse: placeWarehouse,
+          placeApprover: placeApproverUser ? { id: placeApproverUser.id, username: placeApproverUser.username, fullName: placeApproverUser.fullName } : null,
           sampleEntry: sampleEntry,
           isInTransit: true,
           isFullLorryApproved: isFullLorryApprovedInspection(inspection),
           transitDetailId: detail.id
         };
+
       } catch (entryError) {
         console.error(`Error processing In-Transit entry ${detail.id}:`, entryError);
         return {
@@ -440,7 +474,7 @@ router.post('/:id/reject-place', auth, async (req, res) => {
 });
 
 // POST /:id/approve-wb - Approve weigh bridge for a lorry
-router.post('/:id/approve-wb', auth, async (req, res) => {
+router.post('/:id/approve-wb', auth, requireApproverRole, async (req, res) => {
   try {
     const { id } = req.params;
     const Sequelize = require('sequelize');
@@ -522,7 +556,7 @@ router.post('/:id/approve-wb', auth, async (req, res) => {
 });
 
 // POST /:id/reject-wb - Reject weigh bridge for a lorry
-router.post('/:id/reject-wb', auth, async (req, res) => {
+router.post('/:id/reject-wb', auth, requireApproverRole, async (req, res) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;

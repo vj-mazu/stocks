@@ -2,15 +2,18 @@ const express = require('express');
 const { Op, Sequelize } = require('sequelize');
 const { sequelize } = require('../config/database');
 const { auth } = require('../middleware/auth');
-const LorryTransitDetail = require('../models/LorryTransitDetail');
-const PhysicalInspection = require('../models/PhysicalInspection');
-const SampleEntry = require('../models/SampleEntry');
-const Arrival = require('../models/Arrival');
-const User = require('../models/User');
-const Outturn = require('../models/Outturn');
-const WeightBridge = require('../models/WeightBridge');
-const { Warehouse, Kunchinittu } = require('../models/Location');
-const { InventoryQualityParameter } = require('../models');
+const {
+  LorryTransitDetail,
+  PhysicalInspection,
+  SampleEntry,
+  Arrival,
+  User,
+  Outturn,
+  WeightBridge,
+  Warehouse,
+  Kunchinittu,
+  InventoryQualityParameter
+} = require('../models');
 const cacheService = require('../services/cacheService');
 
 // Initialize all associations globally
@@ -282,6 +285,16 @@ router.get('/band-malal-book', auth, async (req, res) => {
           ? await WeightBridge.findByPk(detail.millWbId, { attributes: ['id', 'name', 'location'] })
           : null;
 
+        // Fetch wbAddedBy user details
+        const wbAddedByUser = detail.wbAddedBy
+          ? await User.findByPk(detail.wbAddedBy, { attributes: ['id', 'username', 'fullName'] })
+          : null;
+
+        // Fetch placeApprovedBy user details
+        const placeApproverUser = detail.placeApprovedBy
+          ? await User.findByPk(detail.placeApprovedBy, { attributes: ['id', 'username', 'fullName'] })
+          : null;
+
         return {
           id: detail.id,
           slNo: index + 1,
@@ -311,20 +324,40 @@ router.get('/band-malal-book', auth, async (req, res) => {
           } : null,
           moisture: inspection?.samplingStages?.full_avg?.moisture || inspection?.moisture || null,
           cutting: await getCuttingFromInspection(inspection),
+          // Mill WB fields
           wbNo: detail.wbNo || 'PENDING',
           grossWeight: detail.grossWeight || 0,
           tareWeight: detail.tareWeight || 0,
           netWeight: detail.netWeight || 0,
-          lorryNumber: inspection?.lorryNumber || sampleEntry.lorryNumber || 'N/A',
-          placeStatus: detail.placeStatus,
-          placeDate: detail.placeDate,
-          createdAt: detail.createdAt,
-          placeType: detail.placeType,
+          sute: detail.sute || null,
+          suteNetWeight: detail.suteNetWeight || null,
+          wbDate: detail.wbDate || null,
           wbStatus: detail.wbStatus || 'none',
           wbInputType: detail.wbInputType,
           millWbId: detail.millWbId,
-          millWb: millWb,
-          partyWbName: detail.partyWbName,
+          millWeightBridge: millWb,
+          wbAddedBy: wbAddedByUser ? { id: wbAddedByUser.id, username: wbAddedByUser.username, fullName: wbAddedByUser.fullName } : null,
+          wbAddedAt: detail.wbAddedAt || null,
+          wbApprovedBy: detail.wbApprovedBy || null,
+          wbApprovedAt: detail.wbApprovedAt || null,
+          // Party WB fields
+          partyWbEnabled: detail.partyWbEnabled || null,
+          partyWbName: detail.partyWbName || null,
+          partyWbNo: detail.partyWbNo || null,
+          partyGrossWeight: detail.partyGrossWeight || null,
+          partyTareWeight: detail.partyTareWeight || null,
+          partyNetWeight: detail.partyNetWeight || null,
+          partySute: detail.partySute || null,
+          partySuteNetWeight: detail.partySuteNetWeight || null,
+          partyWbDate: detail.partyWbDate || null,
+          // Place and other fields
+          lorryNumber: inspection?.lorryNumber || sampleEntry.lorryNumber || 'N/A',
+          placeStatus: detail.placeStatus,
+          placeDate: detail.placeDate,
+          placeApprovedAt: detail.placeApprovedAt || null,
+          placeApprover: placeApproverUser ? { id: placeApproverUser.id, username: placeApproverUser.username, fullName: placeApproverUser.fullName } : null,
+          createdAt: detail.createdAt,
+          placeType: detail.placeType,
           placeKunchinittuData: placeKunchinittu,
           placeWarehouse: placeWarehouse,
           sampleEntry: sampleEntry,
@@ -442,7 +475,7 @@ router.post('/bmb/:transitDetailId/inventory-quality', auth, async (req, res) =>
       pColor: pColor || null,
       kadiga: kadiga || null,
       remarks: remarks || null,
-      reportedByUserId: req.user.userId,
+      reportedByUserId: req.body.reportedByUserId || req.user.userId,
       approvedByUserId: isAutoApprove ? req.user.userId : null
     });
 
@@ -574,6 +607,50 @@ router.post('/bmb/inventory-quality/:qualityId/reject', auth, async (req, res) =
   } catch (error) {
     console.error('Error rejecting inventory quality parameter:', error);
     res.status(500).json({ error: 'Failed to reject inventory quality parameter' });
+  }
+});
+
+// POST /bmb/inventory-quality/:qualityId/recheck - Send inventory quality back for recheck
+router.post('/bmb/inventory-quality/:qualityId/recheck', auth, async (req, res) => {
+  try {
+    const { qualityId } = req.params;
+    const { rejectReason } = req.body; // use rejectReason as comments/notes for recheck
+
+    const userRole = req.user.role;
+    const effectiveRole = req.user.effectiveRole;
+
+    // Authorization: Admin, Owner, Manager, CEO
+    const canRecheck =
+      userRole === 'admin' ||
+      userRole === 'owner' ||
+      userRole === 'manager' ||
+      userRole === 'ceo' ||
+      effectiveRole === 'ceo';
+
+    if (!canRecheck) {
+      return res.status(403).json({ error: 'Not authorized to send inventory quality parameters for recheck' });
+    }
+
+    const qualityParam = await InventoryQualityParameter.findByPk(qualityId);
+
+    if (!qualityParam) {
+      return res.status(404).json({ error: 'Quality parameter not found' });
+    }
+
+    // Allow rechecking by setting status to rejected (conforming to ENUM) and prefixing reason
+    await qualityParam.update({
+      status: 'rejected',
+      approvedByUserId: req.user.userId,
+      rejectReason: rejectReason ? 'RECHECK: ' + rejectReason.trim() : 'RECHECK: Recheck requested'
+    });
+
+    // Invalidate cache
+    cacheService.delPattern('arrivals/band-malal-book').catch(() => {});
+
+    return res.json({ message: 'Mill quality parameters sent for recheck successfully', qualityParam });
+  } catch (error) {
+    console.error('Error sending inventory quality parameter for recheck:', error);
+    res.status(500).json({ error: 'Failed to send inventory quality parameter for recheck' });
   }
 });
 

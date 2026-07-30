@@ -14,39 +14,19 @@ const { auth, authorize } = require('../middleware/auth');
 
 
 
-const Arrival = require('../models/Arrival');
-
-
-
-const { Warehouse, Kunchinittu, Variety } = require('../models/Location');
-
-
-
-const User = require('../models/User');
-
-
-
-const Outturn = require('../models/Outturn');
-
-
-
-const WeightBridge = require('../models/WeightBridge');
-
-
-
-const LorryTransitDetail = require('../models/LorryTransitDetail');
-
-
-
-const PhysicalInspection = require('../models/PhysicalInspection');
-
-
-
-const SampleEntry = require('../models/SampleEntry');
-
-
-
-const { InventoryQualityParameter } = require('../models');
+const {
+  Arrival,
+  Warehouse,
+  Kunchinittu,
+  Variety,
+  User,
+  Outturn,
+  WeightBridge,
+  LorryTransitDetail,
+  PhysicalInspection,
+  SampleEntry,
+  InventoryQualityParameter
+} = require('../models');
 
 
 
@@ -76,11 +56,141 @@ require('../models');
 
 const router = express.Router();
 
+/**
+ * Helper function to search cutting in a single inspection
+ */
+const searchCuttingInInspection = (inspection) => {
+  if (!inspection) return null;
 
+  // 1. Check direct cutting field
+  if (inspection.cutting && inspection.cutting !== '0' && inspection.cutting !== '0x0') {
+    return inspection.cutting;
+  }
 
+  // 2. Check cutting1 and cutting2 fields
+  if (inspection.cutting1 && inspection.cutting2) {
+    const cutting = `${inspection.cutting1}x${inspection.cutting2}`;
+    if (cutting !== '0x0') {
+      return cutting;
+    }
+  }
 
+  // 3. Check quality parameters
+  if (inspection.qualityParameters) {
+    const qp = inspection.qualityParameters;
+    if (qp.cutting1 && qp.cutting2) {
+      const cutting = `${qp.cutting1}x${qp.cutting2}`;
+      if (cutting !== '0x0') {
+        return cutting;
+      }
+    }
+  }
 
+  // 4. Check sampling stages
+  if (inspection.samplingStages) {
+    const stages = inspection.samplingStages;
+    // Try full_avg first
+    if (stages.full_avg && stages.full_avg.cutting && stages.full_avg.cutting !== '0' && stages.full_avg.cutting !== '0x0') {
+      return stages.full_avg.cutting;
+    }
+    if (stages.full_avg && stages.full_avg.cutting1 && stages.full_avg.cutting2) {
+      const cutting = `${stages.full_avg.cutting1}x${stages.full_avg.cutting2}`;
+      if (cutting !== '0x0') {
+        return cutting;
+      }
+    }
+    // Try lot_avg
+    if (stages.lot_avg && stages.lot_avg.cutting && stages.lot_avg.cutting !== '0' && stages.lot_avg.cutting !== '0x0') {
+      return stages.lot_avg.cutting;
+    }
+    if (stages.lot_avg && stages.lot_avg.cutting1 && stages.lot_avg.cutting2) {
+      const cutting = `${stages.lot_avg.cutting1}x${stages.lot_avg.cutting2}`;
+      if (cutting !== '0x0') {
+        return cutting;
+      }
+    }
+    // Try individual stages
+    const stageKeys = ['stage1', 'stage2', 'stage3'];
+    for (const key of stageKeys) {
+      if (stages[key]) {
+        if (stages[key].cutting && stages[key].cutting !== '0' && stages[key].cutting !== '0x0') {
+          return stages[key].cutting;
+        }
+        if (stages[key].cutting1 && stages[key].cutting2) {
+          const cutting = `${stages[key].cutting1}x${stages[key].cutting2}`;
+          if (cutting !== '0x0') {
+            return cutting;
+          }
+        }
+      }
+    }
+  }
 
+  return null;
+};
+
+/**
+ * Helper function to extract cutting values from inspection data
+ * Searches through multiple possible locations for cutting data
+ * Returns formatted string like "1x2" or null if not found
+ * Enhanced to search previous trips when cutting is "0x0" or null (for balanced lots)
+ */
+const getCuttingFromInspection = async (inspection) => {
+  if (!inspection) return null;
+
+  // Search current inspection first
+  let cutting = searchCuttingInInspection(inspection);
+
+  // If cutting is found and not "0" or "0x0", return it
+  if (cutting && cutting !== '0' && cutting !== '0x0') {
+    return cutting;
+  }
+
+  // If cutting is "0", "0x0", or null, search previous trips
+  try {
+    const whereClause = {
+      id: { [Op.ne]: inspection.id }
+    };
+
+    if (inspection.sampleEntryId) {
+      const isLorryPlaceholder = !inspection.lorryNumber ||
+        ['lot_avg', 'balanced_lot'].includes(inspection.lorryNumber.toLowerCase().trim()) ||
+        inspection.lorryNumber.toLowerCase().includes('next loading lorry');
+
+      if (inspection.lorryNumber && !isLorryPlaceholder) {
+        whereClause[Op.or] = [
+          { sampleEntryId: inspection.sampleEntryId },
+          { lorryNumber: inspection.lorryNumber }
+        ];
+      } else {
+        whereClause.sampleEntryId = inspection.sampleEntryId;
+      }
+    } else if (inspection.lorryNumber) {
+      whereClause.lorryNumber = inspection.lorryNumber;
+    } else {
+      return null;
+    }
+
+    // Query previous PhysicalInspections (ordered by date DESC)
+    const previousInspections = await PhysicalInspection.findAll({
+      where: whereClause,
+      order: [['createdAt', 'DESC']],
+      limit: 10
+    });
+
+    // Search through each previous inspection
+    for (const prevInspection of previousInspections) {
+      const prevCutting = searchCuttingInInspection(prevInspection);
+      if (prevCutting && prevCutting !== '0' && prevCutting !== '0x0') {
+        return prevCutting;
+      }
+    }
+  } catch (error) {
+    console.error('Error searching previous trips for cutting:', error);
+  }
+
+  return null;
+};
 
 // Generate next SL No
 
@@ -7659,11 +7769,20 @@ router.get('/transit-approvals/pending', auth, async (req, res) => {
 
 
 
-        millWb: millWb,
+        millWeightBridge: millWb,
 
 
 
-        partyWbName: detail.partyWbName,
+        // Party WB fields
+        partyWbEnabled: detail.partyWbEnabled || null,
+        partyWbName: detail.partyWbName || null,
+        partyWbNo: detail.partyWbNo || null,
+        partyGrossWeight: detail.partyGrossWeight || null,
+        partyTareWeight: detail.partyTareWeight || null,
+        partyNetWeight: detail.partyNetWeight || null,
+        partySute: detail.partySute || null,
+        partySuteNetWeight: detail.partySuteNetWeight || null,
+        partyWbDate: detail.partyWbDate || null,
 
 
 
@@ -8632,19 +8751,18 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-    const { wbInputType, millWbId, partyWbName, partyWbEnabled, wbNo, grossWeight, tareWeight, netWeight, sute, wbDate } = req.body;
-
-
+    const { 
+      wbInputType, millWbId, partyWbName, partyWbEnabled, wbNo, grossWeight, tareWeight, netWeight, sute, wbDate,
+      partyWbNo, partyWbDate, partyGrossWeight, partyTareWeight, partyNetWeight, partySute
+    } = req.body;
 
     // Calculate netWeight and suteNetWeight BEFORE branching (needed in both Party and Mill WB sections)
-
-
-
     const calculatedNetWeight = netWeight || (grossWeight && tareWeight ? Number(grossWeight) - Number(tareWeight) : null);
-
-
-
     const calculatedSuteNetWeight = calculatedNetWeight && sute ? Number(calculatedNetWeight) - Number(sute) : calculatedNetWeight;
+
+    // Calculate Party Net Weight and Sute Net Weight
+    const calculatedPartyNetWeight = partyNetWeight || (partyGrossWeight && partyTareWeight ? Number(partyGrossWeight) - Number(partyTareWeight) : null);
+    const calculatedPartySuteNetWeight = calculatedPartyNetWeight && partySute ? Number(calculatedPartyNetWeight) - Number(partySute) : calculatedPartyNetWeight;
 
 
 
@@ -9025,6 +9143,7 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
           partyWbEnabled: partyWbEnabled || null,
+          partyWbName: partyWbEnabled === 'yes' ? (partyWbName || null) : null,
 
 
 
@@ -9044,7 +9163,15 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-          wbApprovedAt
+          wbApprovedAt,
+          // Save party weights locally on LorryTransitDetail
+          partyGrossWeight: partyWbEnabled === 'yes' && partyGrossWeight ? Number(partyGrossWeight) : null,
+          partyTareWeight: partyWbEnabled === 'yes' && partyTareWeight ? Number(partyTareWeight) : null,
+          partyNetWeight: partyWbEnabled === 'yes' && partyNetWeight ? Number(partyNetWeight) : null,
+          partySute: partyWbEnabled === 'yes' && partySute ? Number(partySute) : null,
+          partySuteNetWeight: partyWbEnabled === 'yes' ? calculatedPartySuteNetWeight : null,
+          partyWbNo: partyWbEnabled === 'yes' ? (partyWbNo || null) : null,
+          partyWbDate: partyWbEnabled === 'yes' ? (partyWbDate || null) : null
 
 
 
@@ -9148,6 +9275,21 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
+        }
+
+        // If Party WB is enabled, also update/sync it to SampleEntry (gate weights)
+        if (partyWbEnabled === 'yes') {
+          const sampleEntry = await SampleEntry.findByPk(transitDetail.sampleEntryId);
+          if (sampleEntry) {
+            await sampleEntry.update({
+              partyWbName: partyWbName || null,
+              wbNo: partyWbNo || null,
+              grossWeight: partyGrossWeight ? Number(partyGrossWeight) : null,
+              tareWeight: partyTareWeight ? Number(partyTareWeight) : null,
+              netWeight: partyNetWeight ? Number(partyNetWeight) : null,
+              wbStatus: 'approved' // Party weights are auto-approved
+            });
+          }
         }
 
 
@@ -9521,74 +9663,44 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
         await detail.update({
-
-
-
           wbInputType: 'mill',
-
-
-
           millWbId: Number(millWbId),
-
-
-
           wbNo: wbNo || null,
-
-
-
           grossWeight: grossWeight ? Number(grossWeight) : null,
-
-
-
           tareWeight: tareWeight ? Number(tareWeight) : null,
-
-
-
           netWeight: netWeight ? Number(netWeight) : null,
-
-
-
           wbStatus,
-
-
-
           wbRejectReason: null,
-
-
-
           sute: sute ? Number(sute) : null,
-
-
-
           suteNetWeight: calculatedSuteNetWeight,
-
-
-
           partyWbEnabled: partyWbEnabled || null,
-
-
-
+          partyWbName: partyWbEnabled === 'yes' ? (partyWbName || null) : null,
           wbDate: wbDate || null,
-
-
-
           wbAddedBy: req.user.userId,
-
-
-
           wbAddedAt: new Date(),
-
-
-
           wbApprovedBy,
-
-
-
-          wbApprovedAt
-
-
-
+          wbApprovedAt,
+          // Save party weights locally on LorryTransitDetail
+          partyGrossWeight: partyWbEnabled === 'yes' && partyGrossWeight ? Number(partyGrossWeight) : null,
+          partyTareWeight: partyWbEnabled === 'yes' && partyTareWeight ? Number(partyTareWeight) : null,
+          partyNetWeight: partyWbEnabled === 'yes' && partyNetWeight ? Number(partyNetWeight) : null,
+          partySute: partyWbEnabled === 'yes' && partySute ? Number(partySute) : null,
+          partySuteNetWeight: partyWbEnabled === 'yes' ? calculatedPartySuteNetWeight : null,
+          partyWbNo: partyWbEnabled === 'yes' ? (partyWbNo || null) : null,
+          partyWbDate: partyWbEnabled === 'yes' ? (partyWbDate || null) : null
         });
+
+        // If Party WB is enabled, also update/sync it to SampleEntry (gate weights)
+        if (partyWbEnabled === 'yes') {
+          await sampleEntry.update({
+            partyWbName: partyWbName || null,
+            wbNo: partyWbNo || null,
+            grossWeight: partyGrossWeight ? Number(partyGrossWeight) : null,
+            tareWeight: partyTareWeight ? Number(partyTareWeight) : null,
+            netWeight: partyNetWeight ? Number(partyNetWeight) : null,
+            wbStatus: 'approved' // Party weights are auto-approved
+          });
+        }
 
 
 
@@ -10009,74 +10121,47 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
         await detail.update({
-
-
-
           wbInputType: 'mill',
-
-
-
           millWbId: Number(millWbId),
-
-
-
           wbNo: wbNo || null,
-
-
-
           grossWeight: grossWeight ? Number(grossWeight) : null,
-
-
-
           tareWeight: tareWeight ? Number(tareWeight) : null,
-
-
-
           netWeight: netWeight ? Number(netWeight) : null,
-
-
-
           wbStatus,
-
-
-
           wbRejectReason: null,
-
-
-
           sute: sute ? Number(sute) : null,
-
-
-
           suteNetWeight: calculatedSuteNetWeight,
-
-
-
           partyWbEnabled: partyWbEnabled || null,
-
-
-
+          partyWbName: partyWbEnabled === 'yes' ? (partyWbName || null) : null,
           wbDate: wbDate || null,
-
-
-
           wbAddedBy: req.user.userId,
-
-
-
           wbAddedAt: new Date(),
-
-
-
           wbApprovedBy,
-
-
-
-          wbApprovedAt
-
-
-
+          wbApprovedAt,
+          // Save party weights locally on LorryTransitDetail
+          partyGrossWeight: partyWbEnabled === 'yes' && partyGrossWeight ? Number(partyGrossWeight) : null,
+          partyTareWeight: partyWbEnabled === 'yes' && partyTareWeight ? Number(partyTareWeight) : null,
+          partyNetWeight: partyWbEnabled === 'yes' && partyNetWeight ? Number(partyNetWeight) : null,
+          partySute: partyWbEnabled === 'yes' && partySute ? Number(partySute) : null,
+          partySuteNetWeight: partyWbEnabled === 'yes' ? calculatedPartySuteNetWeight : null,
+          partyWbNo: partyWbEnabled === 'yes' ? (partyWbNo || null) : null,
+          partyWbDate: partyWbEnabled === 'yes' ? (partyWbDate || null) : null
         });
+
+        // If Party WB is enabled, also update/sync it to SampleEntry (gate weights)
+        if (partyWbEnabled === 'yes') {
+          const sampleEntry = await SampleEntry.findByPk(inspection.sampleEntryId);
+          if (sampleEntry) {
+            await sampleEntry.update({
+              partyWbName: partyWbName || null,
+              wbNo: partyWbNo || null,
+              grossWeight: partyGrossWeight ? Number(partyGrossWeight) : null,
+              tareWeight: partyTareWeight ? Number(partyTareWeight) : null,
+              netWeight: partyNetWeight ? Number(partyNetWeight) : null,
+              wbStatus: 'approved' // Party weights are auto-approved
+            });
+          }
+        }
 
 
 
@@ -10470,7 +10555,7 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-          millWb: millWb,
+          millWeightBridge: millWb,
 
 
 

@@ -1343,33 +1343,36 @@ const AllottedSupervisors: React.FC = () => {
                                             return;
                                           }
                                           setClosingEntryId(entry.id);
-                                                          // First ask about Final Rate 2
-                                                          const entryData = entries.find(e => e.id === entry.id);
-                                                          const o = offeringCache[entry.id] || {};
-                                                          setFr2Data({
-                                                            finalBaseRate2: o.finalBaseRate ?? o.offerBaseRateValue ?? '',
-                                                            finalSute2: o.finalSute ?? o.sute ?? '',
-                                                            finalSuteUnit2: o.finalSuteUnit ?? o.suteUnit ?? 'per_ton',
-                                                            finalPrice2: o.finalPrice ?? '',
-                                                            hamali2: o.hamali ?? '',
-                                                            hamaliUnit2: o.hamaliUnit ?? 'per_bag',
-                                                            brokerage2: o.brokerage ?? '',
-                                                            brokerageUnit2: o.brokerageUnit ?? 'per_bag',
-                                                            lf2: o.lf ?? '',
-                                                            lfUnit2: o.lfUnit ?? 'per_bag',
-                                                            egbValue2: o.egbValue ?? '',
-                                                            egbType2: o.egbType ?? 'mill',
-                                                            cdValue2: o.cdValue ?? '',
-                                                            cdUnit2: o.cdUnit ?? 'lumps',
-                                                            bankLoanValue2: o.bankLoanValue ?? '',
-                                                            bankLoanUnit2: o.bankLoanUnit ?? 'lumps',
-                                                            paymentConditionValue2: o.paymentConditionValue ?? 15,
-                                                            paymentConditionUnit2: o.paymentConditionUnit ?? 'days',
-                                                            finalRemarks2: ''
-                                                          });
-                                                          setShowFR2Prompt(true);
-                                                        }}
-                                                        style={{
+                                          const cleanInt = (val: any) => {
+                                            if (val == null || val === '') return '';
+                                            const num = Number(val);
+                                            return Number.isFinite(num) ? Math.round(num).toString() : '';
+                                          };
+                                          const o = offeringCache[entry.id] || {};
+                                          setFr2Data({
+                                            finalBaseRate2: cleanInt(o.finalBaseRate ?? o.offerBaseRateValue),
+                                            finalSute2: cleanInt(o.finalSute ?? o.sute),
+                                            finalSuteUnit2: o.finalSuteUnit ?? o.suteUnit ?? 'per_ton',
+                                            finalPrice2: cleanInt(o.finalPrice),
+                                            hamali2: cleanInt(o.hamali),
+                                            hamaliUnit2: o.hamaliUnit ?? 'per_bag',
+                                            brokerage2: cleanInt(o.brokerage),
+                                            brokerageUnit2: o.brokerageUnit ?? 'per_bag',
+                                            lf2: cleanInt(o.lf),
+                                            lfUnit2: o.lfUnit ?? 'per_bag',
+                                            egbValue2: cleanInt(o.egbValue),
+                                            egbType2: o.egbType ?? 'mill',
+                                            cdValue2: cleanInt(o.cdValue),
+                                            cdUnit2: o.cdUnit ?? 'lumps',
+                                            bankLoanValue2: cleanInt(o.bankLoanValue),
+                                            bankLoanUnit2: o.bankLoanUnit ?? 'lumps',
+                                            paymentConditionValue2: cleanInt(o.paymentConditionValue) || '15',
+                                            paymentConditionUnit2: o.paymentConditionUnit ?? 'days',
+                                            finalRemarks2: ''
+                                          });
+                                          setShowFR2Prompt(true);
+                                        }}
+                                        style={{
                                           fontSize: '10px',
                                           padding: '4px 8px',
                                           backgroundColor: '#f44336',
@@ -2122,42 +2125,42 @@ const AllottedSupervisors: React.FC = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>Final Rate 2</label>
-                <input type="number" step="0.01" value={fr2Data.finalBaseRate2} onChange={e => setFr2Data({...fr2Data, finalBaseRate2: e.target.value})}
+                <input type="number" step="1" value={fr2Data.finalBaseRate2} onChange={e => setFr2Data({...fr2Data, finalBaseRate2: e.target.value})}
                   style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' }} />
               </div>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>Sute 2</label>
-                <input type="number" step="0.01" value={fr2Data.finalSute2} onChange={e => setFr2Data({...fr2Data, finalSute2: e.target.value})}
+                <input type="number" step="1" value={fr2Data.finalSute2} onChange={e => setFr2Data({...fr2Data, finalSute2: e.target.value})}
                   style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' }} />
               </div>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>Hamali 2</label>
-                <input type="number" step="0.01" value={fr2Data.hamali2} onChange={e => setFr2Data({...fr2Data, hamali2: e.target.value})}
+                <input type="number" step="1" value={fr2Data.hamali2} onChange={e => setFr2Data({...fr2Data, hamali2: e.target.value})}
                   style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' }} />
               </div>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>Brokerage 2</label>
-                <input type="number" step="0.01" value={fr2Data.brokerage2} onChange={e => setFr2Data({...fr2Data, brokerage2: e.target.value})}
+                <input type="number" step="1" value={fr2Data.brokerage2} onChange={e => setFr2Data({...fr2Data, brokerage2: e.target.value})}
                   style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' }} />
               </div>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>LF 2</label>
-                <input type="number" step="0.01" value={fr2Data.lf2} onChange={e => setFr2Data({...fr2Data, lf2: e.target.value})}
+                <input type="number" step="1" value={fr2Data.lf2} onChange={e => setFr2Data({...fr2Data, lf2: e.target.value})}
                   style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' }} />
               </div>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>EGB Value 2</label>
-                <input type="number" step="0.01" value={fr2Data.egbValue2} onChange={e => setFr2Data({...fr2Data, egbValue2: e.target.value})}
+                <input type="number" step="1" value={fr2Data.egbValue2} onChange={e => setFr2Data({...fr2Data, egbValue2: e.target.value})}
                   style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' }} />
               </div>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>CD Value 2</label>
-                <input type="number" step="0.01" value={fr2Data.cdValue2} onChange={e => setFr2Data({...fr2Data, cdValue2: e.target.value})}
+                <input type="number" step="1" value={fr2Data.cdValue2} onChange={e => setFr2Data({...fr2Data, cdValue2: e.target.value})}
                   style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' }} />
               </div>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>Bank Loan 2</label>
-                <input type="number" step="0.01" value={fr2Data.bankLoanValue2} onChange={e => setFr2Data({...fr2Data, bankLoanValue2: e.target.value})}
+                <input type="number" step="1" value={fr2Data.bankLoanValue2} onChange={e => setFr2Data({...fr2Data, bankLoanValue2: e.target.value})}
                   style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' }} />
               </div>
               <div>

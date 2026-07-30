@@ -1843,10 +1843,18 @@ const Arrivals: React.FC = () => {
 
 
   const [slNo, setSlNo] = useState('');
+  const [inTransitDateFilter, setInTransitDateFilter] = useState('');
+  const [inTransitBrokerFilter, setInTransitBrokerFilter] = useState('');
+  const [inTransitVarietyFilter, setInTransitVarietyFilter] = useState('');
+  const [inTransitPage, setInTransitPage] = useState(1);
+  const [inTransitFilteredCount, setInTransitFilteredCount] = useState(0);
 
 
 
   const [selectedDetailEntry, setSelectedDetailEntry] = useState<any>(null);
+  const [isQualitySamplingModalOpen, setIsQualitySamplingModalOpen] = useState(false);
+  const [qualitySamplingEntry, setQualitySamplingEntry] = useState<any>(null);
+  const [usersList, setUsersList] = useState<any[]>([]);
 
 
 
@@ -2983,6 +2991,7 @@ const Arrivals: React.FC = () => {
 
 
     fetchBrokers();
+    fetchUsers();
 
 
 
@@ -2991,6 +3000,20 @@ const Arrivals: React.FC = () => {
 
 
  
+
+
+
+  const fetchUsers = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`${API_URL}/admin/users`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUsersList(res.data.success ? res.data.users : []);
+    } catch (err) {
+      console.error('Error fetching users:', err);
+    }
+  };
 
 
 
@@ -3925,34 +3948,27 @@ const Arrivals: React.FC = () => {
 
 
   const [inventoryQualityForm, setInventoryQualityForm] = useState({
-
-
-
     moisture: '', dryMoisture: '', cutting: '', bend: '', grains: '',
-
-
-
     mix: '', sMix: '', lMix: '', kandu: '', oil: '', sk: '',
-
-
-
-    smell: '', paddyWb: '', pColor: '', kadiga: '', remarks: ''
-
-
-
+    smell: '', paddyWb: '', pColor: '', kadiga: '', remarks: '',
+    wbR: '', wbBk: '', wbT: '', reportedByUserId: ''
   });
 
-
+  const [wbEnabled, setWbEnabled] = useState(false);
 
   const [inventoryQualityToggle, setInventoryQualityToggle] = useState({
-
-
-
-    dryMoisture: 'N', sMix: 'N', lMix: 'N', paddyWb: 'N', kadiga: 'N', smellHas: 'No'
-
-
-
+    dryMoisture: 'Y', sMix: 'Y', lMix: 'Y', paddyWb: 'Y', kadiga: 'Y', smellHas: 'No'
   });
+
+  // Auto-calculate WB (T) = WB (R) + WB (BK)
+  useEffect(() => {
+    const wbR = wbEnabled ? (parseFloat(inventoryQualityForm.wbR) || 0) : 0;
+    const wbBk = wbEnabled ? (parseFloat(inventoryQualityForm.wbBk) || 0) : 0;
+    const wbT = (wbR + wbBk).toString();
+    if (inventoryQualityForm.wbT !== wbT) {
+      setInventoryQualityForm(prev => ({ ...prev, wbT }));
+    }
+  }, [inventoryQualityForm.wbR, inventoryQualityForm.wbBk, wbEnabled]);
 
 
 
@@ -4176,7 +4192,7 @@ const Arrivals: React.FC = () => {
 
 
 
-        pageSize: transitPageSize,
+        pageSize: 1000,
 
 
 
@@ -4370,11 +4386,49 @@ const Arrivals: React.FC = () => {
 
   };
 
+  const handleMoveToBmb = async (trip: any) => {
+    const { entry, inspection, isPlaceholder } = trip;
+    if (isPlaceholder) return;
 
+    const transitDetail = inspection?.lorryTransitDetail;
+    const placeStatus = transitDetail?.placeStatus || 'none';
 
+    if (placeStatus !== 'placed' && placeStatus !== 'pending') {
+      toast.error('Place/Godown details must be added before moving to Band Mall Book.');
+      return;
+    }
 
+    const wbStatus = transitDetail?.wbStatus || 'none';
+    const params = (inspection?.inventoryQualityParameters) || (entry?.inventoryQualityParameters) || (transitDetail?.inventoryQualityParameters) || [];
+    const hasApprovedQuality = params.some((p: any) => p.status === 'approved');
 
+    const warnings: string[] = [];
+    if (wbStatus !== 'approved') {
+      warnings.push('Weighbridge details are not approved.');
+    }
+    if (!hasApprovedQuality) {
+      warnings.push('Quality parameters are not approved.');
+    }
 
+    if (warnings.length > 0) {
+      const msg = `⚠️ Warnings:\n${warnings.map(w => `- ${w}`).join('\n')}\n\nDo you still want to move this lorry to Band Mall Book?`;
+      if (!window.confirm(msg)) {
+        return;
+      }
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API_URL}/arrivals/${inspection.id || entry.id}/approve-place`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Lorry moved to Band Mall Book!');
+      fetchInTransitEntries();
+      fetchBandMalalEntries();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to move lorry to Band Mall Book');
+    }
+  };
 
   const handleRejectPlace = async (id: string) => {
 
@@ -4758,7 +4812,7 @@ const Arrivals: React.FC = () => {
 
 
 
-  const handleSubmitInventoryQuality = async (transitDetailId: string) => {
+  const handleSubmitInventoryQuality = async (transitDetailId: string): Promise<boolean> => {
 
 
 
@@ -4774,7 +4828,7 @@ const Arrivals: React.FC = () => {
 
 
 
-      return;
+      return false;
 
 
 
@@ -4790,7 +4844,7 @@ const Arrivals: React.FC = () => {
 
 
 
-      return;
+      return false;
 
 
 
@@ -4806,7 +4860,7 @@ const Arrivals: React.FC = () => {
 
 
 
-      return;
+      return false;
 
 
 
@@ -4822,7 +4876,7 @@ const Arrivals: React.FC = () => {
 
 
 
-      return;
+      return false;
 
 
 
@@ -4838,7 +4892,7 @@ const Arrivals: React.FC = () => {
 
 
 
-      return;
+      return false;
 
 
 
@@ -4854,7 +4908,7 @@ const Arrivals: React.FC = () => {
 
 
 
-      return;
+      return false;
 
 
 
@@ -4870,7 +4924,7 @@ const Arrivals: React.FC = () => {
 
 
 
-      return;
+      return false;
 
 
 
@@ -4886,7 +4940,7 @@ const Arrivals: React.FC = () => {
 
 
 
-      return;
+      return false;
 
 
 
@@ -4902,7 +4956,7 @@ const Arrivals: React.FC = () => {
 
 
 
-      return;
+      return false;
 
 
 
@@ -4918,7 +4972,7 @@ const Arrivals: React.FC = () => {
 
 
 
-      return;
+      return false;
 
 
 
@@ -4934,7 +4988,7 @@ const Arrivals: React.FC = () => {
 
 
 
-      return;
+      return false;
 
 
 
@@ -4950,7 +5004,7 @@ const Arrivals: React.FC = () => {
 
 
 
-      return;
+      return false;
 
 
 
@@ -4966,7 +5020,7 @@ const Arrivals: React.FC = () => {
 
 
 
-      return;
+      return false;
 
 
 
@@ -4982,7 +5036,7 @@ const Arrivals: React.FC = () => {
 
 
 
-      return;
+      return false;
 
 
 
@@ -4998,7 +5052,7 @@ const Arrivals: React.FC = () => {
 
 
 
-      return;
+      return false;
 
 
 
@@ -5014,7 +5068,7 @@ const Arrivals: React.FC = () => {
 
 
 
-      return;
+      return false;
 
 
 
@@ -5030,7 +5084,7 @@ const Arrivals: React.FC = () => {
 
 
 
-      return;
+      return false;
 
 
 
@@ -5046,7 +5100,7 @@ const Arrivals: React.FC = () => {
 
 
 
-      return;
+      return false;
 
 
 
@@ -5062,7 +5116,7 @@ const Arrivals: React.FC = () => {
 
 
 
-      return;
+      return false;
 
 
 
@@ -5078,7 +5132,7 @@ const Arrivals: React.FC = () => {
 
 
 
-      return;
+      return false;
 
 
 
@@ -5171,21 +5225,87 @@ const Arrivals: React.FC = () => {
 
 
       fetchBandMalalEntries();
-
-
-
+      return true;
     } catch (error: any) {
-
-
-
       toast.error(error.response?.data?.error || 'Failed to submit mill quality parameters');
+      return false;
+    }
+  };
 
 
 
+  // Handler for the Quality Sampling popup modal "Next/Save" button
+
+  // Submit Lot Avg only — saves data without transitioning to Full Lorry
+  const handleSubmitLotAvg = async () => {
+    if (!qualitySamplingEntry) return;
+    const transitDetailId =
+      qualitySamplingEntry?.transitDetailId ||
+      qualitySamplingEntry?.lorryTransitDetail?.id ||
+      qualitySamplingEntry?.id;
+    if (!transitDetailId) {
+      toast.error('Could not find Transit Detail ID. Please try again.');
+      return;
+    }
+    const success = await handleSubmitInventoryQuality(String(transitDetailId));
+    if (!success) return;
+    toast.success('Before Unloading (Lot Avg) saved successfully.');
+    fetchInTransitEntries();
+    fetchBandMalalEntries();
+  };
+
+  // Next on Lot Avg: saves Lot Avg (if data exists) AND transitions to Full Lorry
+  // Submit on Full Lorry: validates, saves, and closes modal
+  const handleQualitySamplingNext = async () => {
+    if (!qualitySamplingEntry) return;
+    const transitDetailId =
+      qualitySamplingEntry?.transitDetailId ||
+      qualitySamplingEntry?.lorryTransitDetail?.id ||
+      qualitySamplingEntry?.id;
+    if (!transitDetailId) {
+      toast.error('Could not find Transit Detail ID. Please try again.');
+      return;
     }
 
+    // Check if any quality data was entered in Lot Avg form
+    const qualityFields = ['moisture', 'dryMoisture', 'cutting', 'bend', 'grains', 'mix', 'sMix', 'lMix', 'kandu', 'oil', 'sk', 'pColor', 'paddyWb'];
+    const hasLotAvgData = qualityFields.some(
+      field => inventoryQualityForm[field as keyof typeof inventoryQualityForm]?.toString().trim() !== ''
+    );
 
-
+    if (inventoryQualityType === 'lot_avg') {
+      if (hasLotAvgData) {
+        // Save Lot Avg data to backend, then transition to Full Lorry
+        const success = await handleSubmitInventoryQuality(String(transitDetailId));
+        if (!success) return;
+        toast.info('Before Unloading (Lot Avg) saved. Please enter Full Lorry Avg (Gattu) parameters.');
+      } else {
+        // No data entered — skip submission, will add later after Full Lorry is approved
+        toast.info('Lot Avg data will be added later. Please enter Full Lorry Avg parameters now.');
+      }
+      // Transition to full lorry avg next
+      setInventoryQualityType('full_lorry_avg');
+      // Reset form fields for full lorry entry
+      setInventoryQualityForm({
+        moisture: '', dryMoisture: '', cutting: '', bend: '', grains: '',
+        mix: '', sMix: '', lMix: '', kandu: '', oil: '', sk: '',
+        wbR: '', wbBk: '', wbT: '',
+        smell: '', paddyWb: '', pColor: '', kadiga: '', remarks: ''
+      });
+      setInventoryQualityToggle({
+        dryMoisture: 'Y', sMix: 'Y', lMix: 'Y', paddyWb: 'Y', kadiga: 'Y', smellHas: 'No'
+      });
+      setWbEnabled(false);
+    } else {
+      // Full Lorry Avg — submit and close
+      const success = await handleSubmitInventoryQuality(String(transitDetailId));
+      if (!success) return;
+      setIsQualitySamplingModalOpen(false);
+      setQualitySamplingEntry(null);
+    }
+    // Refresh both tabs
+    fetchInTransitEntries();
+    fetchBandMalalEntries();
   };
 
 
@@ -5774,126 +5894,61 @@ const Arrivals: React.FC = () => {
 
 
 
-          {/* Search + Page Size Controls */}
-
-
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', gap: '12px', flexWrap: 'wrap' }}>
-
-
-
-            <div style={{ position: 'relative', flex: '1 1 300px', maxWidth: '400px' }}>
-
-
-
-              <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '14px', color: '#94a3b8', pointerEvents: 'none' }}>🔍</span>
-
-
-
+          {/* Search + Top Filters Controls */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '14px', background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+            
+            {/* Date Filter */}
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>Filter by Date</label>
               <input
-
-
-
-                type="text"
-
-
-
-                placeholder="Search by broker, variety, or party..."
-
-
-
-                value={transitSearchQuery}
-
-
-
-                onChange={(e) => setTransitSearchQuery(e.target.value)}
-
-
-
-                style={{ width: '100%', padding: '8px 10px 8px 32px', border: '1.5px solid #cbd5e1', borderRadius: '8px', fontSize: '13px', outline: 'none', background: '#f8fafc', transition: 'border-color 0.2s, box-shadow 0.2s' }}
-
-
-
-                onFocus={(e) => { e.currentTarget.style.borderColor = '#1565c0'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(21,101,192,0.1)'; }}
-
-
-
-                onBlur={(e) => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.boxShadow = 'none'; }}
-
-
-
+                type="date"
+                value={inTransitDateFilter}
+                onChange={(e) => { setInTransitDateFilter(e.target.value); setInTransitPage(1); }}
+                style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
               />
-
-
-
-              {transitSearchQuery && (
-
-
-
-                <button onClick={() => setTransitSearchQuery('')} style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '14px', color: '#94a3b8', padding: '2px' }}>✕</button>
-
-
-
-              )}
-
-
-
             </div>
 
-
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-
-
-
-              <label style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Per page:</label>
-
-
-
+            {/* Broker Filter */}
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>Filter by Broker Name</label>
               <select
-
-
-
-                value={transitPageSize}
-
-
-
-                onChange={(e) => setTransitPageSize(Number(e.target.value))}
-
-
-
-                style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', borderRadius: '6px', fontSize: '12px', background: '#f8fafc', cursor: 'pointer', fontWeight: 600, color: '#334155' }}
-
-
-
+                value={inTransitBrokerFilter}
+                onChange={(e) => { setInTransitBrokerFilter(e.target.value); setInTransitPage(1); }}
+                style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px', background: '#fff', height: '30px' }}
               >
-
-
-
-                <option value={10}>10</option>
-
-
-
-                <option value={20}>20</option>
-
-
-
-                <option value={50}>50</option>
-
-
-
-                <option value={100}>100</option>
-
-
-
+                <option value="">-- All Brokers --</option>
+                {[...brokersList]
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map((b) => (
+                    <option key={b.id} value={b.name}>
+                      {b.name}
+                    </option>
+                  ))
+                }
               </select>
-
-
-
             </div>
 
+            {/* Variety Filter */}
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>Filter by Variety</label>
+              <input
+                type="text"
+                placeholder="Search Variety..."
+                value={inTransitVarietyFilter}
+                onChange={(e) => { setInTransitVarietyFilter(e.target.value); setInTransitPage(1); }}
+                style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
+              />
+            </div>
 
-
+            {/* Reset Button */}
+            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+              <button
+                onClick={() => { setInTransitDateFilter(''); setInTransitBrokerFilter(''); setInTransitVarietyFilter(''); setTransitSearchQuery(''); setInTransitPage(1); }}
+                style={{ width: '100%', padding: '6px 12px', fontSize: '12px', fontWeight: 'bold', background: '#fee2e2', color: '#ef4444', border: '1px solid #fca5a5', borderRadius: '6px', cursor: 'pointer' }}
+              >
+                Clear Filters
+              </button>
+            </div>
           </div>
 
 
@@ -6047,25 +6102,11 @@ const Arrivals: React.FC = () => {
 
 
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>WB Number</th>
-
-
-
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Mill WB Name</th>
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Net Weight</th>
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Sute Net Wt</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Godown</th>
-
-
-
-                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '6%' }}>Sute</th>
-
-
-
-                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '6%' }}>Sute</th>
-
-
-
-                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Net Weight</th>
-
-
-
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Quality Status</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '12%' }}>Lorry Number</th>
 
 
@@ -6347,34 +6388,39 @@ const Arrivals: React.FC = () => {
 
 
                       // Sort flatTrips by date ascending so oldest entry gets SL No 1
-
-
-
                       flatTrips.sort((a, b) => {
-
-
-
                         const aDate = new Date(a.inspection?.inspectionDate || a.entry?.entryDate || 0).getTime();
-
-
-
                         const bDate = new Date(b.inspection?.inspectionDate || b.entry?.entryDate || 0).getTime();
-
-
-
                         return aDate - bDate;
-
-
-
                       });
 
+                      // Apply top filters
+                      const filteredTrips = flatTrips.filter(trip => {
+                        const dateVal = trip.isPlaceholder ? trip.entry.entryDate : (trip.inspection?.inspectionDate || trip.entry.entryDate);
+                        const dateStr = dateVal ? new Date(dateVal).toISOString().split('T')[0] : '';
+                        if (inTransitDateFilter && dateStr !== inTransitDateFilter) return false;
+                        
+                        if (inTransitBrokerFilter) {
+                          const bName = (trip.entry?.brokerName || '').toLowerCase();
+                          if (!bName.includes(inTransitBrokerFilter.toLowerCase())) return false;
+                        }
+                        
+                        if (inTransitVarietyFilter) {
+                          const vName = (trip.entry?.variety || '').toLowerCase();
+                          if (!vName.includes(inTransitVarietyFilter.toLowerCase())) return false;
+                        }
+                        return true;
+                      });
 
+                      // Update total count for pagination footer (outside IIFE scope)
+                      if (inTransitFilteredCount !== filteredTrips.length) {
+                        setTimeout(() => setInTransitFilteredCount(filteredTrips.length), 0);
+                      }
 
+                      // Slicing to 12 records per page
+                      const paginatedTrips = filteredTrips.slice((inTransitPage - 1) * 12, inTransitPage * 12);
 
-
-
-
-                      return flatTrips.map((trip, idx) => {
+                      return paginatedTrips.map((trip, idx) => {
 
 
 
@@ -6426,11 +6472,8 @@ const Arrivals: React.FC = () => {
 
 
 
-                        const displayNetWeight = netWeightVal !== '-' && netWeightVal !== null ? 
-
-
-
-                          `${netWeightVal}${suteVal ? ` (${suteVal})` : ''}` : '-';
+                        const displayNetWeight = transitDetail?.suteNetWeight !== undefined && transitDetail?.suteNetWeight !== null ? 
+                          `${transitDetail.suteNetWeight} Kg` : (netWeightVal !== '-' && netWeightVal !== null ? `${netWeightVal} Kg` : '-');
 
 
 
@@ -6514,7 +6557,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700' }}>{idx + 1}</td>
+                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700' }}>{(inTransitPage - 1) * 12 + idx + 1}</td>
 
 
 
@@ -6534,30 +6577,40 @@ const Arrivals: React.FC = () => {
 
 
 
-                                  onClick={() => {
-
-
-
-                                    setSelectedDetailEntry({
-
-
-
-                                      ...entry,
-
-
-
-                                      lorryNumber: lorryNum
-
-
-
-                                    });
-
-
-
-                                    setIsDetailOpen(true);
-
-
-
+                                  onClick={async () => {
+                                    const entryId = entry.id || `${idx}`;
+                                    setDetailLoadingId(entryId);
+                                    try {
+                                      const sampleEntryId = entry.id;
+                                      if (sampleEntryId) {
+                                        const token = localStorage.getItem('token');
+                                        const res = await axios.get(`${API_URL}/sample-entries/${sampleEntryId}`, {
+                                          headers: { Authorization: `Bearer ${token}` }
+                                        });
+                                        const fullSampleEntry = res.data.entry || res.data.sampleEntry || res.data;
+                                        const mergedEntry = {
+                                          ...fullSampleEntry,
+                                          ...entry,
+                                          ...transitDetail,
+                                          id: sampleEntryId,
+                                          lorryNumber: lorryNum,
+                                          partyWbName: transitDetail?.partyWbName || null,
+                                          qualityParameters: fullSampleEntry.qualityParameters || entry.qualityParameters || null,
+                                          qualityAttemptDetails: fullSampleEntry.qualityAttemptDetails || entry.qualityAttemptDetails || []
+                                        };
+                                        setSelectedDetailEntry(mergedEntry);
+                                        setIsDetailOpen(true);
+                                      }
+                                    } catch (err) {
+                                      console.error("Error fetching detail sample entry:", err);
+                                      setSelectedDetailEntry({
+                                        ...entry,
+                                        lorryNumber: lorryNum
+                                      });
+                                      setIsDetailOpen(true);
+                                    } finally {
+                                      setDetailLoadingId(null);
+                                    }
                                   }}
 
 
@@ -6610,7 +6663,11 @@ const Arrivals: React.FC = () => {
 
 
 
-                                  {entry.partyName || '-'}
+                                  {detailLoadingId === (entry.id || `${idx}`) ? (
+                                    <span style={{ fontSize: '11px', color: '#64748b' }}>Loading...</span>
+                                  ) : (
+                                    entry.partyName || '-'
+                                  )}
 
 
 
@@ -6639,53 +6696,28 @@ const Arrivals: React.FC = () => {
 
 
                               <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700', color: '#b91c1c' }}>
-
-
-
                                 {isPlaceholder ? '-' : (() => {
-
-
-
-                                  // ✅ FIX: Get moisture from Full Lorry Avg (samplingStages.full_avg.moisture) OR fallback to inspection.moisture
-
-
-
-                                  const fullLorryMoisture = inspection?.samplingStages?.full_avg?.moisture;
-
-
-
-                                  const directMoisture = inspection?.moisture;
-
-
-
-                                  const moistureValue = fullLorryMoisture || directMoisture;
-
-
-
-                                  return moistureValue ? `${Number(moistureValue)}%` : '-';
-
-
-
+                                  const iqParams = (inspection?.inventoryQualityParameters) || (entry?.inventoryQualityParameters) || (inspection?.lorryTransitDetail?.inventoryQualityParameters) || [];
+                                  const approvedFull = iqParams.find((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
+                                  const approvedLot = iqParams.find((p: any) => p.type === 'lot_avg' && p.status === 'approved');
+                                  const iqSource = approvedLot || approvedFull;
+                                  return iqSource && iqSource.moisture ? `${Number(iqSource.moisture)}%` : '-';
                                 })()}
-
-
-
                               </td>
-
-
 
                               <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>
-
-
-
-                                {isPlaceholder ? '-' : getCuttingValue(entry, inspection)}
-
-
-
+                                {isPlaceholder ? '-' : (() => {
+                                  const iqParams = (inspection?.inventoryQualityParameters) || (entry?.inventoryQualityParameters) || (inspection?.lorryTransitDetail?.inventoryQualityParameters) || [];
+                                  const approvedFull = iqParams.find((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
+                                  const approvedLot = iqParams.find((p: any) => p.type === 'lot_avg' && p.status === 'approved');
+                                  const iqSource = approvedLot || approvedFull;
+                                  return iqSource && iqSource.cutting ? iqSource.cutting : '-';
+                                })()}
                               </td>
 
 
 
+                              {/* 1. WB Number */}
                               <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', verticalAlign: 'middle' }}>
                                 {transitDetail && (wbStatus === 'approved' || wbStatus === 'pending') ? (
                                   <span style={{ 
@@ -6714,41 +6746,71 @@ const Arrivals: React.FC = () => {
                                         </div>
                                       ) : (<span style={{ fontSize: '9px', color: '#92400e', fontWeight: 'bold' }}>⏳ Pending</span>);
                                     } else if (wbSt === 'approved') {
-                                      return <div><span style={{ fontSize: '9px', color: '#16a34a', fontWeight: 'bold' }}>✅ WB Done</span>{!tDetail?.partyWbName ? <button onClick={() => { const rk = isPlaceholder ? 'p-' + entry.id : 'i-' + inspection?.id; if (selectedLorryForWB === rk) { setSelectedLorryForWB(null); setSelectedLorryInspection(null); } else { setSelectedLorryForWB(rk); setSelectedLorryForPlace(null); setSelectedLorryInspection(inspection || entry); setWbInputType('mill'); setWbNumber(''); setPartyWbName(''); setWbGrossWeight(''); setWbTareWeight(''); setWbNetWeight(''); setWbSute(''); setPartyWbEnabled(''); setPartyWbNo(''); setPartyWbDate(new Date().toISOString().split('T')[0]); setPartyGrossWeight(''); setPartyTareWeight(''); setPartyNetWeight(''); setPartySute(''); setWbDate(new Date().toISOString().split('T')[0]) } }} style={{ padding: '1px 4px', border: 'none', borderRadius: '3px', background: '#2563eb', color: '#fff', fontWeight: 'bold', fontSize: '8px', cursor: 'pointer', marginLeft: '4px' }}>+ Party WB</button> : null}</div>;
+                                      return <div><span style={{ fontSize: '9px', color: '#16a34a', fontWeight: 'bold' }}>✅ WB Done</span></div>;
                                     } else {
                                       return (
-                                        <button onClick={() => { const rk = isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id); if (selectedLorryForWB === rk) { setSelectedLorryForWB(null); setSelectedLorryEntries([]); setSelectedLorryInspection(null); } else { setSelectedLorryForWB(rk); setSelectedLorryForPlace(null); setSelectedLorryEntries([entry]); setSelectedLorryInspection(inspection || entry); setWbInputType('mill'); setWbNumber(tDetail?.wbNo || ''); setWbGrossWeight(''); setWbTareWeight(''); setWbNetWeight(''); setWbSute(''); setPartyWbEnabled(''); setPartyWbNo(''); setPartyWbDate(new Date().toISOString().split('T')[0]); setPartyGrossWeight(''); setPartyTareWeight(''); setPartyNetWeight(''); setPartySute(''); setWbDate(new Date().toISOString().split('T')[0]) } }} style={{ padding: '2px 5px', border: 'none', borderRadius: '3px', background: selectedLorryForWB === (isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id)) ? '#64748b' : 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer', whiteSpace: 'nowrap' }}>⚖️ WB</button>
+                                        <button onClick={() => {
+                                          const rk = isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id);
+                                          if (selectedLorryForWB === rk) {
+                                            setSelectedLorryForWB(null);
+                                            setSelectedLorryEntries([]);
+                                            setSelectedLorryInspection(null);
+                                          } else {
+                                            setSelectedLorryForWB(rk);
+                                            setSelectedLorryForPlace(null);
+                                            setSelectedLorryEntries([entry]);
+                                            setSelectedLorryInspection(inspection || entry);
+                                            setWbInputType(tDetail?.wbInputType || 'mill');
+                                            setWbNumber(tDetail?.wbNo || '');
+                                            setMillWbId(tDetail?.millWbId || '');
+                                            setWbGrossWeight(tDetail?.grossWeight || '');
+                                            setWbTareWeight(tDetail?.tareWeight || '');
+                                            setWbNetWeight(tDetail?.netWeight || '');
+                                            setWbSute(tDetail?.sute || '');
+                                            setPartyWbEnabled(tDetail?.partyWbEnabled || '');
+                                            setPartyWbNo(tDetail?.partyWbNo || '');
+                                            setPartyWbDate(tDetail?.partyWbDate || new Date().toISOString().split('T')[0]);
+                                            setPartyWbName(tDetail?.partyWbName || '');
+                                            setPartyGrossWeight(tDetail?.partyGrossWeight || '');
+                                            setPartyTareWeight(tDetail?.partyTareWeight || '');
+                                            setPartyNetWeight(tDetail?.partyNetWeight || '');
+                                            setPartySute(tDetail?.partySute || '');
+                                            setWbDate(tDetail?.wbDate || new Date().toISOString().split('T')[0]);
+                                          }
+                                        }} style={{ padding: '2px 5px', border: 'none', borderRadius: '3px', background: selectedLorryForWB === (isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id)) ? '#64748b' : 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer', whiteSpace: 'nowrap' }}>⚖️ WB</button>
                                       );
                                     }
                                   })()}
                                 </div>
                               </td>
 
+                              {/* 2. Mill WB Name */}
+                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: '#0369a1' }}>
+                                {transitDetail?.partyWbName ? (
+                                  <span style={{ fontWeight: 'bold', color: '#0369a1' }}>{transitDetail.partyWbName}</span>
+                                ) : (
+                                  <span style={{ color: '#94a3b8' }}>-</span>
+                                ) }
+                              </td>
 
+                              {/* 3. Net Weight */}
+                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700' }}>
+                                <div>{netWeightVal !== '-' && netWeightVal !== null ? `${netWeightVal} Kg` : '-'}</div>
+                                {suteVal && <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 'normal', marginTop: '2px' }}>({suteVal} Kg)</div>}
+                              </td>
 
+                              {/* 4. Sute Net Wt */}
+                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700' }}>
+                                {transitDetail?.suteNetWeight ? `${transitDetail.suteNetWeight} Kg` : '-'}
+                              </td>
+
+                              {/* 5. Godown */}
                               <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontSize: '11px', verticalAlign: 'middle' }}>
-
-
-
                                 {transitDetail && (placeStatus === 'approved' || placeStatus === 'pending' || placeStatus === 'placed') ? (
-
-
-
                                   <span style={{ 
-
-
-
                                     padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold',
-
-
-
                                     background: placeStatus === 'approved' ? '#dcfce7' : '#fef3c7',
-
-
-
                                     color: placeStatus === 'approved' ? '#166534' : '#92400e'
-
-
                                   }}>
                                     {(() => {
                                       if (transitDetail.placeType === 'kunchinittu') {
@@ -6761,165 +6823,142 @@ const Arrivals: React.FC = () => {
                                   </span>
                                 ) : null}
                                 <div style={{ marginTop: transitDetail && (placeStatus === 'approved' || placeStatus === 'pending' || placeStatus === 'placed') ? '4px' : '0px' }}>                                  {placeStatus === 'approved' ? (
-
-
                                     <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 'bold' }}>📍 Done</span>
-
-
                                   ) : placeStatus === 'placed' ? (
-
-
-                                    <span style={{ fontSize: '10px', color: '#2563eb', fontWeight: 'bold' }}>📍 Placed ✅</span>
-
-
-                                  ) : (
-
-
-
+                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                                       <span style={{ fontSize: '10px', color: '#2563eb', fontWeight: 'bold' }}>📍 Placed ✅</span>
+                                       {!(user?.role === 'staff' && (user?.staffType === 'location' || user?.staffType === 'mill')) && (
+                                         <button 
+                                           onClick={() => handleMoveToBmb(trip)}
+                                           style={{ padding: '3px 6px', border: 'none', borderRadius: '4px', background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}
+                                         >
+                                           🚚 Move to BMB
+                                         </button>
+                                       )}
+                                     </div>
+                                  ) : (user?.role === 'staff' && (user?.staffType === 'location' || user?.staffType === 'mill')) ? null : (
                                     <button
-
-
-
                                       onClick={() => {
-
-
-
                                         const rowKey = isPlaceholder ? `p-${entry.id}` : `i-${inspection.id}`;
-
-
-
                                         if (selectedLorryForPlace === rowKey) {
-
-
-
                                           setSelectedLorryForPlace(null);
-
-
-
                                           setSelectedLorryEntries([]);
-
-
-
                                           setSelectedLorryInspection(null);
-
-
-
                                         } else {
-
-
-
                                           setSelectedLorryForPlace(rowKey);
-
-
-
                                           setSelectedLorryForWB(null);
-
-
-
                                           setSelectedLorryEntries([entry]);
-
-
-
                                           setSelectedLorryInspection(inspection);
-
-
-
                                           setPlaceWarehouseId('');
-
-
-
                                           setPlaceKunchinittuId('');
-
-
-
                                           setPlaceOutturnId('');
-
-
-
                                           setPlaceType('production');
-
-
-
                                         }
-
-
-
                                       }}
-
-
-
                                       style={{
-
-
-
                                         padding: '3px 6px',
-
-
-
                                         border: 'none',
-
-
-
                                         borderRadius: '4px',
-
-
-
                                         background: selectedLorryForPlace === (isPlaceholder ? `p-${entry.id}` : `i-${inspection.id}`) ? '#64748b' : 'linear-gradient(135deg, #3b82f6, #2563eb)',
-
-
-
                                         color: '#fff',
-
-
-
                                         fontWeight: 'bold',
-
-
-
                                         fontSize: '10px',
-
-
-
                                         cursor: 'pointer'
-
-
-
                                       }}
-
-
-
                                     >
-
-
-
                                       📍 Godown
-
-
-
                                     </button>
-
-
-
                                   )}
-
-
-
                                 </div>
-
-
-
                               </td>
 
+                              {/* Quality Status + Sampling Button column */}
+                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontSize: '11px', verticalAlign: 'middle' }}>
+                                {(() => {
+                                  const params = (inspection?.inventoryQualityParameters) || (entry?.inventoryQualityParameters) || [];
+                                  const isFullApproved = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
+                                  const isLotApproved = params.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
+                                  const isFullPending = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'pending');
+                                  const isLotPending = params.some((p: any) => p.type === 'lot_avg' && p.status === 'pending');
 
+                                  let statusBadge = null;
+                                  if (isLotApproved) {
+                                    statusBadge = <span style={{ padding: '2px 6px', borderRadius: '4px', background: '#dcfce7', color: '#166534', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>✅ Quality Done</span>;
+                                  } else if (isLotPending) {
+                                    statusBadge = <span style={{ padding: '2px 6px', borderRadius: '4px', background: '#fef3c7', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>⏳ Before Unloading Pending</span>;
+                                  } else if (isFullApproved) {
+                                    statusBadge = <span style={{ padding: '2px 6px', borderRadius: '4px', background: '#dbeafe', color: '#1e40af', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>✅ Full Lorry Avg Approved</span>;
+                                  } else if (isFullPending) {
+                                    statusBadge = <span style={{ padding: '2px 6px', borderRadius: '4px', background: '#fee2e2', color: '#991b1b', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>⏳ Full Lorry Avg Pending</span>;
+                                  }
 
-                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700' }}>{suteVal ? `${suteVal} Kg` : '-'}</td>
+                                  // Quality Sampling button logic
+                                  let btnText = '🔬 Quality Sampling';
+                                  let btnBg = '#a855f7';
+                                  let isBtnDisabled = false;
+                                  if (isLotApproved) {
+                                    btnText = '✅ Before Unloading Avg Approved';
+                                    btnBg = '#059669';
+                                    isBtnDisabled = true;
+                                  } else if (isLotPending) {
+                                    btnText = '⏳ Before Unloading Avg Pending';
+                                    btnBg = '#d97706';
+                                    isBtnDisabled = true;
+                                  } else if (isFullApproved) {
+                                    btnText = '🔬 Quality Sampling (Before Unloading)';
+                                    btnBg = '#0284c7';
+                                  } else if (isFullPending) {
+                                    btnText = '⏳ Full Lorry Avg Pending';
+                                    btnBg = '#b45309';
+                                    isBtnDisabled = true;
+                                  }
 
+                                  return (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'center' }}>
+                                      {statusBadge}
+                                      <button
+                                        disabled={isBtnDisabled}
+                                        onClick={() => {
+                                          setQualitySamplingEntry(isPlaceholder ? entry : { ...entry, ...(inspection || {}) });
+                                          setIsQualitySamplingModalOpen(true);
+                                          const hasLot = params.some((p: any) => p.type === 'lot_avg' && p.status !== 'rejected');
+                                          if (!hasLot) {
+                                            setInventoryQualityType('lot_avg');
+                                          } else {
+                                            setInventoryQualityType('full_lorry_avg');
+                                          }
+                                          setInventoryQualityForm({
+                                            moisture: '', dryMoisture: '', cutting: '', bend: '', grains: '',
+                                            mix: '', sMix: '', lMix: '', kandu: '', oil: '', sk: '',
+                                            wbR: '', wbBk: '', wbT: '',
+                                            smell: '', paddyWb: '', pColor: '', kadiga: '', remarks: ''
+                                          });
+                                          setInventoryQualityToggle({
+                                            dryMoisture: 'Y', sMix: 'Y', lMix: 'Y', paddyWb: 'Y', kadiga: 'Y', smellHas: 'No'
+                                          });
+                                        }}
+                                        style={{
+                                          padding: '4px 6px',
+                                          background: isBtnDisabled ? '#94a3b8' : btnBg,
+                                          color: '#fff',
+                                          border: 'none',
+                                          borderRadius: '4px',
+                                          cursor: isBtnDisabled ? 'not-allowed' : 'pointer',
+                                          fontSize: '10px',
+                                          fontWeight: '600',
+                                          width: '100%',
+                                          whiteSpace: 'nowrap',
+                                          opacity: isBtnDisabled ? 0.8 : 1
+                                        }}
+                                      >
+                                        {btnText}
+                                      </button>
+                                    </div>
+                                  );
+                                })()}
+                              </td>
 
-
-                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700' }}>{netWeightVal !== '-' && netWeightVal !== null ? `${netWeightVal} Kg` : '-'}</td>
-
-
-
+                              {/* 6. Lorry Number */}
                               <td style={{ border: '1px solid #000', padding: '5px', fontWeight: '800', color: '#1e40af' }}>{lorryNum.toUpperCase()}</td>
 
 
@@ -6947,7 +6986,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                <td colSpan={ (((user as any)?.role === 'inventory_staff' || (user as any)?.role === 'inventory_head' || (user as any)?.effectiveRole === 'inventory_head' || (user as any)?.role === 'ceo' || (user as any)?.effectiveRole === 'ceo' || (user as any)?.role === 'admin' || (user as any)?.role === 'manager') && !(user?.staffType === 'mill')) ? 12 : 12 } style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
+                                <td colSpan={ (((user as any)?.role === 'inventory_staff' || (user as any)?.role === 'inventory_head' || (user as any)?.effectiveRole === 'inventory_head' || (user as any)?.role === 'ceo' || (user as any)?.effectiveRole === 'ceo' || (user as any)?.role === 'admin' || (user as any)?.role === 'manager') && !(user?.staffType === 'mill')) ? 14 : 14 } style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
 
 
 
@@ -7467,27 +7506,37 @@ const Arrivals: React.FC = () => {
 
 
 
-                                              wbNo: wbNumber,                                               grossWeight: wbGrossWeight,
+                                              wbNo: wbNumber,                                               
 
 
 
-                                               tareWeight: wbTareWeight,
+                                              grossWeight: wbGrossWeight,
 
 
 
-                                               netWeight: wbNetWeight,
+                                              tareWeight: wbTareWeight,
 
 
 
-                                               sute: wbSute || null,
+                                              netWeight: wbNetWeight,
 
 
 
-                                               partyWbEnabled: partyWbEnabled || null,
+                                              sute: wbSute || null,
 
 
 
-                                               wbDate: wbDate || null
+                                              partyWbEnabled: partyWbEnabled || null,
+
+
+
+                                              wbDate: wbDate || null,
+                                           partyGrossWeight: partyWbEnabled === 'yes' && partyGrossWeight ? Number(partyGrossWeight) : null,
+                                           partyTareWeight: partyWbEnabled === 'yes' && partyTareWeight ? Number(partyTareWeight) : null,
+                                           partyNetWeight: partyWbEnabled === 'yes' && partyNetWeight ? Number(partyNetWeight) : null,
+                                           partySute: partyWbEnabled === 'yes' && partySute ? Number(partySute) : null,
+                                           partyWbNo: partyWbEnabled === 'yes' ? partyWbNo : null,
+                                           partyWbDate: partyWbEnabled === 'yes' ? partyWbDate : null
 
 
 
@@ -7519,63 +7568,87 @@ const Arrivals: React.FC = () => {
 
 
 
-                                            setInTransitEntries(prev => applyWbSaveToEntries(prev, selectedLorryInspection?.id ?? entry.id, {
+                                            // Post-save processing (separate try-catch to avoid misleading 'save failed' toast)
 
 
 
-                                              wbStatus: savedStatus,
+                                            try {
 
 
 
-                                              wbNo: savedWbNo,
+                                              setInTransitEntries(prev => applyWbSaveToEntries(prev, selectedLorryInspection?.id ?? entry.id, {
 
 
 
-                                              netWeight: savedNetWeight,
+                                                wbStatus: savedStatus,
 
 
 
-                                              partyWbName: wbInputType === 'party' ? partyWbName : (responseDetail?.partyWbName || undefined),
+                                                wbNo: savedWbNo,
 
 
 
-                                              wbInputType: 'mill',
+                                                netWeight: savedNetWeight,
 
 
 
-                                              millWbId: wbInputType === 'mill' ? millWbId : undefined,
+                                                partyWbName: wbInputType === 'party' ? partyWbName : (responseDetail?.partyWbName || undefined),
 
 
 
-                                              grossWeight: wbGrossWeight,
+                                                wbInputType: 'mill',
 
 
 
-                                              tareWeight: wbTareWeight
+                                                millWbId: wbInputType === 'mill' ? millWbId : undefined,
 
 
 
-                                            }));
+                                                grossWeight: wbGrossWeight,
 
 
 
-                                            toast.success('Weight Bridge saved & submitted for approval!');
+                                                tareWeight: wbTareWeight
 
 
 
-                                            setSelectedLorryForWB(null);
+                                              }));
 
 
 
-                                            setSelectedLorryEntries([]);
+                                              toast.success('Weight Bridge saved & submitted for approval!');
 
 
 
-                                            setSelectedLorryInspection(null);
+                                              setSelectedLorryForWB(null);
 
 
 
-                                            fetchInTransitEntries();
+                                              setSelectedLorryEntries([]);
+
+
+
+                                              setSelectedLorryInspection(null);
+
+
+
+                                              fetchInTransitEntries();
+
+
+
+                                            } catch (postErr: any) {
+
+
+
+                                              console.error('Post-save state update error:', postErr);
+
+
+
+                                              // Don't show "Failed to save" - save actually succeeded
+
+
+
+                                            }
 
 
 
@@ -7651,7 +7724,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                <td colSpan={ (((user as any)?.role === 'inventory_staff' || (user as any)?.role === 'inventory_head' || (user as any)?.effectiveRole === 'inventory_head' || (user as any)?.role === 'ceo' || (user as any)?.effectiveRole === 'ceo' || (user as any)?.role === 'admin' || (user as any)?.role === 'manager') && !(user?.staffType === 'mill')) ? 12 : 12 } style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
+                                <td colSpan={ (((user as any)?.role === 'inventory_staff' || (user as any)?.role === 'inventory_head' || (user as any)?.effectiveRole === 'inventory_head' || (user as any)?.role === 'ceo' || (user as any)?.effectiveRole === 'ceo' || (user as any)?.role === 'admin' || (user as any)?.role === 'manager') && !(user?.staffType === 'mill')) ? 14 : 14 } style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
 
 
 
@@ -8267,163 +8340,28 @@ const Arrivals: React.FC = () => {
 
 
 
-              {/* Pagination Footer: Load More + Stats */}
-
-
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', padding: '10px 14px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', flexWrap: 'wrap', gap: '10px' }}>
-
-
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#64748b', fontWeight: 600 }}>
-
-
-
-                  <span style={{ background: '#dbeafe', color: '#1565c0', padding: '2px 8px', borderRadius: '10px', fontWeight: 700 }}>{transitTotalLoaded}</span>
-
-
-
-                  lots loaded
-
-
-
-                  {transitHasNextPage && <span style={{ color: '#94a3b8' }}>• more available</span>}
-
-
-
-                </div>
-
-
-
-                {transitHasNextPage && (
-
-
-
-                  <button
-
-
-
-                    onClick={handleLoadMore}
-
-
-
-                    disabled={loadingMore}
-
-
-
-                    style={{
-
-
-
-                      padding: '8px 24px',
-
-
-
-                      background: loadingMore ? '#94a3b8' : 'linear-gradient(135deg, #1565c0, #1e88e5)',
-
-
-
-                      color: '#fff',
-
-
-
-                      border: 'none',
-
-
-
-                      borderRadius: '8px',
-
-
-
-                      cursor: loadingMore ? 'not-allowed' : 'pointer',
-
-
-
-                      fontWeight: 700,
-
-
-
-                      fontSize: '12px',
-
-
-
-                      boxShadow: loadingMore ? 'none' : '0 2px 8px rgba(21,101,192,0.25)',
-
-
-
-                      transition: 'all 0.2s ease',
-
-
-
-                      display: 'flex',
-
-
-
-                      alignItems: 'center',
-
-
-
-                      gap: '6px'
-
-
-
-                    }}
-
-
-
+              {/* Client-side Pagination Footer */}
+              {inTransitFilteredCount > 12 && (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '14px', padding: '10px 14px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                  <button 
+                    disabled={inTransitPage <= 1} 
+                    onClick={() => setInTransitPage(p => p - 1)} 
+                    style={{ padding: '6px 12px', borderRadius: '4px', cursor: inTransitPage <= 1 ? 'not-allowed' : 'pointer', background: inTransitPage <= 1 ? '#f1f5f9' : 'white', border: '1px solid #cbd5e1', fontWeight: 'bold', fontSize: '12px' }}
                   >
-
-
-
-                    {loadingMore ? (
-
-
-
-                      <>
-
-
-
-                        <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⏳</span> Loading...
-
-
-
-                      </>
-
-
-
-                    ) : (
-
-
-
-                      <>📥 Load More</>
-
-
-
-                    )}
-
-
-
+                    Prev
                   </button>
-
-
-
-                )}
-
-
-
-                {!transitHasNextPage && transitTotalLoaded > 0 && (
-
-
-
-                  <span style={{ fontSize: '12px', color: '#16a34a', fontWeight: 600 }}>✅ All records loaded</span>
-
-
-
-                )}
-
-
-
-              </div>
+                  <span style={{ fontSize: '13px', color: '#475569', fontWeight: 600 }}>
+                    Page {inTransitPage} of {Math.ceil(inTransitFilteredCount / 12)} ({inTransitFilteredCount} records)
+                  </span>
+                  <button 
+                    disabled={inTransitPage >= Math.ceil(inTransitFilteredCount / 12)} 
+                    onClick={() => setInTransitPage(p => p + 1)} 
+                    style={{ padding: '6px 12px', borderRadius: '4px', cursor: inTransitPage >= Math.ceil(inTransitFilteredCount / 12) ? 'not-allowed' : 'pointer', background: inTransitPage >= Math.ceil(inTransitFilteredCount / 12) ? '#f1f5f9' : 'white', border: '1px solid #cbd5e1', fontWeight: 'bold', fontSize: '12px' }}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
 
 
 
@@ -8580,22 +8518,16 @@ const Arrivals: React.FC = () => {
 
 
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>WB Number</th>
-
-
-
-                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Godown</th>
-
-
-
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Mill WB Name</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Net Weight</th>
-
-
-
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Sute Net Wt</th>
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Godown</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '12%' }}>Lorry Number</th>
 
 
 
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Approved By</th>
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Quality Status</th>
 
 
 
@@ -8635,7 +8567,8 @@ const Arrivals: React.FC = () => {
 
 
 
-                    const displayNetWeight = netWeightVal ? `${netWeightVal}${suteVal ? ` (${suteVal})` : ''}` : '-';
+                    const displayNetWeight = entry.suteNetWeight !== undefined && entry.suteNetWeight !== null ? 
+                      `${entry.suteNetWeight} Kg` : (netWeightVal ? `${netWeightVal} Kg` : '-');
 
 
 
@@ -9235,113 +9168,50 @@ const Arrivals: React.FC = () => {
 
 
 
-                          {/* Column 9: WB Number */}
-
-
-
-                          <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>
-
-
-
-                            {entry.wbInputType === 'mill' ? (
-
-                              wbStatus === 'approved' || wbStatus === 'pending' ? (
-
-                                <span style={{
-
-                                  padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold',
-
-                                  background: wbStatus === 'approved' ? '#dcfce7' : '#fef3c7',
-
-                                  color: wbStatus === 'approved' ? '#166534' : '#92400e'
-
-                                }}>
-
-                                  {entry.wbNo || 'PENDING'}
-
-                                  {wbStatus === 'pending' && ' ⏳'}
-
-                                </span>
-
-                              ) : (
-
-                                entry.wbNo || (wbStatus === 'none' ? '⚠️ Required' : '-')
-
-                              )
-
-                            ) : (
-
-                              wbStatus === 'pending' ? 'PENDING ⏳' : '-'
-
-                            )}
-
-                          </td>
-
-
-
-                          
-
-
-
-                          {/* Column 10: Godown */}
-
-
-
-                          <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: '#7c3aed' }}>
-
-
-
-                            {placeDisplay}
-
-
-
-                          </td>
-
-
-
-                          
-
-
-
-                          {/* Column 11: Net Weight */}
-
-
-
-                          <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: '#d97706' }}>
-
-
-                            {entry.sute ? `${entry.sute} Kg` : '-'}
-
-
-                          </td>
-                          <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700', color: '#059669' }}>
-
-
-                            {netWeightVal ? `${netWeightVal} Kg` : '-'}
-
-
-
-                          </td>
-
-
-
-
-
-
-
-                          {/* Column 12: Lorry Number */}
-
-
-
-                          <td style={{ border: '1px solid #000', padding: '5px', fontWeight: '800', color: '#1e40af' }}>
-
-
-
-                            {(entry.lorryNumber || 'N/A').toUpperCase()}
-
-
-
-                          </td>
+                          {/* Column 9: WB Number (Mill WB No) */}
+                           <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>
+                             {entry.wbNo ? (
+                               <span style={{
+                                 padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold',
+                                 background: wbStatus === 'approved' ? '#dcfce7' : wbStatus === 'pending' ? '#fef3c7' : '#f1f5f9',
+                                 color: wbStatus === 'approved' ? '#166534' : wbStatus === 'pending' ? '#92400e' : '#475569'
+                               }}>
+                                 {entry.wbNo}{wbStatus === 'pending' ? ' ⏳' : ''}
+                               </span>
+                             ) : (
+                               <span style={{ color: '#94a3b8' }}>{wbStatus === 'none' ? '⚠️ Required' : '-'}</span>
+                             )}
+                           </td>
+
+                           {/* Column 11b: Mill WB Name */}
+                           <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: '#0369a1' }}>
+                             {entry.partyWbName ? (
+                               <span style={{ fontWeight: 'bold', color: '#0369a1' }}>{entry.partyWbName}</span>
+                             ) : (
+                               <span style={{ color: '#94a3b8' }}>-</span>
+                             )}
+                           </td>
+                           
+                           {/* Column 12: Net Weight */}
+                           <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700', color: '#059669' }}>
+                             <div>{entry.netWeight ? `${entry.netWeight} Kg` : '-'}</div>
+                             {entry.sute && <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 'normal', marginTop: '2px' }}>({entry.sute} Kg)</div>}
+                           </td>
+
+                           {/* Column 11: Sute Net Wt */}
+                           <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: '#d97706' }}>
+                             {entry.suteNetWeight ? `${entry.suteNetWeight} Kg` : '-'}
+                           </td>
+
+                           {/* Column 10: Godown */}
+                           <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: '#7c3aed' }}>
+                             {placeDisplay}
+                           </td>
+
+                           {/* Column 12: Lorry Number */}
+                           <td style={{ border: '1px solid #000', padding: '5px', fontWeight: '800', color: '#1e40af' }}>
+                             {(entry.lorryNumber || 'N/A').toUpperCase()}
+                           </td>
 
 
 
@@ -9363,6 +9233,28 @@ const Arrivals: React.FC = () => {
 
                           </td>
 
+                          {/* Quality Sampling Status */}
+                          <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontSize: '11px', verticalAlign: 'middle' }}>
+                            {(() => {
+                              const params = entry.inventoryQualityParameters || [];
+                              const isFullApproved = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
+                              const isLotApproved = params.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
+                              const isFullPending = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'pending');
+                              const isLotPending = params.some((p: any) => p.type === 'lot_avg' && p.status === 'pending');
+
+                              if (isLotApproved) {
+                                return <span style={{ padding: '2px 6px', borderRadius: '4px', background: '#dcfce7', color: '#166534', fontWeight: 'bold' }}>✅ Quality Done</span>;
+                              } else if (isLotPending) {
+                                return <span style={{ padding: '2px 6px', borderRadius: '4px', background: '#fef3c7', color: '#92400e', fontWeight: 'bold' }}>⏳ Before Unloading Pending</span>;
+                              } else if (isFullApproved) {
+                                return <span style={{ padding: '2px 6px', borderRadius: '4px', background: '#dbeafe', color: '#1e40af', fontWeight: 'bold' }}>✅ Full Lorry Avg Approved</span>;
+                              } else if (isFullPending) {
+                                return <span style={{ padding: '2px 6px', borderRadius: '4px', background: '#fee2e2', color: '#991b1b', fontWeight: 'bold' }}>⏳ Full Lorry Avg Pending</span>;
+                              }
+                              return <span style={{ padding: '2px 6px', borderRadius: '4px', background: '#f1f5f9', color: '#475569', fontWeight: 'bold' }}>❌ Pending</span>;
+                            })()}
+                          </td>
+
 
 
                           
@@ -9370,10 +9262,6 @@ const Arrivals: React.FC = () => {
 
 
                           {/* Column 13: Actions */}
-
-
-
-                          {(((user as any)?.role === 'inventory_staff' || (user as any)?.role === 'inventory_head' || (user as any)?.effectiveRole === 'inventory_head' || (user as any)?.role === 'ceo' || (user as any)?.effectiveRole === 'ceo' || (user as any)?.role === 'admin' || (user as any)?.role === 'manager')) && (
 
 
 
@@ -9386,14 +9274,7 @@ const Arrivals: React.FC = () => {
 
 
                                 {/* Weight Bridge Actions */}
-
-
-
-                                {!(user && (user as any).role === 'staff' && ['mill', 'location'].includes((user as any).staffType)) && (
-
-
-
-                                  <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
 
 
 
@@ -9437,107 +9318,11 @@ const Arrivals: React.FC = () => {
 
 
 
-                                        {!entry.partyWbName && (
+                                        {entry.partyWbName && (
 
 
 
-                                          <button
-
-
-
-                                            onClick={() => {
-
-
-
-                                              const lorry = (entry.lorryNumber || 'N/A').toUpperCase();
-
-
-
-                                              if (selectedLorryForWB === lorry) {
-
-
-
-                                                setSelectedLorryForWB(null);
-
-
-
-                                                setSelectedLorryInspection(null);
-
-
-
-                                              } else {
-
-
-
-                                                setSelectedLorryForWB(lorry);
-
-
-
-                                                setSelectedLorryInspection(entry);
-
-
-
-                                                setWbInputType('party');
-
-
-
-                                                setWbNumber('');
-
-
-
-                                                setPartyWbName('');
-
-
-
-                                                setWbGrossWeight('');
-
-
-
-                                                setWbTareWeight('');
-
-
-
-                                                setWbNetWeight(''); setWbSute(''); setPartyWbEnabled(''); setPartyWbNo(''); setPartyWbDate(new Date().toISOString().split('T')[0]); setPartyGrossWeight(''); setPartyTareWeight(''); setPartyNetWeight(''); setPartySute(''); setWbDate(new Date().toISOString().split('T')[0])
-
-
-
-                                              }
-
-
-
-                                            }}
-
-
-
-                                            style={{
-
-
-
-                                              padding: '2px 6px', border: 'none', borderRadius: '4px',
-
-
-
-                                              background: selectedLorryForWB === (entry.lorryNumber || 'N/A').toUpperCase() ? '#64748b' : '#2563eb',
-
-
-
-                                              color: '#fff', fontWeight: 'bold', fontSize: '10px', cursor: 'pointer'
-
-
-
-                                            }}
-
-
-
-                                          >
-
-
-
-                                            + Party WB
-
-
-
-                                          </button>
+                                          <span style={{ fontSize: '10px', color: '#7c3aed', fontWeight: 'bold' }}>Party: {entry.partyWbName}</span>
 
 
 
@@ -9554,34 +9339,33 @@ const Arrivals: React.FC = () => {
 
 
                                       <button onClick={() => {
-
-
-
                                         const lorry = (entry.lorryNumber || 'N/A').toUpperCase();
-
-
-
-                                        if (selectedLorryForWB === lorry) { setSelectedLorryForWB(null); setSelectedLorryInspection(null); }
-
-
-
-                                        else { setSelectedLorryForWB(lorry); setSelectedLorryInspection(entry); setWbNumber(''); setMillWbId(''); setWbGrossWeight(''); setWbTareWeight(''); }
-
-
-
+                                        if (selectedLorryForWB === lorry) {
+                                          setSelectedLorryForWB(null);
+                                          setSelectedLorryInspection(null);
+                                        } else {
+                                          setSelectedLorryForWB(lorry);
+                                          setSelectedLorryInspection(entry);
+                                          setWbInputType(entry.wbInputType || 'mill');
+                                          setWbNumber(entry.wbNo || '');
+                                          setMillWbId(entry.millWbId || '');
+                                          setWbGrossWeight(entry.grossWeight || '');
+                                          setWbTareWeight(entry.tareWeight || '');
+                                          setWbNetWeight(entry.netWeight || '');
+                                          setWbSute(entry.sute || '');
+                                          setPartyWbEnabled(entry.partyWbEnabled || '');
+                                          setPartyWbNo(entry.partyWbNo || '');
+                                          setPartyWbDate(entry.partyWbDate || new Date().toISOString().split('T')[0]);
+                                          setPartyWbName(entry.partyWbName || '');
+                                          setPartyGrossWeight(entry.partyGrossWeight || '');
+                                          setPartyTareWeight(entry.partyTareWeight || '');
+                                          setPartyNetWeight(entry.partyNetWeight || '');
+                                          setPartySute(entry.partySute || '');
+                                          setWbDate(entry.wbDate || new Date().toISOString().split('T')[0]);
+                                        }
                                       }} style={{ padding: '4px 6px', border: 'none', borderRadius: '4px', background: selectedLorryForWB === (entry.lorryNumber || 'N/A').toUpperCase() ? '#64748b' : 'linear-gradient(135deg, #d97706, #b45309)', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer' }}>Add WB</button>
-
-
-
-                                    )}
-
-
-
+                                  )}
                                   </div>
-
-
-
-                                )}
 
 
 
@@ -9617,89 +9401,26 @@ const Arrivals: React.FC = () => {
 
 
 
-                                   let btnText = '🔬 Mill Quality';
-
-
-
-                                   let btnBg = '#a855f7';
-
-
-
-                                   let isBtnDisabled = false;
-
-
-
-
-
-
-
-                                   if (isLotApproved) {
-
-
-
-                                     btnText = '✅ Lot Avg Approved';
-
-
-
-                                     btnBg = '#059669';
-
-
-
-                                     isBtnDisabled = true;
-
-
-
-                                   } else if (isLotPending) {
-
-
-
-                                     btnText = '⏳ Lot Avg Pending';
-
-
-
-                                     btnBg = '#d97706';
-
-
-
-                                     isBtnDisabled = true;
-
-
-
-                                   } else if (isFullApproved) {
-
-
-
-                                     btnText = '🔬 Mill Quality (Lot)';
-
-
-
-                                     btnBg = '#0284c7';
-
-
-
-                                   } else if (isFullPending) {
-
-
-
-                                     btnText = '⏳ Full Avg Pending';
-
-
-
-                                     btnBg = '#b45309';
-
-
-
-                                     isBtnDisabled = true;
-
-
-
-                                   }
-
-
-
-
-
-
+                                    let btnText = '🔬 Quality Sampling';
+                                    let btnBg = '#a855f7';
+                                    let isBtnDisabled = false;
+
+                                    if (isLotApproved) {
+                                      btnText = '✅ Before Unloading Avg Approved';
+                                      btnBg = '#059669';
+                                      isBtnDisabled = true;
+                                    } else if (isLotPending) {
+                                      btnText = '⏳ Before Unloading Avg Pending';
+                                      btnBg = '#d97706';
+                                      isBtnDisabled = true;
+                                    } else if (isFullApproved) {
+                                      btnText = '🔬 Quality Sampling (Before Unloading)';
+                                      btnBg = '#0284c7';
+                                    } else if (isFullPending) {
+                                      btnText = '⏳ Full Lorry Avg Pending';
+                                      btnBg = '#b45309';
+                                      isBtnDisabled = true;
+                                    }
 
                                    return (
 
@@ -9714,89 +9435,24 @@ const Arrivals: React.FC = () => {
 
 
                                        onClick={() => {
-
-
-
-                                         if (expandedInventoryQuality === entry.transitDetailId) {
-
-
-
-                                           setExpandedInventoryQuality(null);
-
-
-
+                                         setQualitySamplingEntry(entry);
+                                         setIsQualitySamplingModalOpen(true);
+                                         const hasFull = params.some((p: any) => p.type === 'full_lorry_avg' && p.status !== 'rejected');
+                                         const hasLot = params.some((p: any) => p.type === 'lot_avg' && p.status !== 'rejected');
+                                         if (!hasLot) {
+                                           setInventoryQualityType('lot_avg');
                                          } else {
-
-
-
-                                           setExpandedInventoryQuality(entry.transitDetailId);
-
-
-
-                                           const hasFull = params.some((p: any) => p.type === 'full_lorry_avg' && p.status !== 'rejected');
-
-
-
-                                           const hasLot = params.some((p: any) => p.type === 'lot_avg' && p.status !== 'rejected');
-
-
-
-                                           if (hasFull && !hasLot) {
-
-
-
-                                             setInventoryQualityType('lot_avg');
-
-
-
-                                           } else {
-
-
-
-                                             setInventoryQualityType('full_lorry_avg');
-
-
-
-                                           }
-
-
-
-                                           setInventoryQualityForm({
-
-
-
-                                             moisture: '', dryMoisture: '', cutting: '', bend: '', grains: '',
-
-
-
-                                             mix: '', sMix: '', lMix: '', kandu: '', oil: '', sk: '',
-
-
-
-                                             smell: '', paddyWb: '', pColor: '', kadiga: '', remarks: ''
-
-
-
-                                           });
-
-
-
-                                           setInventoryQualityToggle({
-
-
-
-                                             dryMoisture: 'N', sMix: 'N', lMix: 'N', paddyWb: 'N', kadiga: 'N', smellHas: 'No'
-
-
-
-                                           });
-
-
-
+                                           setInventoryQualityType('full_lorry_avg');
                                          }
-
-
-
+                                         setInventoryQualityForm({
+                                           moisture: '', dryMoisture: '', cutting: '', bend: '', grains: '',
+                                           mix: '', sMix: '', lMix: '', kandu: '', oil: '', sk: '',
+                                           wbR: '', wbBk: '', wbT: '',
+                                           smell: '', paddyWb: '', pColor: '', kadiga: '', remarks: ''
+                                         });
+                                         setInventoryQualityToggle({
+                                           dryMoisture: 'Y', sMix: 'Y', lMix: 'Y', paddyWb: 'Y', kadiga: 'Y', smellHas: 'No'
+                                         });
                                        }}
 
 
@@ -9881,1055 +9537,11 @@ const Arrivals: React.FC = () => {
 
 
 
-                          )}
-
-
-
                         </tr>
 
 
 
-                        {/* INVENTORY QUALITY EXPANDED FORM */}
-
-
-
-                        {expandedInventoryQuality === entry.transitDetailId && (() => {
-
-
-
-                          const hasLotAvg = (entry.inventoryQualityParameters || []).some((qp: any) => qp.type === 'lot_avg' && qp.status !== 'rejected');
-
-
-
-                          const hasFullAvg = (entry.inventoryQualityParameters || []).some((qp: any) => qp.type === 'full_lorry_avg' && qp.status !== 'rejected');
-
-
-
-                          
-
-
-
-                          return (
-
-
-
-                            <tr>
-
-
-
-                              <td colSpan={14} style={{ padding: '16px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
-
-
-
-                                <div style={{ width: '95%', maxWidth: '520px', margin: '0 auto', background: '#fff', border: '1px solid #d8b4fe', borderRadius: '12px', padding: '20px', boxShadow: '0 8px 25px rgba(0,0,0,0.08)' }}>
-
-
-
-                                  {/* Header */}
-
-
-
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px', marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '14px' }}>
-
-
-
-                                    <div>
-
-
-
-                                      <h3 style={{ margin: 0, color: '#c2410c', fontSize: '18px', fontWeight: 900 }}>
-
-
-
-                                        {inventoryQualityType === 'lot_avg' ? 'Lot Avg Sampling' : 'Full Lorry Avg Sampling'}
-
-
-
-                                      </h3>
-
-
-
-                                      <div style={{ fontSize: '12px', color: '#475569', marginTop: '4px' }}>Lorry: {(entry.lorryNumber || 'N/A').toUpperCase()}</div>
-
-
-
-                                    </div>
-
-
-
-                                    <button
-
-
-
-                                      onClick={() => setExpandedInventoryQuality(null)}
-
-
-
-                                      style={{ padding: '6px 12px', border: '1px solid #e2e8f0', borderRadius: '6px', background: '#fff', cursor: 'pointer', fontSize: '12px', color: '#64748b', fontWeight: 600 }}
-
-
-
-                                    >✕ Close</button>
-
-
-
-                                  </div>
-
-
-
-
-
-
-
-                                  {/* Previously Submitted Section */}
-
-
-
-                                  {entry.inventoryQualityParameters && entry.inventoryQualityParameters.length > 0 && (
-
-
-
-                                    <div style={{ marginBottom: '18px' }}>
-
-
-
-                                      <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#374151', marginBottom: '8px' }}>Previously Submitted:</div>
-
-
-
-                                      {entry.inventoryQualityParameters.map((qp: any, qIdx: number) => (
-
-
-
-                                        <div key={qp.id || qIdx} style={{
-
-
-
-                                          padding: '10px 14px', marginBottom: '8px',
-
-
-
-                                          background: qp.status === 'approved' ? '#f0fdf4' : qp.status === 'rejected' ? '#fef2f2' : '#fefce8',
-
-
-
-                                          border: '1px solid',
-
-
-
-                                          borderColor: qp.status === 'approved' ? '#86efac' : qp.status === 'rejected' ? '#fca5a5' : '#fde047',
-
-
-
-                                          borderRadius: '8px', fontSize: '12px'
-
-
-
-                                        }}>
-
-
-
-                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-
-
-
-                                            <span style={{ fontWeight: 'bold', fontSize: '11px', color: qp.status === 'approved' ? '#166534' : qp.status === 'rejected' ? '#991b1b' : '#854d0e' }}>
-
-
-
-                                              {qp.type === 'lot_avg' ? '📊 Lot Avg' : '🚛 Full Lorry Avg'} — {qp.status === 'approved' ? '✅ Approved' : qp.status === 'rejected' ? '❌ Rejected' : '⏳ Pending'}
-
-
-
-                                            </span>
-
-
-
-                                          </div>
-
-
-
-                                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', color: '#475569', fontSize: '11px' }}>
-
-
-
-                                            <span>Moisture: <b>{qp.moisture || '-'}</b></span>
-
-
-
-                                            <span>Dry: <b>{qp.dryMoisture || '-'}</b></span>
-
-
-
-                                            <span>Cutting: <b>{qp.cutting || '-'}</b></span>
-
-
-
-                                            <span>Bend: <b>{qp.bend || '-'}</b></span>
-
-
-
-                                            <span>Grains: <b>{qp.grains || '-'}</b></span>
-
-
-
-                                            <span>Mix: <b>{qp.mix || '-'}</b></span>
-
-
-
-                                            <span>S Mix: <b>{qp.sMix || '-'}</b></span>
-
-
-
-                                            <span>L Mix: <b>{qp.lMix || '-'}</b></span>
-
-
-
-                                            <span>Kandu: <b>{qp.kandu || '-'}</b></span>
-
-
-
-                                            <span>Oil: <b>{qp.oil || '-'}</b></span>
-
-
-
-                                            <span>SK: <b>{qp.sk || '-'}</b></span>
-
-
-
-                                            <span>Smell: <b>{qp.smell || '-'}</b></span>
-
-
-
-                                            <span>Paddy WB: <b>{qp.paddyWb || '-'}</b></span>
-
-
-
-                                            <span>Paddy Color: <b>{qp.pColor || '-'}</b></span>
-
-
-
-                                            <span>Kadiga: <b>{qp.kadiga || '-'}</b></span>
-
-
-
-                                          </div>
-
-
-
-                                          {qp.reporter && <div style={{ marginTop: '4px', fontSize: '10px', color: '#94a3b8' }}>Reported by: {qp.reporter.fullName || qp.reporter.username}</div>}
-
-
-
-                                        </div>
-
-
-
-                                      ))}
-
-
-
-                                    </div>
-
-
-
-                                  )}
-
-
-
-
-
-
-
-                                  {/* Rejection Reason */}
-
-
-
-                                  {rejectInventoryQualityId && (
-
-
-
-                                    <div style={{ marginBottom: '14px', padding: '12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px' }}>
-
-
-
-                                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#991b1b', marginBottom: '6px' }}>Rejection Reason:</label>
-
-
-
-                                      <div style={{ display: 'flex', gap: '6px' }}>
-
-
-
-                                        <input type="text" value={rejectInventoryQualityReason} onChange={(e) => setRejectInventoryQualityReason(e.target.value)} placeholder="Enter reason..." style={{ flex: 1, padding: '6px 10px', fontSize: '12px', border: '1px solid #fca5a5', borderRadius: '5px' }} autoFocus />
-
-
-
-                                        <button onClick={handleRejectInventoryQuality} style={{ padding: '6px 14px', border: 'none', borderRadius: '5px', background: '#dc2626', color: '#fff', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>Confirm Reject</button>
-
-
-
-                                        <button onClick={() => setRejectInventoryQualityId(null)} style={{ padding: '6px 14px', border: '1px solid #cbd5e1', borderRadius: '5px', background: '#fff', color: '#64748b', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>Cancel</button>
-
-
-
-                                      </div>
-
-
-
-                                    </div>
-
-
-
-                                  )}
-
-
-
-
-
-
-
-                                  {/* New Parameters Form - Physical Inspection Style */}
-
-
-
-                                  {hasLotAvg && hasFullAvg ? (
-
-
-
-                                    <div style={{ borderTop: '2px solid #f1f5f9', paddingTop: '16px', marginTop: '12px', padding: '12px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', color: '#166534', fontSize: '12px', fontWeight: 'bold', textAlign: 'center' }}>
-
-
-
-                                      ✅ Both Lot Avg and Full Lorry Avg quality parameters have already been submitted for this lorry.
-
-
-
-                                    </div>
-
-
-
-                                  ) : (
-
-
-
-                                    <div style={{ borderTop: '2px solid #f1f5f9', paddingTop: '16px' }}>
-
-
-
-                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-
-
-
-                                        <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#374151' }}>📝 Add New Parameters</span>
-
-
-
-                                        <div style={{ display: 'flex', gap: '4px', background: '#f3f4f6', padding: '3px', borderRadius: '6px' }}>
-
-
-
-                                          {!hasLotAvg && (
-
-
-
-                                            <button onClick={() => setInventoryQualityType('lot_avg')} style={{
-
-
-
-                                              padding: '5px 14px', border: 'none', borderRadius: '5px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer',
-
-
-
-                                              background: inventoryQualityType === 'lot_avg' ? '#7c3aed' : 'transparent',
-
-
-
-                                              color: inventoryQualityType === 'lot_avg' ? '#fff' : '#6b7280',
-
-
-
-                                              transition: 'all 0.2s'
-
-
-
-                                            }}>📊 Lot Avg</button>
-
-
-
-                                          )}
-
-
-
-                                          {!hasFullAvg && (
-
-
-
-                                            <button onClick={() => setInventoryQualityType('full_lorry_avg')} style={{
-
-
-
-                                              padding: '5px 14px', border: 'none', borderRadius: '5px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer',
-
-
-
-                                              background: inventoryQualityType === 'full_lorry_avg' ? '#7c3aed' : 'transparent',
-
-
-
-                                              color: inventoryQualityType === 'full_lorry_avg' ? '#fff' : '#6b7280',
-
-
-
-                                              transition: 'all 0.2s'
-
-
-
-                                            }}>🚛 Full Lorry Avg</button>
-
-
-
-                                          )}
-
-
-
-                                        </div>
-
-
-
-                                      </div>
-
-
-
-
-
-
-
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', fontSize: '13px' }}>
-
-
-
-                                      {/* Row 1: Moisture, Dry Moisture, Grains */}
-
-
-
-                                      <div style={{ display: 'flex', gap: '8px' }}>
-
-
-
-                                        <div style={{ flex: 1 }}>
-
-
-
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Moisture *</label>
-
-
-
-                                          <input type="text" inputMode="decimal" value={inventoryQualityForm.moisture} onChange={(e) => setInventoryQualityForm(p => ({ ...p, moisture: sanitizeInventoryQualityField('moisture', e.target.value) }))} placeholder="e.g. 16.5" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-
-
-
-                                        </div>
-
-
-
-                                        <div style={{ flex: 1 }}>
-
-
-
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Dry Moisture</label>
-
-
-
-                                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
-
-
-
-                                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="dm_toggle" checked={inventoryQualityToggle.dryMoisture === 'Y'} onChange={() => setInventoryQualityToggle(p => ({ ...p, dryMoisture: 'Y' }))} /> Y</label>
-
-
-
-                                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="dm_toggle" checked={inventoryQualityToggle.dryMoisture === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, dryMoisture: 'N' })); setInventoryQualityForm(p => ({ ...p, dryMoisture: '' })); }} /> N</label>
-
-
-
-                                          </div>
-
-
-
-                                          {inventoryQualityToggle.dryMoisture === 'Y' && (
-
-
-
-                                            <input type="text" inputMode="decimal" value={inventoryQualityForm.dryMoisture} onChange={(e) => setInventoryQualityForm(p => ({ ...p, dryMoisture: sanitizeInventoryQualityField('dryMoisture', e.target.value) }))} placeholder="Dry Value" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-
-
-
-                                          )}
-
-
-
-                                        </div>
-
-
-
-                                        <div style={{ flex: 1 }}>
-
-
-
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Grains Count *</label>
-
-
-
-                                          <input type="text" inputMode="decimal" value={inventoryQualityForm.grains} onChange={(e) => setInventoryQualityForm(p => ({ ...p, grains: sanitizeInventoryQualityField('grains', e.target.value) }))} placeholder="e.g. 85" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-
-
-
-                                        </div>
-
-
-
-                                      </div>
-
-
-
-
-
-
-
-                                      {/* Row 2: Cutting, Bend, Mix */}
-
-
-
-                                      <div style={{ display: 'flex', gap: '8px' }}>
-
-
-
-                                        <div style={{ flex: 1 }}>
-
-
-
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Cutting *</label>
-
-
-
-                                          <input type="text" value={inventoryQualityForm.cutting} onChange={(e) => setInventoryQualityForm(p => ({ ...p, cutting: sanitizeInventoryQualityField('cutting', e.target.value) }))} placeholder="1x" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-
-
-
-                                        </div>
-
-
-
-                                        <div style={{ flex: 1 }}>
-
-
-
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Bend *</label>
-
-
-
-                                          <input type="text" value={inventoryQualityForm.bend} onChange={(e) => setInventoryQualityForm(p => ({ ...p, bend: sanitizeInventoryQualityField('bend', e.target.value) }))} placeholder="1x" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-
-
-
-                                        </div>
-
-
-
-                                        <div style={{ flex: 1 }}>
-
-
-
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Mix *</label>
-
-
-
-                                          <input type="text" inputMode="decimal" value={inventoryQualityForm.mix} onChange={(e) => setInventoryQualityForm(p => ({ ...p, mix: sanitizeInventoryQualityField('mix', e.target.value) }))} placeholder="e.g. 5" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-
-
-
-                                        </div>
-
-
-
-                                      </div>
-
-
-
-
-
-
-
-                                      {/* Row 3: SMix, LMix, SK */}
-
-
-
-                                      <div style={{ display: 'flex', gap: '8px' }}>
-
-
-
-                                        <div style={{ flex: 1 }}>
-
-
-
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>SMix</label>
-
-
-
-                                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
-
-
-
-                                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="sm_toggle" checked={inventoryQualityToggle.sMix === 'Y'} onChange={() => setInventoryQualityToggle(p => ({ ...p, sMix: 'Y' }))} /> Y</label>
-
-
-
-                                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="sm_toggle" checked={inventoryQualityToggle.sMix === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, sMix: 'N' })); setInventoryQualityForm(p => ({ ...p, sMix: '' })); }} /> N</label>
-
-
-
-                                          </div>
-
-
-
-                                          {inventoryQualityToggle.sMix === 'Y' && (
-
-
-
-                                            <input type="text" inputMode="decimal" value={inventoryQualityForm.sMix} onChange={(e) => setInventoryQualityForm(p => ({ ...p, sMix: sanitizeInventoryQualityField('sMix', e.target.value) }))} placeholder="Value" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-
-
-
-                                          )}
-
-
-
-                                        </div>
-
-
-
-                                        <div style={{ flex: 1 }}>
-
-
-
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>LMix</label>
-
-
-
-                                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
-
-
-
-                                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="lm_toggle" checked={inventoryQualityToggle.lMix === 'Y'} onChange={() => setInventoryQualityToggle(p => ({ ...p, lMix: 'Y' }))} /> Y</label>
-
-
-
-                                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="lm_toggle" checked={inventoryQualityToggle.lMix === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, lMix: 'N' })); setInventoryQualityForm(p => ({ ...p, lMix: '' })); }} /> N</label>
-
-
-
-                                          </div>
-
-
-
-                                          {inventoryQualityToggle.lMix === 'Y' && (
-
-
-
-                                            <input type="text" inputMode="decimal" value={inventoryQualityForm.lMix} onChange={(e) => setInventoryQualityForm(p => ({ ...p, lMix: sanitizeInventoryQualityField('lMix', e.target.value) }))} placeholder="Value" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-
-
-
-                                          )}
-
-
-
-                                        </div>
-
-
-
-                                        <div style={{ flex: 1 }}>
-
-
-
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>SK *</label>
-
-
-
-                                          <input type="text" inputMode="decimal" value={inventoryQualityForm.sk} onChange={(e) => setInventoryQualityForm(p => ({ ...p, sk: sanitizeInventoryQualityField('sk', e.target.value) }))} placeholder="e.g. 0.5" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-
-
-
-                                        </div>
-
-
-
-                                      </div>
-
-
-
-
-
-
-
-                                      {/* Row 4: Kandu, Oil, Smell */}
-
-
-
-                                      <div style={{ display: 'flex', gap: '8px' }}>
-
-
-
-                                        <div style={{ flex: 1 }}>
-
-
-
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Kandu *</label>
-
-
-
-                                          <input type="text" inputMode="decimal" value={inventoryQualityForm.kandu} onChange={(e) => setInventoryQualityForm(p => ({ ...p, kandu: sanitizeInventoryQualityField('kandu', e.target.value) }))} placeholder="e.g. 1" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-
-
-
-                                        </div>
-
-
-
-                                        <div style={{ flex: 1 }}>
-
-
-
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Oil *</label>
-
-
-
-                                          <input type="text" inputMode="decimal" value={inventoryQualityForm.oil} onChange={(e) => setInventoryQualityForm(p => ({ ...p, oil: sanitizeInventoryQualityField('oil', e.target.value) }))} placeholder="e.g. 0.5" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-
-
-
-                                        </div>
-
-
-
-                                        <div style={{ flex: 1 }}>
-
-
-
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Smell *</label>
-
-
-
-                                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px', marginBottom: '4px' }}>
-
-
-
-                                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="smell_has" checked={inventoryQualityToggle.smellHas === 'Yes'} onChange={() => setInventoryQualityToggle(p => ({ ...p, smellHas: 'Yes' }))} /> Yes</label>
-
-
-
-                                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="smell_has" checked={inventoryQualityToggle.smellHas === 'No'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, smellHas: 'No' })); setInventoryQualityForm(p => ({ ...p, smell: '' })); }} /> No</label>
-
-
-
-                                          </div>
-
-
-
-                                          {inventoryQualityToggle.smellHas === 'Yes' && (
-
-
-
-                                            <div style={{ display: 'flex', gap: '6px', marginTop: '2px', flexWrap: 'wrap' }}>
-
-
-
-                                              {['Light', 'Medium', 'Dark'].map(opt => (
-
-
-
-                                                <label key={opt} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
-
-
-
-                                                  <input type="radio" name="smell_type" checked={inventoryQualityForm.smell === opt} onChange={() => setInventoryQualityForm(p => ({ ...p, smell: opt }))} /> {opt}
-
-
-
-                                                </label>
-
-
-
-                                              ))}
-
-
-
-                                            </div>
-
-
-
-                                          )}
-
-
-
-                                        </div>
-
-
-
-                                      </div>
-
-
-
-
-
-
-
-                                      {/* Row 5: Paddy Discolor, Kadiga and Paddy WB */}
-
-
-
-                                      <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-
-
-
-                                        <div style={{ flex: 1.2 }}>
-
-
-
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Paddy Discolor *</label>
-
-
-
-                                          <select value={inventoryQualityForm.pColor} onChange={(e) => setInventoryQualityForm(p => ({ ...p, pColor: e.target.value }))} style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px', background: '#fff', marginTop: '4px' }}>
-
-
-
-                                            <option value=''>Select discolor</option>
-
-
-
-                                            <option value='Normal Color'>Normal Color</option>
-
-
-
-                                            <option value='Light Discolor'>Light Discolor</option>
-
-
-
-                                            <option value='Medium Discolor'>Medium Discolor</option>
-
-
-
-                                            <option value='Dark Discolor'>Dark Discolor</option>
-
-
-
-                                          </select>
-
-
-
-                                        </div>
-
-
-
-                                        <div style={{ flex: 0.8 }}>
-
-
-
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>ಕಡಿಗಾ *</label>
-
-
-
-                                          <div style={{ display: 'flex', gap: '6px', marginTop: '8px', marginBottom: '4px' }}>
-
-
-
-                                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="kd_toggle" checked={inventoryQualityToggle.kadiga === 'Y'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, kadiga: 'Y' })); setInventoryQualityForm(p => ({ ...p, kadiga: 'Y' })); }} /> Yes</label>
-
-
-
-                                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="kd_toggle" checked={inventoryQualityToggle.kadiga === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, kadiga: 'N' })); setInventoryQualityForm(p => ({ ...p, kadiga: 'N' })); }} /> No</label>
-
-
-
-                                          </div>
-
-
-
-                                        </div>
-
-
-
-                                        <div style={{ flex: 0.8 }}>
-
-
-
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Paddy WB *</label>
-
-
-
-                                          <div style={{ display: 'flex', gap: '6px', marginTop: '8px', marginBottom: '4px' }}>
-
-
-
-                                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="paddy_wb_toggle" checked={inventoryQualityToggle.paddyWb === 'Y'} onChange={() => setInventoryQualityToggle(p => ({ ...p, paddyWb: 'Y' }))} /> Y</label>
-
-
-
-                                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="paddy_wb_toggle" checked={inventoryQualityToggle.paddyWb === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, paddyWb: 'N' })); setInventoryQualityForm(p => ({ ...p, paddyWb: '' })); }} /> N</label>
-
-
-
-                                          </div>
-
-
-
-                                        </div>
-
-
-
-                                        <div style={{ flex: 1.2 }}>
-
-
-
-                                          {inventoryQualityToggle.paddyWb === 'Y' && (
-
-
-
-                                            <>
-
-
-
-                                              <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Paddy WB Value *</label>
-
-
-
-                                              <input type="text" inputMode="decimal" value={inventoryQualityForm.paddyWb} onChange={(e) => setInventoryQualityForm(p => ({ ...p, paddyWb: sanitizeInventoryQualityField('paddyWb', e.target.value) }))} placeholder="Value" style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }} />
-
-
-
-                                            </>
-
-
-
-                                          )}
-
-
-
-                                        </div>
-
-
-
-                                      </div>
-
-
-
-
-
-
-
-                                      {/* Row 6: Remarks */}
-
-
-
-                                      <div style={{ display: 'flex', gap: '8px' }}>
-
-
-
-                                        <div style={{ flex: 1 }}>
-
-
-
-                                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Remarks</label>
-
-
-
-                                          <textarea value={inventoryQualityForm.remarks} onChange={(e) => setInventoryQualityForm(p => ({ ...p, remarks: e.target.value }))} placeholder='Additional remarks...' rows={2} style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px', resize: 'vertical', fontFamily: 'inherit' }} />
-
-
-
-                                        </div>
-
-
-
-                                      </div>
-
-
-
-
-
-
-
-                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', borderTop: '1px solid #eee', paddingTop: '10px' }}>
-
-
-
-                                        <div style={{ flex: 1 }}>
-
-
-
-                                          <div style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>Sample Reported By</div>
-
-
-
-                                          <div style={{ fontSize: '12px', color: '#334155' }}>{user?.username || 'System'}</div>
-
-
-
-                                        </div>
-
-
-
-                                        <button
-
-
-
-                                          onClick={() => handleSubmitInventoryQuality(entry.transitDetailId)}
-
-
-
-                                          style={{ padding: '7px 20px', border: 'none', borderRadius: '6px', background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', color: '#fff', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 8px rgba(124,58,237,0.25)' }}
-
-
-
-                                        >💾 Submit Mill Quality Parameters</button>
-
-
-
-                                      </div>
-
-
-
-                                    </div>
-
-
-
-                                  </div>
-
-
-
-                                  )}
-
-
-
-                                </div>
-
-
-
-                              </td>
-
-
-
-                            </tr>
-
-
-
-                          );
-
-
-
-                        })()}
+                        {/* INVENTORY QUALITY PARAMETERS COLLAPSIBLE ROW IS NOW RENDERED AS A POPUP MODAL */}
 
 
 
@@ -11497,15 +10109,9 @@ const Arrivals: React.FC = () => {
 
 
 
-                                          wbInputType,
-
-
-
-                                          millWbId: wbInputType === 'mill' ? Number(millWbId) : null,
-
-
-
-                                          partyWbName: wbInputType === 'party' ? partyWbName : null,
+                                          wbInputType: 'mill',
+                                          millWbId: millWbId ? Number(millWbId) : null,
+                                          partyWbName: partyWbEnabled === 'yes' ? partyWbName : null,
 
 
 
@@ -11545,11 +10151,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                        });
-
-
-
-                                        const responseDetail = response?.data?.detail || response?.data || {};
+                                        });                                        const responseDetail = response?.data?.detail || response?.data || {};
 
 
 
@@ -11565,85 +10167,107 @@ const Arrivals: React.FC = () => {
 
 
 
-                                        setInTransitEntries(prev => applyWbSaveToEntries(prev, entry.id, {
+                                        // Post-save processing (separate try-catch to avoid misleading 'save failed' toast)
 
 
 
-                                          wbStatus: savedStatus,
+                                        try {
 
 
 
-                                          wbNo: savedWbNo,
+                                          setInTransitEntries(prev => applyWbSaveToEntries(prev, entry.id, {
 
 
 
-                                          netWeight: savedNetWeight,
+                                            wbStatus: savedStatus,
 
 
 
-                                          partyWbName: wbInputType === 'party' ? partyWbName : (responseDetail?.partyWbName || undefined),
+                                            wbNo: savedWbNo,
 
 
 
-                                          wbInputType,
+                                            netWeight: savedNetWeight,
 
 
 
-                                          millWbId: wbInputType === 'mill' ? Number(millWbId) : undefined,
+                                            partyWbName: wbInputType === 'party' ? partyWbName : (responseDetail?.partyWbName || undefined),
 
 
 
-                                          grossWeight: Number(wbGrossWeight),
+                                            wbInputType,
 
 
 
-                                          tareWeight: Number(wbTareWeight)
+                                            millWbId: wbInputType === 'mill' ? Number(millWbId) : undefined,
 
 
 
-                                        }));
+                                            grossWeight: Number(wbGrossWeight),
 
 
 
-                                        toast.success('Weight Bridge submitted for approval!');
+                                            tareWeight: Number(wbTareWeight)
 
 
 
-                                        setSelectedLorryForWB(null);
+                                          }));
 
 
 
-                                        setSelectedLorryInspection(null);
+                                          toast.success('Weight Bridge submitted for approval!');
 
 
 
-                                        setWbNumber('');
+                                          setSelectedLorryForWB(null);
 
 
 
-                                        setMillWbId('');
+                                          setSelectedLorryInspection(null);
 
 
 
-                                        setPartyWbName('');
+                                          setWbNumber('');
 
 
 
-                                        setWbGrossWeight('');
+                                          setMillWbId('');
 
 
 
-                                        setWbTareWeight('');
+                                          setPartyWbName('');
 
 
 
-                                        setWbNetWeight('');; setWbSute(''); setPartyWbEnabled(''); setPartyWbNo(''); setPartyWbDate(new Date().toISOString().split('T')[0]); setPartyGrossWeight(''); setPartyTareWeight(''); setPartyNetWeight(''); setPartySute(''); setWbDate(new Date().toISOString().split('T')[0]) 
+                                          setWbGrossWeight('');
 
 
 
-                                        fetchInTransitEntries();
+                                          setWbTareWeight('');
 
 
+
+                                          setWbNetWeight('');; setWbSute(''); setPartyWbEnabled(''); setPartyWbNo(''); setPartyWbDate(new Date().toISOString().split('T')[0]); setPartyGrossWeight(''); setPartyTareWeight(''); setPartyNetWeight(''); setPartySute(''); setWbDate(new Date().toISOString().split('T')[0]) 
+
+
+
+                                          fetchInTransitEntries();
+
+
+
+                                        } catch (postErr: any) {
+
+
+
+                                          console.error('Post-save state update error:', postErr);
+
+
+
+                                          // Don't show "Failed to save" - save actually succeeded
+
+
+
+                                        }
 
                                       } catch (err: any) {
 
@@ -11686,13 +10310,7 @@ const Arrivals: React.FC = () => {
 
 
                             </td>
-
-
-
                           </tr>
-
-
-
                         )}
 
 
@@ -16840,6 +15458,7 @@ const Arrivals: React.FC = () => {
             </h3>
             <div style={{ fontSize: '12px', color: '#475569', marginBottom: '16px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', background: '#f8fafc', padding: '10px', borderRadius: '8px' }}>
+                <div style={{ gridColumn: 'span 2', fontWeight: 'bold', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px', color: '#1a237e' }}>🏭 Mill Weighbridge Details</div>
                 <div><strong>WB Number:</strong> {wbConfirmDialog.detail?.wbNo || '-'}</div>
                 <div><strong>Mill WB:</strong> {wbConfirmDialog.detail?.millWbId ? 'Selected' : '-'}</div>
                 <div><strong>Gross Wt:</strong> {wbConfirmDialog.detail?.grossWeight || '-'} Kg</div>
@@ -16848,6 +15467,18 @@ const Arrivals: React.FC = () => {
                 <div><strong>Sute:</strong> {wbConfirmDialog.detail?.sute || '-'} Kg</div>
                 <div><strong>Date:</strong> {wbConfirmDialog.detail?.wbDate || '-'}</div>
                 <div><strong>Party WB:</strong> {wbConfirmDialog.detail?.partyWbName || '-'}</div>
+                
+                {wbConfirmDialog.detail?.partyWbEnabled === 'yes' && (
+                  <>
+                    <div style={{ gridColumn: 'span 2', fontWeight: 'bold', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px', paddingTop: '8px', color: '#7c3aed' }}>⚡ Party Weighbridge Details</div>
+                    <div><strong>Party WB Name:</strong> {wbConfirmDialog.detail?.partyWbName || '-'}</div>
+                    <div><strong>Party WB No:</strong> {wbConfirmDialog.detail?.partyWbNo || '-'}</div>
+                    <div><strong>Party Gross:</strong> {wbConfirmDialog.detail?.partyGrossWeight || '-'} Kg</div>
+                    <div><strong>Party Tare:</strong> {wbConfirmDialog.detail?.partyTareWeight || '-'} Kg</div>
+                    <div><strong>Party Net:</strong> {wbConfirmDialog.detail?.partyNetWeight || '-'} Kg</div>
+                    <div><strong>Party Sute:</strong> {wbConfirmDialog.detail?.partySute || '-'} Kg</div>
+                  </>
+                )}
               </div>
             </div>
             <div style={{ fontSize: '12px', color: '#ef4444', marginBottom: '16px', background: '#fef2f2', padding: '8px', borderRadius: '6px' }}>
@@ -16874,6 +15505,274 @@ const Arrivals: React.FC = () => {
                 {wbConfirmDialog.action === 'approve' ? 'Confirm Approve' : 'Confirm Reject'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quality Sampling Popup Modal */}
+      {isQualitySamplingModalOpen && qualitySamplingEntry && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9999, overflowY: 'auto', padding: '12px'
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: '8px', padding: '16px', maxWidth: '850px', width: '100%',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            position: 'relative', border: '1px solid #e2e8f0'
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', marginBottom: '12px' }}>
+              <div>
+                <h3 style={{ margin: 0, color: '#1a237e', fontSize: '15px', fontWeight: 'bold' }}>
+                  🔬 Quality Sampling
+                </h3>
+                <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>
+                  Lorry: {(qualitySamplingEntry.lorryNumber || 'N/A').toUpperCase()}
+                </span>
+              </div>
+              <button onClick={() => setIsQualitySamplingModalOpen(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '16px', color: '#94a3b8' }}>✕</button>
+            </div>
+
+            {/* Step Selection Header */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '12px', background: '#f8fafc', padding: '4px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+              <button 
+                type="button" 
+                onClick={() => setInventoryQualityType('lot_avg')} 
+                style={{ flex: 1, padding: '6px', border: 'none', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', background: inventoryQualityType === 'lot_avg' ? '#1a237e' : 'transparent', color: inventoryQualityType === 'lot_avg' ? '#fff' : '#64748b', transition: 'all 0.2s' }}
+              >
+                Before Unloading (Lot Avg)
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setInventoryQualityType('full_lorry_avg')} 
+                style={{ flex: 1, padding: '6px', border: 'none', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', background: inventoryQualityType === 'full_lorry_avg' ? '#1a237e' : 'transparent', color: inventoryQualityType === 'full_lorry_avg' ? '#fff' : '#64748b', transition: 'all 0.2s' }}
+              >
+                Full Lorry Avg
+              </button>
+            </div>
+
+            {/* Form Fields - Section 1: Quality Parameters (3-column grid) */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px 10px', alignItems: 'start' }}>
+              {/* Row 1: Moisture, Dry Moisture, Grains Count */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>Moisture (%) <span style={{ color: '#e53935' }}>*</span></label>
+                <input type="text" value={inventoryQualityForm.moisture} onChange={(e) => setInventoryQualityForm(p => ({ ...p, moisture: sanitizeInventoryQualityField('moisture', e.target.value) }))} style={{ width: '100%', padding: '6px', border: '1.5px solid #bbb', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} placeholder="e.g. 16.5" />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '3px' }}>
+                  <label style={{ fontWeight: '600', color: '#333', fontSize: '11px', whiteSpace: 'nowrap' }}>Dry Moisture *</label>
+                  <label style={{ fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                    <input type="radio" name="dm_toggle_qs" checked={inventoryQualityToggle.dryMoisture === 'Y'} onChange={() => setInventoryQualityToggle(p => ({ ...p, dryMoisture: 'Y' }))} style={{ margin: 0 }} /> Y
+                  </label>
+                  <label style={{ fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                    <input type="radio" name="dm_toggle_qs" checked={inventoryQualityToggle.dryMoisture === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, dryMoisture: 'N' })); setInventoryQualityForm(p => ({ ...p, dryMoisture: '' })); }} style={{ margin: 0 }} /> N
+                  </label>
+                </div>
+                <input type="text" value={inventoryQualityForm.dryMoisture} onChange={(e) => setInventoryQualityForm(p => ({ ...p, dryMoisture: sanitizeInventoryQualityField('dryMoisture', e.target.value) }))} disabled={inventoryQualityToggle.dryMoisture === 'N'} style={{ width: '100%', padding: '6px', border: '1.5px solid #bbb', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box', visibility: inventoryQualityToggle.dryMoisture === 'Y' ? 'visible' : 'hidden' }} placeholder="e.g. 14.2" />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>Grains Count <span style={{ color: '#e53935' }}>*</span></label>
+                <input type="text" value={inventoryQualityForm.grains} onChange={(e) => setInventoryQualityForm(p => ({ ...p, grains: sanitizeInventoryQualityField('grains', e.target.value) }))} style={{ width: '100%', padding: '6px', border: '1.5px solid #bbb', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} placeholder="e.g. 85" />
+              </div>
+
+              {/* Row 2: Cutting, Bend, Mix */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>Cutting <span style={{ color: '#e53935' }}>*</span></label>
+                <input type="text" value={inventoryQualityForm.cutting} onChange={(e) => setInventoryQualityForm(p => ({ ...p, cutting: sanitizeInventoryQualityField('cutting', e.target.value) }))} style={{ width: '100%', padding: '6px', border: '1.5px solid #bbb', borderRadius: '4px', fontSize: '12px', fontWeight: '700', letterSpacing: '1px', textAlign: 'center', boxSizing: 'border-box' }} placeholder="1×" />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>Bend <span style={{ color: '#e53935' }}>*</span></label>
+                <input type="text" value={inventoryQualityForm.bend} onChange={(e) => setInventoryQualityForm(p => ({ ...p, bend: sanitizeInventoryQualityField('bend', e.target.value) }))} style={{ width: '100%', padding: '6px', border: '1.5px solid #bbb', borderRadius: '4px', fontSize: '12px', fontWeight: '700', letterSpacing: '1px', textAlign: 'center', boxSizing: 'border-box' }} placeholder="1×" />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>Mix (%) <span style={{ color: '#e53935' }}>*</span></label>
+                <input type="text" value={inventoryQualityForm.mix} onChange={(e) => setInventoryQualityForm(p => ({ ...p, mix: sanitizeInventoryQualityField('mix', e.target.value) }))} style={{ width: '100%', padding: '6px', border: '1.5px solid #bbb', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} placeholder="e.g. 5" />
+              </div>
+
+              {/* Row 3: SMix, LMix, SK */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '3px' }}>
+                  <label style={{ fontWeight: '600', color: '#333', fontSize: '11px', whiteSpace: 'nowrap' }}>SMix *</label>
+                  <label style={{ fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                    <input type="radio" name="sm_toggle_qs" checked={inventoryQualityToggle.sMix === 'Y'} onChange={() => setInventoryQualityToggle(p => ({ ...p, sMix: 'Y' }))} style={{ margin: 0 }} /> Y
+                  </label>
+                  <label style={{ fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                    <input type="radio" name="sm_toggle_qs" checked={inventoryQualityToggle.sMix === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, sMix: 'N' })); setInventoryQualityForm(p => ({ ...p, sMix: '' })); }} style={{ margin: 0 }} /> N
+                  </label>
+                </div>
+                <input type="text" value={inventoryQualityForm.sMix} onChange={(e) => setInventoryQualityForm(p => ({ ...p, sMix: sanitizeInventoryQualityField('sMix', e.target.value) }))} disabled={inventoryQualityToggle.sMix === 'N'} style={{ width: '100%', padding: '6px', border: '1.5px solid #bbb', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box', visibility: inventoryQualityToggle.sMix === 'Y' ? 'visible' : 'hidden' }} placeholder="e.g. 2" />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '3px' }}>
+                  <label style={{ fontWeight: '600', color: '#333', fontSize: '11px', whiteSpace: 'nowrap' }}>LMix *</label>
+                  <label style={{ fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                    <input type="radio" name="lm_toggle_qs" checked={inventoryQualityToggle.lMix === 'Y'} onChange={() => setInventoryQualityToggle(p => ({ ...p, lMix: 'Y' }))} style={{ margin: 0 }} /> Y
+                  </label>
+                  <label style={{ fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                    <input type="radio" name="lm_toggle_qs" checked={inventoryQualityToggle.lMix === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, lMix: 'N' })); setInventoryQualityForm(p => ({ ...p, lMix: '' })); }} style={{ margin: 0 }} /> N
+                  </label>
+                </div>
+                <input type="text" value={inventoryQualityForm.lMix} onChange={(e) => setInventoryQualityForm(p => ({ ...p, lMix: sanitizeInventoryQualityField('lMix', e.target.value) }))} disabled={inventoryQualityToggle.lMix === 'N'} style={{ width: '100%', padding: '6px', border: '1.5px solid #bbb', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box', visibility: inventoryQualityToggle.lMix === 'Y' ? 'visible' : 'hidden' }} placeholder="e.g. 1" />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>SK (%) <span style={{ color: '#e53935' }}>*</span></label>
+                <input type="text" value={inventoryQualityForm.sk} onChange={(e) => setInventoryQualityForm(p => ({ ...p, sk: sanitizeInventoryQualityField('sk', e.target.value) }))} style={{ width: '100%', padding: '6px', border: '1.5px solid #bbb', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} placeholder="e.g. 0.5" />
+              </div>
+
+              {/* Row 4: Kandu, Oil, Paddy Discolor */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>Kandu (%) <span style={{ color: '#e53935' }}>*</span></label>
+                <input type="text" value={inventoryQualityForm.kandu} onChange={(e) => setInventoryQualityForm(p => ({ ...p, kandu: sanitizeInventoryQualityField('kandu', e.target.value) }))} style={{ width: '100%', padding: '6px', border: '1.5px solid #bbb', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} placeholder="e.g. 1" />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>Oil (%) <span style={{ color: '#e53935' }}>*</span></label>
+                <input type="text" value={inventoryQualityForm.oil} onChange={(e) => setInventoryQualityForm(p => ({ ...p, oil: sanitizeInventoryQualityField('oil', e.target.value) }))} style={{ width: '100%', padding: '6px', border: '1.5px solid #bbb', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} placeholder="e.g. 0.5" />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>Paddy Discolor <span style={{ color: '#e53935' }}>*</span></label>
+                <select value={inventoryQualityForm.pColor} onChange={(e) => setInventoryQualityForm(p => ({ ...p, pColor: e.target.value }))} style={{ width: '100%', padding: '6px', border: '1.5px solid #bbb', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box', background: '#fff', height: '32px' }}>
+                  <option value=''>Select discolor</option>
+                  <option value='Normal Color'>Normal Color</option>
+                  <option value='Light Discolor'>Light Discolor</option>
+                  <option value='Medium Discolor'>Medium Discolor</option>
+                  <option value='Dark Discolor'>Dark Discolor</option>
+                </select>
+              </div>
+
+              {/* Row 5: Kadiga, Smell */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>ಕಡಿಗಾ <span style={{ color: '#e53935' }}>*</span></label>
+                <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+                  <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}><input type="radio" name="kd_toggle_qs" checked={inventoryQualityToggle.kadiga === 'Y'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, kadiga: 'Y' })); setInventoryQualityForm(p => ({ ...p, kadiga: 'Y' })); }} /> Yes</label>
+                  <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}><input type="radio" name="kd_toggle_qs" checked={inventoryQualityToggle.kadiga === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, kadiga: 'N' })); setInventoryQualityForm(p => ({ ...p, kadiga: 'N' })); }} /> No</label>
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>Smell <span style={{ color: '#e53935' }}>*</span></label>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                  <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="smell_has_qs" checked={inventoryQualityToggle.smellHas === 'Yes'} onChange={() => setInventoryQualityToggle(p => ({ ...p, smellHas: 'Yes' }))} /> Yes</label>
+                  <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}><input type="radio" name="smell_has_qs" checked={inventoryQualityToggle.smellHas === 'No'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, smellHas: 'No' })); setInventoryQualityForm(p => ({ ...p, smell: '' })); }} /> No</label>
+                </div>
+                {inventoryQualityToggle.smellHas === 'Yes' && (
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                    {['Light', 'Medium', 'Dark'].map(opt => (
+                      <label key={opt} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '10px' }}>
+                        <input type="radio" name="smell_type_qs" checked={inventoryQualityForm.smell === opt} onChange={() => setInventoryQualityForm(p => ({ ...p, smell: opt }))} /> {opt}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div></div>
+            </div>
+
+            {/* WB Parameters Section */}
+            <div style={{ marginBottom: '10px', padding: '10px', backgroundColor: '#f0f7ff', borderRadius: '6px', border: '1px solid #d0e3f7' }}>
+              <div style={{ fontSize: '10px', fontWeight: '700', color: '#1565c0', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px', borderBottom: '1px solid #bbdefb', paddingBottom: '4px' }}>WB Parameters</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px 10px', alignItems: 'start' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '2px', fontWeight: '600', color: '#333', fontSize: '11px' }}>WB (R) & WB (BK)</label>
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
+                    <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <input type="radio" name="wbEnabled_qs" checked={wbEnabled} onChange={() => setWbEnabled(true)} /> Yes
+                    </label>
+                    <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <input type="radio" name="wbEnabled_qs" checked={!wbEnabled} onChange={() => { setWbEnabled(false); setInventoryQualityForm(p => ({ ...p, wbR: '', wbBk: '' })); }} /> No
+                    </label>
+                  </div>
+                  <div style={{ display: 'flex', gap: '4px', visibility: wbEnabled ? 'visible' : 'hidden' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', marginBottom: '2px', fontWeight: '500', color: '#555', fontSize: '9px' }}>R</label>
+                      <input type="number" step="0.01" value={inventoryQualityForm.wbR} onChange={(e) => setInventoryQualityForm(p => ({ ...p, wbR: e.target.value }))} disabled={!wbEnabled} style={{ width: '100%', padding: '4px', border: '1px solid #ddd', borderRadius: '3px', fontSize: '12px', boxSizing: 'border-box' }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', marginBottom: '2px', fontWeight: '500', color: '#555', fontSize: '9px' }}>BK</label>
+                      <input type="number" step="0.01" value={inventoryQualityForm.wbBk} onChange={(e) => setInventoryQualityForm(p => ({ ...p, wbBk: e.target.value }))} disabled={!wbEnabled} style={{ width: '100%', padding: '4px', border: '1px solid #ddd', borderRadius: '3px', fontSize: '12px', boxSizing: 'border-box' }} />
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>WB (T) — Auto</label>
+                  <input type="number" step="0.01" readOnly value={inventoryQualityForm.wbT} style={{ width: '100%', padding: '6px', border: '1px solid #a5d6a7', borderRadius: '4px', fontSize: '12px', backgroundColor: '#e8f5e9', fontWeight: '700', cursor: 'not-allowed', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>Paddy WB</label>
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '3px' }}>
+                    <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <input type="radio" name="paddyWbEnabled_qs" checked={inventoryQualityToggle.paddyWb === 'Y'} onChange={() => setInventoryQualityToggle(p => ({ ...p, paddyWb: 'Y' }))} /> Yes
+                    </label>
+                    <label style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <input type="radio" name="paddyWbEnabled_qs" checked={inventoryQualityToggle.paddyWb === 'N'} onChange={() => { setInventoryQualityToggle(p => ({ ...p, paddyWb: 'N' })); setInventoryQualityForm(p => ({ ...p, paddyWb: '' })); }} /> No
+                    </label>
+                  </div>
+                  <input type="number" step="0.01" value={inventoryQualityForm.paddyWb} onChange={(e) => setInventoryQualityForm(p => ({ ...p, paddyWb: sanitizeInventoryQualityField('paddyWb', e.target.value) }))} disabled={inventoryQualityToggle.paddyWb === 'N'} style={{ width: '100%', padding: '5px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box', visibility: inventoryQualityToggle.paddyWb === 'Y' ? 'visible' : 'hidden' }} placeholder="Val" />
+                </div>
+              </div>
+            </div>
+
+            {/* Remarks & Reported By */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>Remarks</label>
+                <input type="text" value={inventoryQualityForm.remarks} onChange={(e) => setInventoryQualityForm(p => ({ ...p, remarks: e.target.value }))} style={{ width: '100%', padding: '6px', border: '1.5px solid #bbb', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} placeholder="Remarks..." />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '3px', fontWeight: '600', color: '#333', fontSize: '11px' }}>Sample Reported By <span style={{ color: '#e53935' }}>*</span></label>
+                <select value={inventoryQualityForm.reportedByUserId || user?.id || ''} onChange={(e) => setInventoryQualityForm(p => ({ ...p, reportedByUserId: e.target.value }))} style={{ width: '100%', padding: '6px', border: '1.5px solid #bbb', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box', background: '#fff', height: '32px' }}>
+                  <option value="">Choose User</option>
+                  {usersList.map(u => (
+                    <option key={u.id} value={u.id}>{u.fullName || u.username}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', borderTop: '1px solid #e2e8f0', paddingTop: '8px' }}>
+              <button 
+                type="button" 
+                onClick={() => {
+                  if (inventoryQualityType === 'lot_avg') {
+                    setInventoryQualityType('full_lorry_avg');
+                    setInventoryQualityForm({
+                      moisture: '', dryMoisture: '', cutting: '', bend: '', grains: '',
+                      mix: '', sMix: '', lMix: '', kandu: '', oil: '', sk: '',
+                      wbR: '', wbBk: '', wbT: '',
+                      smell: '', paddyWb: '', pColor: '', kadiga: '', remarks: ''
+                    });
+                    setInventoryQualityToggle({
+                      dryMoisture: 'Y', sMix: 'Y', lMix: 'Y', paddyWb: 'Y', kadiga: 'Y', smellHas: 'No'
+                    });
+                    setWbEnabled(false);
+                    toast.info('Lot Avg skipped (not needed for this entry). Enter Full Lorry Avg parameters.');
+                  } else {
+                    setIsQualitySamplingModalOpen(false);
+                    setQualitySamplingEntry(null);
+                  }
+                }} 
+                style={{ padding: '6px 16px', border: '1px solid #cbd5e1', borderRadius: '4px', background: '#fff', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', color: '#64748b' }}
+              >
+                {inventoryQualityType === 'lot_avg' ? 'Skip' : 'Close'}
+              </button>
+              {inventoryQualityType === 'lot_avg' && (
+                <button 
+                  type="button" 
+                  onClick={handleSubmitLotAvg} 
+                  style={{ padding: '6px 20px', border: '1px solid #16a34a', borderRadius: '4px', background: '#fff', color: '#16a34a', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                >
+                  Submit
+                </button>
+              )}
+              <button 
+                type="button" 
+                onClick={handleQualitySamplingNext} 
+                style={{ padding: '6px 20px', border: 'none', borderRadius: '4px', background: 'linear-gradient(135deg, #1a237e, #3b82f6)', color: '#fff', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 4px rgba(26,35,126,0.2)' }}
+              >
+                {inventoryQualityType === 'lot_avg' ? 'Next ➡' : 'Submit'}
+              </button>
+            </div>
+
           </div>
         </div>
       )}

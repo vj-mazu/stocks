@@ -391,6 +391,27 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     }
   };
 
+  const handleRecheckBmbInventoryQuality = async (qualityId: string) => {
+    const reason = prompt('Enter recheck comments/reason:');
+    if (reason === null || !reason.trim()) return;
+
+    try {
+      setProcessingLorry(true);
+      const token = localStorage.getItem('token');
+      await axios.post(`${API_URL}/arrivals/bmb/inventory-quality/${qualityId}/recheck`, { rejectReason: reason.trim() }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Inventory quality sent for recheck successfully');
+      fetchInventoryQualityApprovals();
+      fetchCounts();
+    } catch (error: any) {
+      console.error('Error rechecking mill quality:', error);
+      toast.error(error.response?.data?.error || 'Failed to send mill quality for recheck');
+    } finally {
+      setProcessingLorry(false);
+    }
+  };
+
   const getPendingStage = (insp: any) => {
     const stages = insp.samplingStages || {};
     const priority = ['lot_avg', 'balanced_lot', 'half_lorry', 'nit_avg', 'full_avg'];
@@ -1469,6 +1490,23 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                           }}
                         >
                           Reject
+                        </button>
+                        <button
+                          onClick={() => handleRecheckBmbInventoryQuality(entry.id)}
+                          disabled={processingLorry}
+                          style={{
+                            backgroundColor: '#eab308',
+                            color: '#fff',
+                            border: 'none',
+                            padding: '5px 10px',
+                            borderRadius: '4px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            fontSize: '11px',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                          }}
+                        >
+                          Recheck
                         </button>
                       </div>
                     </td>

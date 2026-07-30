@@ -72,6 +72,41 @@ const LorryTransitDetail = sequelize.define('LorryTransitDetail', {
     allowNull: true,
     field: 'wbDate'
   },
+  partyGrossWeight: {
+    type: DataTypes.DECIMAL(15, 2),
+    allowNull: true,
+    field: 'partyGrossWeight'
+  },
+  partyTareWeight: {
+    type: DataTypes.DECIMAL(15, 2),
+    allowNull: true,
+    field: 'partyTareWeight'
+  },
+  partyNetWeight: {
+    type: DataTypes.DECIMAL(15, 2),
+    allowNull: true,
+    field: 'partyNetWeight'
+  },
+  partySute: {
+    type: DataTypes.DECIMAL(15, 2),
+    allowNull: true,
+    field: 'partySute'
+  },
+  partySuteNetWeight: {
+    type: DataTypes.DECIMAL(15, 2),
+    allowNull: true,
+    field: 'partySuteNetWeight'
+  },
+  partyWbNo: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    field: 'partyWbNo'
+  },
+  partyWbDate: {
+    type: DataTypes.DATEONLY,
+    allowNull: true,
+    field: 'partyWbDate'
+  },
   wbAddedBy: {
     type: DataTypes.INTEGER,
     allowNull: true,

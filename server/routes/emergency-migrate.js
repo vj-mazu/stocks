@@ -68,6 +68,26 @@ router.post('/run-142-migration', async (req, res) => {
         `);
         console.log('✅ lorry_transit_details table created');
 
+        // Step 2.5: Alter lorry_transit_details to add any missing weighbridge fields
+        console.log('Step 2.5: Checking and altering lorry_transit_details columns...');
+        await sequelize.query(`
+            ALTER TABLE lorry_transit_details
+                ADD COLUMN IF NOT EXISTS "partyGrossWeight" DECIMAL(15, 2),
+                ADD COLUMN IF NOT EXISTS "partyTareWeight" DECIMAL(15, 2),
+                ADD COLUMN IF NOT EXISTS "partyNetWeight" DECIMAL(15, 2),
+                ADD COLUMN IF NOT EXISTS "partySute" DECIMAL(15, 2),
+                ADD COLUMN IF NOT EXISTS "partySuteNetWeight" DECIMAL(15, 2),
+                ADD COLUMN IF NOT EXISTS "partyWbNo" VARCHAR(100),
+                ADD COLUMN IF NOT EXISTS "partyWbDate" DATE,
+                ADD COLUMN IF NOT EXISTS "partyWbEnabled" VARCHAR(50),
+                ADD COLUMN IF NOT EXISTS "sute" DECIMAL(15, 2),
+                ADD COLUMN IF NOT EXISTS "suteNetWeight" DECIMAL(15, 2),
+                ADD COLUMN IF NOT EXISTS "wbDate" DATE,
+                ADD COLUMN IF NOT EXISTS "wbAddedBy" INTEGER,
+                ADD COLUMN IF NOT EXISTS "wbAddedAt" TIMESTAMP;
+        `);
+        console.log('✅ lorry_transit_details columns verified and altered');
+
         // Step 3: Create indexes for lorry_transit_details
         console.log('Step 3: Creating indexes for lorry_transit_details...');
         await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_lorry_transit_physical_inspection ON lorry_transit_details(physical_inspection_id)`);
@@ -108,6 +128,40 @@ router.post('/run-142-migration', async (req, res) => {
             );
         `);
         console.log('✅ inventory_quality_parameters table created');
+
+        // Step 4.5: Ensure correct columns exist in inventory_quality_parameters (handling older migrations)
+        console.log('Step 4.5: Checking and altering inventory_quality_parameters columns...');
+        try {
+            await sequelize.query(`ALTER TABLE inventory_quality_parameters RENAME COLUMN transit_detail_id TO lorry_transit_detail_id;`);
+            console.log('✅ Renamed transit_detail_id to lorry_transit_detail_id');
+        } catch (e) {
+            console.log('ℹ️ Rename transit_detail_id skip: ' + e.message);
+        }
+        try {
+            await sequelize.query(`ALTER TABLE inventory_quality_parameters RENAME COLUMN reported_by TO reported_by_user_id;`);
+            console.log('✅ Renamed reported_by to reported_by_user_id');
+        } catch (e) {
+            console.log('ℹ️ Rename reported_by skip: ' + e.message);
+        }
+        try {
+            await sequelize.query(`ALTER TABLE inventory_quality_parameters RENAME COLUMN approved_by TO approved_by_user_id;`);
+            console.log('✅ Renamed approved_by to approved_by_user_id');
+        } catch (e) {
+            console.log('ℹ️ Rename approved_by skip: ' + e.message);
+        }
+
+        // Add additional columns if they don't exist
+        await sequelize.query(`
+            ALTER TABLE inventory_quality_parameters
+                ADD COLUMN IF NOT EXISTS kadiga VARCHAR(30),
+                ADD COLUMN IF NOT EXISTS dry_moisture VARCHAR(30),
+                ADD COLUMN IF NOT EXISTS s_mix VARCHAR(30),
+                ADD COLUMN IF NOT EXISTS l_mix VARCHAR(30),
+                ADD COLUMN IF NOT EXISTS wb_r VARCHAR(30),
+                ADD COLUMN IF NOT EXISTS wb_bk VARCHAR(30),
+                ADD COLUMN IF NOT EXISTS wb_t VARCHAR(30);
+        `);
+        console.log('✅ inventory_quality_parameters columns verified and altered');
 
         // Step 5: Create indexes for inventory_quality_parameters
         console.log('Step 5: Creating indexes for inventory_quality_parameters...');
@@ -176,6 +230,7 @@ router.post('/run-142-migration', async (req, res) => {
     }
 });
 
+module.exports = router;
 // Verify endpoint - check if columns exist
 router.get('/verify-columns', async (req, res) => {
     try {

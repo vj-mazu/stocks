@@ -7,11 +7,11 @@
 
 /**
  * Require Inventory Role Middleware
- * Allows: inventory_staff, admin, manager, ceo
+ * Allows: inventory_staff, inventory_head, staff (location/mill/general), admin, manager, ceo
  * Use for: Place submission, WB submission
  */
 const requireInventoryRole = (req, res, next) => {
-  const allowedRoles = ['inventory_staff', 'inventory_head', 'admin', 'manager', 'ceo'];
+  const allowedRoles = ['inventory_staff', 'inventory_head', 'staff', 'admin', 'manager', 'ceo'];
   
   if (!req.user || !req.user.role) {
     return res.status(401).json({ 
@@ -34,11 +34,11 @@ const requireInventoryRole = (req, res, next) => {
 
 /**
  * Require Approver Role Middleware
- * Allows: admin, manager, ceo ONLY
+ * Allows: inventory_head, admin, manager, ceo ONLY
  * Use for: Place approval, WB approval, viewing approvals
  */
 const requireApproverRole = (req, res, next) => {
-  const allowedRoles = ['admin', 'manager', 'ceo'];
+  const allowedRoles = ['inventory_head', 'admin', 'manager', 'ceo'];
   
   if (!req.user || !req.user.role) {
     return res.status(401).json({ 
@@ -50,7 +50,7 @@ const requireApproverRole = (req, res, next) => {
   if (!allowedRoles.includes(req.user.role)) {
     return res.status(403).json({ 
       error: 'Access denied',
-      message: 'Approval permission required. Only admin, manager, or CEO can approve submissions.',
+      message: 'Approval permission required. Only Inventory Head, Admin, Manager, or CEO can approve submissions.',
       requiredRoles: allowedRoles,
       yourRole: req.user.role
     });

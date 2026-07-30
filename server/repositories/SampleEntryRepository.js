@@ -76,17 +76,32 @@ class SampleEntryRepository {
           {
             model: PhysicalInspection,
             as: 'physicalInspections',
-            include: options.includeInventory ? [
+            include: [
+              ...(options.includeInventory ? [
+                {
+                  model: InventoryData,
+                  as: 'inventoryData',
+                  include: [
+                    ...(options.includeFinancial ? [{ model: FinancialCalculation, as: 'financialCalculation' }] : []),
+                    { model: Kunchinittu, as: 'kunchinittu', required: false, include: [{ model: Variety, as: 'variety', attributes: ['id', 'name'] }] },
+                    { model: Outturn, as: 'outturn', required: false }
+                  ]
+                }
+              ] : []),
               {
-                model: InventoryData,
-                as: 'inventoryData',
+                model: require('../models/LorryTransitDetail'),
+                as: 'lorryTransitDetail',
+                required: false,
                 include: [
-                  ...(options.includeFinancial ? [{ model: FinancialCalculation, as: 'financialCalculation' }] : []),
-                  { model: Kunchinittu, as: 'kunchinittu', required: false, include: [{ model: Variety, as: 'variety', attributes: ['id', 'name'] }] },
-                  { model: Outturn, as: 'outturn', required: false }
+                  {
+                    model: WeightBridge,
+                    as: 'millWeightBridge',
+                    required: false,
+                    attributes: ['id', 'name', 'location']
+                  }
                 ]
               }
-            ] : []
+            ]
           },
           { model: User, as: 'supervisor', attributes: ['id', 'username'] }
         ] : []
@@ -219,7 +234,7 @@ class SampleEntryRepository {
           { model: Warehouse, as: 'placeWarehouse', attributes: ['id', 'name', 'code'] },
           { model: Kunchinittu, as: 'placeKunchinittuData', attributes: ['id', 'name', 'code'] },
           { model: Outturn, as: 'outturn', attributes: ['id', 'code', 'allottedVariety'] },
-          { model: WeightBridge, as: 'millWeightBridge', attributes: ['id', 'name'] }
+          { model: WeightBridge, as: 'millWeightBridge', attributes: ['id', 'name', 'location'] }
         ]
       });
     }
