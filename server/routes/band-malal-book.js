@@ -176,6 +176,11 @@ router.get('/band-malal-book', auth, async (req, res) => {
           as: 'sampleEntry',
           required: false,
           attributes: ['id', 'serialNo', 'variety', 'brokerName', 'location', 'partyName', 'lorryNumber', 'entryDate', 'packaging', 'grossWeight', 'tareWeight', 'netWeight', 'wbNo', 'partyWbName']
+        },
+        {
+          model: InventoryQualityParameter,
+          as: 'inventoryQualityParameters',
+          required: false
         }
       ],
       order: [['placeApprovedAt', 'ASC'], ['createdAt', 'ASC']],

@@ -5,7 +5,6 @@ import { toast } from '../utils/toast';
 import SampleEditApprovals from './SampleEditApprovals';
 import ManagerValueApprovals from './ManagerValueApprovals';
 import { SampleEntryDetailModal } from '../components/SampleEntryDetailModal';
-import TransitApprovalsTab from '../components/TransitApprovalsTab';
 
 interface SampleApprovalsHubProps {
   entryType?: string;
@@ -13,7 +12,7 @@ interface SampleApprovalsHubProps {
   onPendingCountChange?: (count: number) => void;
 }
 
-type ApprovalTabKey = 'approval-for-edits' | 'approval-for-manager' | 'lorry-approvals' | 'loading-quality-approvals' | 'bmb-inventory-quality' | 'rate-linking-approvals' | 'transit-approvals';
+type ApprovalTabKey = 'approval-for-edits' | 'approval-for-manager' | 'lorry-approvals' | 'loading-quality-approvals' | 'rate-linking-approvals';
 
 interface ApprovalTabConfig {
   key: ApprovalTabKey;
@@ -155,10 +154,6 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     }
     if (canAccessLoadingQuality) {
       baseTabs.push({ key: 'loading-quality-approvals', label: 'Loading Quality Approvals', color: '#1565c0' });
-      baseTabs.push({ key: 'bmb-inventory-quality', label: 'Arrivals Quality Approvals', color: '#0f766e' });
-    }
-    if (canAccessManagerApprovals) {
-      baseTabs.push({ key: 'transit-approvals', label: 'In Transit Approvals', color: '#d97706' });
     }
     return baseTabs;
   }, [canAccessManagerApprovals, canAccessLoadingQuality]);
@@ -167,16 +162,16 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     const saved = localStorage.getItem('sample_approvals_hub_active_tab');
     const allowedKeys = ['approval-for-edits'];
     if (canAccessManagerApprovals) {
-      allowedKeys.push('approval-for-manager', 'lorry-approvals', 'rate-linking-approvals', 'transit-approvals');
+      allowedKeys.push('approval-for-manager', 'lorry-approvals', 'rate-linking-approvals');
     }
     if (canAccessLoadingQuality) {
-      allowedKeys.push('loading-quality-approvals', 'bmb-inventory-quality');
+      allowedKeys.push('loading-quality-approvals');
     }
     return (saved && allowedKeys.includes(saved)) ? (saved as ApprovalTabKey) : 'approval-for-edits';
   });
   const totalPendingCount = editApprovalCount + 
-    (canAccessManagerApprovals ? (managerApprovalCount + lorryApprovalCount + rateLinkingCount + transitApprovalsCount) : 0) + 
-    (canAccessLoadingQuality ? (loadingQualityApprovalCount + inventoryQualityApprovalCount) : 0);
+    (canAccessManagerApprovals ? (managerApprovalCount + lorryApprovalCount + rateLinkingCount) : 0) + 
+    (canAccessLoadingQuality ? loadingQualityApprovalCount : 0);
 
   const fetchLoadingQuality = useCallback(async (isSilent = false) => {
     if (!canAccessLoadingQuality) return;
@@ -260,21 +255,11 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
         const rateLinkEntriesList = rateLinkRes.data?.entries || [];
         setRateLinkingEntries(rateLinkEntriesList);
         setRateLinkingCount(rateLinkEntriesList.length);
-        // Fetch In-Transit approvals count
-        const transitRes = await axios.get(`${API_URL}/arrivals/transit-approvals/pending`, { headers });
-        const transitPending = transitRes.data?.arrivals || transitRes.data?.data || [];
-        let transitRowsCount = 0;
-        transitPending.forEach((entry: any) => {
-          if (entry.placeStatus === 'placed' || entry.placeStatus === 'pending') transitRowsCount++;
-          if (entry.wbStatus === 'pending') transitRowsCount++;
-        });
-        setTransitApprovalsCount(transitRowsCount);
       } else {
         setManagerApprovalCount(0);
         setLorryApprovalCount(0);
         setRateLinkingCount(0);
         setRateLinkingEntries([]);
-        setTransitApprovalsCount(0);
       }
     } catch (err) {
       console.error('Error fetching global approvals counts:', err);
@@ -291,8 +276,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     }
     if (!canAccessLoadingQuality) {
       setLoadingQualityApprovalCount(0);
-      setInventoryQualityApprovalCount(0);
-      if (activeTab === 'loading-quality-approvals' || activeTab === 'bmb-inventory-quality') {
+      if (activeTab === 'loading-quality-approvals') {
         setActiveTab('approval-for-edits');
       }
     }
@@ -300,15 +284,13 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
 
   useEffect(() => {
     fetchLoadingQuality(false);
-    fetchInventoryQualityApprovals(false);
     fetchCounts();
     const interval = setInterval(() => {
       fetchLoadingQuality(true);
-      fetchInventoryQualityApprovals(true);
       fetchCounts();
     }, 30000);
     return () => clearInterval(interval);
-  }, [fetchLoadingQuality, fetchInventoryQualityApprovals, fetchCounts]);
+  }, [fetchLoadingQuality, fetchCounts]);
 
   useEffect(() => {
     onPendingCountChange?.(totalPendingCount);
@@ -1546,11 +1528,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                 ? lorryApprovalCount
                 : tab.key === 'rate-linking-approvals'
                   ? rateLinkingCount
-                  : tab.key === 'bmb-inventory-quality'
-                    ? inventoryQualityApprovalCount
-                  : tab.key === 'transit-approvals'
-                    ? transitApprovalsCount
-                    : loadingQualityApprovalCount;
+                  : loadingQualityApprovalCount;
           return (
             <button
               key={tab.key}
@@ -1611,14 +1589,6 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
           <div key={`loading-quality-${refreshKey}`}>
             {renderLorryQualityTable()}
           </div>
-        )}
-        {canAccessLoadingQuality && activeTab === 'bmb-inventory-quality' && (
-          <div key={`bmb-inventory-quality-${refreshKey}`}>
-            {renderBmbInventoryQualityTable()}
-          </div>
-        )}
-        {canAccessManagerApprovals && activeTab === 'transit-approvals' && (
-          <TransitApprovalsTab key={`transit-${refreshKey}`} />
         )}
       </div>
 

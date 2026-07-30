@@ -234,7 +234,8 @@ class SampleEntryRepository {
           { model: Warehouse, as: 'placeWarehouse', attributes: ['id', 'name', 'code'] },
           { model: Kunchinittu, as: 'placeKunchinittuData', attributes: ['id', 'name', 'code'] },
           { model: Outturn, as: 'outturn', attributes: ['id', 'code', 'allottedVariety'] },
-          { model: WeightBridge, as: 'millWeightBridge', attributes: ['id', 'name', 'location'] }
+          { model: WeightBridge, as: 'millWeightBridge', attributes: ['id', 'name', 'location'] },
+          { model: require('../models/InventoryQualityParameter'), as: 'inventoryQualityParameters', required: false }
         ]
       });
     }
