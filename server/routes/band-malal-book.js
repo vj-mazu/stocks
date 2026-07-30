@@ -456,7 +456,7 @@ router.post('/bmb/:transitDetailId/inventory-quality', auth, async (req, res) =>
     });
   } catch (error) {
     console.error('Error creating inventory quality parameter:', error);
-    res.status(500).json({ error: 'Failed to create inventory quality parameter' });
+    res.status(500).json({ error: error.message || 'Failed to create inventory quality parameter' });
   }
 });
 

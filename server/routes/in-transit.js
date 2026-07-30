@@ -9,6 +9,7 @@ const Arrival = require('../models/Arrival');
 const User = require('../models/User');
 const Outturn = require('../models/Outturn');
 const WeightBridge = require('../models/WeightBridge');
+const { InventoryQualityParameter } = require('../models');
 const { Warehouse, Kunchinittu } = require('../models/Location');
 const cacheService = require('../services/cacheService');
 
@@ -200,6 +201,11 @@ router.get('/in-transit', auth, async (req, res) => {
           as: 'sampleEntry',
           required: false,
           attributes: ['id', 'serialNo', 'variety', 'brokerName', 'location', 'partyName', 'lorryNumber', 'entryDate', 'packaging', 'grossWeight', 'tareWeight', 'netWeight', 'wbNo', 'partyWbName']
+        },
+        {
+          model: InventoryQualityParameter,
+          as: 'inventoryQualityParameters',
+          required: false
         }
       ],
       order: [['createdAt', 'DESC']],
@@ -281,7 +287,8 @@ router.get('/in-transit', auth, async (req, res) => {
           sampleEntry: sampleEntry,
           isInTransit: true,
           isFullLorryApproved: isFullLorryApprovedInspection(inspection),
-          transitDetailId: detail.id
+          transitDetailId: detail.id,
+          inventoryQualityParameters: detail.inventoryQualityParameters || []
         };
       } catch (entryError) {
         console.error(`Error processing In-Transit entry ${detail.id}:`, entryError);

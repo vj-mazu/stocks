@@ -8758,75 +8758,39 @@ router.post('/:id/wb', auth, async (req, res) => {
 
         // Keep pending/existing status if Mill WB is already present
 
-
-
         const targetWbStatus = (transitDetail.millWbId) ? (transitDetail.wbStatus || 'pending') : 'approved';
-
-
-
-
 
 
 
         // Party WB details go directly to the SampleEntry record (gate weights)
 
-
-
         const sampleEntry = await SampleEntry.findByPk(transitDetail.sampleEntryId);
-
-
 
         if (sampleEntry) {
 
-
-
           await sampleEntry.update({
-
-
 
             partyWbName,
 
-
-
             wbNo,
-
-
 
             grossWeight: grossWeight ? Number(grossWeight) : null,
 
-
-
             tareWeight: tareWeight ? Number(tareWeight) : null,
-
-
 
             netWeight: netWeight ? Number(netWeight) : null,
 
-
-
             wbStatus: targetWbStatus
 
-
-
           });
-
-
 
         }
 
 
 
-
-
-
-
         // Also update LorryTransitDetail to sync party name, wbStatus, wbNo, weights and wbInputType
 
-
-
         await transitDetail.update({
-
-
 
           partyWbName,
 
@@ -8838,19 +8802,11 @@ router.post('/:id/wb', auth, async (req, res) => {
 
           wbNo,
 
-
-
           grossWeight: grossWeight ? Number(grossWeight) : null,
-
-
 
           tareWeight: tareWeight ? Number(tareWeight) : null,
 
-
-
           netWeight: netWeight ? Number(netWeight) : null,
-
-
 
           wbStatus: targetWbStatus,
 
@@ -8858,35 +8814,22 @@ router.post('/:id/wb', auth, async (req, res) => {
 
           wbInputType: transitDetail.millWbId ? 'both' : 'party',
 
-
-
           sute: sute ? Number(sute) : null,
-
-
 
           suteNetWeight: calculatedSuteNetWeight,
 
-
-
           partyWbEnabled: partyWbEnabled || null,
-
-
 
           wbDate: wbDate || null,
 
-
-
           wbAddedBy: req.user.userId,
-
-
 
           wbAddedAt: new Date(),
 
+          wbApprovedBy: req.user.userId,
 
-
-          wbApprovedBy: req.user.userId
-
-
+          // Also save Mill WB ID if provided alongside Party WB
+          ...(millWbId ? { millWbId: Number(millWbId) } : {})
 
         });
 
@@ -8976,82 +8919,43 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-        const wbApprovedAt = isAutoApproveWb ? new Date() : null;
-
-
-
-
-
-
-
-        await transitDetail.update({
-
-
+        const wbApprovedAt = isAutoApproveWb ? new Date() : null;        await transitDetail.update({
 
           wbInputType: 'mill',
-
-
 
           millWbId: Number(millWbId),
           partyWbName: partyWbName || transitDetail.partyWbName,
 
-
-
           wbNo: wbNo || null,
-
-
 
           grossWeight: grossWeight ? Number(grossWeight) : null,
 
-
-
           tareWeight: tareWeight ? Number(tareWeight) : null,
-
-
 
           netWeight: netWeight ? Number(netWeight) : null,
 
-
-
           wbStatus,
-
-
 
           wbRejectReason: null,
 
-
-
           sute: sute ? Number(sute) : null,
-
-
 
           suteNetWeight: calculatedSuteNetWeight,
 
-
-
           partyWbEnabled: partyWbEnabled || null,
-
-
 
           wbDate: wbDate || null,
 
-
-
           wbAddedBy: req.user.userId,
-
-
 
           wbAddedAt: new Date(),
 
-
-
           wbApprovedBy,
 
+          wbApprovedAt,
 
-
-          wbApprovedAt
-
-
+          // Also save Party WB fields if provided alongside Mill WB
+          ...(partyWbName ? { partyWbName } : {})
 
         });
 
@@ -9389,41 +9293,19 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-        });
-
-
-
-
-
-
-
-        // Also update LorryTransitDetail to sync party name, wbStatus, wbNo, weights and wbInputType
-
-
+        });        // Also update LorryTransitDetail to sync party name, wbStatus, wbNo, weights and wbInputType
 
         await detail.update({
 
-
-
           partyWbName,
-
-
 
           wbNo,
 
-
-
           grossWeight: grossWeight ? Number(grossWeight) : null,
-
-
 
           tareWeight: tareWeight ? Number(tareWeight) : null,
 
-
-
           netWeight: netWeight ? Number(netWeight) : null,
-
-
 
           wbStatus: targetWbStatus,
 
@@ -9431,41 +9313,24 @@ router.post('/:id/wb', auth, async (req, res) => {
 
           wbInputType: detail.millWbId ? 'both' : 'party',
 
-
-
           sute: sute ? Number(sute) : null,
-
-
 
           suteNetWeight: calculatedSuteNetWeight,
 
-
-
           partyWbEnabled: partyWbEnabled || null,
-
-
 
           wbDate: wbDate || null,
 
-
-
           wbAddedBy: req.user.userId,
-
-
 
           wbAddedAt: new Date(),
 
+          wbApprovedBy: req.user.userId,
 
-
-          wbApprovedBy: req.user.userId
-
-
+          // Also save Mill WB ID if provided alongside Party WB
+          ...(millWbId ? { millWbId: Number(millWbId) } : {})
 
         });
-
-
-
-
 
 
 
@@ -9517,81 +9382,42 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-        const wbApprovedAt = isAutoApprove ? new Date() : null;
-
-
-
-
-
-
-
-        await detail.update({
-
-
+        const wbApprovedAt = isAutoApprove ? new Date() : null;        await detail.update({
 
           wbInputType: 'mill',
 
-
-
           millWbId: Number(millWbId),
-
-
 
           wbNo: wbNo || null,
 
-
-
           grossWeight: grossWeight ? Number(grossWeight) : null,
-
-
 
           tareWeight: tareWeight ? Number(tareWeight) : null,
 
-
-
           netWeight: netWeight ? Number(netWeight) : null,
-
-
 
           wbStatus,
 
-
-
           wbRejectReason: null,
-
-
 
           sute: sute ? Number(sute) : null,
 
-
-
           suteNetWeight: calculatedSuteNetWeight,
-
-
 
           partyWbEnabled: partyWbEnabled || null,
 
-
-
           wbDate: wbDate || null,
-
-
 
           wbAddedBy: req.user.userId,
 
-
-
           wbAddedAt: new Date(),
-
-
 
           wbApprovedBy,
 
+          wbApprovedAt,
 
-
-          wbApprovedAt
-
-
+          // Also save Party WB fields if provided alongside Mill WB
+          ...(partyWbName ? { partyWbName } : {})
 
         });
 
@@ -9877,41 +9703,19 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-        }
-
-
-
-
-
-
-
-        // Also update LorryTransitDetail to sync party name, wbStatus, wbNo, weights and wbInputType
-
-
+        }        // Also update LorryTransitDetail to sync party name, wbStatus, wbNo, weights and wbInputType
 
         await detail.update({
 
-
-
           partyWbName,
-
-
 
           wbNo,
 
-
-
           grossWeight: grossWeight ? Number(grossWeight) : null,
-
-
 
           tareWeight: tareWeight ? Number(tareWeight) : null,
 
-
-
           netWeight: netWeight ? Number(netWeight) : null,
-
-
 
           wbStatus: targetWbStatus,
 
@@ -9919,41 +9723,24 @@ router.post('/:id/wb', auth, async (req, res) => {
 
           wbInputType: detail.millWbId ? 'both' : 'party',
 
-
-
           sute: sute ? Number(sute) : null,
-
-
 
           suteNetWeight: calculatedSuteNetWeight,
 
-
-
           partyWbEnabled: partyWbEnabled || null,
-
-
 
           wbDate: wbDate || null,
 
-
-
           wbAddedBy: req.user.userId,
-
-
 
           wbAddedAt: new Date(),
 
+          wbApprovedBy: req.user.userId,
 
-
-          wbApprovedBy: req.user.userId
-
-
+          // Also save Mill WB ID if provided alongside Party WB
+          ...(millWbId ? { millWbId: Number(millWbId) } : {})
 
         });
-
-
-
-
 
 
 
@@ -10005,81 +9792,42 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-        const wbApprovedAt = isAutoApprove ? new Date() : null;
-
-
-
-
-
-
-
-        await detail.update({
-
-
+        const wbApprovedAt = isAutoApprove ? new Date() : null;        await detail.update({
 
           wbInputType: 'mill',
 
-
-
           millWbId: Number(millWbId),
-
-
 
           wbNo: wbNo || null,
 
-
-
           grossWeight: grossWeight ? Number(grossWeight) : null,
-
-
 
           tareWeight: tareWeight ? Number(tareWeight) : null,
 
-
-
           netWeight: netWeight ? Number(netWeight) : null,
-
-
 
           wbStatus,
 
-
-
           wbRejectReason: null,
-
-
 
           sute: sute ? Number(sute) : null,
 
-
-
           suteNetWeight: calculatedSuteNetWeight,
-
-
 
           partyWbEnabled: partyWbEnabled || null,
 
-
-
           wbDate: wbDate || null,
-
-
 
           wbAddedBy: req.user.userId,
 
-
-
           wbAddedAt: new Date(),
-
-
 
           wbApprovedBy,
 
+          wbApprovedAt,
 
-
-          wbApprovedAt
-
-
+          // Also save Party WB fields if provided alongside Mill WB
+          ...(partyWbName ? { partyWbName } : {})
 
         });
 
@@ -10675,73 +10423,26 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-      const wbStatus = isAutoApprove ? 'approved' : 'pending';
-
-
-
-
-
-
-
-      await arrival.update({
-
-
+      const wbStatus = isAutoApprove ? 'approved' : 'pending';      await arrival.update({
 
         wbInputType: 'mill',
 
-
-
         millWbId: Number(millWbId),
-
-
 
         wbNo: wbNo || arrival.wbNo,
 
-
-
         grossWeight: grossWeight ? Number(grossWeight) : arrival.grossWeight,
-
-
 
         tareWeight: tareWeight ? Number(tareWeight) : arrival.tareWeight,
 
-
-
         netWeight: netWeight ? Number(netWeight) : arrival.netWeight,
-
-
 
         wbStatus,
 
+        wbRejectReason: null,
 
-
-        sute: sute ? Number(sute) : null,
-
-
-
-        suteNetWeight: calculatedSuteNetWeight,
-
-
-
-        partyWbEnabled: partyWbEnabled || null,
-
-
-
-        wbDate: wbDate || null,
-
-
-
-        wbAddedBy: req.user.userId,
-
-
-
-        wbAddedAt: new Date(),
-
-
-
-        wbRejectReason: null
-
-
+        // Also save Party WB name if provided alongside Mill WB
+        ...(partyWbName ? { partyWbName } : {})
 
       });
 

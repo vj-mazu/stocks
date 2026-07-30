@@ -3912,7 +3912,7 @@ const Arrivals: React.FC = () => {
 
 
 
-  // Mill Quality Parameters State
+  // Quality Sampling Parameters State
 
 
 
@@ -4694,7 +4694,7 @@ const Arrivals: React.FC = () => {
 
 
 
-  // Mill Quality Parameters Authorization
+  // Quality Sampling Parameters Authorization
 
 
 
@@ -4754,7 +4754,7 @@ const Arrivals: React.FC = () => {
 
 
 
-  // Mill Quality Parameters Handlers
+  // Quality Sampling Parameters Handlers
 
 
 
@@ -6067,6 +6067,9 @@ const Arrivals: React.FC = () => {
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '12%' }}>Lorry Number</th>
 
 
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Quality</th>
+
+
 
                       
 
@@ -6923,6 +6926,58 @@ const Arrivals: React.FC = () => {
                               <td style={{ border: '1px solid #000', padding: '5px', fontWeight: '800', color: '#1e40af' }}>{lorryNum.toUpperCase()}</td>
 
 
+                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', verticalAlign: 'middle' }}>
+
+
+
+                                {canAddInventoryQuality && (() => {
+
+
+
+                                  let tdBtnText = '🔬 Quality Sampling';
+
+
+
+                                  let tdBtnBg = '#a855f7';
+
+
+
+                                  let tdIsDisabled = false;
+
+
+
+                                  return (
+
+
+
+                                    <button
+                                      disabled={tdIsDisabled}
+                                      onClick={() => {
+                                        if (!transitDetail) { toast.error('Transit detail not found'); return; }
+                                        if (expandedInventoryQuality === transitDetail.id) {
+                                          setExpandedInventoryQuality(null);
+                                        } else {
+                                          setExpandedInventoryQuality(transitDetail.id);
+                                          setInventoryQualityForm({ moisture: '', dryMoisture: '', cutting: '', bend: '', grains: '', mix: '', sMix: '', lMix: '', kandu: '', oil: '', sk: '', smell: '', paddyWb: '', pColor: '', kadiga: '', remarks: '' });
+                                        }
+                                      }}
+                                      style={{
+                                        padding: '4px 8px',
+                                        background: expandedInventoryQuality === transitDetail?.id ? '#9333ea' : tdBtnBg,
+                                        color: '#fff', border: 'none', borderRadius: '4px',
+                                        fontSize: '10px', fontWeight: 'bold',
+                                        cursor: tdIsDisabled ? 'not-allowed' : 'pointer',
+                                        whiteSpace: 'nowrap', opacity: tdIsDisabled ? 0.7 : 1
+                                      }}
+                                    >{tdBtnText}</button>
+                                  );
+                                })()}
+
+
+
+                              </td>
+
+
 
                               
 
@@ -6947,7 +7002,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                <td colSpan={ (((user as any)?.role === 'inventory_staff' || (user as any)?.role === 'inventory_head' || (user as any)?.effectiveRole === 'inventory_head' || (user as any)?.role === 'ceo' || (user as any)?.effectiveRole === 'ceo' || (user as any)?.role === 'admin' || (user as any)?.role === 'manager') && !(user?.staffType === 'mill')) ? 12 : 12 } style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
+                                <td colSpan={ (((user as any)?.role === 'inventory_staff' || (user as any)?.role === 'inventory_head' || (user as any)?.effectiveRole === 'inventory_head' || (user as any)?.role === 'ceo' || (user as any)?.effectiveRole === 'ceo' || (user as any)?.role === 'admin' || (user as any)?.role === 'manager') && !(user?.staffType === 'mill')) ? 13 : 13 } style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
 
 
 
@@ -8194,6 +8249,102 @@ const Arrivals: React.FC = () => {
                             )}
 
 
+
+
+                            {/* COLLAPSIBLE QUALITY FORM */}
+                            {expandedInventoryQuality === transitDetail?.id && (() => {
+                              return (
+                                <tr>
+                                  <td colSpan={13} style={{ padding: '12px', background: '#faf5ff', border: '1px solid #e9d5ff', borderTop: 'none' }}>
+                                    <div style={{ background: '#fff', border: '1px solid #d8b4fe', borderRadius: '8px', padding: '16px' }}>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #f3e8ff', paddingBottom: '10px' }}>
+                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                          <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#6b21a8' }}>Type:</span>
+                                          <button onClick={() => setInventoryQualityType('lot_avg')}
+                                            style={{ padding: '4px 12px', border: 'none', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer',
+                                              background: inventoryQualityType === 'lot_avg' ? '#7c3aed' : '#f3f4f6',
+                                              color: inventoryQualityType === 'lot_avg' ? '#fff' : '#6b7280' }}>Lot Avg</button>
+                                          <button onClick={() => setInventoryQualityType('full_lorry_avg')}
+                                            style={{ padding: '4px 12px', border: 'none', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer',
+                                              background: inventoryQualityType === 'full_lorry_avg' ? '#7c3aed' : '#f3f4f6',
+                                              color: inventoryQualityType === 'full_lorry_avg' ? '#fff' : '#6b7280' }}>Full Lorry Avg</button>
+                                        </div>
+                                        <button onClick={() => setExpandedInventoryQuality(null)}
+                                          style={{ padding: '4px 8px', border: 'none', borderRadius: '4px', background: '#f3f4f6', color: '#6b7280', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>X Close</button>
+                                      </div>
+                                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '8px', marginBottom: '12px' }}>
+                                        {['moisture','dryMoisture','cutting','bend','grains','mix','kandu','oil','sk','smell'].map(field => (
+                                          <div key={field}>
+                                            <label style={{ display: 'block', fontSize: '10px', fontWeight: 'bold', color: '#6b21a8', marginBottom: '2px' }}>{field}</label>
+                                            <input type="text" value={(inventoryQualityForm as any)[field] || ''}
+                                              onChange={(e) => setInventoryQualityForm((p: any) => ({ ...p, [field]: sanitizeInventoryQualityField(field, e.target.value) }))}
+                                              placeholder={field} style={{ width: '100%', padding: '4px', fontSize: '10px', border: '1px solid #d8b4fe', borderRadius: '4px' }} />
+                                          </div>
+                                        ))}
+                                        <div>
+                                          <label style={{ display: 'block', fontSize: '10px', fontWeight: 'bold', color: '#6b21a8', marginBottom: '2px' }}>pColor</label>
+                                          <select value={inventoryQualityForm.pColor} onChange={(e) => setInventoryQualityForm((p: any) => ({ ...p, pColor: e.target.value }))}
+                                            style={{ width: '100%', padding: '4px', fontSize: '10px', border: '1px solid #d8b4fe', borderRadius: '4px', background: '#fff' }}>
+                                            <option value="">Select</option><option value="Normal">Normal</option><option value="Slight">Slight</option><option value="Medium">Medium</option><option value="Heavy">Heavy</option>
+                                          </select>
+                                        </div>
+                                        <div>
+                                          <label style={{ display: 'block', fontSize: '10px', fontWeight: 'bold', color: '#6b21a8', marginBottom: '2px' }}>kadiga</label>
+                                          <select value={inventoryQualityForm.kadiga} onChange={(e) => setInventoryQualityForm((p: any) => ({ ...p, kadiga: e.target.value }))}
+                                            style={{ width: '100%', padding: '4px', fontSize: '10px', border: '1px solid #d8b4fe', borderRadius: '4px', background: '#fff' }}>
+                                            <option value="">Select</option><option value="Y">Yes</option><option value="N">No</option>
+                                          </select>
+                                        </div>
+                                        <div style={{ gridColumn: '1 / -1' }}>
+                                          <label style={{ display: 'block', fontSize: '10px', fontWeight: 'bold', color: '#6b21a8', marginBottom: '2px' }}>Remarks</label>
+                                          <textarea value={inventoryQualityForm.remarks} onChange={(e) => setInventoryQualityForm((p: any) => ({ ...p, remarks: e.target.value }))}
+                                            placeholder='Additional remarks...' rows={2}
+                                            style={{ width: '100%', padding: '4px', fontSize: '10px', border: '1px solid #d8b4fe', borderRadius: '4px', resize: 'vertical', fontFamily: 'inherit' }} />
+                                        </div>
+                                      </div>
+                                      <div style={{ textAlign: 'center' }}>
+                                        <button onClick={() => handleSubmitInventoryQuality(transitDetail?.id)}
+                                          style={{ padding: '6px 20px', border: 'none', borderRadius: '6px', background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', color: '#fff', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
+                                          Submit Quality Parameters</button>
+                                      </div>
+                                      {transitDetail?.inventoryQualityParameters && transitDetail.inventoryQualityParameters.length > 0 && (
+                                        <div style={{ marginTop: '12px' }}>
+                                          <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#374151', marginBottom: '6px' }}>Previous Reports:</div>
+                                          {transitDetail.inventoryQualityParameters.map((qp: any, qIdx: number) => (
+                                            <div key={qIdx} style={{ padding: '8px', marginBottom: '6px', borderRadius: '4px', fontSize: '10px',
+                                              background: qp.status === 'approved' ? '#f0fdf4' : qp.status === 'rejected' ? '#fef2f2' : '#fffbeb',
+                                              border: qp.status === 'approved' ? '1px solid #bbf7d0' : qp.status === 'rejected' ? '1px solid #fecaca' : '1px solid #fde68a' }}>
+                                              <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>
+                                                {qp.type === 'lot_avg' ? 'Lot Avg' : 'Full Lorry Avg'} - {qp.status === 'approved' ? 'Approved' : qp.status === 'rejected' ? 'Rejected' : 'Pending'}
+                                              </div>
+                                              <div style={{ color: '#6b7280' }}>Moisture: {qp.moisture || '-'} | Cutting: {qp.cutting || '-'} | Bend: {qp.bend || '-'}</div>
+                                              {qp.status === 'pending' && canApproveInventoryQuality && (
+                                                <div style={{ marginTop: '4px', display: 'flex', gap: '4px' }}>
+                                                  <button onClick={() => handleApproveInventoryQuality(qp.id)} style={{ padding: '2px 8px', border: 'none', borderRadius: '3px', background: '#10b981', color: '#fff', fontSize: '9px', fontWeight: 'bold', cursor: 'pointer' }}>Approve</button>
+                                                  <button onClick={() => { setRejectInventoryQualityId(qp.id); setRejectInventoryQualityReason(''); }} style={{ padding: '2px 8px', border: 'none', borderRadius: '3px', background: '#ef4444', color: '#fff', fontSize: '9px', fontWeight: 'bold', cursor: 'pointer' }}>Reject</button>
+                                                </div>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                      {rejectInventoryQualityId && (
+                                        <div style={{ marginTop: '8px', padding: '10px', background: '#fef2f2', borderRadius: '4px', border: '1px solid #fecaca' }}>
+                                          <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#991b1b', marginBottom: '4px' }}>Rejection Reason:</div>
+                                          <textarea value={rejectInventoryQualityReason} onChange={(e) => setRejectInventoryQualityReason(e.target.value)}
+                                            placeholder='Enter reason...' rows={2}
+                                            style={{ width: '100%', padding: '4px', fontSize: '10px', border: '1px solid #fca5a5', borderRadius: '4px', resize: 'vertical', fontFamily: 'inherit', marginBottom: '6px' }} />
+                                          <div style={{ display: 'flex', gap: '4px' }}>
+                                            <button onClick={handleRejectInventoryQuality} style={{ padding: '4px 12px', border: 'none', borderRadius: '4px', background: '#ef4444', color: '#fff', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' }}>Confirm Reject</button>
+                                            <button onClick={() => setRejectInventoryQualityId(null)} style={{ padding: '4px 12px', border: 'none', borderRadius: '4px', background: '#6b7280', color: '#fff', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' }}>Cancel</button>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })()}
 
                           </React.Fragment>
 
@@ -9545,7 +9696,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                {/* Mill Quality Button */}
+                                {/* Quality Sampling Button */}
 
 
 
@@ -9577,7 +9728,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                   let btnText = '🔬 Mill Quality';
+                                   let btnText = '🔬 Quality Sampling';
 
 
 
@@ -9629,7 +9780,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                     btnText = '🔬 Mill Quality (Lot)';
+                                     btnText = '🔬 Quality Sampling (Lot)';
 
 
 
@@ -10853,7 +11004,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                        >💾 Submit Mill Quality Parameters</button>
+                                        >💾 Submit Quality Sampling Parameters</button>
 
 
 
