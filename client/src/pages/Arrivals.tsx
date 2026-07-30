@@ -15506,7 +15506,7 @@ const Arrivals: React.FC = () => {
           zIndex: 9999
         }}>
           <div style={{
-            background: '#fff', borderRadius: '8px', padding: '14px', maxWidth: '520px', width: '100%',
+            background: '#fff', borderRadius: '8px', padding: '14px', maxWidth: '560px', width: '100%',
             boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
             position: 'relative', border: '1px solid #e2e8f0'
           }}>
@@ -15615,6 +15615,62 @@ const Arrivals: React.FC = () => {
                   )}
                 </div>
               ))}
+            </div>
+
+            {/* WB Parameters */}
+            <div style={{ background: '#f0f7ff', borderRadius: '4px', border: '1px solid #d0e3f7', padding: '8px', marginTop: '8px' }}>
+              <div style={{ fontSize: '9px', fontWeight: '700', color: '#1565c0', marginBottom: '6px' }}>WB PARAMETERS</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#333', fontSize: '10px' }}>WB (R) & WB (BK)</label>
+                  <div style={{ display: 'flex', gap: '6px', marginBottom: '2px' }}>
+                    {['Yes', 'No'].map(v => (
+                      <label key={v} style={{ fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                        <input type="radio" name="wbEnabled_qs" checked={v === 'Yes' ? wbEnabled : !wbEnabled}
+                          onChange={() => { if (v === 'No') { setWbEnabled(false); setInventoryQualityForm(p => ({ ...p, wbR: '', wbBk: '' })); } else setWbEnabled(true); }}
+                          style={{ margin: 0 }} /> {v}
+                      </label>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', gap: '4px', visibility: wbEnabled ? 'visible' : 'hidden' }}>
+                    <input type="number" step="0.01" placeholder="R" value={inventoryQualityForm.wbR} onChange={(e) => setInventoryQualityForm(p => ({ ...p, wbR: e.target.value }))} disabled={!wbEnabled}
+                      style={{ flex: 1, padding: '3px', border: '1px solid #ccc', borderRadius: '3px', fontSize: '10px' }} />
+                    <input type="number" step="0.01" placeholder="BK" value={inventoryQualityForm.wbBk} onChange={(e) => setInventoryQualityForm(p => ({ ...p, wbBk: e.target.value }))} disabled={!wbEnabled}
+                      style={{ flex: 1, padding: '3px', border: '1px solid #ccc', borderRadius: '3px', fontSize: '10px' }} />
+                  </div>
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#333', fontSize: '10px' }}>WB (T) — Auto</label>
+                  <input type="number" step="0.01" readOnly value={inventoryQualityForm.wbT}
+                    style={{ width: '100%', padding: '3px', border: '1px solid #a5d6a7', borderRadius: '3px', fontSize: '10px', backgroundColor: '#e8f5e9', fontWeight: '700', cursor: 'not-allowed', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#333', fontSize: '10px' }}>Paddy WB</label>
+                  <div style={{ display: 'flex', gap: '6px', marginBottom: '2px' }}>
+                    {['Y', 'N'].map(v => (
+                      <label key={v} style={{ fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                        <input type="radio" name="paddyWb_qs" checked={inventoryQualityToggle.paddyWb === v}
+                          onChange={() => { setInventoryQualityToggle(p => ({ ...p, paddyWb: v })); if (v === 'N') setInventoryQualityForm(p => ({ ...p, paddyWb: '' })); }}
+                          style={{ margin: 0 }} /> {v}
+                      </label>
+                    ))}
+                  </div>
+                  <input type="number" step="0.01" value={inventoryQualityForm.paddyWb} onChange={(e) => setInventoryQualityForm(p => ({ ...p, paddyWb: sanitizeInventoryQualityField('paddyWb', e.target.value) }))}
+                    disabled={inventoryQualityToggle.paddyWb === 'N'}
+                    style={{ width: '100%', padding: '3px', border: '1px solid #ccc', borderRadius: '3px', fontSize: '10px', boxSizing: 'border-box', visibility: inventoryQualityToggle.paddyWb === 'Y' ? 'visible' : 'hidden' }}
+                    placeholder="Val" />
+                </div>
+              </div>
+            </div>
+
+            {/* Reported By */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px', alignItems: 'center' }}>
+              <label style={{ fontWeight: '600', color: '#333', fontSize: '10px', whiteSpace: 'nowrap' }}>Reported By <span style={{ color: '#e53935' }}>*</span></label>
+              <select value={inventoryQualityForm.reportedByUserId || user?.id || ''} onChange={(e) => setInventoryQualityForm(p => ({ ...p, reportedByUserId: e.target.value }))}
+                style={{ padding: '3px', border: '1px solid #ccc', borderRadius: '3px', fontSize: '10px', background: '#fff', height: '26px', maxWidth: '180px' }}>
+                <option value="">Choose</option>
+                {usersList.map(u => <option key={u.id} value={u.id}>{u.fullName || u.username}</option>)}
+              </select>
             </div>
 
             {/* Footer */}
