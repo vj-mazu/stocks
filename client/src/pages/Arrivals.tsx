@@ -6106,6 +6106,7 @@ const Arrivals: React.FC = () => {
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Net Weight</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Sute Net Wt</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Godown</th>
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Actions</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Quality Status</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '12%' }}>Lorry Number</th>
 
@@ -6825,17 +6826,7 @@ const Arrivals: React.FC = () => {
                                 <div style={{ marginTop: transitDetail && (placeStatus === 'approved' || placeStatus === 'pending' || placeStatus === 'placed') ? '4px' : '0px' }}>                                  {placeStatus === 'approved' ? (
                                     <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 'bold' }}>📍 Done</span>
                                   ) : placeStatus === 'placed' ? (
-                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-                                       <span style={{ fontSize: '10px', color: '#2563eb', fontWeight: 'bold' }}>📍 Placed ✅</span>
-                                       {!(user?.role === 'staff' && (user?.staffType === 'location' || user?.staffType === 'mill')) && (
-                                         <button 
-                                           onClick={() => handleMoveToBmb(trip)}
-                                           style={{ padding: '3px 6px', border: 'none', borderRadius: '4px', background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}
-                                         >
-                                           🚚 Move to BMB
-                                         </button>
-                                       )}
-                                     </div>
+                                     <span style={{ fontSize: '10px', color: '#2563eb', fontWeight: 'bold' }}>📍 Placed ✅</span>
                                   ) : (user?.role === 'staff' && (user?.staffType === 'location' || user?.staffType === 'mill')) ? null : (
                                     <button
                                       onClick={() => {
@@ -6870,6 +6861,18 @@ const Arrivals: React.FC = () => {
                                     </button>
                                   )}
                                 </div>
+                              </td>
+
+                              {/* 6. Actions */}
+                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontSize: '11px', verticalAlign: 'middle' }}>
+                                {transitDetail && placeStatus === 'placed' && !(user?.role === 'staff' && (user?.staffType === 'location' || user?.staffType === 'mill')) ? (
+                                  <button 
+                                    onClick={() => handleMoveToBmb(trip)}
+                                    style={{ padding: '4px 8px', border: 'none', borderRadius: '4px', background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                                  >
+                                    🚚 Move to BMB
+                                  </button>
+                                ) : '-'}
                               </td>
 
                               {/* Quality Status + Sampling Button column */}
