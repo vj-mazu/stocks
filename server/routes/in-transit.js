@@ -590,8 +590,34 @@ router.post('/:id/reject-wb', auth, requireApproverRole, async (req, res) => {
         wbNo: null,
         grossWeight: null,
         tareWeight: null,
-        netWeight: null
+        netWeight: null,
+        sute: null,
+        suteNetWeight: null
       });
+
+      // Update the auto-created Arrival weights if it exists
+      const arrival = await Arrival.findOne({
+        where: {
+          lorryNumber: inspection.lorryNumber,
+          remarks: { [Op.like]: `%inspection #${inspection.id}%` }
+        }
+      });
+
+      if (arrival) {
+        await arrival.update({
+          wbStatus: 'rejected',
+          wbRejectReason: reason || 'Rejected',
+          wbInputType: null,
+          millWbId: null,
+          partyWbName: null,
+          wbNo: null,
+          grossWeight: null,
+          tareWeight: null,
+          netWeight: null,
+          sute: null,
+          suteNetWeight: null
+        });
+      }
 
       // Invalidate caches
       ['sample-entries/by-role', 'arrivals/band-malal-book'].forEach(pattern => {
@@ -611,7 +637,16 @@ router.post('/:id/reject-wb', auth, requireApproverRole, async (req, res) => {
 
         await arrival.update({
           wbStatus: 'rejected',
-          wbRejectReason: reason || 'Rejected'
+          wbRejectReason: reason || 'Rejected',
+          wbInputType: null,
+          millWbId: null,
+          partyWbName: null,
+          wbNo: null,
+          grossWeight: null,
+          tareWeight: null,
+          netWeight: null,
+          sute: null,
+          suteNetWeight: null
         });
 
         return res.json({ message: 'WB rejected', arrival });
@@ -626,3 +661,4 @@ router.post('/:id/reject-wb', auth, requireApproverRole, async (req, res) => {
 });
 
 module.exports = router;
+

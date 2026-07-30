@@ -614,7 +614,7 @@ const getApprovedFullAvgBags = (stages: any, defaultBags: any) => {
     return defaultBags || '-';
 };
 
-export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpdate, showCollectorLoginPair = false, progressiveMode = false, completedLotsOrder = false, onEditStage, onTriggerDispute, autoTriggerDisputeKey, targetRateLinkAction, targetLorryTripId }: { detailEntry: SampleEntry, detailMode: 'quick' | 'history' | 'summary' | 'full', onClose: () => void, onUpdate?: (gpsCoordinates?: string) => void | Promise<void>, showCollectorLoginPair?: boolean, progressiveMode?: boolean, completedLotsOrder?: boolean, onEditStage?: (lorryNumber: string, stageKey: string) => void, onTriggerDispute?: (entry: SampleEntry) => void, autoTriggerDisputeKey?: { inspectionId: string; stageKey: string }, targetRateLinkAction?: (rateInfo: { rate: number; rateType: string; sute: number; suteUnit: string; moisture: number; hamali: number; hamaliUnit: string; lf: number; lfUnit: string; disputeReason?: string; isDispute: boolean; isRevision: boolean; linkedRevisionId?: string | null }) => void | Promise<void>, targetLorryTripId?: string }) => {
+export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpdate, showCollectorLoginPair = false, progressiveMode = false, completedLotsOrder = false, onEditStage, onTriggerDispute, autoTriggerDisputeKey, targetRateLinkAction, targetLorryTripId, isCompactOverride, isAdminSampleBook2 = false }: { detailEntry: SampleEntry, detailMode: 'quick' | 'history' | 'summary' | 'full', onClose: () => void, onUpdate?: (gpsCoordinates?: string) => void | Promise<void>, showCollectorLoginPair?: boolean, progressiveMode?: boolean, completedLotsOrder?: boolean, onEditStage?: (lorryNumber: string, stageKey: string) => void, onTriggerDispute?: (entry: SampleEntry) => void, autoTriggerDisputeKey?: { inspectionId: string; stageKey: string }, targetRateLinkAction?: (rateInfo: { rate: number; rateType: string; sute: number; suteUnit: string; moisture: number; hamali: number; hamaliUnit: string; lf: number; lfUnit: string; disputeReason?: string; isDispute: boolean; isRevision: boolean; linkedRevisionId?: string | null }) => void | Promise<void>, targetLorryTripId?: string, isCompactOverride?: boolean, isAdminSampleBook2?: boolean }) => {
     const { user } = useAuth();
     const buildMapHref = (value: any) => {
         const raw = typeof value === 'object' && value !== null
@@ -1173,7 +1173,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
 
     const renderHorizontalTable = (title: React.ReactNode, icon: string, headerColor: string, columns: string[], rows: any[], options: { isQuality?: boolean; compact?: boolean } = {}) => {
         if (rows.length === 0) return null;
-        const isCompact = options.compact === true || Boolean(detailEntry.isBandMalal || detailEntry.isBandMalalBook || detailEntry.transitDetailId || (detailEntry as any).isTransit);
+        const isCompact = options.compact === true || isCompactOverride || Boolean(detailEntry.isBandMalal || detailEntry.isBandMalalBook || detailEntry.transitDetailId || (detailEntry as any).isTransit || detailEntry.workflowStatus === 'IN_TRANSIT' || detailEntry.workflowStatus === 'BAND_MALAL_BOOK');
 
         return (
             <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #cbd5e1', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', width: isCompact ? '100%' : '100%', maxWidth: '100%', alignSelf: 'flex-start', margin: isCompact ? '2px 0' : '8px 0' }}>
@@ -1558,8 +1558,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     content: isLorryNotAdded
                         ? <span style={{ color: '#dc2626', fontWeight: 'bold' }}>Next Loading Lorry Sampling: Lot Avg Sampling or Balance Lot Sampling</span>
                         : tripIdx === 0
-                            ? `Load 1 - Loading Sample Details : ${insp.lorryNumber?.toUpperCase() || 'Lorry'} | Bags Loaded: ${bagsLoaded}`
-                            : `Load ${tripIdx + 1} - Lorry Number: ${insp.lorryNumber?.toUpperCase() || 'Lorry'} | Bags Loaded: ${bagsLoaded}`
+                            ? `Load 1 - Loading Sample Details | Bags Loaded: ${bagsLoaded}`
+                            : `Load ${tripIdx + 1} | Bags Loaded: ${bagsLoaded}`
                 });
 
                 const getPendingStageOfTrip = (currentInsp: any) => {
@@ -2126,10 +2126,38 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         });
     };
 
-    const buildBmbQualityRows = () => {
-        const params = (detailEntry as any).inventoryQualityParameters || [];
+    const getAllMillQualityParameters = () => {
+        const list: any[] = [];
+        const entryParams = (detailEntry as any).inventoryQualityParameters || [];
+        entryParams.forEach((p: any) => {
+            if (p && !list.some(item => String(item.id) === String(p.id))) {
+                list.push(p);
+            }
+        });
+        const insps = inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections)
+            ? inspectionsProgress.previousInspections
+            : (Array.isArray((detailEntry as any).physicalInspections) ? (detailEntry as any).physicalInspections : []);
+        insps.forEach((insp: any) => {
+            const inspParams = insp.inventoryQualityParameters || [];
+            inspParams.forEach((p: any) => {
+                if (p && !list.some(item => String(item.id) === String(p.id))) {
+                    list.push(p);
+                }
+            });
+            const transitParams = insp.lorryTransitDetail?.inventoryQualityParameters || [];
+            transitParams.forEach((p: any) => {
+                if (p && !list.some(item => String(item.id) === String(p.id))) {
+                    list.push(p);
+                }
+            });
+        });
+        return list;
+    };
+
+    const buildBmbQualityRows = (paramsList?: any[]) => {
+        const params = paramsList || (detailEntry as any).inventoryQualityParameters || [];
         return params.map((param: any, idx: number) => {
-            const label = param.type === 'lot_avg' ? 'Lot Avg' : 'Full Lorry Avg';
+            const label = param.type === 'lot_avg' ? 'Before Unloading Lot Avg' : 'Full Lorry Avg (Gattu)';
             const reportedAt = param.createdAt;
             
             const formatQ = (val: any) => {
@@ -2160,6 +2188,51 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 }
             };
 
+            const isKadigaVal = param.kadiga === 'Y' || param.kadiga === 'Yes' || param.kadiga === true || param.kadiga === 'true';
+            const pColorCell = (() => {
+                const hasColor = !!param.pColor;
+                const hasKadiga = isKadigaVal;
+                if (!hasColor && !hasKadiga) return '-';
+                return (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#7c2d12', fontWeight: '800', gap: '2px' }}>
+                        {hasColor && <span>{param.pColor}</span>}
+                        {hasColor && hasKadiga && <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />}
+                        {hasKadiga && <span>ಕಡಿಗಾ: Yes</span>}
+                    </div>
+                );
+            })();
+
+            const isApproved = param.status === 'approved';
+            const isRejected = param.status === 'rejected';
+            const statusCell = (() => {
+                if (isApproved) {
+                    const approverName = param.approver?.fullName || param.approver?.username || param.approvedByUser?.fullName || param.approvedByUser?.username || param.approvedBy || 'MANAGER';
+                    return (
+                        <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.1', border: '1px solid rgba(39, 174, 96, 0.3)', backgroundColor: '#e8f5e9', padding: '3px 8px', borderRadius: '4px', textAlign: 'center' }}>
+                            <span style={{ color: '#2e7d32', fontWeight: '700', fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>✅ Approved</span>
+                            <span style={{ color: '#1b5e20', fontSize: '12px', fontWeight: '900' }}>by {approverName.toUpperCase()}</span>
+                            {param.approvedAt && (
+                                <span style={{ color: '#64748b', fontSize: '8.5px', marginTop: '2px' }}>
+                                    {new Date(param.approvedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                </span>
+                            )}
+                        </div>
+                    );
+                } else if (isRejected) {
+                    return (
+                        <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', background: '#fee2e2', color: '#991b1b', border: '1px solid #f87171' }}>
+                            ❌ Rejected
+                        </span>
+                    );
+                } else {
+                    return (
+                        <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', background: '#fef3c7', color: '#92400e', border: '1px solid #fbbf24' }}>
+                            ⏳ Pending
+                        </span>
+                    );
+                }
+            })();
+
             const rowData = [
                 <span style={{ color: '#7c3aed', fontWeight: 'bold' }}>{label}</span>,
                 <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#1e293b' }}>{param.reporter?.username || 'admin'}</span>,
@@ -2178,22 +2251,10 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 formatQ(param.wbBk),
                 formatQ(param.wbT),
                 renderBeautifulSmell(param.smell || (param.smellHas ? param.smellType : '-')),
-                formatQ(param.paddyWb)
+                formatQ(param.paddyWb),
+                pColorCell,
+                statusCell
             ];
-
-            const isApproved = param.status === 'approved';
-            rowData.push(
-                <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: '4px',
-                    padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '700',
-                    background: isApproved ? '#dcfce7' : '#fef3c7',
-                    color: isApproved ? '#166534' : '#92400e',
-                    border: `1px solid ${isApproved ? '#22c55e' : '#f59e0b'}`,
-                    textTransform: 'uppercase', letterSpacing: '0.5px'
-                }}>
-                    {isApproved ? '✅ Approved' : '⏳ Pending'}
-                </span>
-            );
 
             const smellLabel = param.smell || (param.smellHas ? param.smellType : '-');
             (rowData as any).hasSmell = param.smellHas === true 
@@ -3737,7 +3798,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
 
     if (!detailEntry) return null;
 
-    const isCompact = Boolean(detailEntry.isBandMalal || detailEntry.isBandMalalBook || detailEntry.transitDetailId || (detailEntry as any).isTransit);
+    const isCompact = isCompactOverride !== undefined ? isCompactOverride : Boolean(detailEntry.isBandMalal || detailEntry.isBandMalalBook || detailEntry.transitDetailId || (detailEntry as any).isTransit || detailEntry.workflowStatus === 'IN_TRANSIT' || detailEntry.workflowStatus === 'BAND_MALAL_BOOK');
 
     return (
         <>
@@ -3839,16 +3900,16 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                     console.error('Error fetching party entries:', err);
                                                                 }
                                                             }}
-                                                            style={{ fontSize: '17px', fontWeight: '700', color: '#1565c0', cursor: 'pointer', textDecoration: 'underline', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                                                            style={{ fontSize: isCompact ? '13px' : '17px', fontWeight: '700', color: '#1565c0', cursor: 'pointer', textDecoration: 'underline', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                                                             title={`Click to view all entries for ${partyName}`}
                                                         >
                                                             {partyDisplay.label}
                                                         </span>
                                                     ) : (
-                                                        <div style={{ fontSize: '17px', fontWeight: '700', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                        <div style={{ fontSize: isCompact ? '13px' : '17px', fontWeight: '700', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                             {partyDisplay.label}
                                                             {partyDisplay.showLorrySecondLine ? (
-                                                                <div style={{ fontSize: '15px', fontWeight: '600', color: '#1565c0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                <div style={{ fontSize: isCompact ? '11px' : '15px', fontWeight: '600', color: '#1565c0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                     Lorry No: {' '}
                                                                     <span
                                                                         onClick={() => {
@@ -3871,7 +3932,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                         </div>
                                                     )}
                                                     {partyDisplay.showLorrySecondLine && hasParty ? (
-                                                        <div style={{ fontSize: '13px', fontWeight: '600', color: '#1565c0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                        <div style={{ fontSize: isCompact ? '10.5px' : '13px', fontWeight: '600', color: '#1565c0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                             Lorry No: {' '}
                                                             <span
                                                                 onClick={() => {
@@ -3992,30 +4053,44 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         })()}
                                     </div>
                                     {detailEntry.lotAllotment?.supervisor && (
-                                        <div style={{ background: '#fff7ed', padding: '12px', borderRadius: '8px', border: '1px solid #ffd8a8' }}>
-                                            <div style={{ fontSize: '12px', color: '#e67e22', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Allotted Loading Supervisor</div>
-                                            <div style={{ fontSize: '17px', fontWeight: '700', color: '#ef6c00' }}>
+                                        <div style={{ background: '#fff7ed', padding: isCompact ? '2px 5px' : '12px', borderRadius: '8px', border: '1px solid #ffd8a8' }}>
+                                            <div style={{ fontSize: isCompact ? '10px' : '12px', color: '#e67e22', marginBottom: isCompact ? '2px' : '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Allotted Loading Supervisor</div>
+                                            <div style={{ fontSize: isCompact ? '13px' : '17px', fontWeight: '700', color: '#ef6c00' }}>
                                                 {toTitleCase(detailEntry.lotAllotment.supervisor.fullName || detailEntry.lotAllotment.supervisor.username)}
                                             </div>
                                         </div>
                                     )}
-                                    <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', display: getPopupSmellSummary(detailEntry as any) ? undefined : 'none' }}>
-                                        <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Smell</div>
+                                    <div style={{ background: '#f8fafc', padding: isCompact ? '2px 5px' : '12px', borderRadius: '8px', border: '1px solid #e2e8f0', display: getPopupSmellSummary(detailEntry as any) ? undefined : 'none' }}>
+                                        <div style={{ fontSize: isCompact ? '10px' : '12px', color: '#64748b', marginBottom: isCompact ? '2px' : '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Smell</div>
                                         {(() => {
                                             const s = getPopupSmellSummary(detailEntry as any);
                                             if (!s) return null;
                                             return (
-                                                <div style={{ fontSize: '17px', fontWeight: '800', color: s.tone }}>
+                                                <div style={{ fontSize: isCompact ? '13px' : '17px', fontWeight: '800', color: s.tone }}>
                                                     {s.value} Smell
                                                 </div>
                                             );
                                         })()}
                                     </div>
                                 </div>
-                                 {/* Standardized Horizontal Tables Section */}
+                                {/* Standardized Horizontal Tables Section */}
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: isCompact ? '4px' : '16px', marginTop: isCompact ? '4px' : '16px' }}>
-                                    {/* 1. Lorry Load Details (Progressive Loads) for Band Mall Book */}
-                                    {(detailEntry as any).isBandMalalBook && (() => {
+                                    {/* 1. Quality Parameters (Sample entry details) */}
+                                    <div style={{ position: isCompact ? 'relative' : 'sticky', top: '0', zIndex: 20, backgroundColor: '#ffffff', paddingBottom: isCompact ? '2px' : '10px', boxShadow: isCompact ? 'none' : '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+                                        {renderHorizontalTable(
+                                            'Quality Parameters', 
+                                            '🔬', 
+                                            '#f97316', 
+                                            progressiveMode
+                                                ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', '', 'ACTIONS']
+                                                : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', ''],
+                                            buildInitialQualityRows(),
+                                            { isQuality: true }
+                                        )}
+                                    </div>
+
+                                    {/* 2. Lorry Load Details (Progressive Loads) for Band Mall Book and In-Transit */}
+                                    {((detailEntry as any).isBandMalalBook || progressiveMode || isAdminSampleBook2) && (() => {
                                         const insps = (inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections)
                                             ? inspectionsProgress.previousInspections
                                             : (Array.isArray((detailEntry as any).physicalInspections) ? (detailEntry as any).physicalInspections : []))
@@ -4029,7 +4104,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                 {insps.map((insp: any, idx: number) => {
                                                     const stages = insp.samplingStages || {};
                                                     const bagsLoaded = getApprovedFullAvgBags(stages, insp.bags);
-                                                    const title = `Load ${idx + 1} - Lorry Number: ${insp.lorryNumber?.toUpperCase() || 'Lorry'} | Bags Loaded: ${bagsLoaded}`;
+                                                    const title = `Load ${idx + 1} | Bags Loaded: ${bagsLoaded}`;
                                                     const isNewRulesMode = inspectionsProgress?.samplingRulesMode === 'new' || detailEntry?.lotAllotment?.samplingRulesMode === 'new';
                                                     return (
                                                         <div key={insp.id || idx}>
@@ -4048,66 +4123,67 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         );
                                     })()}
 
-                                    {/* 2. Mill Quality Parameters (Inventory Quality) */}
-                                    {(detailEntry as any).isBandMalalBook && (detailEntry as any).inventoryQualityParameters && (detailEntry as any).inventoryQualityParameters.length > 0 && (
-                                        <div style={{ marginTop: isCompact ? '2px' : '8px' }}>
-                                            {renderHorizontalTable(
-                                                'Mill Quality Parameters', 
-                                                '🔬', 
-                                                '#7c3aed', 
-                                                ['TYPE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'STATUS'],
-                                                buildBmbQualityRows(),
-                                                { isQuality: true }
-                                            )}
-                                        </div>
+                                    {/* 3. Mill Quality Parameters (Inventory Quality) */}
+                                    {((detailEntry as any).isBandMalalBook || progressiveMode || (detailEntry as any).isTransit || detailEntry.workflowStatus === 'IN_TRANSIT' || detailEntry.workflowStatus === 'BAND_MALAL_BOOK' || isAdminSampleBook2) && (() => {
+                                         const paramsList = getAllMillQualityParameters();
+                                         if (paramsList.length === 0) return null;
+                                         return (
+                                             <div style={{ marginTop: isCompact ? '2px' : '8px' }}>
+                                                 {renderHorizontalTable(
+                                                     'Quality Sampling', 
+                                                     '🔬', 
+                                                     '#7c3aed', 
+                                                     ['TYPE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'P COLOR', 'STATUS'],
+                                                     buildBmbQualityRows(paramsList),
+                                                     { isQuality: true }
+                                                 )}
+                                             </div>
+                                         );
+                                     })()}
+
+                                    {/* 4. Cooking History */}
+                                    {!targetLorryTripId && renderHorizontalTable(
+                                        'Cooking History',
+                                        '🍳',
+                                        '#2563eb',
+                                        ['SI', 'STATUS', 'DONE BY', 'APPROVED BY', 'REMARKS'],
+                                        buildCookingRows(),
+                                        { compact: true }
                                     )}
 
-                                    {/* 3. Quality Parameters (Sample entry details) */}
-                                    <div style={{ position: isCompact ? 'relative' : 'sticky', top: '0', zIndex: 20, backgroundColor: '#ffffff', paddingBottom: isCompact ? '2px' : '10px', boxShadow: isCompact ? 'none' : '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-                                        {renderHorizontalTable(
-                                            'Quality Parameters', 
-                                            '🔬', 
-                                            '#f97316', 
-                                            progressiveMode
-                                                ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', '', 'ACTIONS']
-                                                : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', ''],
-                                            buildInitialQualityRows(),
-                                            { isQuality: true }
-                                        )}
-                                    </div>
+                                    {/* 5. Weight Bridge & Godown Details for Band Mall Book and In-Transit */}
+                                    {(progressiveMode || (detailEntry as any).isTransit || detailEntry.workflowStatus === 'IN_TRANSIT' || (detailEntry as any).isBandMalal || (detailEntry as any).isBandMalalBook || detailEntry.workflowStatus === 'BAND_MALAL_BOOK' || isAdminSampleBook2) && (() => {
+                                        const deBase = detailEntry as any;
+                                        const transitDetailsList: any[] = [];
+                                        
+                                        // 1. If detailEntry itself is a transit detail (directly contains placeStatus, wbStatus, etc.)
+                                        if (deBase.placeStatus || deBase.wbStatus || deBase.wbNo || deBase.placeType) {
+                                            transitDetailsList.push({
+                                                ...deBase,
+                                                lorryNumber: deBase.lorryNumber || deBase.sampleEntry?.lorryNumber
+                                            });
+                                        }
+                                        
+                                        // 2. Extract from inspectionsProgress previousInspections
+                                        const inspsForDetails = (inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections)
+                                            ? inspectionsProgress.previousInspections
+                                            : (Array.isArray(deBase.physicalInspections) ? deBase.physicalInspections : []));
+                                            
+                                        inspsForDetails.forEach((insp: any) => {
+                                            if (insp && insp.lorryTransitDetail) {
+                                                const exists = transitDetailsList.some(item => String(item.id || item.transitDetailId) === String(insp.lorryTransitDetail.id));
+                                                if (!exists) {
+                                                    transitDetailsList.push({
+                                                        ...insp.lorryTransitDetail,
+                                                        lorryNumber: insp.lorryNumber || deBase.lorryNumber,
+                                                        sampleEntry: deBase,
+                                                        physicalInspection: insp
+                                                    });
+                                                }
+                                            }
+                                        });
 
-                                    {/* 4. Weight Bridge & Godown Details for Band Mall Book and In-Transit */}
-                                    {((detailEntry as any).isBandMalalBook || (detailEntry as any).wbNo || (detailEntry as any).wbStatus) && (() => {
-                                        const de = detailEntry as any;
-                                        // Mill WB name comes ONLY from the WeightBridge machine relation (millWeightBridge)
-                                        // partyWbName is the party's own WB name - must NOT show in Mill WB row
-                                        const millWbName = de.millWeightBridge?.location
-                                            ? `${de.millWeightBridge.name} (${de.millWeightBridge.location})`
-                                            : (de.millWeightBridge?.name || '-');
-                                        const millWbNo = de.wbNo || '-';
-                                        const millGross = de.grossWeight ? `${de.grossWeight} Kg` : '-';
-                                        const millTare = de.tareWeight ? `${de.tareWeight} Kg` : '-';
-                                        const millNet = de.netWeight ? `${de.netWeight} Kg` : '-';
-                                        const millSute = (de.sute != null && de.sute !== '') ? de.sute : '-';
-                                        const millSuteNet = de.suteNetWeight ? `${de.suteNetWeight} Kg` : '-';
-                                        const millStatus = de.wbStatus && de.wbStatus !== 'none' ? toTitleCase(de.wbStatus) : '-';
-                                        // wbAddedBy is now a resolved object {fullName, username} from the API
-                                        const millAddedBy = de.wbAddedBy?.fullName || de.wbAddedBy?.username || '-';
-                                        const millAddedAt = de.wbAddedAt || de.createdAt || null;
-
-                                        // Party WB — fields come directly on the object (not nested in sampleEntry) for In-Transit
-                                        const hasPartyWb = !!(de.partyWbName && (de.partyWbEnabled === 'yes' || de.partyGrossWeight || de.partyNetWeight || (de.sampleEntry?.partyWbName && de.sampleEntry?.grossWeight)));
-                                        const partyWbName = de.partyWbName || de.sampleEntry?.partyWbName || '-';
-                                        const partyWbNo = de.partyWbNo || de.sampleEntry?.partyWbNo || '-';
-                                        const partyGross = de.partyGrossWeight ? `${de.partyGrossWeight} Kg` : (de.sampleEntry?.grossWeight ? `${de.sampleEntry.grossWeight} Kg` : '-');
-                                        const partyTare = de.partyTareWeight ? `${de.partyTareWeight} Kg` : (de.sampleEntry?.tareWeight ? `${de.sampleEntry.tareWeight} Kg` : '-');
-                                        const partyNet = de.partyNetWeight ? `${de.partyNetWeight} Kg` : (de.sampleEntry?.netWeight ? `${de.sampleEntry.netWeight} Kg` : '-');
-                                        const partySute = (de.partySute != null && de.partySute !== '') ? de.partySute : '-';
-                                        const partySuteNet = de.partySuteNetWeight ? `${de.partySuteNetWeight} Kg` : '-';
-                                        const partyStatus = de.wbStatus && de.wbStatus !== 'none' ? toTitleCase(de.wbStatus) : '-';
-                                        const partyAddedBy = de.wbAddedBy?.fullName || de.wbAddedBy?.username || '-';
-                                        const partyAddedAt = de.partyWbDate || de.wbAddedAt || null;
-
+                                        if (transitDetailsList.length === 0) return null;
 
                                         const fmtDt = (dt: any) => {
                                             if (!dt) return '-';
@@ -4115,120 +4191,180 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                 const d = new Date(dt);
                                                 const date = d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Kolkata' });
                                                 const time = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' }).toLowerCase();
-
                                                 return `${date} ${time}`;
                                             } catch { return '-'; }
                                         };
 
-                                        const placeType = de.placeType === 'production' ? 'Production' : de.placeType === 'kunchinittu' ? 'Kunchinittu' : (de.placeType || '-');
-                                        const placeLocation = (() => {
-                                            if (de.placeType === 'production' && de.outturn) return `Outturn: ${de.outturn.code}`;
-                                            if (de.placeType === 'kunchinittu') {
-                                                const kc = de.placeKunchinittuData?.name || de.toKunchinittu?.name || '';
-                                                const wh = de.placeWarehouse?.name || de.toWarehouse?.name || '';
-                                                return kc && wh ? `${kc} (${wh})` : (kc || wh || '-');
-                                            }
-                                            return de.godown || '-';
-                                        })();
-                                        const placeStatus = de.placeStatus && de.placeStatus !== 'none' ? toTitleCase(de.placeStatus) : '-';
-                                        const placeApprover = de.placeApprover?.fullName || de.placeApprover?.username || de.placeApproverUser?.fullName || de.placeApproverUser?.username || '-';
-                                        const placeDate = de.placeApprovedAt ? fmtDt(de.placeApprovedAt) : (de.placeDate ? fmtDt(de.placeDate) : '-');
-
-
-                                        const thS: React.CSSProperties = { padding: '6px 8px', fontWeight: 800, fontSize: '10.5px', textTransform: 'uppercase', letterSpacing: '0.3px', textAlign: 'center', border: '1px solid #000', whiteSpace: 'nowrap', color: '#fff' };
-                                        const tdS: React.CSSProperties = { padding: '6px 8px', fontSize: '12px', fontWeight: '600', textAlign: 'center', border: '1px solid #000', whiteSpace: 'nowrap' };
-                                        const labelS: React.CSSProperties = { padding: '6px 8px', fontSize: '11.5px', fontWeight: '700', textAlign: 'left', border: '1px solid #000', whiteSpace: 'nowrap' };
+                                        const thS: React.CSSProperties = { padding: isCompact ? '3px 4px' : '6px 8px', fontWeight: 800, fontSize: isCompact ? '9px' : '10.5px', textTransform: 'uppercase', letterSpacing: '0.3px', textAlign: 'center', border: '1px solid #000', whiteSpace: 'nowrap', color: '#fff' };
+                                        const tdS: React.CSSProperties = { padding: isCompact ? '3px 4px' : '6px 8px', fontSize: isCompact ? '10px' : '12px', fontWeight: '600', textAlign: 'center', border: '1px solid #000', whiteSpace: 'nowrap' };
+                                        const labelS: React.CSSProperties = { padding: isCompact ? '3px 4px' : '6px 8px', fontSize: isCompact ? '9.5px' : '11.5px', fontWeight: '700', textAlign: 'left', border: '1px solid #000', whiteSpace: 'nowrap' };
 
                                         return (
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+                                                {transitDetailsList.map((de: any, index: number) => {
+                                                    const millWbName = de.millWeightBridge?.location
+                                                        ? `${de.millWeightBridge.name} (${de.millWeightBridge.location})`
+                                                        : (de.millWeightBridge?.name || de.partyWbName || '-');
+                                                    const millWbNo = de.wbNo || '-';
+                                                    const millGross = de.grossWeight ? `${de.grossWeight} Kg` : '-';
+                                                    const millTare = de.tareWeight ? `${de.tareWeight} Kg` : '-';
+                                                    const millNet = de.netWeight ? `${de.netWeight} Kg` : '-';
+                                                    const millSute = (de.sute != null && de.sute !== '') ? de.sute : '-';
+                                                    const millSuteNet = de.suteNetWeight ? `${de.suteNetWeight} Kg` : '-';
+                                                    const millStatus = de.wbStatus && de.wbStatus !== 'none' ? toTitleCase(de.wbStatus) : '-';
+                                                    const millAddedBy = de.wbAddedBy?.fullName || de.wbAddedBy?.username || '-';
+                                                    const millAddedAt = de.wbAddedAt || de.createdAt || null;
+                                                    const wbApproverName = de.wbApprover?.fullName || de.wbApprover?.username || de.wbApproverUser?.fullName || de.wbApproverUser?.username || (de.wbStatus === 'approved' ? 'Auto Approved' : '-');
 
-                                                {/* Weight Bridge Table */}
-                                                <div>
-                                                    <div style={{ backgroundColor: '#15803d', color: '#fff', padding: '8px 12px', fontWeight: '800', fontSize: '12px', borderTopLeftRadius: '6px', borderTopRightRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                        <span>⚖️</span> Weight Bridge Details
-                                                    </div>
-                                                    <div style={{ overflowX: 'auto' }}>
-                                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #000' }}>
-                                                            <thead>
-                                                                <tr style={{ background: '#15803d' }}>
-                                                                    <th style={{ ...thS, textAlign: 'left', width: '90px' }}>TYPE</th>
-                                                                    <th style={thS}>WB NAME</th>
-                                                                    <th style={thS}>WB NO.</th>
-                                                                    <th style={thS}>GROSS (Kg)</th>
-                                                                    <th style={thS}>TARE (Kg)</th>
-                                                                    <th style={thS}>NET (Kg)</th>
-                                                                    <th style={thS}>SUTE</th>
-                                                                    <th style={thS}>SUTE NET (Kg)</th>
-                                                                    <th style={thS}>STATUS</th>
-                                                                    <th style={thS}>ADDED BY</th>
-                                                                    <th style={thS}>DATE & TIME</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                <tr style={{ background: '#f0fdf4' }}>
-                                                                    <td style={{ ...labelS, background: '#dcfce7', color: '#15803d' }}>🏢 Mill WB</td>
-                                                                    <td style={tdS}>{millWbName}</td>
-                                                                    <td style={{ ...tdS, fontWeight: '800', color: '#1e293b' }}>{millWbNo}</td>
-                                                                    <td style={tdS}>{millGross}</td>
-                                                                    <td style={tdS}>{millTare}</td>
-                                                                    <td style={{ ...tdS, fontWeight: '800', color: '#059669' }}>{millNet}</td>
-                                                                    <td style={tdS}>{millSute}</td>
-                                                                    <td style={{ ...tdS, fontWeight: '800', color: '#0369a1' }}>{millSuteNet}</td>
-                                                                    <td style={{ ...tdS, color: millStatus === 'Approved' ? '#15803d' : millStatus === 'Pending' ? '#d97706' : '#1e293b', fontWeight: '700' }}>{millStatus}</td>
-                                                                    <td style={{ ...tdS, color: '#7c3aed' }}>{millAddedBy}</td>
-                                                                    <td style={{ ...tdS, fontSize: '10.5px', color: '#64748b' }}>{fmtDt(millAddedAt)}</td>
-                                                                </tr>
-                                                                {hasPartyWb && (
-                                                                    <tr style={{ background: '#fffbeb' }}>
-                                                                        <td style={{ ...labelS, background: '#fef3c7', color: '#b45309' }}>⚖️ Party WB</td>
-                                                                        <td style={tdS}>{partyWbName}</td>
-                                                                        <td style={{ ...tdS, fontWeight: '800', color: '#1e293b' }}>{partyWbNo}</td>
-                                                                        <td style={tdS}>{partyGross}</td>
-                                                                        <td style={tdS}>{partyTare}</td>
-                                                                        <td style={{ ...tdS, fontWeight: '800', color: '#059669' }}>{partyNet}</td>
-                                                                        <td style={tdS}>{partySute}</td>
-                                                                        <td style={{ ...tdS, fontWeight: '800', color: '#0369a1' }}>{partySuteNet}</td>
-                                                                        <td style={{ ...tdS, color: partyStatus === 'Approved' ? '#15803d' : partyStatus === 'Pending' ? '#d97706' : '#1e293b', fontWeight: '700' }}>{partyStatus}</td>
-                                                                        <td style={{ ...tdS, color: '#7c3aed' }}>{partyAddedBy}</td>
-                                                                        <td style={{ ...tdS, fontSize: '10.5px', color: '#64748b' }}>{fmtDt(partyAddedAt)}</td>
-                                                                    </tr>
-                                                                )}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                </div>
+                                                    const hasPartyWb = !!(de.partyWbName && (de.partyWbEnabled === 'yes' || de.partyGrossWeight || de.partyNetWeight || (de.sampleEntry?.partyWbName && de.sampleEntry?.grossWeight)));
+                                                    const partyWbName = de.partyWbName || de.sampleEntry?.partyWbName || '-';
+                                                    const partyWbNo = de.partyWbNo || de.sampleEntry?.partyWbNo || '-';
+                                                    const partyGross = de.partyGrossWeight ? `${de.partyGrossWeight} Kg` : (de.sampleEntry?.grossWeight ? `${de.sampleEntry.grossWeight} Kg` : '-');
+                                                    const partyTare = de.partyTareWeight ? `${de.partyTareWeight} Kg` : (de.sampleEntry?.tareWeight ? `${de.sampleEntry.tareWeight} Kg` : '-');
+                                                    const partyNet = de.partyNetWeight ? `${de.partyNetWeight} Kg` : (de.sampleEntry?.netWeight ? `${de.sampleEntry.netWeight} Kg` : '-');
+                                                    const partySute = (de.partySute != null && de.partySute !== '') ? de.partySute : '-';
+                                                    const partySuteNet = de.partySuteNetWeight ? `${de.partySuteNetWeight} Kg` : '-';
+                                                    const partyStatus = de.wbStatus && de.wbStatus !== 'none' ? toTitleCase(de.wbStatus) : '-';
+                                                    const partyAddedBy = de.wbAddedBy?.fullName || de.wbAddedBy?.username || '-';
+                                                    const partyAddedAt = de.partyWbDate || de.wbAddedAt || null;
 
-                                                {/* Godown / Place Details Table */}
-                                                {(de.placeType || de.godown || de.placeStatus) && (
-                                                    <div>
-                                                        <div style={{ backgroundColor: '#6d28d9', color: '#fff', padding: '8px 12px', fontWeight: '800', fontSize: '12px', borderTopLeftRadius: '6px', borderTopRightRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                            <span>📍</span> Godown / Place Details
+                                                    const placeType = de.placeType === 'production' ? 'Production' : de.placeType === 'kunchinittu' ? 'Kunchinittu' : (de.placeType || '-');
+                                                    const placeLocation = (() => {
+                                                        if (de.placeType === 'production' && de.outturn) return `Outturn: ${de.outturn.code}`;
+                                                        if (de.placeType === 'kunchinittu') {
+                                                            const kc = de.placeKunchinittuData?.name || de.toKunchinittu?.name || '';
+                                                            const wh = de.placeWarehouse?.name || de.toWarehouse?.name || '';
+                                                            return kc && wh ? `${kc} (${wh})` : (kc || wh || '-');
+                                                        }
+                                                        return de.godown || '-';
+                                                    })();
+                                                    const placeStatus = de.placeStatus && de.placeStatus !== 'none' ? toTitleCase(de.placeStatus) : '-';
+                                                    const placeAddedBy = de.physicalInspection?.reportedBy?.fullName || de.physicalInspection?.reportedBy?.username || de.sampleEntry?.reportedBy?.fullName || de.sampleEntry?.reportedBy?.username || '-';
+                                                    const placeApprover = de.placeApprover?.fullName || de.placeApprover?.username || de.placeApproverUser?.fullName || de.placeApproverUser?.username || '-';
+                                                    const placeAddedAt = de.physicalInspection?.createdAt || de.createdAt || null;
+                                                    const placeApprovedAt = de.placeApprovedAt || null;
+
+                                                    const titleSuffix = de.lorryNumber ? ` - ${de.lorryNumber.toUpperCase()}` : '';
+
+                                                    return (
+                                                        <div key={de.id || index} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                                            {/* Weight Bridge Table */}
+                                                            <div>
+                                                                <div style={{ backgroundColor: '#15803d', color: '#fff', padding: '6px 10px', fontWeight: '800', fontSize: '11px', borderTopLeftRadius: '6px', borderTopRightRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                        <span>⚖️</span> Weight Bridge Details
+                                                                    </div>
+                                                                    {de.lorryNumber && (
+                                                                        <span style={{ fontWeight: 900, letterSpacing: '1px' }}>
+                                                                            {de.lorryNumber.toUpperCase()}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <div style={{ overflowX: 'auto' }}>
+                                                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px', border: '1px solid #000' }}>
+                                                                        <thead>
+                                                                            <tr style={{ background: '#15803d' }}>
+                                                                                <th style={{ ...thS, textAlign: 'left', width: '90px' }}>TYPE</th>
+                                                                                <th style={thS}>WB NAME</th>
+                                                                                <th style={thS}>WB NO.</th>
+                                                                                <th style={thS}>GROSS (Kg)</th>
+                                                                                <th style={thS}>TARE (Kg)</th>
+                                                                                <th style={thS}>NET (Kg)</th>
+                                                                                <th style={thS}>SUTE</th>
+                                                                                <th style={thS}>SUTE NET (Kg)</th>
+                                                                                <th style={thS}>STATUS</th>
+                                                                                <th style={thS}>ADDED BY</th>
+                                                                                <th style={thS}>APPROVED BY</th>
+                                                                                <th style={thS}>DATE & TIME</th>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody>
+                                                                            <tr style={{ background: '#f0fdf4' }}>
+                                                                                <td style={{ ...labelS, background: '#dcfce7', color: '#15803d' }}>🏢 Mill WB</td>
+                                                                                <td style={tdS}>{millWbName}</td>
+                                                                                <td style={{ ...tdS, fontWeight: '800', color: '#1e293b' }}>{millWbNo}</td>
+                                                                                <td style={tdS}>{millGross}</td>
+                                                                                <td style={tdS}>{millTare}</td>
+                                                                                <td style={{ ...tdS, fontWeight: '800', color: '#059669' }}>{millNet}</td>
+                                                                                <td style={tdS}>{millSute}</td>
+                                                                                <td style={{ ...tdS, fontWeight: '800', color: '#0369a1' }}>{millSuteNet}</td>
+                                                                                <td style={{ ...tdS, color: millStatus === 'Approved' ? '#15803d' : millStatus === 'Pending' ? '#d97706' : '#1e293b', fontWeight: '700' }}>{millStatus}</td>
+                                                                                <td style={{ ...tdS, color: '#7c3aed' }}>{millAddedBy}</td>
+                                                                                <td style={{ ...tdS, color: '#7c3aed' }}>{wbApproverName}</td>
+                                                                                <td style={{ ...tdS, fontSize: '9.5px', color: '#64748b' }}>
+                                                                                    <div>Added: {fmtDt(millAddedAt)}</div>
+                                                                                    {de.wbApprovedAt && <div>Approved: {fmtDt(de.wbApprovedAt)}</div>}
+                                                                                </td>
+                                                                            </tr>
+                                                                            {hasPartyWb && (
+                                                                                <tr style={{ background: '#fffbeb' }}>
+                                                                                    <td style={{ ...labelS, background: '#fef3c7', color: '#b45309' }}>⚖️ Party WB</td>
+                                                                                    <td style={tdS}>{partyWbName}</td>
+                                                                                    <td style={{ ...tdS, fontWeight: '800', color: '#1e293b' }}>{partyWbNo}</td>
+                                                                                    <td style={tdS}>{partyGross}</td>
+                                                                                    <td style={tdS}>{partyTare}</td>
+                                                                                    <td style={{ ...tdS, fontWeight: '800', color: '#059669' }}>{partyNet}</td>
+                                                                                    <td style={tdS}>{partySute}</td>
+                                                                                    <td style={{ ...tdS, fontWeight: '800', color: '#0369a1' }}>{partySuteNet}</td>
+                                                                                    <td style={{ ...tdS, color: partyStatus === 'Approved' ? '#15803d' : partyStatus === 'Pending' ? '#d97706' : '#1e293b', fontWeight: '700' }}>{partyStatus}</td>
+                                                                                    <td style={{ ...tdS, color: '#7c3aed' }}>{partyAddedBy}</td>
+                                                                                    <td style={{ ...tdS, color: '#7c3aed' }}>{wbApproverName}</td>
+                                                                                    <td style={{ ...tdS, fontSize: '9.5px', color: '#64748b' }}>
+                                                                                        <div>Added: {fmtDt(partyAddedAt)}</div>
+                                                                                        {de.wbApprovedAt && <div>Approved: {fmtDt(de.wbApprovedAt)}</div>}
+                                                                                    </td>
+                                                                                </tr>
+                                                                            )}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Godown / Place Details Table */}
+                                                            {(de.placeType || de.godown || de.placeStatus) && (
+                                                                <div>
+                                                                    <div style={{ backgroundColor: '#6d28d9', color: '#fff', padding: '6px 10px', fontWeight: '800', fontSize: '11px', borderTopLeftRadius: '6px', borderTopRightRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                            <span>📍</span> Godown / Place Details
+                                                                        </div>
+                                                                        {de.lorryNumber && (
+                                                                            <span style={{ fontWeight: 900, letterSpacing: '1px' }}>
+                                                                                {de.lorryNumber.toUpperCase()}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div style={{ overflowX: 'auto' }}>
+                                                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px', border: '1px solid #000' }}>
+                                                                            <thead>
+                                                                                <tr style={{ background: '#6d28d9' }}>
+                                                                                    <th style={thS}>DESTINATION TYPE</th>
+                                                                                    <th style={thS}>LOCATION / GODOWN</th>
+                                                                                    <th style={thS}>PLACE STATUS</th>
+                                                                                    <th style={thS}>ADDED BY</th>
+                                                                                    <th style={thS}>APPROVED BY</th>
+                                                                                    <th style={thS}>DATE & TIME</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                <tr style={{ background: '#faf5ff' }}>
+                                                                                    <td style={{ ...tdS, fontWeight: '700', color: '#6d28d9' }}>{placeType}</td>
+                                                                                    <td style={{ ...tdS, fontWeight: '700', color: '#1e293b' }}>{placeLocation}</td>
+                                                                                    <td style={{ ...tdS, color: placeStatus === 'Placed' ? '#15803d' : placeStatus === 'Pending' ? '#d97706' : '#1e293b', fontWeight: '700' }}>{placeStatus}</td>
+                                                                                    <td style={{ ...tdS, color: '#7c3aed' }}>{placeAddedBy}</td>
+                                                                                    <td style={{ ...tdS, color: '#7c3aed' }}>{placeApprover}</td>
+                                                                                    <td style={{ ...tdS, fontSize: '9.5px', color: '#64748b' }}>
+                                                                                        <div>Added: {fmtDt(placeAddedAt)}</div>
+                                                                                        {placeApprovedAt && <div>Approved: {fmtDt(placeApprovedAt)}</div>}
+                                                                                    </td>
+                                                                                </tr>
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                        <div style={{ overflowX: 'auto' }}>
-                                                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #000' }}>
-                                                                <thead>
-                                                                    <tr style={{ background: '#6d28d9' }}>
-                                                                        <th style={thS}>DESTINATION TYPE</th>
-                                                                        <th style={thS}>LOCATION / GODOWN</th>
-                                                                        <th style={thS}>PLACE STATUS</th>
-                                                                        <th style={thS}>APPROVED BY</th>
-                                                                        <th style={thS}>DATE & TIME</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                    <tr style={{ background: '#faf5ff' }}>
-                                                                        <td style={{ ...tdS, fontWeight: '700', color: '#6d28d9' }}>{placeType}</td>
-                                                                        <td style={{ ...tdS, fontWeight: '700', color: '#1e293b' }}>{placeLocation}</td>
-                                                                        <td style={{ ...tdS, color: placeStatus === 'Placed' ? '#15803d' : placeStatus === 'Pending' ? '#d97706' : '#1e293b', fontWeight: '700' }}>{placeStatus}</td>
-                                                                        <td style={{ ...tdS, color: '#7c3aed' }}>{placeApprover}</td>
-                                                                        <td style={{ ...tdS, fontSize: '10.5px', color: '#64748b' }}>{placeDate}</td>
-                                                                    </tr>
-                                                                </tbody>
-                                                            </table>
-                                                        </div>
-                                                    </div>
-                                                )}
-
+                                                    );
+                                                })}
                                             </div>
                                         );
                                     })()}
@@ -4565,100 +4701,6 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                         </tbody>
                                                     </table>
                                                 </div>
-                                            </div>
-                                        );
-                                    })()}
-
-                                    {/* Progressive Loads - for original progressiveMode (not completedLotsOrder) */}
-                                    {!targetLorryTripId && progressiveMode && !completedLotsOrder && !(detailEntry as any).isBandMalalBook && inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections) && (() => {
-                                        const activeLorryNumber = (detailEntry as any).clickedLorryNumber || (detailEntry as any).lorryNumber || (detailEntry as any).sampleEntry?.lorryNumber;
-                                        const insps = inspectionsProgress.previousInspections.filter((insp: any) => {
-                                            if (!activeLorryNumber) return true;
-                                            return (insp.lorryNumber || '').trim().toLowerCase() === activeLorryNumber.trim().toLowerCase();
-                                        });
-                                        if (insps.length === 0) return null;
-                                        
-                                        const renderTripTable = (insp: any, tripIdx: number) => {
-                                            const isLorryNotAdded = !insp.lorryNumber || 
-                                                ['LOT_AVG', 'BALANCED_LOT'].includes(insp.lorryNumber.toUpperCase().trim()) ||
-                                                insp.lorryNumber.toLowerCase().includes('next loading lorry');
-                                            const stages = insp.samplingStages || {};
-                                            const bagsLoaded = getApprovedFullAvgBags(stages, insp.bags);
-                                            const title = isLorryNotAdded
-                                                ? <span style={{ color: 'white', fontWeight: 'bold' }}>Next Loading Lorry Sampling: Lot Avg Sampling or Balance Lot Sampling</span>
-                                                : tripIdx === 0
-                                                    ? `Load 1 - Loading Sample Details : ${insp.lorryNumber?.toUpperCase() || 'Lorry'} | Bags Loaded: ${bagsLoaded}`
-                                                    : `Load ${tripIdx + 1} - Lorry Number: ${insp.lorryNumber?.toUpperCase() || 'Lorry'} | Bags Loaded: ${bagsLoaded}`;
-                                            const isNewRulesMode = inspectionsProgress?.samplingRulesMode === 'new' || detailEntry?.lotAllotment?.samplingRulesMode === 'new';
-                                            return renderHorizontalTable(
-                                                title,
-                                                '🚚',
-                                                isNewRulesMode ? '#2563eb' : '#f97316',
-                                                ['STAGE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'P COLOR', 'ACTIONS'],
-                                                buildTripQualityRows(insp, tripIdx),
-                                                { isQuality: true }
-                                            );
-                                        };
-
-                                        return (
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '10px' }}>
-                                                {insps.map((insp, idx) => (
-                                                    <div key={idx}>
-                                                        {renderTripTable(insp, idx)}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        );
-                                    })()}
-
-                                    {/* Cooking History */}
-                                    {!targetLorryTripId && (!progressiveMode || completedLotsOrder) && renderHorizontalTable(
-                                        'Cooking History',
-                                        '🍳',
-                                        '#2563eb',
-                                        ['SI', 'STATUS', 'DONE BY', 'APPROVED BY', 'REMARKS'],
-                                        buildCookingRows(),
-                                        { compact: true }
-                                    )}
-
-                                    {/* Progressive Loads (Lorry) - shown last in Completed Lots Pending Patti */}
-                                    {!targetLorryTripId && progressiveMode && completedLotsOrder && !(detailEntry as any).isBandMalalBook && inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections) && (() => {
-                                        const activeLorryNumber = (detailEntry as any).clickedLorryNumber || (detailEntry as any).lorryNumber || (detailEntry as any).sampleEntry?.lorryNumber;
-                                        const insps = inspectionsProgress.previousInspections.filter((insp: any) => {
-                                            if (!activeLorryNumber) return true;
-                                            return (insp.lorryNumber || '').trim().toLowerCase() === activeLorryNumber.trim().toLowerCase();
-                                        });
-                                        if (insps.length === 0) return null;
-                                        
-                                        const renderTripTable = (insp: any, tripIdx: number) => {
-                                            const isLorryNotAdded = !insp.lorryNumber || 
-                                                ['LOT_AVG', 'BALANCED_LOT'].includes(insp.lorryNumber.toUpperCase().trim()) ||
-                                                insp.lorryNumber.toLowerCase().includes('next loading lorry');
-                                            const stages = insp.samplingStages || {};
-                                            const bagsLoaded = getApprovedFullAvgBags(stages, insp.bags);
-                                            const title = isLorryNotAdded
-                                                ? <span style={{ color: 'white', fontWeight: 'bold' }}>Next Loading Lorry Sampling: Lot Avg Sampling or Balance Lot Sampling</span>
-                                                : tripIdx === 0
-                                                    ? `Load 1 - Loading Sample Details : ${insp.lorryNumber?.toUpperCase() || 'Lorry'} | Bags Loaded: ${bagsLoaded}`
-                                                    : `Load ${tripIdx + 1} - Lorry Number: ${insp.lorryNumber?.toUpperCase() || 'Lorry'} | Bags Loaded: ${bagsLoaded}`;
-                                            const isNewRulesMode = inspectionsProgress?.samplingRulesMode === 'new' || detailEntry?.lotAllotment?.samplingRulesMode === 'new';
-                                            return renderHorizontalTable(
-                                                title,
-                                                '🚚',
-                                                isNewRulesMode ? '#2563eb' : '#f97316',
-                                                ['STAGE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'P COLOR', 'ACTIONS'],
-                                                buildTripQualityRows(insp, tripIdx),
-                                                { isQuality: true }
-                                            );
-                                        };
-
-                                        return (
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '10px' }}>
-                                                {insps.map((insp, idx) => (
-                                                    <div key={idx}>
-                                                        {renderTripTable(insp, idx)}
-                                                    </div>
-                                                ))}
                                             </div>
                                         );
                                     })()}

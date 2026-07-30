@@ -2227,6 +2227,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                         detailMode="history"
                         onClose={() => setDetailEntry(null)}
                         showCollectorLoginPair={true}
+                        isAdminSampleBook2={true}
                     />
                 )
             }

@@ -4110,6 +4110,15 @@ const Arrivals: React.FC = () => {
 
   const [rejectInventoryQualityReason, setRejectInventoryQualityReason] = useState('');
 
+  const [placeConfirmDialog, setPlaceConfirmDialog] = useState<{
+    trip: any;
+    action: 'move' | 'reject';
+    warnings?: string[];
+  } | null>(null);
+
+  const [placeRejectReason, setPlaceRejectReason] = useState('');
+  const [wbRejectReason, setWbRejectReason] = useState('');
+
 
 
 
@@ -4381,12 +4390,10 @@ const Arrivals: React.FC = () => {
 
 
     }
-
-
-
   };
 
-  const handleMoveToBmb = async (trip: any) => {
+
+  const handleMoveToBmb = (trip: any) => {
     const { entry, inspection, isPlaceholder } = trip;
     if (isPlaceholder) return;
 
@@ -4410,82 +4417,18 @@ const Arrivals: React.FC = () => {
       warnings.push('Quality parameters are not approved.');
     }
 
-    if (warnings.length > 0) {
-      const msg = `⚠️ Warnings:\n${warnings.map(w => `- ${w}`).join('\n')}\n\nDo you still want to move this lorry to Band Mall Book?`;
-      if (!window.confirm(msg)) {
-        return;
-      }
-    }
-
-    try {
-      const token = localStorage.getItem('token');
-      await axios.post(`${API_URL}/arrivals/${inspection.id || entry.id}/approve-place`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      toast.success('Lorry moved to Band Mall Book!');
-      fetchInTransitEntries();
-      fetchBandMalalEntries();
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to move lorry to Band Mall Book');
-    }
+    setPlaceConfirmDialog({
+      trip,
+      action: 'move',
+      warnings: warnings.length > 0 ? warnings : undefined
+    });
   };
 
-  const handleRejectPlace = async (id: string) => {
-
-
-
-    const reason = prompt('Enter rejection reason:');
-
-
-
-    if (reason === null) return;
-
-
-
-    try {
-
-
-
-      const token = localStorage.getItem('token');
-
-
-
-      await axios.post(`${API_URL}/arrivals/${id}/reject-place`, { reason }, {
-
-
-
-        headers: { Authorization: `Bearer ${token}` }
-
-
-
-      });
-
-
-
-      toast.success('Godown rejected!');
-
-
-
-      fetchInTransitEntries();
-
-
-
-      fetchBandMalalEntries();
-
-
-
-    } catch (err: any) {
-
-
-
-      toast.error(err.response?.data?.error || 'Failed to reject place');
-
-
-
-    }
-
-
-
+  const handleRejectPlace = (trip: any) => {
+    setPlaceConfirmDialog({
+      trip,
+      action: 'reject'
+    });
   };
 
 
@@ -4570,82 +4513,22 @@ const Arrivals: React.FC = () => {
 
 
 
-  const handleRejectWb = async (id: string, detail?: any) => {
-
-
-
-    if (detail && !wbConfirmDialog) {
-
-
-
-      setWbConfirmDialog({ id, action: 'reject', detail });
-
-
-
-      return;
-
-
-
-    }
-
-
-
-    const reason = prompt('Enter rejection reason:');
-
-
-
+  const handleRejectWb = async (id: string, reasonParam?: string) => {
+    const reason = reasonParam !== undefined ? reasonParam : prompt('Enter rejection reason:');
     if (reason === null) return;
-
-
-
     try {
-
-
-
       const token = localStorage.getItem('token');
-
-
-
       await axios.post(`${API_URL}/arrivals/${id}/reject-wb`, { reason }, {
-
-
-
         headers: { Authorization: `Bearer ${token}` }
-
-
-
       });
-
-
-
       toast.success('Weigh Bridge rejected!');
-
-
-
       setWbConfirmDialog(null);
-
-
-
+      setWbRejectReason('');
       fetchInTransitEntries();
-
-
-
       fetchBandMalalEntries();
-
-
-
     } catch (err: any) {
-
-
-
       toast.error(err.response?.data?.error || 'Failed to reject WB');
-
-
-
     }
-
-
-
   };
 
 
@@ -4836,34 +4719,9 @@ const Arrivals: React.FC = () => {
 
 
 
-    if (!inventoryQualityToggle.dryMoisture || inventoryQualityToggle.dryMoisture.trim() === '') {
-
-
-
-      toast.error('Dry Moisture Yes/No is required');
-
-
-
-      return false;
-
-
-
-    }
-
-
-
-    if (inventoryQualityToggle.dryMoisture === 'Y' && !inventoryQualityForm.dryMoisture.trim()) {
-
-
-
+    if (!inventoryQualityForm.dryMoisture || !inventoryQualityForm.dryMoisture.trim()) {
       toast.error('Dry Moisture value is required');
-
-
-
       return false;
-
-
-
     }
 
 
@@ -4980,66 +4838,14 @@ const Arrivals: React.FC = () => {
 
 
 
-    if (!inventoryQualityToggle.sMix || inventoryQualityToggle.sMix.trim() === '') {
-
-
-
-      toast.error('S Mix Yes/No is required');
-
-
-
-      return false;
-
-
-
-    }
-
-
-
-    if (inventoryQualityToggle.sMix === 'Y' && !inventoryQualityForm.sMix.trim()) {
-
-
-
+    if (!inventoryQualityForm.sMix || !inventoryQualityForm.sMix.trim()) {
       toast.error('S Mix value is required');
-
-
-
       return false;
-
-
-
     }
 
-
-
-    if (!inventoryQualityToggle.lMix || inventoryQualityToggle.lMix.trim() === '') {
-
-
-
-      toast.error('L Mix Yes/No is required');
-
-
-
-      return false;
-
-
-
-    }
-
-
-
-    if (inventoryQualityToggle.lMix === 'Y' && !inventoryQualityForm.lMix.trim()) {
-
-
-
+    if (!inventoryQualityForm.lMix || !inventoryQualityForm.lMix.trim()) {
       toast.error('L Mix value is required');
-
-
-
       return false;
-
-
-
     }
 
 
@@ -5092,50 +4898,19 @@ const Arrivals: React.FC = () => {
 
 
 
-    if (!inventoryQualityToggle.kadiga || inventoryQualityToggle.kadiga.trim() === '') {
-
-
-
-      toast.error('ಕಡಿಗಾ Yes/No is required');
-
-
-
+    if (!inventoryQualityForm.kadiga || !inventoryQualityForm.kadiga.trim()) {
+      toast.error('Kadiga value is required');
       return false;
-
-
-
     }
-
-
 
     if (!inventoryQualityToggle.paddyWb || inventoryQualityToggle.paddyWb.trim() === '') {
-
-
-
       toast.error('Paddy WB Yes/No is required');
-
-
-
       return false;
-
-
-
     }
 
-
-
-    if (inventoryQualityToggle.paddyWb === 'Y' && !inventoryQualityForm.paddyWb.trim()) {
-
-
-
+    if (inventoryQualityToggle.paddyWb === 'Yes' && (!inventoryQualityForm.paddyWb || !inventoryQualityForm.paddyWb.trim())) {
       toast.error('Paddy WB value is required');
-
-
-
       return false;
-
-
-
     }
 
 
@@ -6106,8 +5881,8 @@ const Arrivals: React.FC = () => {
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Net Weight</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Sute Net Wt</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Godown</th>
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Lorry Number</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Quality Status</th>
-                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '12%' }}>Lorry Number</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Actions</th>
 
 
@@ -6729,11 +6504,26 @@ const Arrivals: React.FC = () => {
                                     {wbNoVal}
                                     {wbStatus === 'pending' && ' ⏳'}
                                   </span>
+                                ) : wbStatus === 'rejected' ? (
+                                  <div>
+                                    <span style={{ 
+                                      padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold',
+                                      background: '#fee2e2',
+                                      color: '#991b1b'
+                                    }}>
+                                      ❌ Rejected
+                                    </span>
+                                    {transitDetail?.wbRejectReason && (
+                                      <div style={{ fontSize: '9px', color: '#b91c1c', marginTop: '4px', fontWeight: 'bold', maxWidth: '120px', wordBreak: 'break-word', margin: '4px auto 0 auto' }}>
+                                        Reason: {transitDetail.wbRejectReason}
+                                      </div>
+                                    )}
+                                  </div>
                                 ) : null}
                                 <div style={{ 
-                                  marginTop: transitDetail && (wbStatus === 'approved' || wbStatus === 'pending') ? '4px' : '0px', 
-                                  borderTop: transitDetail && (wbStatus === 'approved' || wbStatus === 'pending') ? '1px solid #e2e8f0' : 'none', 
-                                  paddingTop: transitDetail && (wbStatus === 'approved' || wbStatus === 'pending') ? '3px' : '0px' 
+                                  marginTop: transitDetail && (wbStatus === 'approved' || wbStatus === 'pending' || wbStatus === 'rejected') ? '4px' : '0px', 
+                                  borderTop: transitDetail && (wbStatus === 'approved' || wbStatus === 'pending' || wbStatus === 'rejected') ? '1px solid #e2e8f0' : 'none', 
+                                  paddingTop: transitDetail && (wbStatus === 'approved' || wbStatus === 'pending' || wbStatus === 'rejected') ? '3px' : '0px' 
                                 }}>
                                   {(() => {
                                     const tDetail = transitDetail;
@@ -6749,6 +6539,7 @@ const Arrivals: React.FC = () => {
                                     } else if (wbSt === 'approved') {
                                       return <div><span style={{ fontSize: '9px', color: '#16a34a', fontWeight: 'bold' }}>✅ WB Done</span></div>;
                                     } else {
+                                      const isRejected = wbSt === 'rejected';
                                       return (
                                         <button onClick={() => {
                                           const rk = isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id);
@@ -6761,24 +6552,24 @@ const Arrivals: React.FC = () => {
                                             setSelectedLorryForPlace(null);
                                             setSelectedLorryEntries([entry]);
                                             setSelectedLorryInspection(inspection || entry);
-                                            setWbInputType(tDetail?.wbInputType || 'mill');
-                                            setWbNumber(tDetail?.wbNo || '');
-                                            setMillWbId(tDetail?.millWbId || '');
-                                            setWbGrossWeight(tDetail?.grossWeight || '');
-                                            setWbTareWeight(tDetail?.tareWeight || '');
-                                            setWbNetWeight(tDetail?.netWeight || '');
-                                            setWbSute(tDetail?.sute || '');
-                                            setPartyWbEnabled(tDetail?.partyWbEnabled || '');
-                                            setPartyWbNo(tDetail?.partyWbNo || '');
-                                            setPartyWbDate(tDetail?.partyWbDate || new Date().toISOString().split('T')[0]);
-                                            setPartyWbName(tDetail?.partyWbName || '');
-                                            setPartyGrossWeight(tDetail?.partyGrossWeight || '');
-                                            setPartyTareWeight(tDetail?.partyTareWeight || '');
-                                            setPartyNetWeight(tDetail?.partyNetWeight || '');
-                                            setPartySute(tDetail?.partySute || '');
-                                            setWbDate(tDetail?.wbDate || new Date().toISOString().split('T')[0]);
+                                            setWbInputType(isRejected ? 'mill' : (tDetail?.wbInputType || 'mill'));
+                                            setWbNumber(isRejected ? '' : (tDetail?.wbNo || ''));
+                                            setMillWbId(isRejected ? '' : (tDetail?.millWbId || ''));
+                                            setWbGrossWeight(isRejected ? '' : (tDetail?.grossWeight || ''));
+                                            setWbTareWeight(isRejected ? '' : (tDetail?.tareWeight || ''));
+                                            setWbNetWeight(isRejected ? '' : (tDetail?.netWeight || ''));
+                                            setWbSute(isRejected ? '' : (tDetail?.sute || ''));
+                                            setPartyWbEnabled(isRejected ? '' : (tDetail?.partyWbEnabled || ''));
+                                            setPartyWbNo(isRejected ? '' : (tDetail?.partyWbNo || ''));
+                                            setPartyWbDate(new Date().toISOString().split('T')[0]);
+                                            setPartyWbName(isRejected ? '' : (tDetail?.partyWbName || ''));
+                                            setPartyGrossWeight(isRejected ? '' : (tDetail?.partyGrossWeight || ''));
+                                            setPartyTareWeight(isRejected ? '' : (tDetail?.partyTareWeight || ''));
+                                            setPartyNetWeight(isRejected ? '' : (tDetail?.partyNetWeight || ''));
+                                            setPartySute(isRejected ? '' : (tDetail?.partySute || ''));
+                                            setWbDate(new Date().toISOString().split('T')[0]);
                                           }
-                                        }} style={{ padding: '2px 5px', border: 'none', borderRadius: '3px', background: selectedLorryForWB === (isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id)) ? '#64748b' : 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer', whiteSpace: 'nowrap' }}>⚖️ WB</button>
+                                        }} style={{ padding: '2px 5px', border: 'none', borderRadius: '3px', background: selectedLorryForWB === (isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id)) ? '#64748b' : 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer', whiteSpace: 'nowrap' }}>{isRejected ? '⚖️ Add fresh WB' : '⚖️ WB'}</button>
                                       );
                                     }
                                   })()}
@@ -6864,12 +6655,65 @@ const Arrivals: React.FC = () => {
                               </td>
 
                               {/* 6. Lorry Number */}
-                              <td style={{ border: '1px solid #000', padding: '5px', fontWeight: '800', color: '#1e40af' }}>{lorryNum.toUpperCase()}</td>
+                              <td style={{ border: '1px solid #000', padding: '5px', fontWeight: '800', color: '#1e40af', textAlign: 'center' }}>{lorryNum.toUpperCase()}</td>
+
+                              {/* 5.5 Quality Status */}
+                              {(() => {
+                                const params = (inspection?.inventoryQualityParameters) || (entry?.inventoryQualityParameters) || (inspection?.lorryTransitDetail?.inventoryQualityParameters) || [];
+                                const lotApproved = params.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
+                                const fullApproved = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
+                                const isCompleted = lotApproved && fullApproved;
+                                const cellBg = isPlaceholder ? 'transparent' : (isCompleted ? '#dcfce7' : '#fee2e2');
+
+                                const parts: React.ReactNode[] = [];
+                                 
+                                 const lotParam = params.find((p: any) => p.type === 'lot_avg');
+                                 if (lotParam) {
+                                   const statusText = lotParam.status === 'approved' ? 'Approved' : lotParam.status === 'pending' ? 'Pending' : 'Rejected';
+                                   const statusColor = lotParam.status === 'approved' ? '#15803d' : lotParam.status === 'pending' ? '#b45309' : '#b91c1c';
+                                   parts.push(
+                                     <div key="lot" style={{ fontSize: '10px', whiteSpace: 'nowrap', fontWeight: 'bold' }}>
+                                       Before Unloading: <span style={{ color: statusColor }}>{statusText}</span>
+                                     </div>
+                                   );
+                                 } else {
+                                   parts.push(
+                                     <div key="lot" style={{ fontSize: '10px', color: '#475569' }}>
+                                       Before Unloading: <span>None</span>
+                                     </div>
+                                   );
+                                 }
+
+                                 const fullParam = params.find((p: any) => p.type === 'full_lorry_avg');
+                                 if (fullParam) {
+                                   const statusText = fullParam.status === 'approved' ? 'Approved' : fullParam.status === 'pending' ? 'Pending' : 'Rejected';
+                                   const statusColor = fullParam.status === 'approved' ? '#15803d' : fullParam.status === 'pending' ? '#b45309' : '#b91c1c';
+                                   parts.push(
+                                     <div key="full" style={{ fontSize: '10px', whiteSpace: 'nowrap', marginTop: '2px', fontWeight: 'bold' }}>
+                                       Full Avg (Gattu): <span style={{ color: statusColor }}>{statusText}</span>
+                                     </div>
+                                   );
+                                 } else {
+                                   parts.push(
+                                     <div key="full" style={{ fontSize: '10px', color: '#475569', marginTop: '2px' }}>
+                                       Full Avg (Gattu): <span>None</span>
+                                     </div>
+                                   );
+                                 }
+                                 
+                                 return (
+                                   <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontSize: '11px', verticalAlign: 'middle', backgroundColor: cellBg }}>
+                                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: '1.2' }}>
+                                       {parts}
+                                     </div>
+                                   </td>
+                                 );
+                              })()}
 
                               {/* 7. Actions */}
                               <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontSize: '11px', verticalAlign: 'middle' }}>
                                 {(() => {
-                                  const params = (inspection?.inventoryQualityParameters) || (entry?.inventoryQualityParameters) || [];
+                                  const params = (inspection?.inventoryQualityParameters) || (entry?.inventoryQualityParameters) || (inspection?.lorryTransitDetail?.inventoryQualityParameters) || [];
                                   const isFullApproved = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
                                   const isLotApproved = params.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
                                   const isLotPending = params.some((p: any) => p.type === 'lot_avg' && p.status === 'pending');
@@ -8511,12 +8355,9 @@ const Arrivals: React.FC = () => {
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Net Weight</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Sute Net Wt</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Godown</th>
-                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '12%' }}>Lorry Number</th>
-
-
-
-                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Approved By</th>
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Lorry Number</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Quality Status</th>
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Approved By</th>
 
 
 
@@ -9142,35 +8983,38 @@ const Arrivals: React.FC = () => {
 
 
                           <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: cuttingDisplay === '-' ? '#94a3b8' : '#059669' }}>
-
-
-
                             {cuttingDisplay}
-
-
-
                           </td>
-
-
-
                           
-
-
-
                           {/* Column 9: WB Number (Mill WB No) */}
-                           <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>
-                             {entry.wbNo ? (
-                               <span style={{
-                                 padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold',
-                                 background: wbStatus === 'approved' ? '#dcfce7' : wbStatus === 'pending' ? '#fef3c7' : '#f1f5f9',
-                                 color: wbStatus === 'approved' ? '#166534' : wbStatus === 'pending' ? '#92400e' : '#475569'
-                               }}>
-                                 {entry.wbNo}{wbStatus === 'pending' ? ' ⏳' : ''}
-                               </span>
-                             ) : (
-                               <span style={{ color: '#94a3b8' }}>{wbStatus === 'none' ? '⚠️ Required' : '-'}</span>
-                             )}
-                           </td>
+                          <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>
+                            {entry.wbNo && wbStatus !== 'rejected' ? (
+                              <span style={{
+                                padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold',
+                                background: wbStatus === 'approved' ? '#dcfce7' : wbStatus === 'pending' ? '#fef3c7' : '#f1f5f9',
+                                color: wbStatus === 'approved' ? '#166534' : wbStatus === 'pending' ? '#92400e' : '#475569'
+                              }}>
+                                {entry.wbNo}{wbStatus === 'pending' ? ' ⏳' : ''}
+                              </span>
+                            ) : wbStatus === 'rejected' ? (
+                              <div>
+                                <span style={{
+                                  padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold',
+                                  background: '#fee2e2',
+                                  color: '#991b1b'
+                                }}>
+                                  ❌ Rejected
+                                </span>
+                                {entry.wbRejectReason && (
+                                  <div style={{ fontSize: '9px', color: '#b91c1c', marginTop: '4px', fontWeight: 'bold', maxWidth: '120px', wordBreak: 'break-word', margin: '4px auto 0 auto' }}>
+                                    Reason: {entry.wbRejectReason}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span style={{ color: '#94a3b8' }}>{wbStatus === 'none' ? '⚠️ Required' : '-'}</span>
+                            )}
+                          </td>
 
                            {/* Column 11b: Mill WB Name */}
                            <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: '#0369a1' }}>
@@ -9198,50 +9042,66 @@ const Arrivals: React.FC = () => {
                            </td>
 
                            {/* Column 12: Lorry Number */}
-                           <td style={{ border: '1px solid #000', padding: '5px', fontWeight: '800', color: '#1e40af' }}>
+                           <td style={{ border: '1px solid #000', padding: '5px', fontWeight: '800', color: '#1e40af', textAlign: 'center' }}>
                              {(entry.lorryNumber || 'N/A').toUpperCase()}
                            </td>
 
+                           {/* Quality Sampling Status */}
+                           {(() => {
+                             const params = entry.inventoryQualityParameters || [];
+                             const lotApproved = params.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
+                             const fullApproved = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
+                             const isCompleted = lotApproved && fullApproved;
+                             const cellBg = isCompleted ? '#dcfce7' : '#fee2e2';
 
+                             const parts: React.ReactNode[] = [];
+                              
+                              const lotParam = params.find((p: any) => p.type === 'lot_avg');
+                              if (lotParam) {
+                                const statusText = lotParam.status === 'approved' ? 'Approved' : lotParam.status === 'pending' ? 'Pending' : 'Rejected';
+                                const statusColor = lotParam.status === 'approved' ? '#15803d' : lotParam.status === 'pending' ? '#b45309' : '#b91c1c';
+                                parts.push(
+                                  <div key="lot" style={{ fontSize: '10px', whiteSpace: 'nowrap', fontWeight: 'bold' }}>
+                                    Before Unloading: <span style={{ color: statusColor }}>{statusText}</span>
+                                  </div>
+                                );
+                              } else {
+                                parts.push(
+                                  <div key="lot" style={{ fontSize: '10px', color: '#475569' }}>
+                                    Before Unloading: <span>None</span>
+                                  </div>
+                                );
+                              }
 
-                          
-
-
+                              const fullParam = params.find((p: any) => p.type === 'full_lorry_avg');
+                              if (fullParam) {
+                                const statusText = fullParam.status === 'approved' ? 'Approved' : fullParam.status === 'pending' ? 'Pending' : 'Rejected';
+                                const statusColor = fullParam.status === 'approved' ? '#15803d' : fullParam.status === 'pending' ? '#b45309' : '#b91c1c';
+                                parts.push(
+                                  <div key="full" style={{ fontSize: '10px', whiteSpace: 'nowrap', marginTop: '2px', fontWeight: 'bold' }}>
+                                    Full Avg (Gattu): <span style={{ color: statusColor }}>{statusText}</span>
+                                  </div>
+                                );
+                              } else {
+                                parts.push(
+                                  <div key="full" style={{ fontSize: '10px', color: '#475569', marginTop: '2px' }}>
+                                    Full Avg (Gattu): <span>None</span>
+                                  </div>
+                                );
+                              }
+                              
+                              return (
+                                <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontSize: '11px', verticalAlign: 'middle', backgroundColor: cellBg }}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: '1.2' }}>
+                                    {parts}
+                                  </div>
+                                </td>
+                              );
+                           })()}
 
                           {/* Column 11a: Approved By */}
-
-
-
                           <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: entry.wbApprover ? '#16a34a' : '#b45309' }}>
-
-
-
                             {entry.wbApprover?.username || entry.wbApprover?.fullName || (entry.wbStatus === 'approved' ? 'Auto Approved' : entry.wbStatus === 'pending' ? 'Pending Approval' : '-')}
-
-
-
-                          </td>
-
-                          {/* Quality Sampling Status */}
-                          <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontSize: '11px', verticalAlign: 'middle' }}>
-                            {(() => {
-                              const params = entry.inventoryQualityParameters || [];
-                              const isFullApproved = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
-                              const isLotApproved = params.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
-                              const isFullPending = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'pending');
-                              const isLotPending = params.some((p: any) => p.type === 'lot_avg' && p.status === 'pending');
-
-                              if (isLotApproved) {
-                                return <span style={{ padding: '2px 6px', borderRadius: '4px', background: '#dcfce7', color: '#166534', fontWeight: 'bold' }}>✅ Quality Done</span>;
-                              } else if (isLotPending) {
-                                return <span style={{ padding: '2px 6px', borderRadius: '4px', background: '#fef3c7', color: '#92400e', fontWeight: 'bold' }}>⏳ Before Unloading Pending</span>;
-                              } else if (isFullApproved) {
-                                return <span style={{ padding: '2px 6px', borderRadius: '4px', background: '#dbeafe', color: '#1e40af', fontWeight: 'bold' }}>✅ Full Lorry Avg Approved</span>;
-                              } else if (isFullPending) {
-                                return <span style={{ padding: '2px 6px', borderRadius: '4px', background: '#fee2e2', color: '#991b1b', fontWeight: 'bold' }}>⏳ Full Lorry Avg Pending</span>;
-                              }
-                              return <span style={{ padding: '2px 6px', borderRadius: '4px', background: '#f1f5f9', color: '#475569', fontWeight: 'bold' }}>❌ Pending</span>;
-                            })()}
                           </td>
 
 
@@ -9529,775 +9389,256 @@ const Arrivals: React.FC = () => {
                         </tr>
 
 
-
-                        {/* INVENTORY QUALITY PARAMETERS COLLAPSIBLE ROW IS NOW RENDERED AS A POPUP MODAL */}
-
-
-
                         {selectedLorryForWB === (entry.lorryNumber || 'N/A').toUpperCase() && selectedLorryInspection?.id === entry.id && (
-
-
-
                           <tr>
-
-
-
                             <td colSpan={14} style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
-
-
-
                               <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-
-
-
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
-
-
-
                                   <h4 style={{ margin: 0, color: '#0f172a', fontSize: '13px', fontWeight: 'bold' }}>⚖️ Add Weight Bridge for {(entry.lorryNumber || 'N/A').toUpperCase()}</h4>
-
-
-
-                                  <div style={{ display: 'flex', gap: '8px' }}>
-
-
-
-                                    <button 
-
-
-
-                                      onClick={() => setWbInputType('mill')}
-
-
-
-                                      style={{
-
-
-
-                                        padding: '4px 10px', fontSize: '11px', fontWeight: 'bold', borderRadius: '4px', border: '1px solid #cbd5e1',
-
-
-
-                                        background: wbInputType === 'mill' ? '#1a237e' : '#fff',
-
-
-
-                                        color: wbInputType === 'mill' ? '#fff' : '#475569',
-
-
-
-                                        cursor: 'pointer'
-
-
-
-                                      }}
-
-
-
-                                    >
-
-
-
-                                      Mill Weight Bridge
-
-
-
-                                    </button>
-
-
-
-                                    <button 
-
-
-
-                                      onClick={() => setWbInputType('party')}
-
-
-
-                                      style={{
-
-
-
-                                        padding: '4px 10px', fontSize: '11px', fontWeight: 'bold', borderRadius: '4px', border: '1px solid #cbd5e1',
-
-
-
-                                        background: wbInputType === 'party' ? '#1a237e' : '#fff',
-
-
-
-                                        color: wbInputType === 'party' ? '#fff' : '#475569',
-
-
-
-                                        cursor: 'pointer'
-
-
-
-                                      }}
-
-
-
-                                    >
-
-
-
-                                      Party Weight Bridge
-
-
-
-                                    </button>
-
-
-
-                                  </div>
-
-
-
                                 </div>
-
-
-
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px', marginBottom: '14px' }}>
-
-
-
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px', marginBottom: '14px' }}>
                                   <div>
-
-
-
+                                    <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Date</label>
+                                    <input
+                                      type="date"
+                                      value={wbDate}
+                                      onChange={(e) => setWbDate(e.target.value)}
+                                      style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
+                                    />
+                                  </div>
+                                  <div>
                                     <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>WB Number <span style={{ color: '#ef4444' }}>*</span></label>
-
-
-
                                     <input 
-
-
-
                                       type="text" 
-
-
-
                                       value={wbNumber}
-
-
-
                                       onChange={(e) => setWbNumber(e.target.value.toUpperCase())}
-
-
-
                                       placeholder="Enter WB number"
-
-
-
                                       style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
-
-
-
                                     />
-
-
-
                                   </div>
-
-
-
-                                  
-
-
-
-                                  {wbInputType === 'mill' ? (
-
-
-
-                                    <div>
-
-
-
-                                      <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Mill WB Name (Mandatory)</label>
-
-
-
-                                      <select 
-
-
-
-                                        value={millWbId}
-
-
-
-                                        onChange={(e) => setMillWbId(e.target.value)}
-
-
-
-                                        style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
-
-
-
-                                      >
-
-
-
-                                        <option value="">Select Mill Weight Bridge</option>
-
-
-
-                                        {millWBList?.map(wb => (
-
-
-
-                                          <option key={wb.id} value={wb.id}>{wb.name}{wb.location ? ` (${wb.location})` : ''}</option>
-
-
-
-                                        ))}
-
-
-
-                                      </select>
-
-
-
-                                    </div>
-
-
-
-                                  ) : (
-
-
-
-                                    <div>
-
-
-
-                                      <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Party WB Name</label>
-
-
-
-                                      <input 
-
-
-
-                                        type="text" 
-
-
-
-                                        value={partyWbName}
-
-
-
-                                        onChange={(e) => setPartyWbName(e.target.value)}
-
-
-
-                                        placeholder="Enter Party WB name"
-
-
-
-                                        style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
-
-
-
-                                      />
-
-
-
-                                    </div>
-
-
-
-                                  )}
-
-
-
-                                  
-
-
-
                                   <div>
-
-
-
+                                    <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Mill WB Name (Mandatory)</label>
+                                    <select 
+                                      value={millWbId}
+                                      onChange={(e) => setMillWbId(e.target.value)}
+                                      style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
+                                    >
+                                      <option value="">Select Mill Weight Bridge</option>
+                                      {millWBList?.map(wb => (
+                                        <option key={wb.id} value={wb.id}>{wb.name}{wb.location ? ` (${wb.location})` : ''}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div>
                                     <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Gross Weight (Kg)</label>
-
-
-
                                     <input 
-
-
-
                                       type="number" 
-
-
-
                                       value={wbGrossWeight}
-
-
-
                                       onChange={(e) => {
-
-
-
                                         const val = e.target.value;
-
-
-
                                         setWbGrossWeight(val);
-
-
-
                                         if (val && wbTareWeight) {
-
-
-
                                           setWbNetWeight(String(Number(val) - Number(wbTareWeight)));
-
-
-
                                         }
-
-
-
                                       }}
-
-
-
                                       placeholder="Enter Gross"
-
-
-
                                       style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
-
-
-
                                     />
-
-
-
                                   </div>
-
-
-
-                                  
-
-
-
                                   <div>
-
-
-
                                     <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Tare Weight (Kg)</label>
-
-
-
                                     <input 
-
-
-
                                       type="number" 
-
-
-
                                       value={wbTareWeight}
-
-
-
                                       onChange={(e) => {
-
-
-
                                         const val = e.target.value;
-
-
-
                                         setWbTareWeight(val);
-
-
-
                                         if (wbGrossWeight && val) {
-
-
-
                                           setWbNetWeight(String(Number(wbGrossWeight) - Number(val)));
-
-
-
                                         }
-
-
-
                                       }}
-
-
-
                                       placeholder="Enter Tare"
-
-
-
                                       style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
-
-
-
                                     />
-
-
-
                                   </div>
-
-
-
-                                  
-
-
-
                                   <div>
-
-
-
                                     <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Net Weight (Kg)</label>
-
-
-
                                     <input 
-
-
-
                                       type="text" 
-
-
-
                                       value={wbNetWeight}
-
-
-
                                       disabled
-
-
-
                                       style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px', background: '#f1f5f9' }}
-
-
-
                                     />
-
-
-
                                   </div>
-
-
-
+                                  <div>
+                                    <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Sute (Deduction)</label>
+                                    <input 
+                                      type="number"
+                                      value={wbSute}
+                                      onChange={(e) => setWbSute(e.target.value)}
+                                      placeholder="Enter sute"
+                                      style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Sute Net Wt</label>
+                                    <div style={{ padding: '6px 8px', background: '#f0fdf4', border: '1.5px solid #10b981', borderRadius: '6px', fontWeight: '700', color: '#059669', fontSize: '12px', textAlign: 'center' }}>
+                                      {((parseFloat(wbGrossWeight || 0) - parseFloat(wbTareWeight || 0) - parseFloat(wbSute || 0)) || 0).toFixed(2)} Kg
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Party WB</label>
+                                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                      <label style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                                        <input type="radio" name="partyWbEnabled" value="yes" checked={partyWbEnabled === 'yes'} onChange={() => setPartyWbEnabled('yes')} /> Yes
+                                      </label>
+                                      <label style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                                        <input type="radio" name="partyWbEnabled" value="no" checked={partyWbEnabled === 'no'} onChange={() => setPartyWbEnabled('no')} /> No
+                                      </label>
+                                      {partyWbEnabled && (
+                                        <button onClick={() => setPartyWbEnabled('')} style={{ fontSize: '10px', border: 'none', background: '#fee2e2', color: '#dc2626', borderRadius: '4px', padding: '2px 6px', cursor: 'pointer' }}>Clear</button>
+                                      )}
+                                    </div>
+                                  </div>
                                 </div>
 
-
+                                {partyWbEnabled === 'yes' && (
+                                  <div style={{ padding: '12px', background: '#fffbeb', borderRadius: '8px', border: '2px solid #f59e0b', marginBottom: '14px' }}>
+                                    <h5 style={{ margin: '0 0 10px 0', color: '#92400e', fontSize: '12px', fontWeight: 'bold', borderBottom: '1px solid #fcd34d', paddingBottom: '6px' }}>
+                                      ⚡ Party WeighBridge Details
+                                    </h5>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
+                                      <div>
+                                        <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Party WB Date</label>
+                                        <input type="date" value={partyWbDate} onChange={(e) => setPartyWbDate(e.target.value)}
+                                          style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px' }} />
+                                      </div>
+                                      <div>
+                                        <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Party WB Number</label>
+                                        <input type="text" value={partyWbNo} onChange={(e) => setPartyWbNo(e.target.value.toUpperCase())} placeholder="Party WB No"
+                                          style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px' }} />
+                                      </div>
+                                      <div>
+                                        <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Party WB Name</label>
+                                        <input type="text" value={partyWbName} onChange={(e) => setPartyWbName(e.target.value)} placeholder="Party WB Name"
+                                          style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px' }} />
+                                      </div>
+                                      <div>
+                                        <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Gross Weight (Kg)</label>
+                                        <input type="number" value={partyGrossWeight}
+                                          onChange={(e) => { const v = e.target.value; setPartyGrossWeight(v); if (v && partyTareWeight) setPartyNetWeight(String(Number(v) - Number(partyTareWeight))); }}
+                                          placeholder="Party Gross" style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px' }} />
+                                      </div>
+                                      <div>
+                                        <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Tare Weight (Kg)</label>
+                                        <input type="number" value={partyTareWeight}
+                                          onChange={(e) => { const v = e.target.value; setPartyTareWeight(v); if (partyGrossWeight && v) setPartyNetWeight(String(Number(partyGrossWeight) - Number(v))); }}
+                                          placeholder="Party Tare" style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px' }} />
+                                      </div>
+                                      <div>
+                                        <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Net Weight (Kg)</label>
+                                        <input type="text" value={partyNetWeight} disabled
+                                          style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px', background: '#fef3c7' }} />
+                                      </div>
+                                      <div>
+                                        <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Sute (Deduction)</label>
+                                        <input type="number" value={partySute} onChange={(e) => setPartySute(e.target.value)} placeholder="Party Sute"
+                                          style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px' }} />
+                                      </div>
+                                      <div>
+                                        <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Sute Net Weight</label>
+                                        <div style={{ padding: '6px 8px', background: '#fef3c7', border: '1.5px solid #d97706', borderRadius: '6px', fontWeight: '700', color: '#92400e', fontSize: '12px', textAlign: 'center' }}>
+                                          {((parseFloat(partyGrossWeight || 0) - parseFloat(partyTareWeight || 0) - parseFloat(partySute || 0)) || 0).toFixed(2)} Kg
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
 
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-
-
-
                                   <button 
-
-
-
-                                    onClick={() => {
-
-
-
-                                      setSelectedLorryForWB(null);
-
-
-
-                                      setSelectedLorryInspection(null);
-
-
-
-                                    }}
-
-
-
+                                    onClick={() => { setSelectedLorryForWB(null); setSelectedLorryInspection(null); }}
                                     style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #cbd5e1', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
-
-
-
                                   >
-
-
-
                                     Cancel
-
-
-
                                   </button>
-
-
-
                                   <button 
-
-
-
                                     onClick={async () => {
-
-
-
-                                      if (!wbNumber || (wbInputType === 'mill' && !millWbId) || (wbInputType === 'party' && !partyWbName)) {
-
-
-
+                                      if (!wbNumber || !millWbId) {
                                         toast.error('Please fill required fields (WB Number & Mill/Party WB Name)');
-
-
-
                                         return;
-
-
-
                                       }
-
-
-
                                       if (!wbGrossWeight || !wbTareWeight) {
-
-
-
                                         toast.error('Please enter both Gross Weight and Tare Weight');
-
-
-
                                         return;
-
-
-
                                       }
-
-
-
                                       if (parseFloat(wbGrossWeight) <= parseFloat(wbTareWeight)) {
-
-
-
                                         toast.error('Gross Weight must be strictly greater than Tare Weight');
-
-
-
                                         return;
-
-
-
                                       }
-
-
-
                                       try {
-
-
-
                                         const token = localStorage.getItem('token');
-
-
-
                                         const response = await axios.post(`${API_URL}/arrivals/${entry.id}/wb`, {
-
-
-
                                           wbInputType: 'mill',
                                           millWbId: millWbId ? Number(millWbId) : null,
                                           partyWbName: partyWbEnabled === 'yes' ? partyWbName : null,
-
-
-
                                           wbNo: wbNumber,
-
-
-
                                           grossWeight: Number(wbGrossWeight),
-
-
-
                                           tareWeight: Number(wbTareWeight),
-
-
-
                                           netWeight: Number(wbNetWeight),
-
-
-
                                           sute: Number(wbSute) || null,
-
-
-
                                           partyWbEnabled: partyWbEnabled || null,
-
-
-
-                                          wbDate: wbDate || null
-
-
-
+                                          wbDate: wbDate || null,
+                                          partyGrossWeight: partyWbEnabled === 'yes' && partyGrossWeight ? Number(partyGrossWeight) : null,
+                                          partyTareWeight: partyWbEnabled === 'yes' && partyTareWeight ? Number(partyTareWeight) : null,
+                                          partyNetWeight: partyWbEnabled === 'yes' && partyNetWeight ? Number(partyNetWeight) : null,
+                                          partySute: partyWbEnabled === 'yes' && partySute ? Number(partySute) : null,
+                                          partyWbNo: partyWbEnabled === 'yes' ? partyWbNo : null,
+                                          partyWbDate: partyWbEnabled === 'yes' ? partyWbDate : null
                                         }, {
-
-
-
                                           headers: { Authorization: `Bearer ${token}` }
+                                        });
 
-
-
-                                        });                                        const responseDetail = response?.data?.detail || response?.data || {};
-
-
-
+                                        const responseDetail = response?.data?.detail || response?.data || {};
                                         const savedStatus = wbInputType === 'party' ? 'approved' : (responseDetail?.wbStatus || response?.data?.wbStatus || 'pending');
-
-
-
                                         const savedWbNo = responseDetail?.wbNo || response?.data?.wbNo || wbNumber;
-
-
-
                                         const savedNetWeight = responseDetail?.netWeight ?? response?.data?.netWeight ?? Number(wbNetWeight);
 
-
-
-                                        // Post-save processing (separate try-catch to avoid misleading 'save failed' toast)
-
-
-
                                         try {
-
-
-
-                                          setInTransitEntries(prev => applyWbSaveToEntries(prev, entry.id, {
-
-
-
-                                            wbStatus: savedStatus,
-
-
-
-                                            wbNo: savedWbNo,
-
-
-
-                                            netWeight: savedNetWeight,
-
-
-
-                                            partyWbName: wbInputType === 'party' ? partyWbName : (responseDetail?.partyWbName || undefined),
-
-
-
-                                            wbInputType,
-
-
-
-                                            millWbId: wbInputType === 'mill' ? Number(millWbId) : undefined,
-
-
-
-                                            grossWeight: Number(wbGrossWeight),
-
-
-
-                                            tareWeight: Number(wbTareWeight)
-
-
-
+                                          setBandMalalEntries(prev => prev.map(item => {
+                                            if (String(item.id) === String(entry.id)) {
+                                              return {
+                                                ...item,
+                                                wbStatus: savedStatus,
+                                                wbNo: savedWbNo,
+                                                netWeight: savedNetWeight,
+                                                partyWbName: wbInputType === 'party' ? partyWbName : (responseDetail?.partyWbName || undefined),
+                                                wbInputType: 'mill',
+                                                millWbId: wbInputType === 'mill' ? Number(millWbId) : undefined,
+                                                grossWeight: Number(wbGrossWeight),
+                                                tareWeight: Number(wbTareWeight)
+                                              };
+                                            }
+                                            return item;
                                           }));
 
-
-
-                                          toast.success('Weight Bridge submitted for approval!');
-
-
-
+                                          toast.success('Weight Bridge saved & submitted for approval!');
                                           setSelectedLorryForWB(null);
-
-
-
                                           setSelectedLorryInspection(null);
-
-
-
-                                          setWbNumber('');
-
-
-
-                                          setMillWbId('');
-
-
-
-                                          setPartyWbName('');
-
-
-
-                                          setWbGrossWeight('');
-
-
-
-                                          setWbTareWeight('');
-
-
-
-                                          setWbNetWeight('');; setWbSute(''); setPartyWbEnabled(''); setPartyWbNo(''); setPartyWbDate(new Date().toISOString().split('T')[0]); setPartyGrossWeight(''); setPartyTareWeight(''); setPartyNetWeight(''); setPartySute(''); setWbDate(new Date().toISOString().split('T')[0]) 
-
-
-
-                                          fetchInTransitEntries();
-
-
-
+                                          fetchBandMalalEntries();
                                         } catch (postErr: any) {
-
-
-
                                           console.error('Post-save state update error:', postErr);
-
-
-
-                                          // Don't show "Failed to save" - save actually succeeded
-
-
-
                                         }
-
                                       } catch (err: any) {
-
-
-
                                         toast.error(err.response?.data?.error || 'Failed to save Weight Bridge');
-
-
-
                                       }
-
-
-
                                     }}
-
-
-
                                     style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', border: 'none', borderRadius: '4px', background: 'linear-gradient(135deg, #d97706, #b45309)', color: '#fff', cursor: 'pointer' }}
-
-
-
                                   >
-
-
-
                                     Save WB
-
-
-
                                   </button>
-
-
-
                                 </div>
-
-
-
                               </div>
-
-
-
                             </td>
                           </tr>
                         )}
@@ -14753,30 +14094,13 @@ const Arrivals: React.FC = () => {
 
 
       {isDetailOpen && selectedDetailEntry && (
-
-
-
         <SampleEntryDetailModal
-
-
-
           detailEntry={selectedDetailEntry}
-
-
-
           detailMode="full"
-
-
-
           progressiveMode={true}
-
-
-
           completedLotsOrder={true}
-
-
-
           showCollectorLoginPair={true}
+          isCompactOverride={arrivalsActiveSubTab === 'transit' || arrivalsActiveSubTab === 'bandmalal'}
 
 
 
@@ -14805,606 +14129,120 @@ const Arrivals: React.FC = () => {
 
 
       {isTransitDetailOpen && selectedTransitDetail && (() => {
-
-
-
         const { entry, inspection } = selectedTransitDetail;
-
-
-
         const transitDetail = inspection?.lorryTransitDetail;
-
-
-
         const lorryNum = inspection?.lorryNumber || '-';
-
-
-
         const varietyName = inspection?.variety?.name || entry.variety || '-';
-
-
-
         const brokerName = entry.broker?.name || entry.brokerName || '-';
-
-
-
         const partyName = entry.fromParty?.name || entry.partyName || '-';
 
-
-
-
-
-
-
         return (
-
-
-
           <div style={{
-
-
-
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-
-
-
             backgroundColor: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)',
-
-
-
             display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
-
-
-
           }}>
-
-
-
             <div style={{
-
-
-
-              background: '#fff', borderRadius: '12px', width: '90%', maxWidth: '600px',
-
-
-
+              background: '#fff', borderRadius: '12px', width: '95%', maxWidth: '820px',
               boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
-
-
-
               overflow: 'hidden', border: '1px solid #e2e8f0', animation: 'pulse 0.15s ease-out'
-
-
-
             }}>
-
-
-
               {/* Header */}
-
-
-
               <div style={{
-
-
-
                 background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-
-
-
-                padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#fff'
-
-
-
+                padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#fff'
               }}>
-
-
-
-                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold' }}>🚚 Lorry Transit Details — {lorryNum.toUpperCase()}</h3>
-
-
-
+                <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 'bold' }}>🚚 Lorry Transit Details — {lorryNum.toUpperCase()}</h3>
                 <button
-
-
-
                   onClick={() => {
-
-
-
                     setIsTransitDetailOpen(false);
-
-
-
                     setSelectedTransitDetail(null);
-
-
-
                   }}
-
-
-
                   style={{
-
-
-
                     background: 'none', border: 'none', color: '#fff', fontSize: '18px', cursor: 'pointer', fontWeight: 'bold'
-
-
-
                   }}
-
-
-
                 >
-
-
-
                   ✕
-
-
-
                 </button>
-
-
-
               </div>
-
-
-
-
-
-
 
               {/* Content */}
-
-
-
-              <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '80vh', overflowY: 'auto' }}>
-
-
-
+              <div style={{ padding: '12px', display: 'flex', gap: '10px', maxHeight: '80vh', overflowY: 'auto' }}>
                 
-
-
-
                 {/* Lorry Info */}
-
-
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-
-
-
-                  <div>
-
-
-
-                    <span style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold' }}>PARTY</span>
-
-
-
-                    <span style={{ fontSize: '12px', color: '#0f172a', fontWeight: 'bold' }}>{partyName}</span>
-
-
-
+                <div style={{ flex: 1, border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ backgroundColor: '#f8fafc', padding: '6px 10px', borderBottom: '1px solid #e2e8f0', fontSize: '11px', fontWeight: 'bold', color: '#1e3a8a' }}>
+                    🚚 Lorry Info
                   </div>
-
-
-
-                  <div>
-
-
-
-                    <span style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold' }}>BROKER</span>
-
-
-
-                    <span style={{ fontSize: '12px', color: '#0f172a' }}>{brokerName}</span>
-
-
-
+                  <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px' }}>
+                    <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>PARTY</span><strong>{partyName}</strong></div>
+                    <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>BROKER</span>{brokerName}</div>
+                    <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>VARIETY</span>{varietyName}</div>
+                    <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>LORRY NUMBER</span><strong style={{ color: '#1e40af' }}>{lorryNum.toUpperCase()}</strong></div>
                   </div>
-
-
-
-                  <div>
-
-
-
-                    <span style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold' }}>VARIETY</span>
-
-
-
-                    <span style={{ fontSize: '12px', color: '#0f172a' }}>{varietyName}</span>
-
-
-
-                  </div>
-
-
-
-                  <div>
-
-
-
-                    <span style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold' }}>LORRY NUMBER</span>
-
-
-
-                    <span style={{ fontSize: '12px', color: '#1e40af', fontWeight: 'bold' }}>{lorryNum.toUpperCase()}</span>
-
-
-
-                  </div>
-
-
-
                 </div>
-
-
-
-
-
-
 
                 {/* Godown Details */}
-
-
-
-                <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
-
-
-
-                  <div style={{ backgroundColor: '#f1f5f9', padding: '8px 12px', borderBottom: '1px solid #e2e8f0', fontSize: '12px', fontWeight: 'bold', color: '#334155' }}>
-
-
-
+                <div style={{ flex: 1.2, border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ backgroundColor: '#f8fafc', padding: '6px 10px', borderBottom: '1px solid #e2e8f0', fontSize: '11px', fontWeight: 'bold', color: '#7c3aed' }}>
                     📍 Godown Location Details
-
-
-
                   </div>
-
-
-
-                  <div style={{ padding: '12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-
-
-
+                  <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px' }}>
+                    <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>Godown Type</span><strong>{transitDetail?.placeType ? transitDetail.placeType.toUpperCase() : '-'}</strong></div>
+                    <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>Allotted Location / Outturn</span><strong>{transitDetail?.placeWarehouse?.name || transitDetail?.placeKunchinittuData?.name || (transitDetail?.outturn ? `${transitDetail.outturn.code} (${transitDetail.outturn.allottedVariety})` : null) || '-'}</strong></div>
+                    <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>Godown Date</span>{transitDetail?.placeDate ? new Date(transitDetail.placeDate).toLocaleDateString('en-GB') : '-'}</div>
                     <div>
-
-
-
-                      <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>Godown Type</span>
-
-
-
-                      <span style={{ fontSize: '12px', color: '#0f172a', fontWeight: '600' }}>
-
-
-
-                        {transitDetail?.placeType ? transitDetail.placeType.toUpperCase() : '-'}
-
-
-
-                      </span>
-
-
-
-                    </div>
-
-
-
-                    <div>
-
-
-
-                      <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>Godown Date</span>
-
-
-
-                      <span style={{ fontSize: '12px', color: '#0f172a' }}>
-
-
-
-                        {transitDetail?.placeDate ? new Date(transitDetail.placeDate).toLocaleDateString('en-GB') : '-'}
-
-
-
-                      </span>
-
-
-
-                    </div>
-
-
-
-                    <div style={{ gridColumn: 'span 2' }}>
-
-
-
-                      <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>Allotted Location / Outturn</span>
-
-
-
-                      <span style={{ fontSize: '12px', color: '#0f172a', fontWeight: 'bold' }}>
-
-
-
-                        {transitDetail?.placeWarehouse?.name || transitDetail?.placeKunchinittuData?.name || (transitDetail?.outturn ? `${transitDetail.outturn.code} (${transitDetail.outturn.allottedVariety})` : null) || '-'}
-
-
-
-                      </span>
-
-
-
-                    </div>
-
-
-
-                    <div>
-
-
-
-                      <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>Godown Status</span>
-
-
-
+                      <span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold', marginBottom: '2px' }}>Godown Status</span>
                       <span style={{
-
-
-
-                        display: 'inline-block', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold',                        backgroundColor: transitDetail?.placeStatus === 'approved' ? '#dcfce7' : transitDetail?.placeStatus === 'placed' ? '#dbeafe' : (transitDetail?.placeStatus === 'pending') ? '#fef3c7' : '#f1f5f9',
-
-
+                        display: 'inline-block', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold',
+                        backgroundColor: transitDetail?.placeStatus === 'approved' ? '#dcfce7' : transitDetail?.placeStatus === 'placed' ? '#dbeafe' : (transitDetail?.placeStatus === 'pending') ? '#fef3c7' : '#f1f5f9',
                         color: transitDetail?.placeStatus === 'approved' ? '#166534' : transitDetail?.placeStatus === 'placed' ? '#1e40af' : (transitDetail?.placeStatus === 'pending') ? '#92400e' : '#475569'
-
-
-
                       }}>
-
-
-
                         {transitDetail?.placeStatus ? transitDetail.placeStatus.toUpperCase() : 'NONE'}
-
-
-
                       </span>
-
-
-
                     </div>
-
-
-
                   </div>
-
-
-
                 </div>
-
-
-
-
-
-
 
                 {/* Weigh Bridge Details */}
-
-
-
-                <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
-
-
-
-                  <div style={{ backgroundColor: '#f1f5f9', padding: '8px 12px', borderBottom: '1px solid #e2e8f0', fontSize: '12px', fontWeight: 'bold', color: '#334155' }}>
-
-
-
+                <div style={{ flex: 1.5, border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ backgroundColor: '#f8fafc', padding: '6px 10px', borderBottom: '1px solid #e2e8f0', fontSize: '11px', fontWeight: 'bold', color: '#16a34a' }}>
                     ⚖️ Weigh Bridge Details
-
-
-
                   </div>
-
-
-
-                  <div style={{ padding: '12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-
-
-
-                    <div>
-
-
-
-                      <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>WB Number</span>
-
-
-
-                      <span style={{ fontSize: '12px', color: '#0f172a', fontWeight: 'bold' }}>{transitDetail?.wbNo || '-'}</span>
-
-
-
-                    </div>
-
-
-
-                    <div>
-
-
-
-                      <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>Mill Weight Bridge</span>
-
-
-
-                      <span style={{ fontSize: '12px', color: '#0f172a', fontWeight: '600' }}>{transitDetail?.millWeightBridge?.name || transitDetail?.partyWbName || '-'}</span>
-
-
-
-                    </div>
-
-
-
-                    <div>
-
-
-
-                      <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>Gross Weight</span>
-
-
-
-                      <span style={{ fontSize: '12px', color: '#0f172a' }}>{transitDetail?.grossWeight ? `${transitDetail.grossWeight} Kg` : '-'}</span>
-
-
-
-                    </div>
-
-
-
-                    <div>
-
-
-
-                      <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>Tare Weight</span>
-
-
-
-                      <span style={{ fontSize: '12px', color: '#0f172a' }}>{transitDetail?.tareWeight ? `${transitDetail.tareWeight} Kg` : '-'}</span>
-
-
-
-                    </div>
-
-
-
-                    <div>
-
-
-
-                      <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>Net Weight</span>
-
-
-
-                      <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 'bold' }}>{transitDetail?.netWeight ? `${transitDetail.netWeight} Kg` : '-'}</span>
-
-
-
-                    </div>
-
-
-
-                    <div>
-
-
-
-                      <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>WB Status</span>
-
-
-
+                  <div style={{ padding: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '11px' }}>
+                    <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>WB Number</span><strong>{transitDetail?.wbNo || '-'}</strong></div>
+                    <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>Mill Weight Bridge</span>{transitDetail?.millWeightBridge?.name || transitDetail?.partyWbName || '-'}</div>
+                    <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>Gross Weight</span>{transitDetail?.grossWeight ? `${transitDetail.grossWeight} Kg` : '-'}</div>
+                    <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>Tare Weight</span>{transitDetail?.tareWeight ? `${transitDetail.tareWeight} Kg` : '-'}</div>
+                    <div style={{ gridColumn: 'span 2' }}><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>Net Weight</span><strong style={{ color: '#10b981', fontSize: '13px' }}>{transitDetail?.netWeight ? `${transitDetail.netWeight} Kg` : '-'}</strong></div>
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold', marginBottom: '2px' }}>WB Status</span>
                       <span style={{
-
-
-
-                        display: 'inline-block', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold',
-
-
-
+                        display: 'inline-block', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold',
                         backgroundColor: transitDetail?.wbStatus === 'approved' ? '#dcfce7' : transitDetail?.wbStatus === 'pending' ? '#fef3c7' : '#f1f5f9',
-
-
-
                         color: transitDetail?.wbStatus === 'approved' ? '#166534' : transitDetail?.wbStatus === 'pending' ? '#92400e' : '#475569'
-
-
-
                       }}>
-
-
-
                         {transitDetail?.wbStatus ? transitDetail.wbStatus.toUpperCase() : 'NONE'}
-
-
-
                       </span>
-
-
-
                     </div>
-
-
-
                   </div>
-
-
-
                 </div>
-
-
-
-
-
-
 
               </div>
 
-
-
-
-
-
-
               {/* Footer */}
-
-
-
-              <div style={{ backgroundColor: '#f8fafc', padding: '12px 20px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #e2e8f0' }}>
-
-
-
+              <div style={{ backgroundColor: '#f8fafc', padding: '10px 16px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #e2e8f0' }}>
                 <button
-
-
-
                   onClick={() => {
-
-
-
                     setIsTransitDetailOpen(false);
-
-
-
                     setSelectedTransitDetail(null);
-
-
-
                   }}
-
-
-
                   style={{
-
-
-
-                    padding: '6px 14px', fontSize: '12px', fontWeight: 'bold', border: '1px solid #cbd5e1',
-
-
-
-                    borderRadius: '6px', background: '#fff', cursor: 'pointer', color: '#334155'
-
-
-
+                    padding: '5px 12px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #cbd5e1',
+                    borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#334155'
                   }}
-
-
-
                 >
-
-
-
                   Close Details
-
 
 
                 </button>
@@ -15470,13 +14308,24 @@ const Arrivals: React.FC = () => {
                 )}
               </div>
             </div>
+            {wbConfirmDialog.action === 'reject' && (
+              <div style={{ fontSize: '12px', color: '#475569', marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '6px' }}>Reason for rejecting weighbridge:</label>
+                <textarea 
+                  value={wbRejectReason} 
+                  onChange={(e) => setWbRejectReason(e.target.value)} 
+                  placeholder="Enter rejection reason..."
+                  style={{ width: '100%', height: '80px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }}
+                />
+              </div>
+            )}
             <div style={{ fontSize: '12px', color: '#ef4444', marginBottom: '16px', background: '#fef2f2', padding: '8px', borderRadius: '6px' }}>
               {wbConfirmDialog.action === 'approve' 
                 ? 'Are you sure you want to APPROVE this weighbridge?'
                 : 'Are you sure you want to REJECT this weighbridge?'}
             </div>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-              <button onClick={() => setWbConfirmDialog(null)} style={{
+              <button onClick={() => { setWbConfirmDialog(null); setWbRejectReason(''); }} style={{
                 padding: '8px 20px', border: '1px solid #cbd5e1', borderRadius: '6px', background: '#fff',
                 fontSize: '13px', fontWeight: 'bold', cursor: 'pointer'
               }}>Cancel</button>
@@ -15484,7 +14333,11 @@ const Arrivals: React.FC = () => {
                 if (wbConfirmDialog.action === 'approve') {
                   handleApproveWb(wbConfirmDialog.id);
                 } else {
-                  handleRejectWb(wbConfirmDialog.id);
+                  if (!wbRejectReason.trim()) {
+                    toast.error('Rejection reason is required');
+                    return;
+                  }
+                  handleRejectWb(wbConfirmDialog.id, wbRejectReason);
                 }
               }} style={{
                 padding: '8px 20px', border: 'none', borderRadius: '6px',
@@ -15492,6 +14345,98 @@ const Arrivals: React.FC = () => {
                 color: '#fff', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer'
               }}>
                 {wbConfirmDialog.action === 'approve' ? 'Confirm Approve' : 'Confirm Reject'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {placeConfirmDialog && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: '12px', padding: '24px', maxWidth: '500px', width: '90%',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+          }}>
+            <h3 style={{ margin: '0 0 16px 0', color: '#0f172a', fontSize: '16px', fontWeight: 'bold', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
+              {placeConfirmDialog.action === 'move' ? '🚚 Move Lorry to Band Mall Book' : '❌ Reject Godown Place'}
+            </h3>
+            
+            {placeConfirmDialog.action === 'move' ? (
+              <div style={{ fontSize: '12px', color: '#475569', marginBottom: '16px' }}>
+                {placeConfirmDialog.warnings && placeConfirmDialog.warnings.length > 0 ? (
+                  <div style={{ background: '#fffbeb', border: '1px solid #fef3c7', padding: '12px', borderRadius: '8px', color: '#92400e', marginBottom: '12px' }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>⚠️ Warnings:</div>
+                    {placeConfirmDialog.warnings?.map((w, idx) => <div key={idx}>- {w}</div>)}
+                  </div>
+                ) : (
+                  <div style={{ color: '#16a34a', fontWeight: 'bold', marginBottom: '12px' }}>✓ Ready to move. All parameters (Weighbridge and Quality) are approved.</div>
+                )}
+                Are you sure you want to move this lorry to the Band Mall Book?
+              </div>
+            ) : (
+              <div style={{ fontSize: '12px', color: '#475569', marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '6px' }}>Reason for rejecting place:</label>
+                <textarea 
+                  value={placeRejectReason} 
+                  onChange={(e) => setPlaceRejectReason(e.target.value)} 
+                  placeholder="Enter rejection reason..."
+                  style={{ width: '100%', height: '80px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }}
+                />
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button 
+                onClick={() => { setPlaceConfirmDialog(null); setPlaceRejectReason(''); }} 
+                style={{
+                  padding: '8px 20px', border: '1px solid #cbd5e1', borderRadius: '6px', background: '#fff',
+                  fontSize: '13px', fontWeight: 'bold', cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={async () => {
+                  if (!placeConfirmDialog) return;
+                  const { trip, action } = placeConfirmDialog;
+                  const targetId = trip.inspection?.id || trip.entry?.id;
+                  const token = localStorage.getItem('token');
+                  
+                  try {
+                    if (action === 'move') {
+                      await axios.post(`${API_URL}/arrivals/${targetId}/approve-place`, {}, {
+                        headers: { Authorization: `Bearer ${token}` }
+                      });
+                      toast.success('Lorry moved to Band Mall Book!');
+                    } else {
+                      if (!placeRejectReason.trim()) {
+                        toast.error('Rejection reason is required');
+                        return;
+                      }
+                      await axios.post(`${API_URL}/arrivals/${targetId}/reject-place`, { reason: placeRejectReason }, {
+                        headers: { Authorization: `Bearer ${token}` }
+                      });
+                      toast.success('Godown rejected!');
+                    }
+                    setPlaceConfirmDialog(null);
+                    setPlaceRejectReason('');
+                    fetchInTransitEntries();
+                    fetchBandMalalEntries();
+                  } catch (err: any) {
+                    toast.error(err.response?.data?.error || `Failed to perform action`);
+                  }
+                }} 
+                style={{
+                  padding: '8px 20px', border: 'none', borderRadius: '6px',
+                  background: placeConfirmDialog.action === 'move' ? '#10b981' : '#ef4444',
+                  color: '#fff', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer'
+                }}
+              >
+                {placeConfirmDialog.action === 'move' ? 'Confirm Move' : 'Confirm Reject'}
               </button>
             </div>
           </div>
@@ -15520,69 +14465,87 @@ const Arrivals: React.FC = () => {
             </div>
 
             {/* Type Toggle */}
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', marginBottom: '10px' }}>
-              <button type="button" onClick={() => setInventoryQualityType('lot_avg')}
-                style={{ padding: '4px 10px', border: 'none', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer', background: inventoryQualityType === 'lot_avg' ? '#1a237e' : '#e2e8f0', color: inventoryQualityType === 'lot_avg' ? '#fff' : '#64748b' }}>
-                Before Unloading
-              </button>
-              <button type="button" onClick={() => setInventoryQualityType('full_lorry_avg')}
-                style={{ padding: '4px 10px', border: 'none', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer', background: inventoryQualityType === 'full_lorry_avg' ? '#1a237e' : '#e2e8f0', color: inventoryQualityType === 'full_lorry_avg' ? '#fff' : '#64748b' }}>
-                Full Lorry Avg
-              </button>
-            </div>
+            {(() => {
+              const modalParams = qualitySamplingEntry?.inventoryQualityParameters || 
+                                  qualitySamplingEntry?.lorryTransitDetail?.inventoryQualityParameters || 
+                                  (qualitySamplingEntry?.physicalInspections && qualitySamplingEntry?.physicalInspections[0]?.inventoryQualityParameters) || 
+                                  [];
+              const isLotAlreadyDone = modalParams.some((p: any) => p.type === 'lot_avg' && p.status !== 'rejected');
+              const isFullAlreadyDone = modalParams.some((p: any) => p.type === 'full_lorry_avg' && p.status !== 'rejected');
+
+              return (
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', marginBottom: '10px' }}>
+                  <button type="button" 
+                    disabled={isLotAlreadyDone}
+                    onClick={() => setInventoryQualityType('lot_avg')}
+                    style={{ 
+                      padding: '5px 12px', 
+                      border: 'none', 
+                      borderRadius: '4px', 
+                      fontSize: '11px', 
+                      fontWeight: 'bold', 
+                      cursor: isLotAlreadyDone ? 'not-allowed' : 'pointer', 
+                      background: inventoryQualityType === 'lot_avg' ? '#1a237e' : '#e2e8f0', 
+                      color: inventoryQualityType === 'lot_avg' ? '#fff' : '#64748b',
+                      opacity: isLotAlreadyDone ? 0.6 : 1
+                    }}>
+                    Before Unloading (Lot Avg) {isLotAlreadyDone && ' (Done)'}
+                  </button>
+                  <button type="button" 
+                    disabled={isFullAlreadyDone}
+                    onClick={() => setInventoryQualityType('full_lorry_avg')}
+                    style={{ 
+                      padding: '5px 12px', 
+                      border: 'none', 
+                      borderRadius: '4px', 
+                      fontSize: '11px', 
+                      fontWeight: 'bold', 
+                      cursor: isFullAlreadyDone ? 'not-allowed' : 'pointer', 
+                      background: inventoryQualityType === 'full_lorry_avg' ? '#1a237e' : '#e2e8f0', 
+                      color: inventoryQualityType === 'full_lorry_avg' ? '#fff' : '#64748b',
+                      opacity: isFullAlreadyDone ? 0.6 : 1
+                    }}>
+                    Full Lorry Avg (Gattu) {isFullAlreadyDone && ' (Done)'}
+                  </button>
+                </div>
+              );
+            })()}
 
             {/* 3-column grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
               {[
                 { label: 'Moisture (%)', key: 'moisture', type: 'text', placeholder: '16.5', required: true },
-                { label: 'Dry Moisture', key: 'dryMoisture', type: 'toggle', toggleKey: 'dryMoisture', placeholder: '14.2' },
+                { label: 'Dry Moisture', key: 'dryMoisture', type: 'text', placeholder: '14.2', required: true },
                 { label: 'Grains Count', key: 'grains', type: 'text', placeholder: '85', required: true },
                 { label: 'Cutting', key: 'cutting', type: 'text', placeholder: '1x', required: true },
                 { label: 'Bend', key: 'bend', type: 'text', placeholder: '1x', required: true },
                 { label: 'Mix (%)', key: 'mix', type: 'text', placeholder: '5', required: true },
-                { label: 'SMix', key: 'sMix', type: 'toggle', toggleKey: 'sMix', placeholder: '2' },
-                { label: 'LMix', key: 'lMix', type: 'toggle', toggleKey: 'lMix', placeholder: '1' },
+                { label: 'SMix', key: 'sMix', type: 'text', placeholder: '2', required: true },
+                { label: 'LMix', key: 'lMix', type: 'text', placeholder: '1', required: true },
                 { label: 'SK (%)', key: 'sk', type: 'text', placeholder: '0.5', required: true },
                 { label: 'Kandu (%)', key: 'kandu', type: 'text', placeholder: '1', required: true },
                 { label: 'Oil (%)', key: 'oil', type: 'text', placeholder: '0.5', required: true },
                 { label: 'Paddy Discolor', key: 'pColor', type: 'select', options: ['Normal Color', 'Light Discolor', 'Medium Discolor', 'Dark Discolor'] },
-                { label: 'Kadiga', key: 'kadiga', type: 'radio', radioKey: 'kadiga' },
-                { label: 'Smell', key: 'smell', type: 'smell' },
-                { label: 'Remarks', key: 'remarks', type: 'text', placeholder: 'Notes...', colSpan: true },
+                { label: 'Kadiga', key: 'kadiga', type: 'kadiga', required: true },
+                { label: 'Smell', key: 'smell', type: 'smell' }
               ].map((field) => (
-                <div key={field.key} style={{ display: 'flex', flexDirection: 'column', minHeight: '52px', gridColumn: field.colSpan ? '1 / -1' : undefined }}>
+                <div key={field.key} style={{ display: 'flex', flexDirection: 'column', minHeight: '52px' }}>
                   <label style={{ fontWeight: '600', color: '#333', fontSize: '10px', marginBottom: '2px' }}>
                     {field.label}{field.required && <span style={{ color: '#e53935' }}>*</span>}
                   </label>
-                  {field.type === 'toggle' ? (
-                    <>
-                      <div style={{ display: 'flex', gap: '6px', marginBottom: '2px' }}>
-                        {['Y', 'N'].map(v => (
-                          <label key={v} style={{ fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                            <input type="radio" name={`${field.toggleKey}_qs`} checked={inventoryQualityToggle[field.toggleKey] === v}
-                              onChange={() => { setInventoryQualityToggle(p => ({ ...p, [field.toggleKey]: v })); if (v === 'N') setInventoryQualityForm(p => ({ ...p, [field.key]: '' })); }}
-                              style={{ margin: 0 }} /> {v}
-                          </label>
-                        ))}
-                      </div>
-                      <input type="text" value={inventoryQualityForm[field.key]} onChange={(e) => setInventoryQualityForm(p => ({ ...p, [field.key]: sanitizeInventoryQualityField(field.key, e.target.value) }))}
-                        disabled={inventoryQualityToggle[field.toggleKey] === 'N'}
-                        style={{ width: '100%', padding: '4px', border: '1px solid #ccc', borderRadius: '3px', fontSize: '11px', boxSizing: 'border-box', visibility: inventoryQualityToggle[field.toggleKey] === 'Y' ? 'visible' : 'hidden' }}
-                        placeholder={field.placeholder} />
-                    </>
-                  ) : field.type === 'select' ? (
+                  {field.type === 'select' ? (
                     <select value={inventoryQualityForm[field.key]} onChange={(e) => setInventoryQualityForm(p => ({ ...p, [field.key]: e.target.value }))}
                       style={{ width: '100%', padding: '4px', border: '1px solid #ccc', borderRadius: '3px', fontSize: '11px', boxSizing: 'border-box', background: '#fff', height: '28px' }}>
                       <option value=''>Select</option>
-                      {field.options.map(o => <option key={o} value={o}>{o}</option>)}
+                      {field.options?.map(o => <option key={o} value={o}>{o}</option>)}
                     </select>
-                  ) : field.type === 'radio' ? (
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      {['Y', 'N'].map(v => (
-                        <label key={v} style={{ fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                          <input type="radio" name={`${field.radioKey}_qs`} checked={inventoryQualityToggle[field.radioKey] === v}
-                            onChange={() => { setInventoryQualityToggle(p => ({ ...p, [field.radioKey]: v })); setInventoryQualityForm(p => ({ ...p, [field.key]: v === 'Y' ? 'Y' : 'N' })); }}
-                            style={{ margin: 0 }} /> {v === 'Y' ? 'Yes' : 'No'}
+                  ) : field.type === 'kadiga' ? (
+                    <div style={{ display: 'flex', gap: '8px', height: '28px', alignItems: 'center' }}>
+                      {['Yes', 'No'].map(v => (
+                        <label key={v} style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px', fontWeight: 'normal' }}>
+                          <input type="radio" name="kadiga_qs" checked={inventoryQualityForm.kadiga === v}
+                            onChange={() => setInventoryQualityForm(p => ({ ...p, kadiga: v }))}
+                            style={{ margin: 0 }} /> {v}
                         </label>
                       ))}
                     </div>
@@ -15647,20 +14610,34 @@ const Arrivals: React.FC = () => {
                 <div>
                   <label style={{ fontWeight: '600', color: '#333', fontSize: '10px' }}>Paddy WB</label>
                   <div style={{ display: 'flex', gap: '6px', marginBottom: '2px' }}>
-                    {['Y', 'N'].map(v => (
+                    {['Yes', 'No'].map(v => (
                       <label key={v} style={{ fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                        <input type="radio" name="paddyWb_qs" checked={inventoryQualityToggle.paddyWb === v}
-                          onChange={() => { setInventoryQualityToggle(p => ({ ...p, paddyWb: v })); if (v === 'N') setInventoryQualityForm(p => ({ ...p, paddyWb: '' })); }}
+                        <input type="radio" name="paddyWbHas_qs" checked={(v === 'Yes' && inventoryQualityToggle.paddyWb !== 'No') || (v === 'No' && inventoryQualityToggle.paddyWb === 'No')}
+                          onChange={() => {
+                            setInventoryQualityToggle(p => ({ ...p, paddyWb: v }));
+                            if (v === 'No') {
+                              setInventoryQualityForm(p => ({ ...p, paddyWb: '' }));
+                            }
+                          }}
                           style={{ margin: 0 }} /> {v}
                       </label>
                     ))}
                   </div>
-                  <input type="number" step="0.01" value={inventoryQualityForm.paddyWb} onChange={(e) => setInventoryQualityForm(p => ({ ...p, paddyWb: sanitizeInventoryQualityField('paddyWb', e.target.value) }))}
-                    disabled={inventoryQualityToggle.paddyWb === 'N'}
-                    style={{ width: '100%', padding: '3px', border: '1px solid #ccc', borderRadius: '3px', fontSize: '10px', boxSizing: 'border-box', visibility: inventoryQualityToggle.paddyWb === 'Y' ? 'visible' : 'hidden' }}
-                    placeholder="Val" />
+                  {(inventoryQualityToggle.paddyWb !== 'No') && (
+                    <input type="number" step="0.01" value={inventoryQualityForm.paddyWb} onChange={(e) => setInventoryQualityForm(p => ({ ...p, paddyWb: sanitizeInventoryQualityField('paddyWb', e.target.value) }))}
+                      style={{ width: '100%', padding: '4px', border: '1px solid #ccc', borderRadius: '3px', fontSize: '10px', boxSizing: 'border-box' }}
+                      placeholder="Val" />
+                  )}
                 </div>
               </div>
+            </div>
+
+            {/* Remarks */}
+            <div style={{ display: 'flex', flexDirection: 'column', marginTop: '8px' }}>
+              <label style={{ fontWeight: '600', color: '#333', fontSize: '10px', marginBottom: '2px' }}>Remarks</label>
+              <input type="text" value={inventoryQualityForm.remarks} onChange={(e) => setInventoryQualityForm(p => ({ ...p, remarks: e.target.value }))}
+                style={{ width: '100%', padding: '5px', border: '1px solid #ccc', borderRadius: '3px', fontSize: '11px', boxSizing: 'border-box' }}
+                placeholder="Notes..." />
             </div>
 
             {/* Reported By */}
