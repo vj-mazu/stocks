@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center align-items-center min-vh-80 animate__animated animate__fadeIn">
+  <div class="col-md-7">
+    <div class="card shadow-lg border-0 p-4 animate__animated animate__zoomIn">
+      <div class="text-center mb-3">
+        <img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=facearea&w=400&q=80" class="rounded-circle mb-2" style="width:80px; box-shadow:0 2px 8px #0002;" alt="register image">
+        <h2 class="fw-bold mb-2" style="color:#1976d2;">
+          <i class="bi bi-pencil-square"></i> Register
+        </h2>
+        <p class="text-secondary mb-2">Create your <b>Warehouse Management</b> account</p>
+      </div>
+      <form method="POST" autocomplete="off">
+        <div class="mb-3">
+          <input type="text" name="username" class="form-control form-control-lg shadow-sm" placeholder="Username (letters only)" required autofocus>
+        </div>
+        <div class="mb-3">
+          <input type="password" name="password" class="form-control form-control-lg shadow-sm" placeholder="Password (8+ chars, letters & digits)" required>
+        </div>
+        <div class="mb-3">
+          <select name="role" class="form-select form-select-lg shadow-sm" required>
+            <option value="">Select Role</option>
+            <option value="admin">Admin</option>
+            <option value="staff">Staff</option>
+          </select>
+        </div>
+        <button class="btn btn-success btn-lg w-100 ripple" type="submit">
+          <i class="bi bi-person-plus"></i> Register
+        </button>
+      </form>
+      <div class="mt-3 text-center">
+        <span>Already have an account? <a href="{{ url_for('login') }}" class="text-decoration-none">Login</a></span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

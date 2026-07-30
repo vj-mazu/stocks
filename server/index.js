@@ -302,6 +302,15 @@ const startServer = async () => {
       console.warn('⚠️ Column alteration warning (weight_bridges location):', e.message);
     }
 
+    // Ensure inventory_quality_parameters table exists
+    try {
+      const { InventoryQualityParameter } = require('./models');
+      await InventoryQualityParameter.sync({ alter: false });
+      console.log('✅ inventory_quality_parameters table ensured.');
+    } catch (e) {
+      console.warn('⚠️ inventory_quality_parameters table sync warning:', e.message);
+    }
+
     // Ensure kadiga column exists in inventory_quality_parameters
     try {
       await sequelize.query('ALTER TABLE inventory_quality_parameters ADD COLUMN IF NOT EXISTS kadiga VARCHAR(30);');

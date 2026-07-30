@@ -1,0 +1,118 @@
+<div class="row justify-content-center mt-4 animate__animated animate__fadeIn">
+  <div class="col-lg-11">
+    <div class="card shadow-lg border-0">
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-striped table-hover align-middle mb-0">
+            <thead class="table-primary text-center">
+              <tr>
+                <th><i class="bi bi-file-earmark-text"></i> Bill #</th>
+                <th><i class="bi bi-truck"></i> Vehicle #</th>
+                <th><i class="bi bi-person"></i> Shipper</th>
+                <th><i class="bi bi-bar-chart"></i> Weight (kg)</th>
+                <th><i class="bi bi-box-seam"></i> Item Name</th>
+                <th><i class="bi bi-geo-alt"></i> City From</th>
+                <th><i class="bi bi-droplet-half"></i> Waste</th>
+                <th><i class="bi bi-cash-coin"></i> Gaging Cost</th>
+                <th><i class="bi bi-person-badge"></i> Customer</th>
+                <th><i class="bi bi-geo"></i> Destination</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in items %}
+              <tr class="table-row-transition text-center">
+                <td class="fw-bold">{{ item.bill_number }}</td>
+                <td>{{ item.vehicle_number }}</td>
+                <td>{{ item.shipper_name }}</td>
+                <td>{{ item.weight }}</td>
+                <td>
+                  <span class="d-flex align-items-center justify-content-center gap-2">
+                    <i class="bi bi-box-seam text-primary"></i> {{ item.item_name }}
+                  </span>
+                </td>
+                <td>{{ item.city_from }}</td>
+                <td>
+                  {% if gaging.get(item.bill_number) %}
+                  <span class="badge bg-info bg-opacity-25 text-info">{{ gaging[item.bill_number].waste_weight }}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if gaging.get(item.bill_number) %}
+                  <span class="badge bg-success bg-opacity-25 text-success">{{ gaging[item.bill_number].gaging_cost }}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if dispatches.get(item.bill_number) %}
+                  <span class="badge bg-warning bg-opacity-25 text-dark">{{ dispatches[item.bill_number].customer_name }}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if dispatches.get(item.bill_number) %}
+                  <span class="badge bg-secondary bg-opacity-25 text-dark">{{ dispatches[item.bill_number].destination_place }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="10" class="text-center text-muted">No items found. Add some items!</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<table class="table table-striped table-hover align-middle mb-0">
+  <thead class="table-primary text-center">
+    <tr>
+      <th><i class="bi bi-file-earmark-text"></i> Bill #</th>
+      <th><i class="bi bi-truck"></i> Vehicle #</th>
+      <th><i class="bi bi-person"></i> Shipper</th>
+      <th><i class="bi bi-bar-chart"></i> Weight (kg)</th>
+      <th><i class="bi bi-box-seam"></i> Item Name</th>
+      <th><i class="bi bi-geo-alt"></i> City From</th>
+      <th><i class="bi bi-droplet-half"></i> Waste</th>
+      <th><i class="bi bi-cash-coin"></i> Gaging Cost</th>
+      <th><i class="bi bi-person-badge"></i> Customer</th>
+      <th><i class="bi bi-geo"></i> Destination</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in items %}
+    <tr class="table-row-transition text-center">
+      <td class="fw-bold">{{ item.bill_number }}</td>
+      <td>{{ item.vehicle_number }}</td>
+      <td>{{ item.shipper_name }}</td>
+      <td>{{ item.weight }}</td>
+      <td>
+        <span class="d-flex align-items-center justify-content-center gap-2">
+          <i class="bi bi-box-seam text-primary"></i> {{ item.item_name }}
+        </span>
+      </td>
+      <td>{{ item.city_from }}</td>
+      <td>
+        {% if gaging.get(item.bill_number) %}
+        <span class="badge bg-info bg-opacity-25 text-info">{{ gaging[item.bill_number].waste_weight }}</span>
+        {% else %}-{% endif %}
+      </td>
+      <td>
+        {% if gaging.get(item.bill_number) %}
+        <span class="badge bg-success bg-opacity-25 text-success">{{ gaging[item.bill_number].gaging_cost }}</span>
+        {% else %}-{% endif %}
+      </td>
+      <td>
+        {% if dispatches.get(item.bill_number) %}
+        <span class="badge bg-warning bg-opacity-25 text-dark">{{ dispatches[item.bill_number].customer_name }}</span>
+        {% else %}-{% endif %}
+      </td>
+      <td>
+        {% if dispatches.get(item.bill_number) %}
+        <span class="badge bg-secondary bg-opacity-25 text-dark">{{ dispatches[item.bill_number].destination_place }}</span>
+        {% else %}-{% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="10" class="text-center text-muted">No items found. Add some items!</td></tr>
+    {% endfor %}
+  </tbody>
+</table>

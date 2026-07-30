@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center align-items-center min-vh-80 animate__animated animate__fadeIn">
+  <div class="col-md-8">
+    <div class="card shadow-lg border-0 p-4 animate__animated animate__zoomIn">
+      <div class="text-center mb-3">
+        <img src="https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=facearea&w=400&q=80" class="rounded mb-2" style="width:90px; box-shadow:0 2px 8px #0002;" alt="add item image">
+        <h2 class="fw-bold mb-2" style="color:#1976d2;">
+          <i class="bi bi-box-seam"></i> Add Item
+        </h2>
+        <p class="text-secondary mb-2">Enter new item details</p>
+      </div>
+      <form method="POST" autocomplete="off">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <input type="text" name="vehicle_number" class="form-control form-control-lg shadow-sm" placeholder="Vehicle Number (e.g., KA01AB1234)" required>
+          </div>
+          <div class="col-md-6">
+            <input type="text" name="bill_number" class="form-control form-control-lg shadow-sm" placeholder="Bill Number" required>
+          </div>
+          <div class="col-md-6">
+            <input type="text" name="shipper_name" class="form-control form-control-lg shadow-sm" placeholder="Shipper Name" required>
+          </div>
+          <div class="col-md-6">
+            <input type="text" name="weight" class="form-control form-control-lg shadow-sm" placeholder="Weight (e.g., 1000 kg or 1.5 ton)" required>
+          </div>
+          <div class="col-md-6">
+            <input type="text" name="item_name" class="form-control form-control-lg shadow-sm" placeholder="Item Name" required>
+          </div>
+          <div class="col-md-6">
+            <input type="text" name="city_from" class="form-control form-control-lg shadow-sm" placeholder="City From" required>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-lg mt-4 w-100 ripple" type="submit">
+          <i class="bi bi-plus-circle"></i> Add Item
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
