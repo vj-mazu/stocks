@@ -7013,7 +7013,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                          <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Mill WB Name (Mandatory)</label>
+                                          <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Mill WB Name <span style={{ color: '#ef4444' }}>*</span></label>
 
 
 
@@ -7546,7 +7546,11 @@ const Arrivals: React.FC = () => {
 
 
 
-                                              toast.success('Weight Bridge saved & submitted for approval!');
+                                               if (savedStatus === 'approved') {
+                                                 toast.success('Weight Bridge saved & approved successfully!');
+                                               } else {
+                                                 toast.success('Weight Bridge saved & submitted for approval!');
+                                               }
 
 
 
@@ -9516,7 +9520,7 @@ const Arrivals: React.FC = () => {
                                     />
                                   </div>
                                   <div>
-                                    <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Mill WB Name (Mandatory)</label>
+                                    <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Mill WB Name <span style={{ color: '#ef4444' }}>*</span></label>
                                     <select 
                                       value={millWbId}
                                       onChange={(e) => setMillWbId(e.target.value)}
@@ -9721,7 +9725,11 @@ const Arrivals: React.FC = () => {
                                             return item;
                                           }));
 
-                                          toast.success('Weight Bridge saved & submitted for approval!');
+                                           if (savedStatus === 'approved') {
+                                             toast.success('Weight Bridge saved & approved successfully!');
+                                           } else {
+                                             toast.success('Weight Bridge saved & submitted for approval!');
+                                           }
                                           setSelectedLorryForWB(null);
                                           setSelectedLorryInspection(null);
                                           fetchBandMalalEntries();
