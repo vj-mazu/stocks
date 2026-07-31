@@ -14221,13 +14221,12 @@ const Arrivals: React.FC = () => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', background: '#f8fafc', padding: '10px', borderRadius: '8px' }}>
                 <div style={{ gridColumn: 'span 2', fontWeight: 'bold', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px', color: '#1a237e' }}>🏭 Mill Weighbridge Details</div>
                 <div><strong>WB Number:</strong> {wbConfirmDialog.detail?.wbNo || '-'}</div>
-                <div><strong>Mill WB:</strong> {wbConfirmDialog.detail?.millWbId ? 'Selected' : '-'}</div>
+                <div><strong>Mill WB:</strong> {wbConfirmDialog.detail?.wbInputType === 'party' ? (wbConfirmDialog.detail?.partyWbName || '-') : (millWBList.find(w => String(w.id) === String(wbConfirmDialog.detail?.millWbId))?.name || wbConfirmDialog.detail?.millWeightBridge?.name || '-')}</div>
                 <div><strong>Gross Wt:</strong> {wbConfirmDialog.detail?.grossWeight || '-'} Kg</div>
                 <div><strong>Tare Wt:</strong> {wbConfirmDialog.detail?.tareWeight || '-'} Kg</div>
                 <div><strong>Net Wt:</strong> {wbConfirmDialog.detail?.netWeight || '-'} Kg</div>
                 <div><strong>Sute:</strong> {wbConfirmDialog.detail?.sute || '-'} Kg</div>
                 <div><strong>Date:</strong> {wbConfirmDialog.detail?.wbDate || '-'}</div>
-                <div><strong>Party WB:</strong> {wbConfirmDialog.detail?.partyWbName || '-'}</div>
                 
                 {wbConfirmDialog.detail?.partyWbEnabled === 'yes' && (
                   <>
