@@ -6971,7 +6971,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px', marginBottom: '14px' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '14px' }}>
 
                                       <div>
 
@@ -7514,7 +7514,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                            const responseDetail = response?.data?.detail || response?.data || {};
+                                            const responseDetail = response?.data?.detail || response?.data?.entry || response?.data || {};
 
 
 
@@ -9536,7 +9536,7 @@ const Arrivals: React.FC = () => {
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
                                   <h4 style={{ margin: 0, color: '#0f172a', fontSize: '13px', fontWeight: 'bold' }}>⚖️ Add Weight Bridge for {(entry.lorryNumber || 'N/A').toUpperCase()}</h4>
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px', marginBottom: '14px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '14px' }}>
                                   <div>
                                     <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Date</label>
                                     <input
@@ -9739,7 +9739,7 @@ const Arrivals: React.FC = () => {
                                           headers: { Authorization: `Bearer ${token}` }
                                         });
 
-                                        const responseDetail = response?.data?.detail || response?.data || {};
+                                        const responseDetail = response?.data?.detail || response?.data?.entry || response?.data || {};
                                         const savedStatus = wbInputType === 'party' ? 'approved' : (responseDetail?.wbStatus || response?.data?.wbStatus || 'pending');
                                         const savedWbNo = responseDetail?.wbNo || response?.data?.wbNo || wbNumber;
                                         const savedNetWeight = responseDetail?.netWeight ?? response?.data?.netWeight ?? Number(wbNetWeight);
