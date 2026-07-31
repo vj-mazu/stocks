@@ -6755,11 +6755,19 @@ const Arrivals: React.FC = () => {
 
                               {/* 2. Mill WB Name */}
                               <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: '#0369a1' }}>
-                                {transitDetail?.partyWbName ? (
-                                  <span style={{ fontWeight: 'bold', color: '#0369a1' }}>{transitDetail.partyWbName}</span>
+                                {transitDetail?.wbInputType === 'party' ? (
+                                  transitDetail.partyWbName ? (
+                                    <span style={{ fontWeight: 'bold', color: '#0369a1' }}>{transitDetail.partyWbName}</span>
+                                  ) : (
+                                    <span style={{ color: '#94a3b8' }}>-</span>
+                                  )
                                 ) : (
-                                  <span style={{ color: '#94a3b8' }}>-</span>
-                                ) }
+                                  (transitDetail?.millWeightBridge?.name || millWBList.find(w => String(w.id) === String(transitDetail?.millWbId))?.name) ? (
+                                    <span style={{ fontWeight: 'bold', color: '#0369a1' }}>{transitDetail?.millWeightBridge?.name || millWBList.find(w => String(w.id) === String(transitDetail?.millWbId))?.name}</span>
+                                  ) : (
+                                    <span style={{ color: '#94a3b8' }}>-</span>
+                                  )
+                                )}
                               </td>
 
                               {/* 3. Net Weight */}
@@ -6971,7 +6979,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(9, 1fr)', gap: '12px', marginBottom: '14px' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '14px' }}>
 
                                       <div>
 
@@ -7302,6 +7310,88 @@ const Arrivals: React.FC = () => {
                                             )}
                                           </div>
                                         </div>
+                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', justifyContent: 'flex-end', height: '100%', paddingBottom: '2px' }}>
+                                          <button 
+                                            onClick={() => { setSelectedLorryForWB(null); setPartyWbNo(''); setPartyWbDate(new Date().toISOString().split('T')[0]); setPartyGrossWeight(''); setPartyTareWeight(''); setPartyNetWeight(''); setPartySute(''); }}
+                                            style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #cbd5e1', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
+                                          >
+                                            Cancel
+                                          </button>
+                                          <button 
+                                            onClick={async () => {
+                                              if (!wbNumber || !millWbId) {
+                                                toast.error('Please fill required fields (WB Number & Mill/Party WB Name)');
+                                                return;
+                                              }
+                                              if (!wbGrossWeight || !wbTareWeight) {
+                                                toast.error('Please enter both Gross Weight and Tare Weight');
+                                                return;
+                                              }
+                                              if (parseFloat(wbGrossWeight) <= parseFloat(wbTareWeight)) {
+                                                toast.error('Gross Weight must be strictly greater than Tare Weight');
+                                                return;
+                                              }
+                                              try {
+                                                const token = localStorage.getItem('token');
+                                                const response = await axios.post(`${API_URL}/arrivals/${selectedLorryInspection.id}/wb`, {
+                                                  wbInputType: 'mill',
+                                                  millWbId: millWbId ? Number(millWbId) : null,
+                                                  partyWbName: partyWbEnabled === 'yes' ? partyWbName : null,
+                                                  wbNo: wbNumber,                                               
+                                                  grossWeight: Number(wbGrossWeight),
+                                                  tareWeight: Number(wbTareWeight),
+                                                  netWeight: wbNetWeight,
+                                                  sute: wbSute || null,
+                                                  partyWbEnabled: partyWbEnabled || null,
+                                                  wbDate: wbDate || null,
+                                                  partyGrossWeight: partyWbEnabled === 'yes' && partyGrossWeight ? Number(partyGrossWeight) : null,
+                                                  partyTareWeight: partyWbEnabled === 'yes' && partyTareWeight ? Number(partyTareWeight) : null,
+                                                  partyNetWeight: partyWbEnabled === 'yes' && partyNetWeight ? Number(partyNetWeight) : null,
+                                                  partySute: partyWbEnabled === 'yes' && partySute ? Number(partySute) : null,
+                                                  partyWbNo: partyWbEnabled === 'yes' ? partyWbNo : null,
+                                                  partyWbDate: partyWbEnabled === 'yes' ? partyWbDate : null
+                                                }, {
+                                                  headers: { Authorization: `Bearer ${token}` }
+                                                });
+
+                                                const responseDetail = response?.data?.detail || response?.data?.entry || response?.data || {};
+                                                const savedStatus = wbInputType === 'party' ? 'approved' : (responseDetail?.wbStatus || response?.data?.wbStatus || 'pending');
+                                                const savedWbNo = responseDetail?.wbNo || response?.data?.wbNo || wbNumber;
+                                                const savedNetWeight = responseDetail?.netWeight ?? response?.data?.netWeight ?? wbNetWeight;
+
+                                                try {
+                                                  setInTransitEntries(prev => applyWbSaveToEntries(prev, selectedLorryInspection?.id ?? entry.id, {
+                                                    wbStatus: savedStatus,
+                                                    wbNo: savedWbNo,
+                                                    netWeight: savedNetWeight,
+                                                    partyWbName: wbInputType === 'party' ? partyWbName : (responseDetail?.partyWbName || undefined),
+                                                    wbInputType: 'mill',
+                                                    millWbId: wbInputType === 'mill' ? Number(millWbId) : undefined,
+                                                    grossWeight: Number(wbGrossWeight),
+                                                    tareWeight: Number(wbTareWeight)
+                                                  }));
+                                                } catch (reactErr) {
+                                                  console.error('In-Transit state update error:', reactErr);
+                                                }
+
+                                                if (savedStatus === 'approved') {
+                                                  toast.success('Weight Bridge saved & approved successfully!');
+                                                } else {
+                                                  toast.success('Weight Bridge saved & submitted for approval!');
+                                                }
+
+                                                setSelectedLorryForWB(null);
+                                                setSelectedLorryInspection(null);
+                                                fetchInTransitEntries();
+                                              } catch (error: any) {
+                                                toast.error(error.response?.data?.error || 'Failed to submit WB');
+                                              }
+                                            }}
+                                            style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', border: 'none', borderRadius: '4px', background: '#1e3a8a', color: '#fff', cursor: 'pointer' }}
+                                          >
+                                            Save Weight Bridge
+                                          </button>
+                                        </div>
 
                                     </div>
 
@@ -7359,302 +7449,6 @@ const Arrivals: React.FC = () => {
                                     )}
 
 
-
-                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-
-
-
-                                      <button 
-
-
-
-                                        onClick={() => { setSelectedLorryForWB(null); setPartyWbNo(''); setPartyWbDate(new Date().toISOString().split('T')[0]); setPartyGrossWeight(''); setPartyTareWeight(''); setPartyNetWeight(''); setPartySute(''); }}
-
-
-
-                                        style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #cbd5e1', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
-
-
-
-                                      >
-
-
-
-                                        Cancel
-
-
-
-                                      </button>
-
-
-
-                                      <button 
-
-
-
-                                        onClick={async () => {
-
-
-
-                                          if (!wbNumber || !millWbId) {
-
-
-
-                                            toast.error('Please fill required fields (WB Number & Mill/Party WB Name)');
-
-
-
-                                            return;
-
-
-
-                                          }
-
-
-
-                                          if (!wbGrossWeight || !wbTareWeight) {
-
-
-
-                                            toast.error('Please enter both Gross Weight and Tare Weight');
-
-
-
-                                            return;
-
-
-
-                                          }
-
-
-
-                                          if (parseFloat(wbGrossWeight) <= parseFloat(wbTareWeight)) {
-
-
-
-                                            toast.error('Gross Weight must be strictly greater than Tare Weight');
-
-
-
-                                            return;
-
-
-
-                                          }
-
-
-
-                                          try {
-
-
-
-                                            const token = localStorage.getItem('token');
-
-
-
-                                            const response = await axios.post(`${API_URL}/arrivals/${selectedLorryInspection.id}/wb`, {
-
-
-
-                                              wbInputType: 'mill',
-
-
-
-                                              millWbId: millWbId ? Number(millWbId) : null,
-
-
-
-                                              partyWbName: partyWbEnabled === 'yes' ? partyWbName : null,
-
-
-
-                                              wbNo: wbNumber,                                               
-
-
-
-                                              grossWeight: wbGrossWeight,
-
-
-
-                                              tareWeight: wbTareWeight,
-
-
-
-                                              netWeight: wbNetWeight,
-
-
-
-                                              sute: wbSute || null,
-
-
-
-                                              partyWbEnabled: partyWbEnabled || null,
-
-
-
-                                              wbDate: wbDate || null,
-                                           partyGrossWeight: partyWbEnabled === 'yes' && partyGrossWeight ? Number(partyGrossWeight) : null,
-                                           partyTareWeight: partyWbEnabled === 'yes' && partyTareWeight ? Number(partyTareWeight) : null,
-                                           partyNetWeight: partyWbEnabled === 'yes' && partyNetWeight ? Number(partyNetWeight) : null,
-                                           partySute: partyWbEnabled === 'yes' && partySute ? Number(partySute) : null,
-                                           partyWbNo: partyWbEnabled === 'yes' ? partyWbNo : null,
-                                           partyWbDate: partyWbEnabled === 'yes' ? partyWbDate : null
-
-
-
-                                             }, {
-
-
-
-                                              headers: { Authorization: `Bearer ${token}` }
-
-
-
-                                            });
-
-
-
-                                            const responseDetail = response?.data?.detail || response?.data?.entry || response?.data || {};
-
-
-
-                                            const savedStatus = wbInputType === 'party' ? 'approved' : (responseDetail?.wbStatus || response?.data?.wbStatus || 'pending');
-
-
-
-                                            const savedWbNo = responseDetail?.wbNo || response?.data?.wbNo || wbNumber;
-
-
-
-                                            const savedNetWeight = responseDetail?.netWeight ?? response?.data?.netWeight ?? wbNetWeight;
-
-
-
-                                            // Post-save processing (separate try-catch to avoid misleading 'save failed' toast)
-
-
-
-                                            try {
-
-
-
-                                              setInTransitEntries(prev => applyWbSaveToEntries(prev, selectedLorryInspection?.id ?? entry.id, {
-
-
-
-                                                wbStatus: savedStatus,
-
-
-
-                                                wbNo: savedWbNo,
-
-
-
-                                                netWeight: savedNetWeight,
-
-
-
-                                                partyWbName: wbInputType === 'party' ? partyWbName : (responseDetail?.partyWbName || undefined),
-
-
-
-                                                wbInputType: 'mill',
-
-
-
-                                                millWbId: wbInputType === 'mill' ? millWbId : undefined,
-
-
-
-                                                grossWeight: wbGrossWeight,
-
-
-
-                                                tareWeight: wbTareWeight
-
-
-
-                                              }));
-
-
-
-                                               if (savedStatus === 'approved') {
-                                                 toast.success('Weight Bridge saved & approved successfully!');
-                                               } else {
-                                                 toast.success('Weight Bridge saved & submitted for approval!');
-                                               }
-
-
-
-                                              setSelectedLorryForWB(null);
-
-
-
-                                              setSelectedLorryEntries([]);
-
-
-
-                                              setSelectedLorryInspection(null);
-
-
-
-                                              fetchInTransitEntries();
-
-
-
-                                            } catch (postErr: any) {
-
-
-
-                                              console.error('Post-save state update error:', postErr);
-
-
-
-                                              // Don't show "Failed to save" - save actually succeeded
-
-
-
-                                            }
-
-
-
-                                          } catch (err: any) {
-
-
-
-                                            console.error('WB save error:', err);
-
-
-
-                                            toast.error(err.response?.data?.error || 'Failed to save Weight Bridge');
-
-
-
-                                          }
-
-
-
-                                        }}
-
-
-
-                                        style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', border: 'none', borderRadius: '4px', background: '#1a237e', color: '#fff', cursor: 'pointer' }}
-
-
-
-                                      >
-
-
-
-                                        Save Weight Bridge
-
-
-
-                                      </button>
-
-
-
-                                    </div>
 
 
 
@@ -9221,10 +9015,18 @@ const Arrivals: React.FC = () => {
 
                            {/* Column 11b: Mill WB Name */}
                            <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: '#0369a1' }}>
-                             {entry.partyWbName ? (
-                               <span style={{ fontWeight: 'bold', color: '#0369a1' }}>{entry.partyWbName}</span>
+                             {entry.wbInputType === 'party' ? (
+                               entry.partyWbName ? (
+                                 <span style={{ fontWeight: 'bold', color: '#0369a1' }}>{entry.partyWbName}</span>
+                               ) : (
+                                 <span style={{ color: '#94a3b8' }}>-</span>
+                               )
                              ) : (
-                               <span style={{ color: '#94a3b8' }}>-</span>
+                               (entry.millWeightBridge?.name || millWBList.find(w => String(w.id) === String(entry.millWbId))?.name) ? (
+                                 <span style={{ fontWeight: 'bold', color: '#0369a1' }}>{entry.millWeightBridge?.name || millWBList.find(w => String(w.id) === String(entry.millWbId))?.name}</span>
+                               ) : (
+                                 <span style={{ color: '#94a3b8' }}>-</span>
+                               )
                              )}
                            </td>
                            
@@ -9536,7 +9338,7 @@ const Arrivals: React.FC = () => {
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
                                   <h4 style={{ margin: 0, color: '#0f172a', fontSize: '13px', fontWeight: 'bold' }}>⚖️ Add Weight Bridge for {(entry.lorryNumber || 'N/A').toUpperCase()}</h4>
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(9, 1fr)', gap: '12px', marginBottom: '14px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '14px' }}>
                                   <div>
                                     <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Date</label>
                                     <input
@@ -9640,6 +9442,94 @@ const Arrivals: React.FC = () => {
                                       )}
                                     </div>
                                   </div>
+                                  <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', justifyContent: 'flex-end', height: '100%', paddingBottom: '2px' }}>
+                                    <button 
+                                      onClick={() => { setSelectedLorryForWB(null); setSelectedLorryInspection(null); }}
+                                      style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #cbd5e1', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button 
+                                      onClick={async () => {
+                                        if (!wbNumber || !millWbId) {
+                                          toast.error('Please fill required fields (WB Number & Mill/Party WB Name)');
+                                          return;
+                                        }
+                                        if (!wbGrossWeight || !wbTareWeight) {
+                                          toast.error('Please enter both Gross Weight and Tare Weight');
+                                          return;
+                                        }
+                                        if (parseFloat(wbGrossWeight) <= parseFloat(wbTareWeight)) {
+                                          toast.error('Gross Weight must be strictly greater than Tare Weight');
+                                          return;
+                                        }
+                                        try {
+                                          const token = localStorage.getItem('token');
+                                          const response = await axios.post(`${API_URL}/arrivals/${entry.id}/wb`, {
+                                            wbInputType: 'mill',
+                                            millWbId: millWbId ? Number(millWbId) : null,
+                                            partyWbName: partyWbEnabled === 'yes' ? partyWbName : null,
+                                            wbNo: wbNumber,
+                                            grossWeight: Number(wbGrossWeight),
+                                            tareWeight: Number(wbTareWeight),
+                                            netWeight: Number(wbNetWeight),
+                                            sute: Number(wbSute) || null,
+                                            partyWbEnabled: partyWbEnabled || null,
+                                            wbDate: wbDate || null,
+                                            partyGrossWeight: partyWbEnabled === 'yes' && partyGrossWeight ? Number(partyGrossWeight) : null,
+                                            partyTareWeight: partyWbEnabled === 'yes' && partyTareWeight ? Number(partyTareWeight) : null,
+                                            partyNetWeight: partyWbEnabled === 'yes' && partyNetWeight ? Number(partyNetWeight) : null,
+                                            partySute: partyWbEnabled === 'yes' && partySute ? Number(partySute) : null,
+                                            partyWbNo: partyWbEnabled === 'yes' ? partyWbNo : null,
+                                            partyWbDate: partyWbEnabled === 'yes' ? partyWbDate : null
+                                          }, {
+                                            headers: { Authorization: `Bearer ${token}` }
+                                          });
+
+                                          const responseDetail = response?.data?.detail || response?.data?.entry || response?.data || {};
+                                          const savedStatus = wbInputType === 'party' ? 'approved' : (responseDetail?.wbStatus || response?.data?.wbStatus || 'pending');
+                                          const savedWbNo = responseDetail?.wbNo || response?.data?.wbNo || wbNumber;
+                                          const savedNetWeight = responseDetail?.netWeight ?? response?.data?.netWeight ?? Number(wbNetWeight);
+
+                                          try {
+                                            setBandMalalEntries(prev => prev.map(item => {
+                                              if (String(item.id) === String(entry.id)) {
+                                                return {
+                                                  ...item,
+                                                  wbStatus: savedStatus,
+                                                  wbNo: savedWbNo,
+                                                  netWeight: savedNetWeight,
+                                                  partyWbName: wbInputType === 'party' ? partyWbName : (responseDetail?.partyWbName || undefined),
+                                                  wbInputType: 'mill',
+                                                  millWbId: wbInputType === 'mill' ? Number(millWbId) : undefined,
+                                                  grossWeight: Number(wbGrossWeight),
+                                                  tareWeight: Number(wbTareWeight)
+                                                };
+                                              }
+                                              return item;
+                                            }));
+                                          } catch (reactErr) {
+                                            console.error('BMB state update error:', reactErr);
+                                          }
+
+                                          if (savedStatus === 'approved') {
+                                            toast.success('Weight Bridge saved & approved successfully!');
+                                          } else {
+                                            toast.success('Weight Bridge saved & submitted for approval!');
+                                          }
+
+                                          setSelectedLorryForWB(null);
+                                          setSelectedLorryInspection(null);
+                                          fetchBandMalalEntries();
+                                        } catch (error: any) {
+                                          toast.error(error.response?.data?.error || 'Failed to submit WB');
+                                        }
+                                      }}
+                                      style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', border: 'none', borderRadius: '4px', background: '#1e3a8a', color: '#fff', cursor: 'pointer' }}
+                                    >
+                                      Save Weight Bridge
+                                    </button>
+                                  </div>
                                 </div>
 
                                 {partyWbEnabled === 'yes' && (
@@ -9695,93 +9585,7 @@ const Arrivals: React.FC = () => {
                                   </div>
                                 )}
 
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                                  <button 
-                                    onClick={() => { setSelectedLorryForWB(null); setSelectedLorryInspection(null); }}
-                                    style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #cbd5e1', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
-                                  >
-                                    Cancel
-                                  </button>
-                                  <button 
-                                    onClick={async () => {
-                                      if (!wbNumber || !millWbId) {
-                                        toast.error('Please fill required fields (WB Number & Mill/Party WB Name)');
-                                        return;
-                                      }
-                                      if (!wbGrossWeight || !wbTareWeight) {
-                                        toast.error('Please enter both Gross Weight and Tare Weight');
-                                        return;
-                                      }
-                                      if (parseFloat(wbGrossWeight) <= parseFloat(wbTareWeight)) {
-                                        toast.error('Gross Weight must be strictly greater than Tare Weight');
-                                        return;
-                                      }
-                                      try {
-                                        const token = localStorage.getItem('token');
-                                        const response = await axios.post(`${API_URL}/arrivals/${entry.id}/wb`, {
-                                          wbInputType: 'mill',
-                                          millWbId: millWbId ? Number(millWbId) : null,
-                                          partyWbName: partyWbEnabled === 'yes' ? partyWbName : null,
-                                          wbNo: wbNumber,
-                                          grossWeight: Number(wbGrossWeight),
-                                          tareWeight: Number(wbTareWeight),
-                                          netWeight: Number(wbNetWeight),
-                                          sute: Number(wbSute) || null,
-                                          partyWbEnabled: partyWbEnabled || null,
-                                          wbDate: wbDate || null,
-                                          partyGrossWeight: partyWbEnabled === 'yes' && partyGrossWeight ? Number(partyGrossWeight) : null,
-                                          partyTareWeight: partyWbEnabled === 'yes' && partyTareWeight ? Number(partyTareWeight) : null,
-                                          partyNetWeight: partyWbEnabled === 'yes' && partyNetWeight ? Number(partyNetWeight) : null,
-                                          partySute: partyWbEnabled === 'yes' && partySute ? Number(partySute) : null,
-                                          partyWbNo: partyWbEnabled === 'yes' ? partyWbNo : null,
-                                          partyWbDate: partyWbEnabled === 'yes' ? partyWbDate : null
-                                        }, {
-                                          headers: { Authorization: `Bearer ${token}` }
-                                        });
 
-                                        const responseDetail = response?.data?.detail || response?.data?.entry || response?.data || {};
-                                        const savedStatus = wbInputType === 'party' ? 'approved' : (responseDetail?.wbStatus || response?.data?.wbStatus || 'pending');
-                                        const savedWbNo = responseDetail?.wbNo || response?.data?.wbNo || wbNumber;
-                                        const savedNetWeight = responseDetail?.netWeight ?? response?.data?.netWeight ?? Number(wbNetWeight);
-
-                                        try {
-                                          setBandMalalEntries(prev => prev.map(item => {
-                                            if (String(item.id) === String(entry.id)) {
-                                              return {
-                                                ...item,
-                                                wbStatus: savedStatus,
-                                                wbNo: savedWbNo,
-                                                netWeight: savedNetWeight,
-                                                partyWbName: wbInputType === 'party' ? partyWbName : (responseDetail?.partyWbName || undefined),
-                                                wbInputType: 'mill',
-                                                millWbId: wbInputType === 'mill' ? Number(millWbId) : undefined,
-                                                grossWeight: Number(wbGrossWeight),
-                                                tareWeight: Number(wbTareWeight)
-                                              };
-                                            }
-                                            return item;
-                                          }));
-
-                                           if (savedStatus === 'approved') {
-                                             toast.success('Weight Bridge saved & approved successfully!');
-                                           } else {
-                                             toast.success('Weight Bridge saved & submitted for approval!');
-                                           }
-                                          setSelectedLorryForWB(null);
-                                          setSelectedLorryInspection(null);
-                                          fetchBandMalalEntries();
-                                        } catch (postErr: any) {
-                                          console.error('Post-save state update error:', postErr);
-                                        }
-                                      } catch (err: any) {
-                                        toast.error(err.response?.data?.error || 'Failed to save Weight Bridge');
-                                      }
-                                    }}
-                                    style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', border: 'none', borderRadius: '4px', background: 'linear-gradient(135deg, #d97706, #b45309)', color: '#fff', cursor: 'pointer' }}
-                                  >
-                                    Save WB
-                                  </button>
-                                </div>
                               </div>
                             </td>
                           </tr>
