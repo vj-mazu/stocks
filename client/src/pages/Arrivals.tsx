@@ -5159,7 +5159,12 @@ const Arrivals: React.FC = () => {
 
 
       if (showToast) {
-        toast.success(response?.data?.message || 'Mill quality parameters submitted successfully');
+        const isApproved = response?.data?.qualityParam?.status === 'approved' || user?.role === 'admin';
+        if (isApproved) {
+          toast.success('Mill quality parameters saved & approved successfully!');
+        } else {
+          toast.success(response?.data?.message || 'Mill quality parameters submitted successfully');
+        }
       }
 
 
@@ -5217,7 +5222,12 @@ const Arrivals: React.FC = () => {
     }
     const success = await handleSubmitInventoryQuality(String(transitDetailId), false);
     if (!success) return;
-    toast.success('Before Unloading (Lot Avg) saved successfully.');
+    const isApproved = user?.role === 'admin';
+    if (isApproved) {
+      toast.success('Before Unloading (Lot Avg) saved & approved successfully.');
+    } else {
+      toast.success('Before Unloading (Lot Avg) saved successfully.');
+    }
     setIsQualitySamplingModalOpen(false);
     setQualitySamplingEntry(null);
     fetchInTransitEntries();
@@ -5248,7 +5258,12 @@ const Arrivals: React.FC = () => {
         // Save Lot Avg data to backend, then transition to Full Lorry
         const success = await handleSubmitInventoryQuality(String(transitDetailId), false);
         if (!success) return;
-        toast.info('Before Unloading (Lot Avg) saved. Please enter Full Lorry Avg (Gutti) parameters.');
+        const isApproved = user?.role === 'admin';
+        if (isApproved) {
+          toast.info('Before Unloading (Lot Avg) saved & approved. Please enter Full Lorry Avg (Gutti) parameters.');
+        } else {
+          toast.info('Before Unloading (Lot Avg) saved. Please enter Full Lorry Avg (Gutti) parameters.');
+        }
       } else {
         // No data entered — skip submission, will add later after Full Lorry is approved
         toast.info('Lot Avg data will be added later. Please enter Full Lorry Avg parameters now.');
@@ -8187,7 +8202,12 @@ const Arrivals: React.FC = () => {
 
 
 
-                                            toast.success('Godown submitted for approval!');
+                                            const isApproved = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'owner' || user?.role === 'ceo';
+                                             if (isApproved) {
+                                               toast.success('Godown details saved & approved successfully!');
+                                             } else {
+                                               toast.success('Godown submitted for approval!');
+                                             }
 
 
 
