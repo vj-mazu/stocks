@@ -1920,25 +1920,6 @@ const Arrivals: React.FC = () => {
   const [bmbSearchQuery, setBmbSearchQuery] = useState('');
   const [bmbPage, setBmbPage] = useState(1);
 
-  // Auto-pagination: Switch to the last page when a new entry is added
-  const prevBmbLengthRef = useRef(0);
-  useEffect(() => {
-    if (bandMalalEntries.length > prevBmbLengthRef.current) {
-      const lastPage = Math.max(1, Math.ceil(filteredBmbEntries.length / 12));
-      setBmbPage(lastPage);
-    }
-    prevBmbLengthRef.current = bandMalalEntries.length;
-  }, [bandMalalEntries.length, filteredBmbEntries.length]);
-
-  const prevTransitLengthRef = useRef(0);
-  useEffect(() => {
-    if (inTransitEntries.length > prevTransitLengthRef.current) {
-      const lastPage = Math.max(1, Math.ceil(inTransitFilteredCount / 12));
-      setInTransitPage(lastPage);
-    }
-    prevTransitLengthRef.current = inTransitEntries.length;
-  }, [inTransitEntries.length, inTransitFilteredCount]);
-
   const [selectedDetailEntry, setSelectedDetailEntry] = useState<any>(null);
   const [isQualitySamplingModalOpen, setIsQualitySamplingModalOpen] = useState(false);
   const [qualitySamplingEntry, setQualitySamplingEntry] = useState<any>(null);
@@ -4111,6 +4092,25 @@ const Arrivals: React.FC = () => {
     const start = (bmbPage - 1) * 12;
     return filteredBmbEntries.slice(start, start + 12);
   }, [filteredBmbEntries, bmbPage]);
+
+  // Auto-pagination: Switch to the last page when a new entry is added
+  const prevBmbLengthRef = useRef(0);
+  useEffect(() => {
+    if (bandMalalEntries.length > prevBmbLengthRef.current) {
+      const lastPage = Math.max(1, Math.ceil(filteredBmbEntries.length / 12));
+      setBmbPage(lastPage);
+    }
+    prevBmbLengthRef.current = bandMalalEntries.length;
+  }, [bandMalalEntries.length, filteredBmbEntries.length]);
+
+  const prevTransitLengthRef = useRef(0);
+  useEffect(() => {
+    if (inTransitEntries.length > prevTransitLengthRef.current) {
+      const lastPage = Math.max(1, Math.ceil(inTransitFilteredCount / 12));
+      setInTransitPage(lastPage);
+    }
+    prevTransitLengthRef.current = inTransitEntries.length;
+  }, [inTransitEntries.length, inTransitFilteredCount]);
 
   useEffect(() => {
     if (!isQualitySamplingModalOpen || !qualitySamplingEntry) return;
