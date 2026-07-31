@@ -6956,7 +6956,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                <td colSpan={ (((user as any)?.role === 'inventory_staff' || (user as any)?.role === 'inventory_head' || (user as any)?.effectiveRole === 'inventory_head' || (user as any)?.role === 'ceo' || (user as any)?.effectiveRole === 'ceo' || (user as any)?.role === 'admin' || (user as any)?.role === 'manager') && !(user?.staffType === 'mill')) ? 14 : 14 } style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
+                                <td colSpan={100} style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
 
 
 
@@ -6979,7 +6979,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '14px' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(9, 1fr) auto', gap: '12px', marginBottom: '14px' }}>
 
                                       <div>
 
@@ -9333,12 +9333,12 @@ const Arrivals: React.FC = () => {
 
                         {selectedLorryForWB === (entry.lorryNumber || 'N/A').toUpperCase() && selectedLorryInspection?.id === entry.id && (
                           <tr>
-                            <td colSpan={14} style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
+                            <td colSpan={100} style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
                               <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
                                   <h4 style={{ margin: 0, color: '#0f172a', fontSize: '13px', fontWeight: 'bold' }}>⚖️ Add Weight Bridge for {(entry.lorryNumber || 'N/A').toUpperCase()}</h4>
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '14px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(9, 1fr) auto', gap: '12px', marginBottom: '14px' }}>
                                   <div>
                                     <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Date</label>
                                     <input
