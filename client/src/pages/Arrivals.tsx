@@ -1832,6 +1832,72 @@ const Arrivals: React.FC = () => {
 
   const { user } = useAuth();
 
+  const renderUnifiedStatus = (item: any, isPlaceholder = false) => {
+    if (isPlaceholder) return '-';
+
+    // 1. WB Status
+    const wbStatus = item.wbStatus || item.lorryTransitDetail?.wbStatus || 'none';
+    let wbBadge = null;
+    if (wbStatus === 'approved') {
+      wbBadge = <span style={{ background: '#dcfce7', color: '#166534', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>WB: Approved</span>;
+    } else if (wbStatus === 'pending') {
+      wbBadge = <span style={{ background: '#fef3c7', color: '#92400e', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>WB: Pending</span>;
+    } else if (wbStatus === 'rejected') {
+      wbBadge = <span style={{ background: '#fee2e2', color: '#991b1b', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>WB: Rejected</span>;
+    } else {
+      wbBadge = <span style={{ background: '#f1f5f9', color: '#64748b', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>WB: Required</span>;
+    }
+
+    // 2. QS Status
+    const params = item.inventoryQualityParameters || 
+                   item.lorryTransitDetail?.inventoryQualityParameters || 
+                   (item.physicalInspections && item.physicalInspections[0]?.inventoryQualityParameters) || 
+                   [];
+    const lotApproved = params.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
+    const fullApproved = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
+    const lotPending = params.some((p: any) => p.type === 'lot_avg' && p.status === 'pending');
+    const fullPending = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'pending');
+    const lotRejected = params.some((p: any) => p.type === 'lot_avg' && p.status === 'rejected');
+    const fullRejected = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'rejected');
+    
+    const hasLotRecheck = params.some((p: any) => p.type === 'lot_avg' && p.status === 'rejected' && p.rejectReason && p.rejectReason.startsWith('RECHECK:'));
+    const hasFullRecheck = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'rejected' && p.rejectReason && p.rejectReason.startsWith('RECHECK:'));
+
+    let qsBadge = null;
+    if (lotApproved && fullApproved) {
+      qsBadge = <span style={{ background: '#dcfce7', color: '#166534', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Approved</span>;
+    } else if (hasLotRecheck || hasFullRecheck) {
+      qsBadge = <span style={{ background: '#eff6ff', color: '#1d4ed8', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Recheck</span>;
+    } else if (lotRejected || fullRejected) {
+      qsBadge = <span style={{ background: '#fee2e2', color: '#991b1b', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Rejected</span>;
+    } else if (lotPending || fullPending) {
+      qsBadge = <span style={{ background: '#fef3c7', color: '#92400e', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Pending</span>;
+    } else {
+      qsBadge = <span style={{ background: '#f1f5f9', color: '#64748b', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Pending</span>;
+    }
+
+    // 3. GD Status
+    const placeStatus = item.placeStatus || item.lorryTransitDetail?.placeStatus || 'none';
+    let gdBadge = null;
+    if (placeStatus === 'approved') {
+      gdBadge = <span style={{ background: '#dcfce7', color: '#166534', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>GD: Approved</span>;
+    } else if (placeStatus === 'placed') {
+      gdBadge = <span style={{ background: '#dbeafe', color: '#1e40af', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>GD: Placed</span>;
+    } else if (placeStatus === 'pending') {
+      gdBadge = <span style={{ background: '#fef3c7', color: '#92400e', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>GD: Pending</span>;
+    } else {
+      gdBadge = <span style={{ background: '#f1f5f9', color: '#64748b', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>GD: None</span>;
+    }
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'center' }}>
+        {wbBadge}
+        {qsBadge}
+        {gdBadge}
+      </div>
+    );
+  };
+
 
 
   const { warehouses, kunchinittus, varieties, fetchWarehouses, fetchKunchinittus, fetchVarieties } = useLocation();
@@ -1848,6 +1914,11 @@ const Arrivals: React.FC = () => {
   const [inTransitVarietyFilter, setInTransitVarietyFilter] = useState('');
   const [inTransitPage, setInTransitPage] = useState(1);
   const [inTransitFilteredCount, setInTransitFilteredCount] = useState(0);
+  const [bmbDateFilter, setBmbDateFilter] = useState('');
+  const [bmbBrokerFilter, setBmbBrokerFilter] = useState('');
+  const [bmbVarietyFilter, setBmbVarietyFilter] = useState('');
+  const [bmbSearchQuery, setBmbSearchQuery] = useState('');
+  const [bmbPage, setBmbPage] = useState(1);
 
 
 
@@ -3970,6 +4041,109 @@ const Arrivals: React.FC = () => {
     }
   }, [inventoryQualityForm.wbR, inventoryQualityForm.wbBk, wbEnabled]);
 
+  const activeRecheck = useMemo(() => {
+    if (!qualitySamplingEntry) return null;
+    const entryData = qualitySamplingEntry;
+    const params = entryData.inventoryQualityParameters || 
+                   entryData.lorryTransitDetail?.inventoryQualityParameters || 
+                   (entryData.physicalInspections && entryData.physicalInspections[0]?.inventoryQualityParameters) || 
+                   [];
+    return params.find((p: any) => p.type === inventoryQualityType && p.status === 'rejected' && p.rejectReason && p.rejectReason.startsWith('RECHECK:'));
+  }, [qualitySamplingEntry, inventoryQualityType]);
+
+  const filteredBmbEntries = useMemo(() => {
+    return bandMalalEntries.filter((entry) => {
+      // 1. Date filter
+      if (bmbDateFilter) {
+        const entryDate = entry.date ? new Date(entry.date).toISOString().split('T')[0] : '';
+        if (entryDate !== bmbDateFilter) return false;
+      }
+      // 2. Broker filter
+      if (bmbBrokerFilter) {
+        const brokerName = (entry.broker || '').toLowerCase();
+        if (brokerName !== bmbBrokerFilter.toLowerCase()) return false;
+      }
+      // 3. Variety filter
+      if (bmbVarietyFilter) {
+        const varietyName = (entry.variety || '').toLowerCase();
+        if (!varietyName.includes(bmbVarietyFilter.toLowerCase())) return false;
+      }
+      // 4. Search query
+      if (bmbSearchQuery) {
+        const q = bmbSearchQuery.toLowerCase();
+        const broker = (entry.broker || '').toLowerCase();
+        const variety = (entry.variety || '').toLowerCase();
+        const party = (entry.partyName || entry.fromLocation || '').toLowerCase();
+        const lorry = (entry.lorryNumber || '').toLowerCase();
+        const wb = (entry.wbNo || '').toLowerCase();
+        if (
+          !broker.includes(q) &&
+          !variety.includes(q) &&
+          !party.includes(q) &&
+          !lorry.includes(q) &&
+          !wb.includes(q)
+        ) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [bandMalalEntries, bmbDateFilter, bmbBrokerFilter, bmbVarietyFilter, bmbSearchQuery]);
+
+  const paginatedBmbEntries = useMemo(() => {
+    const start = (bmbPage - 1) * 12;
+    return filteredBmbEntries.slice(start, start + 12);
+  }, [filteredBmbEntries, bmbPage]);
+
+  useEffect(() => {
+    if (!isQualitySamplingModalOpen || !qualitySamplingEntry) return;
+    if (activeRecheck) {
+      setInventoryQualityForm({
+        moisture: String(activeRecheck.moisture ?? ''),
+        dryMoisture: String(activeRecheck.dryMoisture ?? ''),
+        cutting: String(activeRecheck.cutting ?? ''),
+        bend: String(activeRecheck.bend ?? ''),
+        grains: String(activeRecheck.grains ?? ''),
+        mix: String(activeRecheck.mix ?? ''),
+        sMix: String(activeRecheck.sMix ?? ''),
+        lMix: String(activeRecheck.lMix ?? ''),
+        kandu: String(activeRecheck.kandu ?? ''),
+        oil: String(activeRecheck.oil ?? ''),
+        sk: String(activeRecheck.sk ?? ''),
+        wbR: String(activeRecheck.wbR ?? ''),
+        wbBk: String(activeRecheck.wbBk ?? ''),
+        wbT: String(activeRecheck.wbT ?? ''),
+        smell: String(activeRecheck.smell ?? ''),
+        paddyWb: String(activeRecheck.paddyWb ?? ''),
+        pColor: String(activeRecheck.pColor ?? ''),
+        kadiga: String(activeRecheck.kadiga ?? 'No'),
+        remarks: String(activeRecheck.remarks ?? ''),
+        reportedByUserId: String(activeRecheck.reportedByUserId ?? activeRecheck.createdBy ?? '')
+      });
+      setInventoryQualityToggle({
+        dryMoisture: activeRecheck.dryMoisture ? 'Y' : 'N',
+        sMix: activeRecheck.sMix ? 'Y' : 'N',
+        lMix: activeRecheck.lMix ? 'Y' : 'N',
+        paddyWb: activeRecheck.paddyWb ? 'Y' : 'N',
+        kadiga: activeRecheck.kadiga === 'Yes' ? 'Yes' : 'No',
+        smellHas: activeRecheck.smell ? 'Yes' : 'No'
+      });
+      setWbEnabled(!!activeRecheck.wbR || !!activeRecheck.wbBk);
+    } else {
+      setInventoryQualityForm({
+        moisture: '', dryMoisture: '', cutting: '', bend: '', grains: '',
+        mix: '', sMix: '', lMix: '', kandu: '', oil: '', sk: '',
+        wbR: '', wbBk: '', wbT: '',
+        smell: '', paddyWb: '', pColor: '', kadiga: 'No', remarks: '',
+        reportedByUserId: ''
+      });
+      setInventoryQualityToggle({
+        dryMoisture: 'Y', sMix: 'Y', lMix: 'Y', paddyWb: 'Y', kadiga: 'Y', smellHas: 'No'
+      });
+      setWbEnabled(false);
+    }
+  }, [inventoryQualityType, isQualitySamplingModalOpen, qualitySamplingEntry, activeRecheck]);
+
 
 
 
@@ -4695,7 +4869,7 @@ const Arrivals: React.FC = () => {
 
 
 
-  const handleSubmitInventoryQuality = async (transitDetailId: string): Promise<boolean> => {
+  const handleSubmitInventoryQuality = async (transitDetailId: string, showToast = true): Promise<boolean> => {
 
 
 
@@ -4967,7 +5141,9 @@ const Arrivals: React.FC = () => {
 
 
 
-      toast.success(response?.data?.message || 'Mill quality parameters submitted successfully');
+      if (showToast) {
+        toast.success(response?.data?.message || 'Mill quality parameters submitted successfully');
+      }
 
 
 
@@ -5022,9 +5198,11 @@ const Arrivals: React.FC = () => {
       toast.error('Could not find Transit Detail ID. Please try again.');
       return;
     }
-    const success = await handleSubmitInventoryQuality(String(transitDetailId));
+    const success = await handleSubmitInventoryQuality(String(transitDetailId), false);
     if (!success) return;
     toast.success('Before Unloading (Lot Avg) saved successfully.');
+    setIsQualitySamplingModalOpen(false);
+    setQualitySamplingEntry(null);
     fetchInTransitEntries();
     fetchBandMalalEntries();
   };
@@ -5051,9 +5229,9 @@ const Arrivals: React.FC = () => {
     if (inventoryQualityType === 'lot_avg') {
       if (hasLotAvgData) {
         // Save Lot Avg data to backend, then transition to Full Lorry
-        const success = await handleSubmitInventoryQuality(String(transitDetailId));
+        const success = await handleSubmitInventoryQuality(String(transitDetailId), false);
         if (!success) return;
-        toast.info('Before Unloading (Lot Avg) saved. Please enter Full Lorry Avg (Gattu) parameters.');
+        toast.info('Before Unloading (Lot Avg) saved. Please enter Full Lorry Avg (Gutti) parameters.');
       } else {
         // No data entered — skip submission, will add later after Full Lorry is approved
         toast.info('Lot Avg data will be added later. Please enter Full Lorry Avg parameters now.');
@@ -5089,66 +5267,71 @@ const Arrivals: React.FC = () => {
 
 
 
-  const handleApproveInventoryQuality = async (qualityId: string) => {
-
-
-
+  const handleApproveInventoryQuality = async (qualityId: string | number) => {
     try {
-
-
-
       const token = localStorage.getItem('token');
-
-
-
       await axios.post(
-
-
-
         `${API_URL}/arrivals/bmb/inventory-quality/${qualityId}/approve`,
-
-
-
         {},
-
-
-
-        {
-
-
-
-          headers: { Authorization: `Bearer ${token}` }
-
-
-
-        }
-
-
-
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-
-
-
       toast.success('Mill quality parameters approved successfully');
-
-
-
+      
+      if (selectedDetailEntry) {
+        const response = await axios.get(`${API_URL}/sample-entries/${selectedDetailEntry.id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setSelectedDetailEntry(response.data);
+      }
       fetchBandMalalEntries();
-
-
-
+      fetchInTransitEntries();
     } catch (error: any) {
-
-
-
       toast.error(error.response?.data?.error || 'Failed to approve mill quality parameters');
-
-
-
     }
+  };
 
+  const handleRejectInventoryQualityDirect = async (qualityId: string | number, reason: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `${API_URL}/arrivals/bmb/inventory-quality/${qualityId}/reject`,
+        { rejectReason: reason },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success('Mill quality parameters rejected successfully');
+      if (selectedDetailEntry) {
+        const response = await axios.get(`${API_URL}/sample-entries/${selectedDetailEntry.id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setSelectedDetailEntry(response.data);
+      }
+      fetchBandMalalEntries();
+      fetchInTransitEntries();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to reject mill quality parameters');
+    }
+  };
 
-
+  const handleRecheckInventoryQualityDirect = async (qualityId: string | number, reason: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `${API_URL}/arrivals/bmb/inventory-quality/${qualityId}/recheck`,
+        { rejectReason: reason },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success('Mill quality parameters status set to Recheck');
+      if (selectedDetailEntry) {
+        const response = await axios.get(`${API_URL}/sample-entries/${selectedDetailEntry.id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setSelectedDetailEntry(response.data);
+      }
+      fetchBandMalalEntries();
+      fetchInTransitEntries();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to request recheck');
+    }
   };
 
 
@@ -5361,183 +5544,151 @@ const Arrivals: React.FC = () => {
 
 
 
-      {/* Auto-redirect Location and Mill Staff to Band Mall Book sub-tab */}
+      {/* Subtab selection for all roles, with Arrivals Data Entry hidden for Location/Mill staff */}
 
 
 
-      {(() => {
+      <div style={{
 
 
 
-        const isLocOrMill = user && (user as any).role === 'staff' && ['mill', 'location'].includes((user as any).staffType);
+        display: 'flex',
 
 
 
-        if (isLocOrMill && arrivalsActiveSubTab !== 'bandmalal') {
+        gap: '8px',
 
 
 
-          setTimeout(() => setArrivalsActiveSubTab('bandmalal'), 0);
+        marginBottom: '20px',
 
 
 
-        }
+        borderBottom: '1px solid #cbd5e1',
 
 
 
-        return null;
+        paddingBottom: '10px'
 
 
 
-      })()}
+      }}>
 
 
 
+        <button
 
 
 
+          onClick={() => setArrivalsActiveSubTab('transit')}
 
-      {!(user && (user as any).role === 'staff' && ['mill', 'location'].includes((user as any).staffType)) && (
 
 
+          style={{
 
-        <div style={{
 
 
+            padding: '8px 16px',
 
-          display: 'flex',
 
 
+            border: 'none',
 
-          gap: '8px',
 
 
+            borderRadius: '4px',
 
-          marginBottom: '20px',
 
 
+            background: arrivalsActiveSubTab === 'transit' ? '#10b981' : '#f1f5f9',
 
-          borderBottom: '1px solid #cbd5e1',
 
 
+            color: arrivalsActiveSubTab === 'transit' ? '#fff' : '#475569',
 
-          paddingBottom: '10px'
 
 
+            fontWeight: 'bold',
 
-        }}>
 
 
+            cursor: 'pointer'
 
-          <button
 
 
+          }}
 
-            onClick={() => setArrivalsActiveSubTab('transit')}
 
 
+        >
 
-            style={{
 
 
+          In Transit
 
-              padding: '8px 16px',
 
 
+        </button>
 
-              border: 'none',
 
 
+        <button
 
-              borderRadius: '4px',
 
 
+          onClick={() => setArrivalsActiveSubTab('bandmalal')}
 
-              background: arrivalsActiveSubTab === 'transit' ? '#10b981' : '#f1f5f9',
 
 
+          style={{
 
-              color: arrivalsActiveSubTab === 'transit' ? '#fff' : '#475569',
 
 
+            padding: '8px 16px',
 
-              fontWeight: 'bold',
 
 
+            border: 'none',
 
-              cursor: 'pointer'
 
 
+            borderRadius: '4px',
 
-            }}
 
 
+            background: arrivalsActiveSubTab === 'bandmalal' ? '#10b981' : '#f1f5f9',
 
-          >
 
 
+            color: arrivalsActiveSubTab === 'bandmalal' ? '#fff' : '#475569',
 
-            In Transit
 
 
+            fontWeight: 'bold',
 
-          </button>
 
 
+            cursor: 'pointer'
 
-          <button
 
 
+          }}
 
-            onClick={() => setArrivalsActiveSubTab('bandmalal')}
 
 
+        >
 
-            style={{
 
 
+          Band Mall Book
 
-              padding: '8px 16px',
 
 
+        </button>
 
-              border: 'none',
 
 
-
-              borderRadius: '4px',
-
-
-
-              background: arrivalsActiveSubTab === 'bandmalal' ? '#10b981' : '#f1f5f9',
-
-
-
-              color: arrivalsActiveSubTab === 'bandmalal' ? '#fff' : '#475569',
-
-
-
-              fontWeight: 'bold',
-
-
-
-              cursor: 'pointer'
-
-
-
-            }}
-
-
-
-          >
-
-
-
-            Band Mall Book
-
-
-
-          </button>
+        {!(user && (user as any).role === 'staff' && ['mill', 'location'].includes((user as any).staffType)) && (
 
 
 
@@ -5590,18 +5741,9 @@ const Arrivals: React.FC = () => {
 
 
             Arrivals Data Entry
-
-
-
           </button>
-
-
-
-        </div>
-
-
-
-      )}
+        )}
+      </div>
 
 
 
@@ -5706,13 +5848,16 @@ const Arrivals: React.FC = () => {
             {/* Variety Filter */}
             <div>
               <label style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>Filter by Variety</label>
-              <input
-                type="text"
-                placeholder="Search Variety..."
+              <select
                 value={inTransitVarietyFilter}
                 onChange={(e) => { setInTransitVarietyFilter(e.target.value); setInTransitPage(1); }}
-                style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
-              />
+                style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px', background: '#fff', height: '30px' }}
+              >
+                <option value="">-- All Varieties --</option>
+                {varieties?.map((v: any) => (
+                  <option key={v.id} value={v.name}>{v.name}</option>
+                ))}
+              </select>
             </div>
 
             {/* Reset Button */}
@@ -5882,7 +6027,7 @@ const Arrivals: React.FC = () => {
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Sute Net Wt</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Godown</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Lorry Number</th>
-                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Quality Status</th>
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Status</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Actions</th>
 
 
@@ -6318,17 +6463,13 @@ const Arrivals: React.FC = () => {
 
 
                             <tr style={{
-
-
-
                               borderBottom: '2px solid #cbd5e1',
-
-
-
-                              background: idx % 2 === 0 ? '#ffffff' : '#f9f9f9'
-
-
-
+                              background: (() => {
+                                const qParams = (inspection?.inventoryQualityParameters) || (entry?.inventoryQualityParameters) || (transitDetail?.inventoryQualityParameters) || [];
+                                const isWbPending = wbStatus === 'pending';
+                                const isQsPending = qParams.some((p: any) => p.status === 'pending');
+                                return (isWbPending || isQsPending) ? '#fffbeb' : (idx % 2 === 0 ? '#ffffff' : '#f9f9f9');
+                              })()
                             }}>
 
 
@@ -6341,7 +6482,11 @@ const Arrivals: React.FC = () => {
 
 
 
-                              <td style={{ border: '1px solid #000', padding: '5px', wordBreak: 'break-word' }}>{entry.brokerName || '-'}</td>
+                              <td style={{ border: '1px solid #000', padding: '5px', wordBreak: 'break-word', fontWeight: 'bold' }}>
+                                <span style={{ background: '#f0fdfa', color: '#0f766e', border: '1px solid #ccfbf1', padding: '2px 6px', borderRadius: '4px', display: 'inline-block' }}>
+                                  {entry.brokerName || '-'}
+                                </span>
+                              </td>
 
 
 
@@ -6657,58 +6802,10 @@ const Arrivals: React.FC = () => {
                               {/* 6. Lorry Number */}
                               <td style={{ border: '1px solid #000', padding: '5px', fontWeight: '800', color: '#1e40af', textAlign: 'center' }}>{lorryNum.toUpperCase()}</td>
 
-                              {/* 5.5 Quality Status */}
-                              {(() => {
-                                const params = (inspection?.inventoryQualityParameters) || (entry?.inventoryQualityParameters) || (inspection?.lorryTransitDetail?.inventoryQualityParameters) || [];
-                                const lotApproved = params.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
-                                const fullApproved = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
-                                const isCompleted = lotApproved && fullApproved;
-                                const cellBg = isPlaceholder ? 'transparent' : (isCompleted ? '#dcfce7' : '#fee2e2');
-
-                                const parts: React.ReactNode[] = [];
-                                 
-                                 const lotParam = params.find((p: any) => p.type === 'lot_avg');
-                                 if (lotParam) {
-                                   const statusText = lotParam.status === 'approved' ? 'Approved' : lotParam.status === 'pending' ? 'Pending' : 'Rejected';
-                                   const statusColor = lotParam.status === 'approved' ? '#15803d' : lotParam.status === 'pending' ? '#b45309' : '#b91c1c';
-                                   parts.push(
-                                     <div key="lot" style={{ fontSize: '10px', whiteSpace: 'nowrap', fontWeight: 'bold' }}>
-                                       Before Unloading: <span style={{ color: statusColor }}>{statusText}</span>
-                                     </div>
-                                   );
-                                 } else {
-                                   parts.push(
-                                     <div key="lot" style={{ fontSize: '10px', color: '#475569' }}>
-                                       Before Unloading: <span>None</span>
-                                     </div>
-                                   );
-                                 }
-
-                                 const fullParam = params.find((p: any) => p.type === 'full_lorry_avg');
-                                 if (fullParam) {
-                                   const statusText = fullParam.status === 'approved' ? 'Approved' : fullParam.status === 'pending' ? 'Pending' : 'Rejected';
-                                   const statusColor = fullParam.status === 'approved' ? '#15803d' : fullParam.status === 'pending' ? '#b45309' : '#b91c1c';
-                                   parts.push(
-                                     <div key="full" style={{ fontSize: '10px', whiteSpace: 'nowrap', marginTop: '2px', fontWeight: 'bold' }}>
-                                       Full Avg (Gattu): <span style={{ color: statusColor }}>{statusText}</span>
-                                     </div>
-                                   );
-                                 } else {
-                                   parts.push(
-                                     <div key="full" style={{ fontSize: '10px', color: '#475569', marginTop: '2px' }}>
-                                       Full Avg (Gattu): <span>None</span>
-                                     </div>
-                                   );
-                                 }
-                                 
-                                 return (
-                                   <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontSize: '11px', verticalAlign: 'middle', backgroundColor: cellBg }}>
-                                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: '1.2' }}>
-                                       {parts}
-                                     </div>
-                                   </td>
-                                 );
-                              })()}
+                              {/* 5.5 Unified Status */}
+                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontSize: '11px', verticalAlign: 'middle' }}>
+                                {renderUnifiedStatus(isPlaceholder ? entry : { ...entry, ...(inspection || {}) }, isPlaceholder)}
+                              </td>
 
                               {/* 7. Actions */}
                               <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontSize: '11px', verticalAlign: 'middle' }}>
@@ -6720,7 +6817,7 @@ const Arrivals: React.FC = () => {
                                   const isFullPending = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'pending');
                                   const hasLotRejected = params.some((p: any) => p.type === 'lot_avg' && p.status === 'rejected');
 
-                                  let btnText = '🔬 Quality Sampling';
+                                  let btnText = '🔬 Quality Parameters';
                                   let btnBg = '#a855f7';
                                   let isBtnDisabled = false;
                                   if (isLotApproved && isFullApproved) {
@@ -6728,16 +6825,15 @@ const Arrivals: React.FC = () => {
                                     btnBg = '#059669';
                                     isBtnDisabled = true;
                                   } else if (isLotApproved) {
-                                    btnText = '🔬 Full Lorry Avg';
+                                    btnText = '🔬 Add Gutti';
                                     btnBg = '#0284c7';
                                   } else if (isLotPending) {
                                     btnText = '⏳ Lot Pending';
                                     btnBg = '#d97706';
                                     isBtnDisabled = true;
                                   } else if (isFullApproved) {
-                                    btnText = '✅ Full Lorry Approved';
-                                    btnBg = '#059669';
-                                    isBtnDisabled = true;
+                                    btnText = '🔬 Add Lot Avg';
+                                    btnBg = '#a855f7';
                                   } else if (isFullPending) {
                                     btnText = '⏳ Full Lorry Pending';
                                     btnBg = '#b45309';
@@ -6775,7 +6871,8 @@ const Arrivals: React.FC = () => {
                                           fontSize: '10px',
                                           fontWeight: '600',
                                           width: '100%',
-                                          whiteSpace: 'nowrap',
+                                          whiteSpace: 'normal',
+                                          lineHeight: '1.2',
                                           opacity: isBtnDisabled ? 0.8 : 1
                                         }}
                                       >
@@ -8252,12 +8349,7 @@ const Arrivals: React.FC = () => {
 
           `}</style>
 
-
-
         </div>
-
-
-
       ) : arrivalsActiveSubTab === 'bandmalal' ? (
 
 
@@ -8270,6 +8362,79 @@ const Arrivals: React.FC = () => {
 
 
 
+          {/* BMB Search + Top Filters Controls */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '14px', background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+            {/* Search Query */}
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>Search Broker/Party/Variety/Lorry/WB</label>
+              <input
+                type="text"
+                placeholder="Search..."
+                value={bmbSearchQuery}
+                onChange={(e) => { setBmbSearchQuery(e.target.value); setBmbPage(1); }}
+                style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
+              />
+            </div>
+
+            {/* Date Filter */}
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>Filter by Date</label>
+              <input
+                type="date"
+                value={bmbDateFilter}
+                onChange={(e) => { setBmbDateFilter(e.target.value); setBmbPage(1); }}
+                style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
+              />
+            </div>
+
+            {/* Broker Filter */}
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>Filter by Broker Name</label>
+              <select
+                value={bmbBrokerFilter}
+                onChange={(e) => { setBmbBrokerFilter(e.target.value); setBmbPage(1); }}
+                style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px', background: '#fff', height: '30px' }}
+              >
+                <option value="">-- All Brokers --</option>
+                {[...brokersList]
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map((b) => (
+                    <option key={b.id} value={b.name}>
+                      {b.name}
+                    </option>
+                  ))
+                }
+              </select>
+            </div>
+
+            {/* Variety Filter */}
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>Filter by Variety</label>
+              <select
+                value={bmbVarietyFilter}
+                onChange={(e) => { setBmbVarietyFilter(e.target.value); setBmbPage(1); }}
+                style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px', background: '#fff', height: '30px' }}
+              >
+                <option value="">-- All Varieties --</option>
+                {varieties?.map((v: any) => (
+                  <option key={v.id} value={v.name}>{v.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Reset Button */}
+            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+              <button
+                onClick={() => { setBmbDateFilter(''); setBmbBrokerFilter(''); setBmbVarietyFilter(''); setBmbSearchQuery(''); setBmbPage(1); }}
+                style={{ width: '100%', padding: '6px 12px', fontSize: '12px', fontWeight: 'bold', background: '#fee2e2', color: '#ef4444', border: '1px solid #fca5a5', borderRadius: '6px', cursor: 'pointer' }}
+              >
+                Clear Filters
+              </button>
+            </div>
+          </div>
+
+
+
           {loadingTransit ? (
 
 
@@ -8278,7 +8443,7 @@ const Arrivals: React.FC = () => {
 
 
 
-          ) : bandMalalEntries.length === 0 ? (
+          ) : filteredBmbEntries.length === 0 ? (
 
 
 
@@ -8356,11 +8521,7 @@ const Arrivals: React.FC = () => {
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Sute Net Wt</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Godown</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Lorry Number</th>
-                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Quality Status</th>
-                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Approved By</th>
-
-
-
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Status</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '5%' }}>Actions</th>
 
 
@@ -8377,7 +8538,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                  {bandMalalEntries.map((entry, idx) => {
+                  {paginatedBmbEntries.map((entry, idx) => {
 
 
 
@@ -8550,7 +8711,15 @@ const Arrivals: React.FC = () => {
 
 
 
-                        <tr style={{ borderBottom: '1px solid #e2e8f0', background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                        <tr style={{
+                          borderBottom: '1px solid #e2e8f0',
+                          background: (() => {
+                            const qParams = entry.inventoryQualityParameters || [];
+                            const isWbPending = entry.wbStatus === 'pending';
+                            const isQsPending = qParams.some((p: any) => p.status === 'pending');
+                            return (isWbPending || isQsPending) ? '#fffbeb' : (idx % 2 === 0 ? '#fff' : '#f8fafc');
+                          })()
+                        }}>
 
 
 
@@ -8595,17 +8764,10 @@ const Arrivals: React.FC = () => {
 
 
                           {/* Column 3: Broker */}
-
-
-
-                          <td style={{ border: '1px solid #000', padding: '5px' }}>
-
-
-
-                            {entry.broker || '-'}
-
-
-
+                          <td style={{ border: '1px solid #000', padding: '5px', fontWeight: 'bold' }}>
+                            <span style={{ background: '#f0fdfa', color: '#0f766e', border: '1px solid #ccfbf1', padding: '2px 6px', borderRadius: '4px', display: 'inline-block' }}>
+                              {entry.broker || '-'}
+                            </span>
                           </td>
 
 
@@ -9046,67 +9208,11 @@ const Arrivals: React.FC = () => {
                              {(entry.lorryNumber || 'N/A').toUpperCase()}
                            </td>
 
-                           {/* Quality Sampling Status */}
-                           {(() => {
-                             const params = entry.inventoryQualityParameters || [];
-                             const lotApproved = params.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
-                             const fullApproved = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
-                             const isCompleted = lotApproved && fullApproved;
-                             const cellBg = isCompleted ? '#dcfce7' : '#fee2e2';
+                           {/* Unified Status */}
+                           <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontSize: '11px', verticalAlign: 'middle' }}>
+                             {renderUnifiedStatus(entry)}
+                           </td>
 
-                             const parts: React.ReactNode[] = [];
-                              
-                              const lotParam = params.find((p: any) => p.type === 'lot_avg');
-                              if (lotParam) {
-                                const statusText = lotParam.status === 'approved' ? 'Approved' : lotParam.status === 'pending' ? 'Pending' : 'Rejected';
-                                const statusColor = lotParam.status === 'approved' ? '#15803d' : lotParam.status === 'pending' ? '#b45309' : '#b91c1c';
-                                parts.push(
-                                  <div key="lot" style={{ fontSize: '10px', whiteSpace: 'nowrap', fontWeight: 'bold' }}>
-                                    Before Unloading: <span style={{ color: statusColor }}>{statusText}</span>
-                                  </div>
-                                );
-                              } else {
-                                parts.push(
-                                  <div key="lot" style={{ fontSize: '10px', color: '#475569' }}>
-                                    Before Unloading: <span>None</span>
-                                  </div>
-                                );
-                              }
-
-                              const fullParam = params.find((p: any) => p.type === 'full_lorry_avg');
-                              if (fullParam) {
-                                const statusText = fullParam.status === 'approved' ? 'Approved' : fullParam.status === 'pending' ? 'Pending' : 'Rejected';
-                                const statusColor = fullParam.status === 'approved' ? '#15803d' : fullParam.status === 'pending' ? '#b45309' : '#b91c1c';
-                                parts.push(
-                                  <div key="full" style={{ fontSize: '10px', whiteSpace: 'nowrap', marginTop: '2px', fontWeight: 'bold' }}>
-                                    Full Avg (Gattu): <span style={{ color: statusColor }}>{statusText}</span>
-                                  </div>
-                                );
-                              } else {
-                                parts.push(
-                                  <div key="full" style={{ fontSize: '10px', color: '#475569', marginTop: '2px' }}>
-                                    Full Avg (Gattu): <span>None</span>
-                                  </div>
-                                );
-                              }
-                              
-                              return (
-                                <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontSize: '11px', verticalAlign: 'middle', backgroundColor: cellBg }}>
-                                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: '1.2' }}>
-                                    {parts}
-                                  </div>
-                                </td>
-                              );
-                           })()}
-
-                          {/* Column 11a: Approved By */}
-                          <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: entry.wbApprover ? '#16a34a' : '#b45309' }}>
-                            {entry.wbApprover?.username || entry.wbApprover?.fullName || (entry.wbStatus === 'approved' ? 'Auto Approved' : entry.wbStatus === 'pending' ? 'Pending Approval' : '-')}
-                          </td>
-
-
-
-                          
 
 
 
@@ -9250,26 +9356,24 @@ const Arrivals: React.FC = () => {
 
 
 
-                                    let btnText = '🔬 Quality Sampling';
+                                    let btnText = '🔬 Quality Parameters';
                                     let btnBg = '#a855f7';
                                     let isBtnDisabled = false;
 
-                                    if (isLotApproved) {
-                                      btnText = '✅ Before Unloading Avg Approved';
-                                      btnBg = '#059669';
-                                      isBtnDisabled = true;
-                                    } else if (isLotPending) {
-                                      btnText = '⏳ Before Unloading Avg Pending';
-                                      btnBg = '#d97706';
-                                      isBtnDisabled = true;
-                                    } else if (isFullApproved) {
-                                      btnText = '🔬 Quality Sampling (Before Unloading)';
-                                      btnBg = '#0284c7';
-                                    } else if (isFullPending) {
-                                      btnText = '⏳ Full Lorry Avg Pending';
-                                      btnBg = '#b45309';
-                                      isBtnDisabled = true;
-                                    }
+                                    if (isFullApproved) {
+                                       btnText = '✅ Quality Approved';
+                                       btnBg = '#059669';
+                                       isBtnDisabled = true;
+                                     } else if (isFullPending) {
+                                       btnText = '⏳ Full Lorry Avg Pending';
+                                       btnBg = '#b45309';
+                                       isBtnDisabled = true;
+                                     } else {
+                                       btnText = '🔬 Add Gutti';
+                                       btnBg = '#0284c7';
+                                     }
+
+
 
                                    return (
 
@@ -9286,13 +9390,7 @@ const Arrivals: React.FC = () => {
                                        onClick={() => {
                                          setQualitySamplingEntry(entry);
                                          setIsQualitySamplingModalOpen(true);
-                                         const hasFull = params.some((p: any) => p.type === 'full_lorry_avg' && p.status !== 'rejected');
-                                         const hasLot = params.some((p: any) => p.type === 'lot_avg' && p.status !== 'rejected');
-                                         if (!hasLot) {
-                                           setInventoryQualityType('lot_avg');
-                                         } else {
-                                           setInventoryQualityType('full_lorry_avg');
-                                         }
+                                         setInventoryQualityType('full_lorry_avg');
                                          setInventoryQualityForm({
                                            moisture: '', dryMoisture: '', cutting: '', bend: '', grains: '',
                                            mix: '', sMix: '', lMix: '', kandu: '', oil: '', sk: '',
@@ -9350,7 +9448,8 @@ const Arrivals: React.FC = () => {
 
 
 
-                                         whiteSpace: 'nowrap'
+                                          whiteSpace: 'normal',
+                                          lineHeight: '1.2'
 
 
 
@@ -9669,34 +9768,35 @@ const Arrivals: React.FC = () => {
 
 
 
-            {/* Pagination Footer: styled like In Transit */}
-
-
+            {/* Pagination Footer */}
+            {filteredBmbEntries.length > 12 && (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '14px', padding: '10px 14px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                <button 
+                  disabled={bmbPage <= 1} 
+                  onClick={() => setBmbPage(p => p - 1)} 
+                  style={{ padding: '6px 12px', borderRadius: '4px', cursor: bmbPage <= 1 ? 'not-allowed' : 'pointer', background: bmbPage <= 1 ? '#f1f5f9' : 'white', border: '1px solid #cbd5e1', fontWeight: 'bold', fontSize: '12px' }}
+                >
+                  Prev
+                </button>
+                <span style={{ fontSize: '13px', color: '#475569', fontWeight: 600 }}>
+                  Page {bmbPage} of {Math.ceil(filteredBmbEntries.length / 12)} ({filteredBmbEntries.length} records)
+                </span>
+                <button 
+                  disabled={bmbPage >= Math.ceil(filteredBmbEntries.length / 12)} 
+                  onClick={() => setBmbPage(p => p + 1)} 
+                  style={{ padding: '6px 12px', borderRadius: '4px', cursor: bmbPage >= Math.ceil(filteredBmbEntries.length / 12) ? 'not-allowed' : 'pointer', background: bmbPage >= Math.ceil(filteredBmbEntries.length / 12) ? '#f1f5f9' : 'white', border: '1px solid #cbd5e1', fontWeight: 'bold', fontSize: '12px' }}
+                >
+                  Next
+                </button>
+              </div>
+            )}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', padding: '10px 14px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', flexWrap: 'wrap', gap: '10px' }}>
-
-
-
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#64748b', fontWeight: 600 }}>
-
-
-
-                <span style={{ background: '#d1fae5', color: '#065f46', padding: '2px 8px', borderRadius: '10px', fontWeight: 700 }}>{bandMalalEntries.length}</span>
-
-
-
-                lots loaded
-
-
-
+                <span style={{ background: '#d1fae5', color: '#065f46', padding: '2px 8px', borderRadius: '10px', fontWeight: 700 }}>{filteredBmbEntries.length}</span>
+                lots loaded (total: {bandMalalEntries.length})
               </div>
-
-
-
-              <span style={{ fontSize: '12px', color: '#16a34a', fontWeight: 600 }}>✅ All records loaded</span>
-
-
-
+              <span style={{ fontSize: '12px', color: '#16a34a', fontWeight: 600 }}>✅ Filtered successfully</span>
             </div>
 
 
@@ -14101,29 +14201,14 @@ const Arrivals: React.FC = () => {
           completedLotsOrder={true}
           showCollectorLoginPair={true}
           isCompactOverride={arrivalsActiveSubTab === 'transit' || arrivalsActiveSubTab === 'bandmalal'}
-
-
-
           onClose={() => {
-
-
-
             setIsDetailOpen(false);
-
-
-
             setSelectedDetailEntry(null);
-
-
-
           }}
-
-
-
+          onApproveQuality={handleApproveInventoryQuality}
+          onRejectQuality={handleRejectInventoryQualityDirect}
+          onRecheckQuality={handleRecheckInventoryQualityDirect}
         />
-
-
-
       )}
 
 
@@ -14455,14 +14540,29 @@ const Arrivals: React.FC = () => {
             boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
             position: 'relative', border: '1px solid #e2e8f0'
           }}>
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '6px', marginBottom: '10px' }}>
-              <div>
-                <span style={{ color: '#1a237e', fontSize: '13px', fontWeight: 'bold' }}>🔬 Quality Sampling</span>
-                <span style={{ fontSize: '10px', color: '#64748b', marginLeft: '8px', fontWeight: '600' }}>Lorry: {(qualitySamplingEntry.lorryNumber || 'N/A').toUpperCase()}</span>
-              </div>
-              <button onClick={() => setIsQualitySamplingModalOpen(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '14px', color: '#94a3b8' }}>✕</button>
+            {/* Header Strip */}
+            <div style={{ background: '#1b5e20', padding: '12px 14px', borderRadius: '8px 8px 0 0', margin: '-14px -14px 10px -14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, color: '#fff', fontSize: '15px', fontWeight: 'bold' }}>
+                Add Quality Parameters
+              </h3>
+              <button onClick={() => setIsQualitySamplingModalOpen(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '16px', color: '#fff', fontWeight: 'bold' }}>✕</button>
             </div>
+
+            {/* Metadata Sub-strip */}
+            <div style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px 12px', marginBottom: '12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', fontSize: '11.5px' }}>
+              <div><strong style={{ color: '#1e293b' }}>Broker:</strong> {qualitySamplingEntry.brokerName || qualitySamplingEntry.broker || '-'}</div>
+              <div><strong style={{ color: '#1e293b' }}>Variety:</strong> {qualitySamplingEntry.varietyName || qualitySamplingEntry.variety || '-'}</div>
+              <div><strong style={{ color: '#1e293b' }}>Party:</strong> {qualitySamplingEntry.partyName || qualitySamplingEntry.fromParty?.name || '-'}</div>
+              <div><strong style={{ color: '#1e293b' }}>Bags:</strong> {qualitySamplingEntry.bags || '-'}</div>
+              <div style={{ gridColumn: 'span 2' }}><strong style={{ color: '#1e293b' }}>Lorry:</strong> <span style={{ fontWeight: 'bold', color: '#b91c1c' }}>{(qualitySamplingEntry.lorryNumber || 'N/A').toUpperCase()}</span></div>
+            </div>
+
+            {/* Active Recheck Banner */}
+            {activeRecheck && (
+              <div style={{ background: '#fef2f2', border: '1.5px solid #ef4444', color: '#991b1b', padding: '8px', borderRadius: '6px', marginBottom: '10px', fontSize: '11px', fontWeight: 'bold' }}>
+                🔄 RECHECK REQUESTED: {activeRecheck.rejectReason.replace(/^RECHECK:\s*/, '')}
+              </div>
+            )}
 
             {/* Type Toggle */}
             {(() => {
@@ -14474,39 +14574,52 @@ const Arrivals: React.FC = () => {
               const isFullAlreadyDone = modalParams.some((p: any) => p.type === 'full_lorry_avg' && p.status !== 'rejected');
 
               return (
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', marginBottom: '10px' }}>
-                  <button type="button" 
-                    disabled={isLotAlreadyDone}
-                    onClick={() => setInventoryQualityType('lot_avg')}
-                    style={{ 
-                      padding: '5px 12px', 
-                      border: 'none', 
-                      borderRadius: '4px', 
-                      fontSize: '11px', 
-                      fontWeight: 'bold', 
-                      cursor: isLotAlreadyDone ? 'not-allowed' : 'pointer', 
-                      background: inventoryQualityType === 'lot_avg' ? '#1a237e' : '#e2e8f0', 
-                      color: inventoryQualityType === 'lot_avg' ? '#fff' : '#64748b',
-                      opacity: isLotAlreadyDone ? 0.6 : 1
-                    }}>
-                    Before Unloading (Lot Avg) {isLotAlreadyDone && ' (Done)'}
-                  </button>
-                  <button type="button" 
-                    disabled={isFullAlreadyDone}
-                    onClick={() => setInventoryQualityType('full_lorry_avg')}
-                    style={{ 
-                      padding: '5px 12px', 
-                      border: 'none', 
-                      borderRadius: '4px', 
-                      fontSize: '11px', 
-                      fontWeight: 'bold', 
-                      cursor: isFullAlreadyDone ? 'not-allowed' : 'pointer', 
-                      background: inventoryQualityType === 'full_lorry_avg' ? '#1a237e' : '#e2e8f0', 
-                      color: inventoryQualityType === 'full_lorry_avg' ? '#fff' : '#64748b',
-                      opacity: isFullAlreadyDone ? 0.6 : 1
-                    }}>
-                    Full Lorry Avg (Gattu) {isFullAlreadyDone && ' (Done)'}
-                  </button>
+                <div style={{ display: 'flex', justifyContent: 'center', margin: '8px 0 16px 0' }}>
+                  <div style={{ display: 'inline-flex', background: '#f1f5f9', padding: '3px', borderRadius: '30px', border: '1px solid #cbd5e1', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+                    <button type="button" 
+                      disabled={isLotAlreadyDone}
+                      onClick={() => setInventoryQualityType('lot_avg')}
+                      style={{ 
+                        padding: '6px 14px', 
+                        border: 'none', 
+                        borderRadius: '20px', 
+                        fontSize: '11px', 
+                        fontWeight: 'bold', 
+                        cursor: isLotAlreadyDone ? 'not-allowed' : 'pointer', 
+                        background: inventoryQualityType === 'lot_avg' ? '#1b5e20' : 'transparent', 
+                        color: inventoryQualityType === 'lot_avg' ? '#fff' : '#64748b',
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}>
+                      <span>1. Lot Avg (Before Unloading)</span>
+                      {isLotAlreadyDone && <span style={{ fontSize: '10px' }}>✅</span>}
+                    </button>
+                    
+                    <div style={{ width: '1px', background: '#cbd5e1', margin: '4px 6px' }} />
+
+                    <button type="button" 
+                      disabled={isFullAlreadyDone}
+                      onClick={() => setInventoryQualityType('full_lorry_avg')}
+                      style={{ 
+                        padding: '6px 14px', 
+                        border: 'none', 
+                        borderRadius: '20px', 
+                        fontSize: '11px', 
+                        fontWeight: 'bold', 
+                        cursor: isFullAlreadyDone ? 'not-allowed' : 'pointer', 
+                        background: inventoryQualityType === 'full_lorry_avg' ? '#1b5e20' : 'transparent', 
+                        color: inventoryQualityType === 'full_lorry_avg' ? '#fff' : '#64748b',
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}>
+                      <span>2. Gutti (Full Avg)</span>
+                      {isFullAlreadyDone && <span style={{ fontSize: '10px' }}>✅</span>}
+                    </button>
+                  </div>
                 </div>
               );
             })()}
@@ -14535,7 +14648,7 @@ const Arrivals: React.FC = () => {
                   </label>
                   {field.type === 'select' ? (
                     <select value={inventoryQualityForm[field.key]} onChange={(e) => setInventoryQualityForm(p => ({ ...p, [field.key]: e.target.value }))}
-                      style={{ width: '100%', padding: '4px', border: '1px solid #ccc', borderRadius: '3px', fontSize: '11px', boxSizing: 'border-box', background: '#fff', height: '28px' }}>
+                      style={{ width: '100%', padding: '4px', border: activeRecheck ? '1.5px solid #ef4444' : '1px solid #ccc', borderRadius: '3px', fontSize: '11px', boxSizing: 'border-box', background: activeRecheck ? '#fef2f2' : '#fff', height: '28px' }}>
                       <option value=''>Select</option>
                       {field.options?.map(o => <option key={o} value={o}>{o}</option>)}
                     </select>
@@ -14573,7 +14686,7 @@ const Arrivals: React.FC = () => {
                     </>
                   ) : (
                     <input type="text" value={inventoryQualityForm[field.key]} onChange={(e) => setInventoryQualityForm(p => ({ ...p, [field.key]: sanitizeInventoryQualityField(field.key, e.target.value) }))}
-                      style={{ width: '100%', padding: '4px', border: '1px solid #ccc', borderRadius: '3px', fontSize: '11px', boxSizing: 'border-box' }}
+                      style={{ width: '100%', padding: '4px', border: activeRecheck ? '1.5px solid #ef4444' : '1px solid #ccc', borderRadius: '3px', fontSize: '11px', boxSizing: 'border-box', backgroundColor: activeRecheck ? '#fef2f2' : '#fff' }}
                       placeholder={field.placeholder} />
                   )}
                 </div>
@@ -14597,9 +14710,9 @@ const Arrivals: React.FC = () => {
                   </div>
                   <div style={{ display: 'flex', gap: '4px', visibility: wbEnabled ? 'visible' : 'hidden' }}>
                     <input type="number" step="0.01" placeholder="R" value={inventoryQualityForm.wbR} onChange={(e) => setInventoryQualityForm(p => ({ ...p, wbR: e.target.value }))} disabled={!wbEnabled}
-                      style={{ flex: 1, padding: '3px', border: '1px solid #ccc', borderRadius: '3px', fontSize: '10px' }} />
+                      style={{ flex: 1, padding: '3px', border: activeRecheck ? '1.5px solid #ef4444' : '1px solid #ccc', borderRadius: '3px', fontSize: '10px', backgroundColor: activeRecheck ? '#fef2f2' : '#fff' }} />
                     <input type="number" step="0.01" placeholder="BK" value={inventoryQualityForm.wbBk} onChange={(e) => setInventoryQualityForm(p => ({ ...p, wbBk: e.target.value }))} disabled={!wbEnabled}
-                      style={{ flex: 1, padding: '3px', border: '1px solid #ccc', borderRadius: '3px', fontSize: '10px' }} />
+                      style={{ flex: 1, padding: '3px', border: activeRecheck ? '1.5px solid #ef4444' : '1px solid #ccc', borderRadius: '3px', fontSize: '10px', backgroundColor: activeRecheck ? '#fef2f2' : '#fff' }} />
                   </div>
                 </div>
                 <div>
@@ -14625,7 +14738,7 @@ const Arrivals: React.FC = () => {
                   </div>
                   {(inventoryQualityToggle.paddyWb !== 'No') && (
                     <input type="number" step="0.01" value={inventoryQualityForm.paddyWb} onChange={(e) => setInventoryQualityForm(p => ({ ...p, paddyWb: sanitizeInventoryQualityField('paddyWb', e.target.value) }))}
-                      style={{ width: '100%', padding: '4px', border: '1px solid #ccc', borderRadius: '3px', fontSize: '10px', boxSizing: 'border-box' }}
+                      style={{ width: '100%', padding: '4px', border: activeRecheck ? '1.5px solid #ef4444' : '1px solid #ccc', borderRadius: '3px', fontSize: '10px', boxSizing: 'border-box', backgroundColor: activeRecheck ? '#fef2f2' : '#fff' }}
                       placeholder="Val" />
                   )}
                 </div>

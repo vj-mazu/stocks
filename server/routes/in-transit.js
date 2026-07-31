@@ -246,6 +246,11 @@ router.get('/in-transit', auth, async (req, res) => {
           ? await User.findByPk(detail.placeApprovedBy, { attributes: ['id', 'username', 'fullName'] })
           : null;
 
+        // Resolve wbApprover user name
+        const wbApproverUser = detail.wbApprovedBy
+          ? await User.findByPk(detail.wbApprovedBy, { attributes: ['id', 'username', 'fullName', 'role'] })
+          : null;
+
         return {
           id: detail.id,
           slNo: index + 1,
@@ -290,6 +295,7 @@ router.get('/in-transit', auth, async (req, res) => {
           wbAddedBy: wbAddedByUser ? { id: wbAddedByUser.id, username: wbAddedByUser.username, fullName: wbAddedByUser.fullName } : null,
           wbAddedAt: detail.wbAddedAt || null,
           wbApprovedBy: detail.wbApprovedBy || null,
+          wbApprover: wbApproverUser ? { id: wbApproverUser.id, username: wbApproverUser.username, fullName: wbApproverUser.fullName, role: wbApproverUser.role } : null,
           // Party WB fields
           partyWbEnabled: detail.partyWbEnabled || null,
           partyWbName: detail.partyWbName || null,

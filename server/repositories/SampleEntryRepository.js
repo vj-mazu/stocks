@@ -98,6 +98,12 @@ class SampleEntryRepository {
                     as: 'millWeightBridge',
                     required: false,
                     attributes: ['id', 'name', 'location']
+                  },
+                  {
+                    model: User,
+                    as: 'wbApprover',
+                    required: false,
+                    attributes: ['id', 'username', 'fullName', 'role']
                   }
                 ]
               }
@@ -235,7 +241,16 @@ class SampleEntryRepository {
           { model: Kunchinittu, as: 'placeKunchinittuData', attributes: ['id', 'name', 'code'] },
           { model: Outturn, as: 'outturn', attributes: ['id', 'code', 'allottedVariety'] },
           { model: WeightBridge, as: 'millWeightBridge', attributes: ['id', 'name', 'location'] },
-          { model: require('../models/InventoryQualityParameter'), as: 'inventoryQualityParameters', required: false }
+          { model: User, as: 'wbApprover', attributes: ['id', 'username', 'fullName', 'role'] },
+          { 
+            model: require('../models/InventoryQualityParameter'), 
+            as: 'inventoryQualityParameters', 
+            required: false,
+            include: [
+              { model: User, as: 'approver', attributes: ['id', 'username', 'fullName', 'role'] },
+              { model: User, as: 'reporter', attributes: ['id', 'username', 'fullName', 'role'] }
+            ]
+          }
         ]
       });
     }

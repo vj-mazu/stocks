@@ -180,7 +180,10 @@ router.get('/band-malal-book', auth, async (req, res) => {
         {
           model: InventoryQualityParameter,
           as: 'inventoryQualityParameters',
-          required: false
+          required: false,
+          include: [
+            { model: User, as: 'approver', attributes: ['id', 'username', 'fullName', 'role'] }
+          ]
         }
       ],
       order: [['placeApprovedAt', 'ASC'], ['createdAt', 'ASC']],
@@ -300,6 +303,11 @@ router.get('/band-malal-book', auth, async (req, res) => {
           ? await User.findByPk(detail.placeApprovedBy, { attributes: ['id', 'username', 'fullName'] })
           : null;
 
+        // Fetch wbApprovedBy user details
+        const wbApproverUser = detail.wbApprovedBy
+          ? await User.findByPk(detail.wbApprovedBy, { attributes: ['id', 'username', 'fullName', 'role'] })
+          : null;
+
         return {
           id: detail.id,
           slNo: index + 1,
@@ -344,6 +352,7 @@ router.get('/band-malal-book', auth, async (req, res) => {
           wbAddedBy: wbAddedByUser ? { id: wbAddedByUser.id, username: wbAddedByUser.username, fullName: wbAddedByUser.fullName } : null,
           wbAddedAt: detail.wbAddedAt || null,
           wbApprovedBy: detail.wbApprovedBy || null,
+          wbApprover: wbApproverUser ? { id: wbApproverUser.id, username: wbApproverUser.username, fullName: wbApproverUser.fullName, role: wbApproverUser.role } : null,
           wbApprovedAt: detail.wbApprovedAt || null,
           // Party WB fields
           partyWbEnabled: detail.partyWbEnabled || null,

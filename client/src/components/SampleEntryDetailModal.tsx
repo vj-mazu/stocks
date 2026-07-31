@@ -614,7 +614,7 @@ const getApprovedFullAvgBags = (stages: any, defaultBags: any) => {
     return defaultBags || '-';
 };
 
-export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpdate, showCollectorLoginPair = false, progressiveMode = false, completedLotsOrder = false, onEditStage, onTriggerDispute, autoTriggerDisputeKey, targetRateLinkAction, targetLorryTripId, isCompactOverride, isAdminSampleBook2 = false }: { detailEntry: SampleEntry, detailMode: 'quick' | 'history' | 'summary' | 'full', onClose: () => void, onUpdate?: (gpsCoordinates?: string) => void | Promise<void>, showCollectorLoginPair?: boolean, progressiveMode?: boolean, completedLotsOrder?: boolean, onEditStage?: (lorryNumber: string, stageKey: string) => void, onTriggerDispute?: (entry: SampleEntry) => void, autoTriggerDisputeKey?: { inspectionId: string; stageKey: string }, targetRateLinkAction?: (rateInfo: { rate: number; rateType: string; sute: number; suteUnit: string; moisture: number; hamali: number; hamaliUnit: string; lf: number; lfUnit: string; disputeReason?: string; isDispute: boolean; isRevision: boolean; linkedRevisionId?: string | null }) => void | Promise<void>, targetLorryTripId?: string, isCompactOverride?: boolean, isAdminSampleBook2?: boolean }) => {
+export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpdate, showCollectorLoginPair = false, progressiveMode = false, completedLotsOrder = false, onEditStage, onTriggerDispute, autoTriggerDisputeKey, targetRateLinkAction, targetLorryTripId, isCompactOverride, isAdminSampleBook2 = false, onApproveQuality, onRejectQuality, onRecheckQuality }: { detailEntry: SampleEntry, detailMode: 'quick' | 'history' | 'summary' | 'full', onClose: () => void, onUpdate?: (gpsCoordinates?: string) => void | Promise<void>, showCollectorLoginPair?: boolean, progressiveMode?: boolean, completedLotsOrder?: boolean, onEditStage?: (lorryNumber: string, stageKey: string) => void, onTriggerDispute?: (entry: SampleEntry) => void, autoTriggerDisputeKey?: { inspectionId: string; stageKey: string }, targetRateLinkAction?: (rateInfo: { rate: number; rateType: string; sute: number; suteUnit: string; moisture: number; hamali: number; hamaliUnit: string; lf: number; lfUnit: string; disputeReason?: string; isDispute: boolean; isRevision: boolean; linkedRevisionId?: string | null }) => void | Promise<void>, targetLorryTripId?: string, isCompactOverride?: boolean, isAdminSampleBook2?: boolean, onApproveQuality?: (qualityId: string | number) => void | Promise<void>, onRejectQuality?: (qualityId: string | number, reason: string) => void | Promise<void>, onRecheckQuality?: (qualityId: string | number, reason: string) => void | Promise<void> }) => {
     const { user } = useAuth();
     const buildMapHref = (value: any) => {
         const raw = typeof value === 'object' && value !== null
@@ -2204,27 +2204,100 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
 
             const isApproved = param.status === 'approved';
             const isRejected = param.status === 'rejected';
+            const isRecheck = isRejected && param.rejectReason && param.rejectReason.startsWith('RECHECK:');
+            const actualRejected = isRejected && !isRecheck;
+            const canApprove = ['admin', 'owner', 'manager', 'ceo'].includes(String(user?.role || '').toLowerCase());
+
             const statusCell = (() => {
                 if (isApproved) {
-                    const approverName = param.approver?.fullName || param.approver?.username || param.approvedByUser?.fullName || param.approvedByUser?.username || param.approvedBy || 'MANAGER';
+                    const roleStr = param.approver?.role || param.approvedByUser?.role || 'MANAGER';
+                    const nameStr = param.approver?.fullName || param.approver?.username || param.approvedByUser?.fullName || param.approvedByUser?.username || param.approvedBy || '';
+                    const approverName = nameStr ? `${roleStr.toUpperCase()} (${nameStr.toUpperCase()})` : roleStr.toUpperCase();
                     return (
                         <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.1', border: '1px solid rgba(39, 174, 96, 0.3)', backgroundColor: '#e8f5e9', padding: '3px 8px', borderRadius: '4px', textAlign: 'center' }}>
                             <span style={{ color: '#2e7d32', fontWeight: '700', fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>✅ Approved</span>
-                            <span style={{ color: '#1b5e20', fontSize: '12px', fontWeight: '900' }}>by {approverName.toUpperCase()}</span>
-                            {param.approvedAt && (
-                                <span style={{ color: '#64748b', fontSize: '8.5px', marginTop: '2px' }}>
-                                    {new Date(param.approvedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                            <span style={{ color: '#1b5e20', fontSize: '12px', fontWeight: '900' }}>by {approverName}</span>
+                            {param.updatedAt && (
+                                <span style={{ color: '#64748b', fontSize: '8.5px', marginTop: '2px', whiteSpace: 'nowrap' }}>
+                                    {formatShortDateTime(param.updatedAt)}
                                 </span>
                             )}
                         </div>
                     );
-                } else if (isRejected) {
+                } else if (isRecheck) {
                     return (
-                        <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', background: '#fee2e2', color: '#991b1b', border: '1px solid #f87171' }}>
-                            ❌ Rejected
-                        </span>
+                        <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                            <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #93c5fd' }}>
+                                🔄 Recheck
+                            </span>
+                            {param.rejectReason && (
+                                <span style={{ fontSize: '9px', color: '#dc2626', fontWeight: '600', maxWidth: '120px', wordBreak: 'break-word', textAlign: 'center' }}>
+                                    Reason: {param.rejectReason.replace(/^RECHECK:\s*/, '')}
+                                </span>
+                            )}
+                        </div>
+                    );
+                } else if (actualRejected) {
+                    return (
+                        <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                            <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', background: '#fee2e2', color: '#991b1b', border: '1px solid #f87171' }}>
+                                ❌ Rejected
+                            </span>
+                            {param.rejectReason && (
+                                <span style={{ fontSize: '9px', color: '#991b1b', fontWeight: '600', maxWidth: '120px', wordBreak: 'break-word', textAlign: 'center' }}>
+                                    Reason: {param.rejectReason}
+                                </span>
+                            )}
+                        </div>
                     );
                 } else {
+                    if (canApprove) {
+                        return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                                <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', background: '#fef3c7', color: '#92400e', border: '1px solid #fbbf24' }}>
+                                    ⏳ Pending
+                                </span>
+                                <div style={{ display: 'flex', gap: '3px' }}>
+                                    <button
+                                        onClick={async () => {
+                                            if (onApproveQuality) {
+                                                await onApproveQuality(param.id);
+                                            }
+                                        }}
+                                        style={{ padding: '3.5px 7px', fontSize: '9px', fontWeight: '800', background: '#22c55e', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer' }}
+                                    >
+                                        Approve
+                                    </button>
+                                    <button
+                                        onClick={async () => {
+                                            if (onRejectQuality) {
+                                                const reason = window.prompt("Enter rejection reason:");
+                                                if (reason !== null && reason.trim()) {
+                                                    await onRejectQuality(param.id, reason.trim());
+                                                }
+                                            }
+                                        }}
+                                        style={{ padding: '3.5px 7px', fontSize: '9px', fontWeight: '800', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer' }}
+                                    >
+                                        Reject
+                                    </button>
+                                    <button
+                                        onClick={async () => {
+                                            if (onRecheckQuality) {
+                                                const reason = window.prompt("Enter recheck instructions/reason:");
+                                                if (reason !== null && reason.trim()) {
+                                                    await onRecheckQuality(param.id, reason.trim());
+                                                }
+                                            }
+                                        }}
+                                        style={{ padding: '3.5px 7px', fontSize: '9px', fontWeight: '800', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer' }}
+                                    >
+                                        Recheck
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    }
                     return (
                         <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', background: '#fef3c7', color: '#92400e', border: '1px solid #fbbf24' }}>
                             ⏳ Pending
@@ -3023,6 +3096,33 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             const fr2Date = (o as any).finalReportedAt2 ? formatShortDateTime((o as any).finalReportedAt2) : '-';
             const closeReason = detailEntry?.lotAllotment?.closedReason || '';
 
+            const finalActionBtn2 = showLinkAction ? (
+                <button
+                    onClick={() => rateInfoAction({
+                        rate: Number(o.finalPrice2 || o.finalBaseRate2 || 0),
+                        rateType: (o as any).finalBaseRateType2 || o.finalBaseRateType || o.baseRateType || 'PD_LOOSE',
+                        sute: Number(o.finalSute2 || o.finalSute || o.sute || 0),
+                        suteUnit: o.finalSuteUnit2 || o.finalSuteUnit || o.suteUnit || 'per_ton',
+                        moisture: Number(o.moistureValue || 0),
+                        hamali: Number(o.hamali2 || o.hamali || 0),
+                        hamaliUnit: o.hamaliUnit2 || o.hamaliUnit || 'per_bag',
+                        lf: Number(o.lf2 || o.lf || 0),
+                        lfUnit: o.lfUnit2 || o.lfUnit || 'per_bag',
+                        isDispute: false,
+                        isRevision: false
+                    })}
+                    style={{ background: '#22c55e', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '10.5px', fontWeight: 'bold' }}
+                >
+                    Link Rate
+                </button>
+            ) : '-';
+
+            const isFinalMatch2 = linkedPattiRate && 
+                !linkedPattiRate.isDispute && !linkedPattiRate.isRevision &&
+                Number(o.finalPrice2 || o.finalBaseRate2 || 0) === Number(linkedPattiRate.rate) &&
+                ((o as any).finalBaseRateType2 || o.finalBaseRateType || o.baseRateType || 'PD_LOOSE') === (linkedPattiRate.rateType || 'PD_LOOSE') &&
+                Number(o.finalSute2 || o.finalSute || o.sute || 0) === Number(linkedPattiRate.sute || 0);
+
             const fr2RowArray: any = [
                 <span style={{ color: '#7c3aed', fontWeight: 700 }}>Final Rate 2
                   {closeReason ? <div style={{ fontSize: '9px', color: '#b91c1c', fontWeight: 600, marginTop: '3px' }}>Lot Reason: {closeReason}</div> : null}
@@ -3030,7 +3130,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 fr2Reporter,
                 fr2Date,
                 <span style={{ fontWeight: 700 }}>Rs {toNumberText(o.finalPrice2 || o.finalBaseRate2 || 0, 0)}</span>,
-                `${(o.finalBaseRateType || o.baseRateType || 'PD/WB').replace(/_/g, '/')} / ${formatRateUnitLabel(o.finalBaseRateUnit || o.baseRateUnit)}`,
+                `${((o as any).finalBaseRateType2 || o.finalBaseRateType || o.baseRateType || 'PD/WB').replace(/_/g, '/')} / ${formatRateUnitLabel(o.finalBaseRateUnit2 || o.finalBaseRateUnit || o.baseRateUnit)}`,
                 `${toNumberText(o.finalSute2 || o.finalSute || o.sute || 0, 2)} / ${formatRateUnitLabel(o.finalSuteUnit2 || o.finalSuteUnit || o.suteUnit || 'per_ton')}`,
                 o.moistureValue ? formatMeasurementText(o.moistureValue, '%') : '-',
                 o.hamali2 ? `${formatFlexibleValue(o.hamali2)} / ${formatToggleUnitLabel(o.hamaliUnit2 || o.hamaliUnit || 'per_bag')}` : '-',
@@ -3040,8 +3140,12 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 o.cdValue2 ? formatFlexibleValue(o.cdValue2) : '-',
                 o.bankLoanValue2 ? `Rs ${formatIndianCurrencyFlexible(o.bankLoanValue2)}` : '-',
                 <span style={{ fontWeight: 600 }}>{formatPaymentText(o.paymentConditionValue2 || o.paymentConditionValue || 15, o.paymentConditionUnit2 || o.paymentConditionUnit || 'Days')}</span>,
-                '-'
+                finalActionBtn2
             ];
+
+            if (isFinalMatch2) {
+                fr2RowArray.isHighlighted = true;
+            }
 
             rows.push(fr2RowArray);
         }
@@ -4104,7 +4208,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                 {insps.map((insp: any, idx: number) => {
                                                     const stages = insp.samplingStages || {};
                                                     const bagsLoaded = getApprovedFullAvgBags(stages, insp.bags);
-                                                    const title = `Load ${idx + 1} | Bags Loaded: ${bagsLoaded}`;
+                                                    const title = `Load ${idx + 1} - ${insp.lorryNumber?.toUpperCase() || ''} | Bags Loaded: ${bagsLoaded}`;
                                                     const isNewRulesMode = inspectionsProgress?.samplingRulesMode === 'new' || detailEntry?.lotAllotment?.samplingRulesMode === 'new';
                                                     return (
                                                         <div key={insp.id || idx}>
@@ -4214,7 +4318,11 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                     const millStatus = de.wbStatus && de.wbStatus !== 'none' ? toTitleCase(de.wbStatus) : '-';
                                                     const millAddedBy = de.wbAddedBy?.fullName || de.wbAddedBy?.username || '-';
                                                     const millAddedAt = de.wbAddedAt || de.createdAt || null;
-                                                    const wbApproverName = de.wbApprover?.fullName || de.wbApprover?.username || de.wbApproverUser?.fullName || de.wbApproverUser?.username || (de.wbStatus === 'approved' ? 'Auto Approved' : '-');
+                                                    const wbApproverRole = de.wbApprover?.role || de.wbApproverUser?.role || '';
+                                                    const wbApproverNameVal = de.wbApprover?.fullName || de.wbApprover?.username || de.wbApproverUser?.fullName || de.wbApproverUser?.username || '';
+                                                    const wbApproverName = wbApproverNameVal
+                                                        ? (wbApproverRole ? `${wbApproverRole.toUpperCase()} (${wbApproverNameVal.toUpperCase()})` : wbApproverNameVal.toUpperCase())
+                                                        : (wbApproverRole ? wbApproverRole.toUpperCase() : (de.wbStatus === 'approved' ? 'Auto Approved' : '-'));
 
                                                     const hasPartyWb = !!(de.partyWbName && (de.partyWbEnabled === 'yes' || de.partyGrossWeight || de.partyNetWeight || (de.sampleEntry?.partyWbName && de.sampleEntry?.grossWeight)));
                                                     const partyWbName = de.partyWbName || de.sampleEntry?.partyWbName || '-';
@@ -4250,15 +4358,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                         <div key={de.id || index} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                                             {/* Weight Bridge Table */}
                                                             <div>
-                                                                <div style={{ backgroundColor: '#15803d', color: '#fff', padding: '6px 10px', fontWeight: '800', fontSize: '11px', borderTopLeftRadius: '6px', borderTopRightRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                                        <span>⚖️</span> Weight Bridge Details
-                                                                    </div>
-                                                                    {de.lorryNumber && (
-                                                                        <span style={{ fontWeight: 900, letterSpacing: '1px' }}>
-                                                                            {de.lorryNumber.toUpperCase()}
-                                                                        </span>
-                                                                    )}
+                                                                <div style={{ backgroundColor: '#15803d', color: '#fff', padding: '6px 10px', fontWeight: '800', fontSize: '11px', borderTopLeftRadius: '6px', borderTopRightRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                    <span>⚖️</span> Weight Bridge Details{titleSuffix}
                                                                 </div>
                                                                 <div style={{ overflowX: 'auto' }}>
                                                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px', border: '1px solid #000' }}>
@@ -4323,15 +4424,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                             {/* Godown / Place Details Table */}
                                                             {(de.placeType || de.godown || de.placeStatus) && (
                                                                 <div>
-                                                                    <div style={{ backgroundColor: '#6d28d9', color: '#fff', padding: '6px 10px', fontWeight: '800', fontSize: '11px', borderTopLeftRadius: '6px', borderTopRightRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                                            <span>📍</span> Godown / Place Details
-                                                                        </div>
-                                                                        {de.lorryNumber && (
-                                                                            <span style={{ fontWeight: 900, letterSpacing: '1px' }}>
-                                                                                {de.lorryNumber.toUpperCase()}
-                                                                            </span>
-                                                                        )}
+                                                                    <div style={{ backgroundColor: '#6d28d9', color: '#fff', padding: '6px 10px', fontWeight: '800', fontSize: '11px', borderTopLeftRadius: '6px', borderTopRightRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                        <span>📍</span> Godown / Place Details{titleSuffix}
                                                                     </div>
                                                                     <div style={{ overflowX: 'auto' }}>
                                                                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px', border: '1px solid #000' }}>
