@@ -9204,7 +9204,7 @@ const Arrivals: React.FC = () => {
                                     let isBtnDisabled = false;
 
                                     if (isFullApproved) {
-                                       btnText = '✅ Quality Approved';
+                                       btnText = '✅ Sampling Complete';
                                        btnBg = '#059669';
                                        isBtnDisabled = true;
                                      } else if (isFullPending) {
