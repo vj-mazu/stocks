@@ -429,8 +429,45 @@ router.post('/bmb/:transitDetailId/inventory-quality', auth, async (req, res) =>
       return res.status(403).json({ error: 'Not authorized to add inventory quality parameters' });
     }
 
-    // Validate transit detail exists
-    const transitDetail = await LorryTransitDetail.findByPk(transitDetailId);
+    // Validate transit detail exists (with auto-healing fallback if ID matches PhysicalInspection or SampleEntry)
+    let transitDetail = await LorryTransitDetail.findByPk(transitDetailId);
+    if (!transitDetail) {
+      const { PhysicalInspection, SampleEntry } = require('../models');
+      const inspection = await PhysicalInspection.findByPk(transitDetailId);
+      if (inspection) {
+        transitDetail = await LorryTransitDetail.findOne({ where: { physicalInspectionId: transitDetailId } });
+        if (!transitDetail) {
+          transitDetail = await LorryTransitDetail.create({
+            physicalInspectionId: transitDetailId,
+            sampleEntryId: inspection.sampleEntryId,
+            wbStatus: 'none',
+            placeStatus: 'none'
+          });
+        }
+      } else {
+        const sampleEntry = await SampleEntry.findByPk(transitDetailId);
+        if (sampleEntry) {
+          transitDetail = await LorryTransitDetail.findOne({ where: { sampleEntryId: transitDetailId } });
+          if (!transitDetail) {
+            const sampleInspection = await PhysicalInspection.findOne({
+              where: { sampleEntryId: transitDetailId },
+              order: [['createdAt', 'DESC']]
+            });
+            if (sampleInspection) {
+              transitDetail = await LorryTransitDetail.create({
+                physicalInspectionId: sampleInspection.id,
+                sampleEntryId: transitDetailId,
+                wbStatus: 'none',
+                placeStatus: 'none'
+              });
+            } else {
+              return res.status(404).json({ error: 'Transit detail not found (no inspection found for sample entry)' });
+            }
+          }
+        }
+      }
+    }
+
     if (!transitDetail) {
       return res.status(404).json({ error: 'Transit detail not found' });
     }
