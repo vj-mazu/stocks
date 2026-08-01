@@ -487,7 +487,7 @@ router.post('/bmb/:transitDetailId/inventory-quality', auth, async (req, res) =>
     const { Op } = require('sequelize');
     const existingRecord = await InventoryQualityParameter.findOne({
       where: {
-        lorryTransitDetailId: transitDetailId,
+        lorryTransitDetailId: transitDetail.id,
         type: type,
         status: { [Op.in]: ['approved', 'pending'] }
       }
@@ -504,7 +504,7 @@ router.post('/bmb/:transitDetailId/inventory-quality', auth, async (req, res) =>
 
     // Create the quality parameter record
     const qualityParam = await InventoryQualityParameter.create({
-      lorryTransitDetailId: transitDetailId,
+      lorryTransitDetailId: transitDetail.id,
       type,
       status: isAutoApprove ? 'approved' : 'pending',
       moisture: moisture || null,
