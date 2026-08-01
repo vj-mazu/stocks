@@ -1913,7 +1913,6 @@ const Arrivals: React.FC = () => {
   const [inTransitBrokerFilter, setInTransitBrokerFilter] = useState('');
   const [inTransitVarietyFilter, setInTransitVarietyFilter] = useState('');
   const [inTransitPage, setInTransitPage] = useState(1);
-  const [inTransitFilteredCount, setInTransitFilteredCount] = useState(0);
   const [bmbDateFilter, setBmbDateFilter] = useState('');
   const [bmbBrokerFilter, setBmbBrokerFilter] = useState('');
   const [bmbVarietyFilter, setBmbVarietyFilter] = useState('');
@@ -4093,6 +4092,93 @@ const Arrivals: React.FC = () => {
     return filteredBmbEntries.slice(start, start + 12);
   }, [filteredBmbEntries, bmbPage]);
 
+  const inTransitFilteredTrips = useMemo(() => {
+    const flatTrips: any[] = [];
+    inTransitEntries.forEach((e) => {
+      const inspections = (e.lotAllotment?.physicalInspections || e.physicalInspections || [])
+        .filter((insp: any) => {
+          const num = (insp.lorryNumber || '').trim().toUpperCase();
+          return num !== 'LOT_AVG' && num !== 'BALANCED_LOT';
+        });
+
+      const lorryGroups: { [key: string]: any[] } = {};
+      inspections.forEach((insp: any) => {
+        const key = (insp.lorryNumber || '').trim().toUpperCase();
+        if (!lorryGroups[key]) {
+          lorryGroups[key] = [];
+        }
+        lorryGroups[key].push(insp);
+      });
+
+      const filteredInspections: any[] = [];
+      Object.keys(lorryGroups).forEach((lorryKey) => {
+        const group = lorryGroups[lorryKey];
+        if (group.length === 1) {
+          filteredInspections.push(group[0]);
+        } else {
+          const fullLorryInsp = group.find((insp) => 
+            insp.isComplete || 
+            (insp.samplingStages && (insp.samplingStages.full_avg || insp.samplingStages.lot_avg))
+          );
+          if (fullLorryInsp) {
+            filteredInspections.push(fullLorryInsp);
+          } else {
+            const sortedGroup = [...group].sort((a, b) => {
+              const timeA = new Date(a.createdAt || a.inspectionDate || 0).getTime();
+              const timeB = new Date(b.createdAt || b.inspectionDate || 0).getTime();
+              return timeB - timeA;
+            });
+            filteredInspections.push(sortedGroup[0]);
+          }
+        }
+      });
+
+      // Sort the filtered inspections chronologically
+      filteredInspections.sort((a, b) => {
+        const dateA = new Date(a.inspectionDate || 0).getTime();
+        const dateB = new Date(b.inspectionDate || 0).getTime();
+        if (dateA !== dateB) return dateA - dateB;
+        return Number(a.id || 0) - Number(b.id || 0);
+      });
+
+      // Only show trips if inspections have actually started
+      filteredInspections.forEach((insp: any) => {
+        if (!insp.lorryTransitDetail || insp.lorryTransitDetail.placeStatus !== 'approved') {
+          flatTrips.push({
+            entry: e,
+            inspection: insp,
+            isPlaceholder: false,
+          });
+        }
+      });
+    });
+
+    // Sort flatTrips by date ascending so oldest entry gets SL No 1
+    flatTrips.sort((a, b) => {
+      const aDate = new Date(a.inspection?.inspectionDate || a.entry?.entryDate || 0).getTime();
+      const bDate = new Date(b.inspection?.inspectionDate || b.entry?.entryDate || 0).getTime();
+      return aDate - bDate;
+    });
+
+    // Apply top filters
+    return flatTrips.filter(trip => {
+      const dateVal = trip.isPlaceholder ? trip.entry.entryDate : (trip.inspection?.inspectionDate || trip.entry.entryDate);
+      const dateStr = dateVal ? new Date(dateVal).toISOString().split('T')[0] : '';
+      if (inTransitDateFilter && dateStr !== inTransitDateFilter) return false;
+      
+      if (inTransitBrokerFilter) {
+        const bName = (trip.entry?.brokerName || '').toLowerCase();
+        if (!bName.includes(inTransitBrokerFilter.toLowerCase())) return false;
+      }
+      
+      if (inTransitVarietyFilter) {
+        const vName = (trip.entry?.variety || '').toLowerCase();
+        if (!vName.includes(inTransitVarietyFilter.toLowerCase())) return false;
+      }
+      return true;
+    });
+  }, [inTransitEntries, inTransitDateFilter, inTransitBrokerFilter, inTransitVarietyFilter]);
+
   // Auto-pagination: Switch to the last page when a new entry is added
   const prevBmbLengthRef = useRef(0);
   useEffect(() => {
@@ -4106,11 +4192,11 @@ const Arrivals: React.FC = () => {
   const prevTransitLengthRef = useRef(0);
   useEffect(() => {
     if (inTransitEntries.length > prevTransitLengthRef.current) {
-      const lastPage = Math.max(1, Math.ceil(inTransitFilteredCount / 12));
+      const lastPage = Math.max(1, Math.ceil(inTransitFilteredTrips.length / 12));
       setInTransitPage(lastPage);
     }
     prevTransitLengthRef.current = inTransitEntries.length;
-  }, [inTransitEntries.length, inTransitFilteredCount]);
+  }, [inTransitEntries.length, inTransitFilteredTrips.length]);
 
   useEffect(() => {
     if (!isQualitySamplingModalOpen || !qualitySamplingEntry) return;
@@ -6071,7 +6157,6 @@ const Arrivals: React.FC = () => {
                     </tr>
 
 
-
                   </thead>
 
 
@@ -6080,300 +6165,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                    {(() => {
-
-
-
-                      const flatTrips: any[] = [];
-
-
-
-                      inTransitEntries.forEach((e) => {
-
-
-
-                        const inspections = (e.lotAllotment?.physicalInspections || e.physicalInspections || [])
-
-
-
-                          .filter((insp: any) => {
-
-
-
-                            const num = (insp.lorryNumber || '').trim().toUpperCase();
-
-
-
-                            return num !== 'LOT_AVG' && num !== 'BALANCED_LOT';
-
-
-
-                          });
-
-
-
-
-
-
-
-                        // Group inspections by normalized lorry number to deduplicate when multiple stages/updates exist
-
-
-
-                        const lorryGroups: { [key: string]: any[] } = {};
-
-
-
-                        inspections.forEach((insp: any) => {
-
-
-
-                          const key = (insp.lorryNumber || '').trim().toUpperCase();
-
-
-
-                          if (!lorryGroups[key]) {
-
-
-
-                            lorryGroups[key] = [];
-
-
-
-                          }
-
-
-
-                          lorryGroups[key].push(insp);
-
-
-
-                        });
-
-
-
-
-
-
-
-                        // For each lorry group, decide which one to keep
-
-
-
-                        const filteredInspections: any[] = [];
-
-
-
-                        Object.keys(lorryGroups).forEach((lorryKey) => {
-
-
-
-                          const group = lorryGroups[lorryKey];
-
-
-
-                          if (group.length === 1) {
-
-
-
-                            filteredInspections.push(group[0]);
-
-
-
-                          } else {
-
-
-
-                            // Find the one that has a full lorry average (full_avg) or is complete
-
-
-
-                            const fullLorryInsp = group.find((insp) => 
-
-
-
-                              insp.isComplete || 
-
-
-
-                              (insp.samplingStages && (insp.samplingStages.full_avg || insp.samplingStages.lot_avg))
-
-
-
-                            );
-
-
-
-                            if (fullLorryInsp) {
-
-
-
-                              filteredInspections.push(fullLorryInsp);
-
-
-
-                            } else {
-
-
-
-                              // Fallback to the latest one
-
-
-
-                              const sortedGroup = [...group].sort((a, b) => {
-
-
-
-                                const timeA = new Date(a.createdAt || a.inspectionDate || 0).getTime();
-
-
-
-                                const timeB = new Date(b.createdAt || b.inspectionDate || 0).getTime();
-
-
-
-                                return timeB - timeA;
-
-
-
-                              });
-
-
-
-                              filteredInspections.push(sortedGroup[0]);
-
-
-
-                            }
-
-
-
-                          }
-
-
-
-                        });
-
-
-
-
-
-
-
-                        // Sort the filtered inspections chronologically
-
-
-
-                        filteredInspections.sort((a, b) => {
-
-
-
-                          const dateA = new Date(a.inspectionDate || 0).getTime();
-
-
-
-                          const dateB = new Date(b.inspectionDate || 0).getTime();
-
-
-
-                          if (dateA !== dateB) return dateA - dateB;
-
-
-
-                          return Number(a.id || 0) - Number(b.id || 0);
-
-
-
-                        });
-
-
-
-
-
-
-
-                        // Only show trips if inspections have actually started
-
-
-
-                        filteredInspections.forEach((insp: any) => {
-
-
-
-                          if (!insp.lorryTransitDetail || insp.lorryTransitDetail.placeStatus !== 'approved') {
-
-
-
-                            flatTrips.push({
-
-
-
-                              entry: e,
-
-
-
-                              inspection: insp,
-
-
-
-                              isPlaceholder: false,
-
-
-
-                            });
-
-
-
-                          }
-
-
-
-                        });
-
-
-
-                      });
-
-
-
-
-
-
-
-                      // Sort flatTrips by date ascending so oldest entry gets SL No 1
-                      flatTrips.sort((a, b) => {
-                        const aDate = new Date(a.inspection?.inspectionDate || a.entry?.entryDate || 0).getTime();
-                        const bDate = new Date(b.inspection?.inspectionDate || b.entry?.entryDate || 0).getTime();
-                        return aDate - bDate;
-                      });
-
-                      // Apply top filters
-                      const filteredTrips = flatTrips.filter(trip => {
-                        const dateVal = trip.isPlaceholder ? trip.entry.entryDate : (trip.inspection?.inspectionDate || trip.entry.entryDate);
-                        const dateStr = dateVal ? new Date(dateVal).toISOString().split('T')[0] : '';
-                        if (inTransitDateFilter && dateStr !== inTransitDateFilter) return false;
-                        
-                        if (inTransitBrokerFilter) {
-                          const bName = (trip.entry?.brokerName || '').toLowerCase();
-                          if (!bName.includes(inTransitBrokerFilter.toLowerCase())) return false;
-                        }
-                        
-                        if (inTransitVarietyFilter) {
-                          const vName = (trip.entry?.variety || '').toLowerCase();
-                          if (!vName.includes(inTransitVarietyFilter.toLowerCase())) return false;
-                        }
-                        return true;
-                      });
-
-                      // Update total count for pagination footer (outside IIFE scope)
-                      if (inTransitFilteredCount !== filteredTrips.length) {
-                        setTimeout(() => setInTransitFilteredCount(filteredTrips.length), 0);
-                      }
-
-                      // Slicing to 12 records per page
-                      const paginatedTrips = filteredTrips.slice((inTransitPage - 1) * 12, inTransitPage * 12);
-
-                      return paginatedTrips.map((trip, idx) => {
+                    {inTransitFilteredTrips.slice((inTransitPage - 1) * 12, inTransitPage * 12).map((trip, idx) => {
 
 
 
@@ -8081,11 +7873,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                      });
-
-
-
-                    })()}
+                      })}
 
 
 
@@ -8106,7 +7894,7 @@ const Arrivals: React.FC = () => {
 
 
               {/* Client-side Pagination Footer */}
-              {inTransitFilteredCount > 12 && (
+              {inTransitFilteredTrips.length > 12 && (
                 <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '14px', padding: '10px 14px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
                   <button 
                     disabled={inTransitPage <= 1} 
@@ -8116,12 +7904,12 @@ const Arrivals: React.FC = () => {
                     Prev
                   </button>
                   <span style={{ fontSize: '13px', color: '#475569', fontWeight: 600 }}>
-                    Page {inTransitPage} of {Math.ceil(inTransitFilteredCount / 12)} ({inTransitFilteredCount} records)
+                    Page {inTransitPage} of {Math.ceil(inTransitFilteredTrips.length / 12)} ({inTransitFilteredTrips.length} records)
                   </span>
                   <button 
-                    disabled={inTransitPage >= Math.ceil(inTransitFilteredCount / 12)} 
+                    disabled={inTransitPage >= Math.ceil(inTransitFilteredTrips.length / 12)} 
                     onClick={() => setInTransitPage(p => p + 1)} 
-                    style={{ padding: '6px 12px', borderRadius: '4px', cursor: inTransitPage >= Math.ceil(inTransitFilteredCount / 12) ? 'not-allowed' : 'pointer', background: inTransitPage >= Math.ceil(inTransitFilteredCount / 12) ? '#f1f5f9' : 'white', border: '1px solid #cbd5e1', fontWeight: 'bold', fontSize: '12px' }}
+                    style={{ padding: '6px 12px', borderRadius: '4px', cursor: inTransitPage >= Math.ceil(inTransitFilteredTrips.length / 12) ? 'not-allowed' : 'pointer', background: inTransitPage >= Math.ceil(inTransitFilteredTrips.length / 12) ? '#f1f5f9' : 'white', border: '1px solid #cbd5e1', fontWeight: 'bold', fontSize: '12px' }}
                   >
                     Next
                   </button>

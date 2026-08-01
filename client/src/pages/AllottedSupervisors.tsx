@@ -690,8 +690,35 @@ const AllottedSupervisors: React.FC = () => {
   };
 
   const triggerResumeLot = (entryId: string) => {
+    const cleanInt = (val: any) => {
+      if (val == null || val === '') return '';
+      const num = Number(val);
+      return Number.isFinite(num) ? num.toString() : '';
+    };
+    const o = offeringCache[entryId] || {};
+    setFr2Data({
+      finalBaseRate2: cleanInt(o.finalBaseRate ?? o.offerBaseRateValue),
+      finalSute2: cleanInt(o.finalSute ?? o.sute),
+      finalSuteUnit2: o.finalSuteUnit ?? o.suteUnit ?? 'per_ton',
+      finalPrice2: cleanInt(o.finalPrice),
+      hamali2: cleanInt(o.hamali),
+      hamaliUnit2: o.hamaliUnit ?? 'per_bag',
+      brokerage2: cleanInt(o.brokerage),
+      brokerageUnit2: o.brokerageUnit ?? 'per_bag',
+      lf2: cleanInt(o.lf),
+      lfUnit2: o.lfUnit ?? 'per_bag',
+      egbValue2: cleanInt(o.egbValue),
+      egbType2: o.egbType ?? 'mill',
+      cdValue2: cleanInt(o.cdValue),
+      cdUnit2: o.cdUnit ?? 'lumps',
+      bankLoanValue2: cleanInt(o.bankLoanValue),
+      bankLoanUnit2: o.bankLoanUnit ?? 'lumps',
+      paymentConditionValue2: cleanInt(o.paymentConditionValue) || '15',
+      paymentConditionUnit2: o.paymentConditionUnit ?? 'days',
+      finalRemarks2: ''
+    });
     setResumingEntryId(entryId);
-    setIsResumeModalOpen(true);
+    setShowFR2Prompt(true);
   };
 
   const executeResumeLot = async () => {
@@ -1343,34 +1370,7 @@ const AllottedSupervisors: React.FC = () => {
                                             return;
                                           }
                                           setClosingEntryId(entry.id);
-                                          const cleanInt = (val: any) => {
-                                            if (val == null || val === '') return '';
-                                            const num = Number(val);
-                                            return Number.isFinite(num) ? Math.round(num).toString() : '';
-                                          };
-                                          const o = offeringCache[entry.id] || {};
-                                          setFr2Data({
-                                            finalBaseRate2: cleanInt(o.finalBaseRate ?? o.offerBaseRateValue),
-                                            finalSute2: cleanInt(o.finalSute ?? o.sute),
-                                            finalSuteUnit2: o.finalSuteUnit ?? o.suteUnit ?? 'per_ton',
-                                            finalPrice2: cleanInt(o.finalPrice),
-                                            hamali2: cleanInt(o.hamali),
-                                            hamaliUnit2: o.hamaliUnit ?? 'per_bag',
-                                            brokerage2: cleanInt(o.brokerage),
-                                            brokerageUnit2: o.brokerageUnit ?? 'per_bag',
-                                            lf2: cleanInt(o.lf),
-                                            lfUnit2: o.lfUnit ?? 'per_bag',
-                                            egbValue2: cleanInt(o.egbValue),
-                                            egbType2: o.egbType ?? 'mill',
-                                            cdValue2: cleanInt(o.cdValue),
-                                            cdUnit2: o.cdUnit ?? 'lumps',
-                                            bankLoanValue2: cleanInt(o.bankLoanValue),
-                                            bankLoanUnit2: o.bankLoanUnit ?? 'lumps',
-                                            paymentConditionValue2: cleanInt(o.paymentConditionValue) || '15',
-                                            paymentConditionUnit2: o.paymentConditionUnit ?? 'days',
-                                            finalRemarks2: ''
-                                          });
-                                          setShowFR2Prompt(true);
+                                          setIsCloseModalOpen(true);
                                         }}
                                         style={{
                                           fontSize: '10px',
@@ -2096,15 +2096,15 @@ const AllottedSupervisors: React.FC = () => {
         />
       )}
       {/* FR2 Prompt - Ask if user wants to add Final Rate 2 */}
-      {closingEntryId && showFR2Prompt && !isCloseModalOpen && (
+      {resumingEntryId && showFR2Prompt && !isResumeModalOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
           <div style={{ background: 'white', borderRadius: '12px', padding: '24px', maxWidth: '400px', width: '90%', boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
             <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', color: '#1a237e' }}>Add Final Rate 2?</h3>
             <p style={{ margin: '0 0 20px 0', fontSize: '14px', color: '#555', lineHeight: '1.5' }}>
-              Do you want to add a <strong>Final Rate 2</strong> for this lot before closing? You can adjust the values from the existing final rate.
+              Do you want to add a <strong>Final Rate 2</strong> for this lot before resuming? You can adjust the values from the existing final rate.
             </p>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-              <button onClick={() => { setShowFR2Prompt(false); setIsCloseModalOpen(true); }}
+              <button onClick={() => { setShowFR2Prompt(false); setIsResumeModalOpen(true); }}
                 style={{ padding: '8px 16px', background: '#f5f5f5', border: '1px solid #ddd', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' }}>
                 No, Skip
               </button>
@@ -2117,7 +2117,7 @@ const AllottedSupervisors: React.FC = () => {
         </div>
       )}
       {/* FR2 Editor Form */}
-      {closingEntryId && showFR2Form && (
+      {resumingEntryId && showFR2Form && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
           <div style={{ background: 'white', borderRadius: '12px', padding: '24px', maxWidth: '500px', width: '95%', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
             <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', color: '#1a237e' }}>✏️ Final Rate 2</h3>
@@ -2125,47 +2125,47 @@ const AllottedSupervisors: React.FC = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>Final Rate 2</label>
-                <input type="number" step="1" value={fr2Data.finalBaseRate2} onChange={e => setFr2Data({...fr2Data, finalBaseRate2: e.target.value})}
+                <input type="number" step="any" value={fr2Data.finalBaseRate2} onChange={e => setFr2Data({...fr2Data, finalBaseRate2: e.target.value})}
                   style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' }} />
               </div>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>Sute 2</label>
-                <input type="number" step="1" value={fr2Data.finalSute2} onChange={e => setFr2Data({...fr2Data, finalSute2: e.target.value})}
+                <input type="number" step="any" value={fr2Data.finalSute2} onChange={e => setFr2Data({...fr2Data, finalSute2: e.target.value})}
                   style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' }} />
               </div>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>Hamali 2</label>
-                <input type="number" step="1" value={fr2Data.hamali2} onChange={e => setFr2Data({...fr2Data, hamali2: e.target.value})}
+                <input type="number" step="any" value={fr2Data.hamali2} onChange={e => setFr2Data({...fr2Data, hamali2: e.target.value})}
                   style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' }} />
               </div>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>Brokerage 2</label>
-                <input type="number" step="1" value={fr2Data.brokerage2} onChange={e => setFr2Data({...fr2Data, brokerage2: e.target.value})}
+                <input type="number" step="any" value={fr2Data.brokerage2} onChange={e => setFr2Data({...fr2Data, brokerage2: e.target.value})}
                   style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' }} />
               </div>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>LF 2</label>
-                <input type="number" step="1" value={fr2Data.lf2} onChange={e => setFr2Data({...fr2Data, lf2: e.target.value})}
+                <input type="number" step="any" value={fr2Data.lf2} onChange={e => setFr2Data({...fr2Data, lf2: e.target.value})}
                   style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' }} />
               </div>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>EGB Value 2</label>
-                <input type="number" step="1" value={fr2Data.egbValue2} onChange={e => setFr2Data({...fr2Data, egbValue2: e.target.value})}
+                <input type="number" step="any" value={fr2Data.egbValue2} onChange={e => setFr2Data({...fr2Data, egbValue2: e.target.value})}
                   style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' }} />
               </div>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>CD Value 2</label>
-                <input type="number" step="1" value={fr2Data.cdValue2} onChange={e => setFr2Data({...fr2Data, cdValue2: e.target.value})}
+                <input type="number" step="any" value={fr2Data.cdValue2} onChange={e => setFr2Data({...fr2Data, cdValue2: e.target.value})}
                   style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' }} />
               </div>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>Bank Loan 2</label>
-                <input type="number" step="1" value={fr2Data.bankLoanValue2} onChange={e => setFr2Data({...fr2Data, bankLoanValue2: e.target.value})}
+                <input type="number" step="any" value={fr2Data.bankLoanValue2} onChange={e => setFr2Data({...fr2Data, bankLoanValue2: e.target.value})}
                   style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' }} />
               </div>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>Payment Days 2</label>
-                <input type="number" step="1" value={fr2Data.paymentConditionValue2} onChange={e => setFr2Data({...fr2Data, paymentConditionValue2: e.target.value})}
+                <input type="number" step="any" value={fr2Data.paymentConditionValue2} onChange={e => setFr2Data({...fr2Data, paymentConditionValue2: e.target.value})}
                   style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' }} />
               </div>
             </div>
@@ -2175,7 +2175,7 @@ const AllottedSupervisors: React.FC = () => {
                 style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px', minHeight: '50px', resize: 'vertical' }} />
             </div>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '16px', borderTop: '1px solid #eee', paddingTop: '14px' }}>
-              <button onClick={() => { setShowFR2Form(false); setClosingEntryId(null); }}
+              <button onClick={() => { setShowFR2Form(false); setResumingEntryId(null); }}
                 disabled={isSavingFR2}
                 style={{ padding: '8px 16px', background: '#f5f5f5', border: '1px solid #ddd', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '14px', opacity: isSavingFR2 ? 0.6 : 1 }}>
                 Cancel
@@ -2184,12 +2184,12 @@ const AllottedSupervisors: React.FC = () => {
                 setIsSavingFR2(true);
                 try {
                   const token = localStorage.getItem('token');
-                  await axios.post(`${API_URL}/sample-entries/${closingEntryId}/final-rate-2`, fr2Data, {
+                  await axios.post(`${API_URL}/sample-entries/${resumingEntryId}/final-rate-2`, fr2Data, {
                     headers: { Authorization: `Bearer ${token}` }
                   });
                   showNotification('Final Rate 2 saved successfully', 'success');
                   setShowFR2Form(false);
-                  setIsCloseModalOpen(true);
+                  setIsResumeModalOpen(true);
                 } catch (error: any) {
                   showNotification(error.response?.data?.error || 'Failed to save Final Rate 2', 'error');
                 } finally {
@@ -2198,7 +2198,7 @@ const AllottedSupervisors: React.FC = () => {
               }}
                 disabled={isSavingFR2}
                 style={{ padding: '8px 16px', background: isSavingFR2 ? '#999' : '#1a237e', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' }}>
-                {isSavingFR2 ? 'Saving...' : 'Save & Close Lot'}
+                {isSavingFR2 ? 'Saving...' : 'Save & Resume Lot'}
               </button>
             </div>
           </div>
