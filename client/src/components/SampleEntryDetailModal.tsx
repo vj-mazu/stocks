@@ -4317,7 +4317,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                     const millSuteNet = de.suteNetWeight ? `${de.suteNetWeight} Kg` : '-';
                                                     const millStatus = de.wbStatus && de.wbStatus !== 'none' ? toTitleCase(de.wbStatus) : '-';
                                                     const millAddedBy = de.wbAddedBy?.fullName || de.wbAddedBy?.username || '-';
-                                                    const millAddedAt = de.wbAddedAt || de.createdAt || null;
+                                                    const millAddedAt = de.wbAddedAt || null;
                                                     const wbApproverRole = de.wbApprover?.role || de.wbApproverUser?.role || '';
                                                     const wbApproverNameVal = de.wbApprover?.fullName || de.wbApprover?.username || de.wbApproverUser?.fullName || de.wbApproverUser?.username || '';
                                                     const wbApproverName = wbApproverNameVal
@@ -4393,8 +4393,12 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                                 <td style={{ ...tdS, color: '#7c3aed' }}>{millAddedBy}</td>
                                                                                 <td style={{ ...tdS, color: '#7c3aed' }}>{wbApproverName}</td>
                                                                                 <td style={{ ...tdS, fontSize: '9.5px', color: '#64748b' }}>
-                                                                                    <div>Added: {fmtDt(millAddedAt)}</div>
-                                                                                    {de.wbApprovedAt && <div>Approved: {fmtDt(de.wbApprovedAt)}</div>}
+                                                                                    {millAddedAt ? (
+                                                                                        <>
+                                                                                            <div>Added: {fmtDt(millAddedAt)}</div>
+                                                                                            {de.wbApprovedAt && <div>Approved: {fmtDt(de.wbApprovedAt)}</div>}
+                                                                                        </>
+                                                                                    ) : '-'}
                                                                                 </td>
                                                                             </tr>
                                                                             {hasPartyWb && (
@@ -4411,8 +4415,12 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                                     <td style={{ ...tdS, color: '#7c3aed' }}>{partyAddedBy}</td>
                                                                                     <td style={{ ...tdS, color: '#7c3aed' }}>{wbApproverName}</td>
                                                                                     <td style={{ ...tdS, fontSize: '9.5px', color: '#64748b' }}>
-                                                                                        <div>Added: {fmtDt(partyAddedAt)}</div>
-                                                                                        {de.wbApprovedAt && <div>Approved: {fmtDt(de.wbApprovedAt)}</div>}
+                                                                                        {partyAddedAt ? (
+                                                                                            <>
+                                                                                                <div>Added: {fmtDt(partyAddedAt)}</div>
+                                                                                                {de.wbApprovedAt && <div>Approved: {fmtDt(de.wbApprovedAt)}</div>}
+                                                                                            </>
+                                                                                        ) : '-'}
                                                                                     </td>
                                                                                 </tr>
                                                                             )}
