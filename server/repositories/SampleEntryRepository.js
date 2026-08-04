@@ -104,6 +104,12 @@ class SampleEntryRepository {
                     as: 'wbApprover',
                     required: false,
                     attributes: ['id', 'username', 'fullName', 'role']
+                  },
+                  {
+                    model: User,
+                    as: 'wbAddedByUser',
+                    required: false,
+                    attributes: ['id', 'username', 'fullName']
                   }
                 ]
               }
@@ -242,6 +248,7 @@ class SampleEntryRepository {
           { model: Outturn, as: 'outturn', attributes: ['id', 'code', 'allottedVariety'] },
           { model: WeightBridge, as: 'millWeightBridge', attributes: ['id', 'name', 'location'] },
           { model: User, as: 'wbApprover', attributes: ['id', 'username', 'fullName', 'role'] },
+          { model: User, as: 'wbAddedByUser', attributes: ['id', 'username', 'fullName'] },
           { 
             model: require('../models/InventoryQualityParameter'), 
             as: 'inventoryQualityParameters', 

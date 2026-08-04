@@ -1883,6 +1883,15 @@ const startServer = async () => {
         console.log('⚠️ Migration 149 warning:', error.message);
       }
 
+      // Migration 150: Add Final Rate 2 approval columns (manager approval flow for FR2)
+      try {
+        const addFinalRate2ApprovalFields = require('./migrations/150_add_final_rate_2_approval_fields');
+        await addFinalRate2ApprovalFields.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('✅ Migration 150: Final Rate 2 approval fields ensured');
+      } catch (error) {
+        console.log('⚠️ Migration 150 warning:', error.message);
+      }
+
     // Default warehouses removed - users should create their own warehouses
 
     // Create default users if they don't exist

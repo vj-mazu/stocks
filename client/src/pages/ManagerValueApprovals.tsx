@@ -220,6 +220,49 @@ const buildPendingSummary = (data?: Record<string, any> | null, offering?: Recor
   return rows;
 };
 
+const buildPendingSummary2 = (data?: Record<string, any> | null, offering?: Record<string, any>): PendingSummaryRow[] => {
+  const pendingData = data || {};
+  const rows: PendingSummaryRow[] = [];
+  const pushRow = (key: string, label: string, value: string) => {
+    rows.push({ key, label, value, tone: standardPendingFieldTone });
+  };
+
+  if (pendingData.finalBaseRate2 !== undefined && pendingData.finalBaseRate2 !== null && pendingData.finalBaseRate2 !== '') {
+    pushRow('finalBaseRate2', 'Final Rate 2', `₹${toDisplayNumber(pendingData.finalBaseRate2)} (${pendingData.finalBaseRateType2 || offering?.finalBaseRateType || offering?.baseRateType || 'PD/WB'})`);
+  }
+  if (pendingData.finalPrice2 !== undefined && pendingData.finalPrice2 !== null && pendingData.finalPrice2 !== '') {
+    pushRow('finalPrice2', 'Final Price 2', `₹${toDisplayNumber(pendingData.finalPrice2)}`);
+  }
+  if (pendingData.finalSute2 !== undefined && pendingData.finalSute2 !== null && pendingData.finalSute2 !== '') {
+    pushRow('finalSute2', 'Sute 2', `${toDisplayNumber(pendingData.finalSute2)} ${formatChargeUnit(pendingData.finalSuteUnit2)}`.trim());
+  }
+  if (pendingData.hamali2 !== undefined && pendingData.hamali2 !== null && pendingData.hamali2 !== '') {
+    pushRow('hamali2', 'Hamali 2', `${toDisplayNumber(pendingData.hamali2)} ${formatChargeUnit(pendingData.hamaliUnit2)}`.trim());
+  }
+  if (pendingData.brokerage2 !== undefined && pendingData.brokerage2 !== null && pendingData.brokerage2 !== '') {
+    pushRow('brokerage2', 'Brokerage 2', `${toDisplayNumber(pendingData.brokerage2)} ${formatChargeUnit(pendingData.brokerageUnit2)}`.trim());
+  }
+  if (pendingData.lf2 !== undefined && pendingData.lf2 !== null && pendingData.lf2 !== '') {
+    pushRow('lf2', 'LF 2', `${toDisplayNumber(pendingData.lf2)} ${formatChargeUnit(pendingData.lfUnit2)}`.trim());
+  }
+  if (pendingData.egbValue2 !== undefined && pendingData.egbValue2 !== null && pendingData.egbValue2 !== '') {
+    pushRow('egbValue2', 'EGB 2', `${toDisplayNumber(pendingData.egbValue2)}${pendingData.egbType2 ? ` (${toTitleCase(pendingData.egbType2)})` : ''}`);
+  }
+  if (pendingData.cdValue2 !== undefined && pendingData.cdValue2 !== null && pendingData.cdValue2 !== '') {
+    pushRow('cdValue2', 'CD 2', `${toDisplayNumber(pendingData.cdValue2)} ${formatChargeUnit(pendingData.cdUnit2)}`.trim());
+  }
+  if (pendingData.bankLoanValue2 !== undefined && pendingData.bankLoanValue2 !== null && pendingData.bankLoanValue2 !== '') {
+    pushRow('bankLoanValue2', 'Bank Loan 2', `${toDisplayNumber(pendingData.bankLoanValue2)} ${formatChargeUnit(pendingData.bankLoanUnit2)}`.trim());
+  }
+  if (pendingData.paymentConditionValue2 !== undefined && pendingData.paymentConditionValue2 !== null && pendingData.paymentConditionValue2 !== '') {
+    pushRow('paymentConditionValue2', 'Payment 2', `${toDisplayNumber(pendingData.paymentConditionValue2)} ${formatChargeUnit(pendingData.paymentConditionUnit2)}`.trim());
+  }
+  if (pendingData.finalRemarks2 !== undefined && pendingData.finalRemarks2 !== null && pendingData.finalRemarks2 !== '') {
+    pushRow('finalRemarks2', 'Remarks 2', String(pendingData.finalRemarks2));
+  }
+  return rows;
+};
+
 const buildOriginalSummary = (data?: Record<string, any> | null, offering?: Record<string, any>): PendingSummaryRow[] => {
   const pendingData = data || {};
   const rows: PendingSummaryRow[] = [];
@@ -277,7 +320,7 @@ const buildOriginalSummary = (data?: Record<string, any> | null, offering?: Reco
 
 interface ManagerValueApprovalsProps {
   onCountChange?: (count: number) => void;
-  filterType?: 'standard' | 'lorry';
+  filterType?: 'standard' | 'lorry' | 'fr2';
 }
 
 const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountChange, filterType }) => {
@@ -319,6 +362,10 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
 
   const filteredEntries = useMemo(() => {
     return entries.filter((entry) => {
+      if (filterType === 'fr2') {
+        const pendingData2 = entry.offering?.pendingManagerValueApprovalData2 || {};
+        return Object.keys(pendingData2).length > 0;
+      }
       const pendingData = entry.offering?.pendingManagerValueApprovalData || {};
       const hasLorryFields = pendingData.disputeBaseRate !== undefined || pendingData.revisedHamali !== undefined || pendingData.revisedLf !== undefined;
       
@@ -335,7 +382,8 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/sample-entries/tabs/manager-value-approvals`, {
+      const approvalEndpoint = filterType === 'fr2' ? 'manager-value-approvals-2' : 'manager-value-approvals';
+      const response = await axios.get(`${API_URL}/sample-entries/tabs/${approvalEndpoint}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setEntries((response.data as any)?.entries || []);
@@ -344,7 +392,7 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
     } finally {
       setLoading(false);
     }
-  }, [showNotification]);
+  }, [showNotification, filterType]);
 
   useEffect(() => {
     if (canManageApprovals) {
@@ -383,7 +431,8 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
     try {
       setSubmittingId(entryId);
       const token = localStorage.getItem('token');
-      const response = await axios.post(`${API_URL}/sample-entries/${entryId}/manager-value-approval-decision`, {
+      const decisionEndpoint = filterType === 'fr2' ? 'final-rate-2-approval-decision' : 'manager-value-approval-decision';
+      const response = await axios.post(`${API_URL}/sample-entries/${entryId}/${decisionEndpoint}`, {
         decision,
         requestId
       }, {
@@ -409,7 +458,7 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
   return (
     <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
       <div style={{ padding: '14px 16px', borderBottom: '1px solid #e2e8f0', background: '#eff6ff', color: '#1e3a8a', fontWeight: 800 }}>
-        {filterType === 'lorry' ? 'Lorry Value Approvals' : 'Manager Value Approvals'}
+        {filterType === 'fr2' ? 'Final Rate 2 Approvals' : (filterType === 'lorry' ? 'Lorry Value Approvals' : 'Manager Value Approvals')}
         {pendingCountBadge}
       </div>
       {loading ? (
@@ -441,7 +490,9 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
             </thead>
             <tbody>
               {filteredEntries.map((entry, index) => {
-                const summaryRows = buildPendingSummary(entry.offering?.pendingManagerValueApprovalData, entry.offering);
+                const summaryRows = filterType === 'fr2'
+                  ? buildPendingSummary2(entry.offering?.pendingManagerValueApprovalData2, entry.offering)
+                  : buildPendingSummary(entry.offering?.pendingManagerValueApprovalData, entry.offering);
                 return (
                   <tr key={`${entry.id}-${entry.pendingManagerValueApprovalRequestId || index}`} style={{ background: index % 2 === 0 ? '#fff7ed' : '#fffbeb' }}>
                     <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', fontWeight: 700, fontSize: '11px', verticalAlign: 'top', textAlign: 'left' }}>{index + 1}</td>
@@ -479,11 +530,11 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
                         borderRadius: '999px',
                         fontSize: '9px',
                         fontWeight: 800,
-                        color: filterType === 'lorry' ? '#7e22ce' : '#9a3412',
-                        background: filterType === 'lorry' ? '#f3e8ff' : '#ffedd5',
-                        border: filterType === 'lorry' ? '1px solid #d8b4fe' : '1px solid #fdba74'
+                        color: filterType === 'lorry' || filterType === 'fr2' ? '#7e22ce' : '#9a3412',
+                        background: filterType === 'lorry' || filterType === 'fr2' ? '#f3e8ff' : '#ffedd5',
+                        border: filterType === 'lorry' || filterType === 'fr2' ? '1px solid #d8b4fe' : '1px solid #fdba74'
                       }}>
-                        {filterType === 'lorry' ? 'Dispute / Revised Pending Approval' : 'Manager Added Pending Approval'}
+                        {filterType === 'fr2' ? 'Final Rate 2 Pending Approval' : (filterType === 'lorry' ? 'Dispute / Revised Pending Approval' : 'Manager Added Pending Approval')}
                       </div>
                     </td>
                     <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', fontSize: '13px', fontWeight: 700, color: '#334155', verticalAlign: 'top', lineHeight: 1.15, textAlign: 'left' }}>{toTitleCase(entry.location || '-')}</td>
@@ -557,9 +608,13 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
                     </td>
                     <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', fontSize: '13px', fontWeight: 700, color: '#334155', verticalAlign: 'top', lineHeight: 1.15, textAlign: 'left' }}>{entry.pendingManagerValueApprovalRequestedByName || '-'}</td>
                     <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', fontSize: '13px', fontWeight: 700, color: '#334155', verticalAlign: 'top', lineHeight: 1.15, textAlign: 'left' }}>
-                      {entry.offering?.pendingManagerValueApprovalRequestedAt
-                        ? new Date(entry.offering.pendingManagerValueApprovalRequestedAt).toLocaleString('en-GB')
-                        : '-'}
+                      {filterType === 'fr2'
+                        ? (entry.offering?.pendingManagerValueApprovalRequestedAt2
+                          ? new Date(entry.offering.pendingManagerValueApprovalRequestedAt2).toLocaleString('en-GB')
+                          : '-')
+                        : (entry.offering?.pendingManagerValueApprovalRequestedAt
+                          ? new Date(entry.offering.pendingManagerValueApprovalRequestedAt).toLocaleString('en-GB')
+                          : '-')}
                     </td>
                     <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', verticalAlign: 'top', textAlign: 'left' }}>
                       <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-start' }}>

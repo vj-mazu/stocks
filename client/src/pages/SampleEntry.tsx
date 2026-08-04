@@ -450,6 +450,7 @@ const SampleEntryPage: React.FC<{
       if (!raw) return '';
       const numeric = Number(raw);
       if (Number.isFinite(numeric) && numeric === 0) return '';
+      if (Number.isFinite(numeric)) return numeric.toString();
       return raw;
     };
     const rawOrEmpty = (rawVal: any, value: any) => {

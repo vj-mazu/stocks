@@ -4316,7 +4316,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                     const millSute = (de.sute != null && de.sute !== '') ? de.sute : '-';
                                                     const millSuteNet = de.suteNetWeight ? `${de.suteNetWeight} Kg` : '-';
                                                     const millStatus = de.wbStatus && de.wbStatus !== 'none' ? toTitleCase(de.wbStatus) : '-';
-                                                    const millAddedBy = de.wbAddedBy?.fullName || de.wbAddedBy?.username || '-';
+                                                    const millAddedBy = de.wbAddedByUser?.fullName || de.wbAddedByUser?.username || de.wbAddedBy?.fullName || de.wbAddedBy?.username || '-';
                                                     const millAddedAt = de.wbAddedAt || null;
                                                     const wbApproverRole = de.wbApprover?.role || de.wbApproverUser?.role || '';
                                                     const wbApproverNameVal = de.wbApprover?.fullName || de.wbApprover?.username || de.wbApproverUser?.fullName || de.wbApproverUser?.username || '';
@@ -4333,7 +4333,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                     const partySute = (de.partySute != null && de.partySute !== '') ? de.partySute : '-';
                                                     const partySuteNet = de.partySuteNetWeight ? `${de.partySuteNetWeight} Kg` : '-';
                                                     const partyStatus = de.wbStatus && de.wbStatus !== 'none' ? toTitleCase(de.wbStatus) : '-';
-                                                    const partyAddedBy = de.wbAddedBy?.fullName || de.wbAddedBy?.username || '-';
+                                                    const partyAddedBy = de.wbAddedByUser?.fullName || de.wbAddedByUser?.username || de.wbAddedBy?.fullName || de.wbAddedBy?.username || de.sampleEntry?.creator?.fullName || de.sampleEntry?.creator?.username || detailEntry?.creator?.fullName || detailEntry?.creator?.username || '-';
                                                     const partyAddedAt = de.partyWbDate || de.wbAddedAt || null;
 
                                                     const placeType = de.placeType === 'production' ? 'Production' : de.placeType === 'kunchinittu' ? 'Kunchinittu' : (de.placeType || '-');

@@ -37,6 +37,35 @@ const normalizePendingManagerApprovalQueue = (offering) => {
 
   return [];
 };
+
+// Final Rate 2 approval queue — mirrors the FR1 mechanism but isolated with _2 suffix
+const normalizePendingManagerApprovalQueue2 = (offering) => {
+  const queue = Array.isArray(offering?.pendingManagerValueApprovalQueue2)
+    ? offering.pendingManagerValueApprovalQueue2
+        .filter((item) => item && typeof item === 'object' && item.data && typeof item.data === 'object')
+        .map((item) => ({
+          id: item.id || `fr2-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          data: item.data || {},
+          requestedBy: item.requestedBy ?? null,
+          requestedAt: item.requestedAt || null
+        }))
+    : [];
+
+  if (queue.length > 0) return queue;
+
+  const legacyData = offering?.pendingManagerValueApprovalData2;
+  if (legacyData && typeof legacyData === 'object' && Object.keys(legacyData).length > 0) {
+    return [
+      createPendingManagerApprovalRequest(
+        legacyData,
+        offering?.pendingManagerValueApprovalRequestedBy2 || null,
+        offering?.pendingManagerValueApprovalRequestedAt2 || new Date()
+      )
+    ];
+  }
+
+  return [];
+};
 const { auth: authenticateToken } = require('../middleware/auth');
 const SampleEntryService = require('../services/SampleEntryService');
 const QualityParametersService = require('../services/QualityParametersService');
@@ -4553,7 +4582,9 @@ router.get('/:id/inspection-progress', authenticateToken, async (req, res) => {
   }
 });
 // ——— Final Rate 2 Save Endpoint ———
-// Saves/updates Final Rate 2 for a sample entry (used when closing a lot)
+// Saves/updates Final Rate 2 for a sample entry (used when closing a lot).
+// Admin/Owner: applies values directly.
+// Manager: submits values for admin approval (mirrors the Final Rate 1 flow).
 router.post('/:id/final-rate-2', authenticateToken, async (req, res) => {
   try {
     const sampleEntryId = req.params.id;
@@ -4566,7 +4597,8 @@ router.post('/:id/final-rate-2', authenticateToken, async (req, res) => {
       finalRemarks2
     } = req.body;
 
-    if (!['manager', 'admin', 'owner'].includes(req.user.role)) {
+    const fr2Role = getWorkflowRole(req.user);
+    if (!['manager', 'admin', 'owner', 'ceo'].includes(fr2Role)) {
       return res.status(403).json({ error: 'Only manager, admin or owner can set Final Rate 2' });
     }
 
@@ -4584,27 +4616,79 @@ router.post('/:id/final-rate-2', authenticateToken, async (req, res) => {
       offering = await SampleEntryOffering.create({ sampleEntryId });
     }
 
-    // Update Final Rate 2 fields
+    const isManager = String(fr2Role || '').toLowerCase() === 'manager';
+
+    // Manager submits FR2 values → goes for admin approval (isolated _2 flow)
+    if (isManager) {
+      const DEFAULT_FR2_UNITS2 = {
+        finalSuteUnit2: 'per_ton', hamaliUnit2: 'per_bag', brokerageUnit2: 'per_bag',
+        lfUnit2: 'per_bag', egbType2: 'mill', cdUnit2: 'lumps',
+        bankLoanUnit2: 'lumps', paymentConditionUnit2: 'days'
+      };
+      const NUM_FR2_KEYS2 = ['finalBaseRate2', 'finalSute2', 'finalPrice2', 'hamali2', 'brokerage2', 'lf2', 'egbValue2', 'cdValue2', 'bankLoanValue2', 'paymentConditionValue2'];
+      const UNIT_FR2_KEYS2 = ['finalSuteUnit2', 'hamaliUnit2', 'brokerageUnit2', 'lfUnit2', 'egbType2', 'cdUnit2', 'bankLoanUnit2', 'paymentConditionUnit2'];
+      const raw2 = {
+        finalBaseRate2, finalSute2, finalSuteUnit2, finalPrice2, hamali2, hamaliUnit2,
+        brokerage2, brokerageUnit2, lf2, lfUnit2, egbValue2, egbType2, cdValue2, cdUnit2,
+        bankLoanValue2, bankLoanUnit2, paymentConditionValue2, paymentConditionUnit2, finalRemarks2
+      };
+      const pendingData2 = {};
+      for (const key of Object.keys(raw2)) {
+        if (raw2[key] === undefined) continue; // field not sent — do not touch
+        if (NUM_FR2_KEYS2.includes(key)) {
+          pendingData2[key] = toNumOrNull(raw2[key]); // ''/null → null (removes on approval)
+        } else if (UNIT_FR2_KEYS2.includes(key)) {
+          pendingData2[key] = raw2[key] || offering[key] || DEFAULT_FR2_UNITS2[key] || '';
+        } else {
+          pendingData2[key] = raw2[key] != null ? raw2[key] : offering[key];
+        }
+      }
+      pendingData2.isFinalized2 = true;
+
+      const pendingQueue = normalizePendingManagerApprovalQueue2(offering);
+      pendingQueue.push(createPendingManagerApprovalRequest(pendingData2, req.user.userId));
+
+      await offering.update({
+        pendingManagerValueApprovalStatus2: 'pending',
+        pendingManagerValueApprovalData2: pendingData2,
+        pendingManagerValueApprovalQueue2: pendingQueue,
+        pendingManagerValueApprovalRequestedBy2: req.user.userId,
+        pendingManagerValueApprovalRequestedAt2: new Date(),
+        pendingManagerValueApprovalApprovedBy2: null,
+        pendingManagerValueApprovalApprovedAt2: null,
+        updatedBy: req.user.userId
+      });
+
+      invalidateSampleEntryTabCaches();
+      return res.json({
+        message: 'Final Rate 2 submitted for approval',
+        pending: true
+      });
+    }
+
+    // Admin/Owner → apply directly
+    const setOrClear2 = (val, current) => (val === undefined ? current : toNumOrNull(val));
     const updateData = {
-      finalBaseRate2: toNumOrNull(finalBaseRate2) ?? offering.finalBaseRate2,
-      finalSute2: toNumOrNull(finalSute2) ?? offering.finalSute2,
+      finalBaseRate2: setOrClear2(finalBaseRate2, offering.finalBaseRate2),
+      finalSute2: setOrClear2(finalSute2, offering.finalSute2),
       finalSuteUnit2: finalSuteUnit2 || offering.finalSuteUnit2 || 'per_ton',
-      finalPrice2: toNumOrNull(finalPrice2) ?? offering.finalPrice2,
-      hamali2: toNumOrNull(hamali2) ?? offering.hamali2,
+      finalPrice2: setOrClear2(finalPrice2, offering.finalPrice2),
+      hamali2: setOrClear2(hamali2, offering.hamali2),
       hamaliUnit2: hamaliUnit2 || offering.hamaliUnit2 || 'per_bag',
-      brokerage2: toNumOrNull(brokerage2) ?? offering.brokerage2,
+      brokerage2: setOrClear2(brokerage2, offering.brokerage2),
       brokerageUnit2: brokerageUnit2 || offering.brokerageUnit2 || 'per_bag',
-      lf2: toNumOrNull(lf2) ?? offering.lf2,
+      lf2: setOrClear2(lf2, offering.lf2),
       lfUnit2: lfUnit2 || offering.lfUnit2 || 'per_bag',
-      egbValue2: toNumOrNull(egbValue2) ?? offering.egbValue2,
+      egbValue2: setOrClear2(egbValue2, offering.egbValue2),
       egbType2: egbType2 || offering.egbType2 || 'mill',
-      cdValue2: toNumOrNull(cdValue2) ?? offering.cdValue2,
+      cdValue2: setOrClear2(cdValue2, offering.cdValue2),
       cdUnit2: cdUnit2 || offering.cdUnit2 || 'lumps',
-      bankLoanValue2: toNumOrNull(bankLoanValue2) ?? offering.bankLoanValue2,
+      bankLoanValue2: setOrClear2(bankLoanValue2, offering.bankLoanValue2),
       bankLoanUnit2: bankLoanUnit2 || offering.bankLoanUnit2 || 'lumps',
-      paymentConditionValue2: toNumOrNull(paymentConditionValue2) ?? offering.paymentConditionValue2,
+      paymentConditionValue2: setOrClear2(paymentConditionValue2, offering.paymentConditionValue2),
       paymentConditionUnit2: paymentConditionUnit2 || offering.paymentConditionUnit2 || 'days',
-      finalRemarks2: finalRemarks2 != null ? finalRemarks2 : offering.finalRemarks2,
+      finalBaseRateType2: offering.baseRateType || 'PD_WB',
+      finalRemarks2: finalRemarks2 !== undefined ? (finalRemarks2 ?? null) : offering.finalRemarks2,
       isFinalized2: true,
       finalReportedBy2: req.user.fullName || req.user.username || 'Unknown',
       finalReportedAt2: new Date(),
@@ -4613,6 +4697,7 @@ router.post('/:id/final-rate-2', authenticateToken, async (req, res) => {
 
     await offering.update(updateData);
 
+    invalidateSampleEntryTabCaches();
     res.json({
       message: 'Final Rate 2 saved successfully',
       offering
@@ -4620,6 +4705,180 @@ router.post('/:id/final-rate-2', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error saving Final Rate 2:', error);
     res.status(400).json({ error: error.message });
+  }
+});
+
+// ——— Final Rate 2 Approvals List ———
+// Lists entries with pending Final Rate 2 manager submissions (admin/owner only).
+router.get('/tabs/manager-value-approvals-2', authenticateToken, async (req, res) => {
+  try {
+    const workflowRole = getWorkflowRole(req.user);
+    if (!['admin', 'owner'].includes(workflowRole)) {
+      return res.status(403).json({ error: 'Only admin can view Final Rate 2 approvals' });
+    }
+
+    const entries = await SampleEntry.findAll({
+      include: [
+        {
+          model: SampleEntryOffering,
+          as: 'offering',
+          where: { pendingManagerValueApprovalStatus2: 'pending' },
+          required: true
+        },
+        { model: User, as: 'creator', attributes: ['id', 'username', 'fullName'], required: false }
+      ],
+      order: [
+        ['entryDate', 'DESC'],
+        ['createdAt', 'DESC']
+      ]
+    });
+
+    const pendingRequests = entries.flatMap((entry) => normalizePendingManagerApprovalQueue2(entry?.offering));
+    const requestUserIds = Array.from(new Set(pendingRequests.map((request) => request.requestedBy).filter(Boolean)));
+    const users = requestUserIds.length
+      ? await User.findAll({ where: { id: requestUserIds }, attributes: ['id', 'username', 'fullName'], raw: true })
+      : [];
+    const userMap = new Map(users.map((user) => [user.id, user]));
+
+    const payload = entries.flatMap((entry) => {
+      const plain = entry.toJSON ? entry.toJSON() : entry;
+      const queue = normalizePendingManagerApprovalQueue2(plain.offering);
+      return queue.map((request) => {
+        const requester = request.requestedBy ? userMap.get(request.requestedBy) : null;
+        return {
+          ...plain,
+          pendingManagerValueApprovalRequestId: request.id,
+          pendingManagerValueApprovalRequestedByName: requester?.fullName || requester?.username || '',
+          offering: {
+            ...plain.offering,
+            pendingManagerValueApprovalData2: request.data,
+            pendingManagerValueApprovalRequestedAt2: request.requestedAt
+          }
+        };
+      });
+    });
+
+    return res.json({ entries: payload });
+  } catch (error) {
+    console.error('Error getting Final Rate 2 approvals:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// ——— Final Rate 2 Approval Decision ———
+// Admin/Owner approves or rejects a pending Final Rate 2 submission.
+// Approve: applies the pending FR2 values to the real *_2 fields.
+// Reject: drops the request without applying anything.
+router.post('/:id/final-rate-2-approval-decision', authenticateToken, async (req, res) => {
+  try {
+    const workflowRole = getWorkflowRole(req.user);
+    if (!['admin', 'owner'].includes(workflowRole)) {
+      return res.status(403).json({ error: 'Only admin can approve Final Rate 2 requests' });
+    }
+
+    const nextDecision = String(req.body?.decision || '').trim().toLowerCase();
+    const requestId = String(req.body?.requestId || '').trim();
+    if (!['approve', 'reject'].includes(nextDecision)) {
+      return res.status(400).json({ error: 'Decision must be approve or reject' });
+    }
+
+    const sampleEntry = await SampleEntry.findByPk(req.params.id, {
+      include: [{ model: SampleEntryOffering, as: 'offering', required: false }]
+    });
+    if (!sampleEntry || !sampleEntry.offering) {
+      return res.status(404).json({ error: 'Sample entry approval request not found' });
+    }
+
+    const offering = sampleEntry.offering;
+    if (String(offering.pendingManagerValueApprovalStatus2 || '').toLowerCase() !== 'pending') {
+      return res.status(400).json({ error: 'No pending Final Rate 2 approval found for this lot' });
+    }
+
+    const pendingQueue = normalizePendingManagerApprovalQueue2(offering);
+    if (pendingQueue.length === 0) {
+      return res.status(400).json({ error: 'No pending Final Rate 2 approval found for this lot' });
+    }
+
+    const requestIndex = requestId
+      ? pendingQueue.findIndex((item) => item.id === requestId)
+      : pendingQueue.length - 1;
+    if (requestIndex < 0) {
+      return res.status(404).json({ error: 'Pending Final Rate 2 approval request not found' });
+    }
+    const targetRequest = pendingQueue[requestIndex];
+    const pendingData = targetRequest.data || {};
+    const toNumKeep = (val, fallback) => {
+      if (val === undefined) return fallback;
+      if (val === '' || val === null) return null; // explicitly cleared — remove
+      const num = Number(val);
+      return isNaN(num) ? fallback : num;
+    };
+
+    if (nextDecision === 'reject') {
+      const remainingQueue = pendingQueue.filter((_, index) => index !== requestIndex);
+      const latestPending = remainingQueue[remainingQueue.length - 1] || null;
+      await offering.update({
+        pendingManagerValueApprovalStatus2: latestPending ? 'pending' : 'rejected',
+        pendingManagerValueApprovalQueue2: remainingQueue,
+        pendingManagerValueApprovalApprovedBy2: latestPending ? null : req.user.userId,
+        pendingManagerValueApprovalApprovedAt2: latestPending ? null : new Date(),
+        pendingManagerValueApprovalData2: latestPending ? latestPending.data : null,
+        pendingManagerValueApprovalRequestedBy2: latestPending ? latestPending.requestedBy : null,
+        pendingManagerValueApprovalRequestedAt2: latestPending ? latestPending.requestedAt : null
+      });
+      invalidateSampleEntryTabCaches();
+      return res.json({ success: true, message: 'Final Rate 2 request rejected' });
+    }
+
+    const requesterUser = await User.findByPk(targetRequest.requestedBy, { attributes: ['fullName', 'username'] });
+    const requesterName = requesterUser?.fullName || requesterUser?.username || 'Manager';
+
+    const fr2UpdateData = {
+      finalBaseRate2: toNumKeep(pendingData.finalBaseRate2, offering.finalBaseRate2),
+      finalSute2: toNumKeep(pendingData.finalSute2, offering.finalSute2),
+      finalSuteUnit2: pendingData.finalSuteUnit2 || offering.finalSuteUnit2 || 'per_ton',
+      finalPrice2: toNumKeep(pendingData.finalPrice2, offering.finalPrice2),
+      hamali2: toNumKeep(pendingData.hamali2, offering.hamali2),
+      hamaliUnit2: pendingData.hamaliUnit2 || offering.hamaliUnit2 || 'per_bag',
+      brokerage2: toNumKeep(pendingData.brokerage2, offering.brokerage2),
+      brokerageUnit2: pendingData.brokerageUnit2 || offering.brokerageUnit2 || 'per_bag',
+      lf2: toNumKeep(pendingData.lf2, offering.lf2),
+      lfUnit2: pendingData.lfUnit2 || offering.lfUnit2 || 'per_bag',
+      egbValue2: toNumKeep(pendingData.egbValue2, offering.egbValue2),
+      egbType2: pendingData.egbType2 || offering.egbType2 || 'mill',
+      cdValue2: toNumKeep(pendingData.cdValue2, offering.cdValue2),
+      cdUnit2: pendingData.cdUnit2 || offering.cdUnit2 || 'lumps',
+      bankLoanValue2: toNumKeep(pendingData.bankLoanValue2, offering.bankLoanValue2),
+      bankLoanUnit2: pendingData.bankLoanUnit2 || offering.bankLoanUnit2 || 'lumps',
+      paymentConditionValue2: toNumKeep(pendingData.paymentConditionValue2, offering.paymentConditionValue2),
+      paymentConditionUnit2: pendingData.paymentConditionUnit2 || offering.paymentConditionUnit2 || 'days',
+      finalBaseRateType2: offering.baseRateType || 'PD_WB',
+      finalRemarks2: pendingData.finalRemarks2 !== undefined ? (pendingData.finalRemarks2 ?? null) : offering.finalRemarks2,
+      isFinalized2: true,
+      finalReportedBy2: requesterName,
+      finalReportedAt2: new Date(),
+      updatedBy: req.user.userId
+    };
+
+    const remainingQueue = pendingQueue.filter((_, index) => index !== requestIndex);
+    const latestPending = remainingQueue[remainingQueue.length - 1] || null;
+
+    await offering.update({
+      ...fr2UpdateData,
+      pendingManagerValueApprovalStatus2: latestPending ? 'pending' : 'approved',
+      pendingManagerValueApprovalApprovedBy2: latestPending ? null : req.user.userId,
+      pendingManagerValueApprovalApprovedAt2: latestPending ? null : new Date(),
+      pendingManagerValueApprovalQueue2: remainingQueue,
+      pendingManagerValueApprovalData2: latestPending ? latestPending.data : null,
+      pendingManagerValueApprovalRequestedBy2: latestPending ? latestPending.requestedBy : null,
+      pendingManagerValueApprovalRequestedAt2: latestPending ? latestPending.requestedAt : null
+    });
+
+    invalidateSampleEntryTabCaches();
+    return res.json({ success: true, message: 'Final Rate 2 request approved' });
+  } catch (error) {
+    console.error('Error deciding Final Rate 2 approval:', error);
+    return res.status(500).json({ error: error.message });
   }
 });
 

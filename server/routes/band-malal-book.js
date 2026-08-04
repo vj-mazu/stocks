@@ -155,9 +155,19 @@ router.get('/band-malal-book', auth, async (req, res) => {
   try {
     const { limit = 200, search } = req.query;
 
-    console.log('🔍 Band Malal Book: Fetching entries with placeStatus=approved');
+    console.log('🔍 Band Malal Book: Fetching entries with placeStatus=approved (and pending edits that remain visible)');
 
-    const where = { placeStatus: 'approved' };
+    // Include approved entries AND pending-edit entries (staff edits that are awaiting approval
+    // stay visible in BMB with an "Edit Pending" badge). Pending entries without the
+    // EDIT_PENDING marker (new placements awaiting first approval) stay in In-Transit.
+    const where = {
+      [Op.or]: [
+        { placeStatus: 'approved' },
+        // Only BMB-edit-pending entries (EDIT_PENDING:approved) stay visible in BMB.
+        // In-Transit edits (EDIT_PENDING:placed) remain in In-Transit, not BMB.
+        { placeStatus: 'pending', placeRejectReason: { [Op.like]: 'EDIT_PENDING:approved%' } }
+      ]
+    };
 
     // Get total count of approved entries for SL No calculation
     const totalApprovedCount = await LorryTransitDetail.count({ where });
@@ -350,6 +360,7 @@ router.get('/band-malal-book', auth, async (req, res) => {
           millWbId: detail.millWbId,
           millWeightBridge: millWb,
           wbAddedBy: wbAddedByUser ? { id: wbAddedByUser.id, username: wbAddedByUser.username, fullName: wbAddedByUser.fullName } : null,
+          wbAddedByUser: wbAddedByUser ? { id: wbAddedByUser.id, username: wbAddedByUser.username, fullName: wbAddedByUser.fullName } : null,
           wbAddedAt: detail.wbAddedAt || null,
           wbApprovedBy: detail.wbApprovedBy || null,
           wbApprover: wbApproverUser ? { id: wbApproverUser.id, username: wbApproverUser.username, fullName: wbApproverUser.fullName, role: wbApproverUser.role } : null,
@@ -367,6 +378,7 @@ router.get('/band-malal-book', auth, async (req, res) => {
           // Place and other fields
           lorryNumber: inspection?.lorryNumber || sampleEntry.lorryNumber || 'N/A',
           placeStatus: detail.placeStatus,
+          placeRejectReason: detail.placeRejectReason || null,
           placeDate: detail.placeDate,
           placeApprovedAt: detail.placeApprovedAt || null,
           placeApprover: placeApproverUser ? { id: placeApproverUser.id, username: placeApproverUser.username, fullName: placeApproverUser.fullName } : null,
@@ -387,6 +399,7 @@ router.get('/band-malal-book', auth, async (req, res) => {
           slNo: index + 1,
           date: detail.createdAt,
           placeStatus: detail.placeStatus,
+          placeRejectReason: detail.placeRejectReason || null,
           wbNo: detail.wbNo || 'PENDING',
           wbStatus: detail.wbStatus || 'none',
           isBandMalal: true,

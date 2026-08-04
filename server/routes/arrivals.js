@@ -8450,22 +8450,43 @@ router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
 
 
 
-      }      if (detail.placeStatus === 'approved') {
-
-
-
-
-
-
-
-        return res.status(400).json({ error: 'Entry already moved to Band Malal Book' });
-
-
-
-
-
-
-
+      }
+      
+      // Check if this is an edit of an existing place
+      const hasExistingPlace = !!(detail.placeDate || detail.placeType || detail.outturnId || detail.placeWarehouseId || detail.placeKunchinittuId);
+      const isPlaceEdit = detail.placeStatus !== 'none' && hasExistingPlace;
+      
+      // Auto-approve for admin/manager/ceo roles, otherwise require approval
+      const isAutoApprovePlace = ['admin', 'ceo', 'manager', 'owner', 'inventory_head'].includes(String(req.user.role || '').toLowerCase());
+      const isBmbEntry = detail.placeStatus === 'approved' || (detail.placeStatus === 'pending' && detail.placeRejectReason && String(detail.placeRejectReason).startsWith('EDIT_PENDING:approved'));
+      
+      // targetPlaceStatus logic:
+      // - Approver edit: stay where it is (approved stays approved in BMB, placed stays in In-Transit)
+      // - Staff edit of BMB entry: pending + EDIT_PENDING:approved marker (keeps entry visible in BMB with badge)
+      // - Staff edit of In-Transit entry: pending + EDIT_PENDING:placed marker (keeps entry visible in In-Transit)
+      // - New place: approved (auto-moves directly to Band Malal Book)
+      let targetPlaceStatus = 'approved';
+      let placeRejectReason = null;
+      let placeApprovedBy = req.user.userId;
+      let placeApprovedAt = new Date();
+      if (isPlaceEdit) {
+        if (isAutoApprovePlace) {
+          targetPlaceStatus = isBmbEntry ? 'approved' : 'placed';
+          placeApprovedBy = req.user.userId;
+          placeApprovedAt = new Date();
+        } else {
+          targetPlaceStatus = 'pending';
+          placeApprovedBy = null;
+          placeApprovedAt = null;
+          // Store previous status + old values so reject can restore them
+          placeRejectReason = 'EDIT_PENDING:' + (isBmbEntry ? 'approved' : 'placed') + ':' + JSON.stringify({
+            placeDate: detail.placeDate,
+            placeKunchinittuId: detail.placeKunchinittuId,
+            placeWarehouseId: detail.placeWarehouseId,
+            placeType: detail.placeType,
+            outturnId: detail.outturnId
+          });
+        }
       }
 
 
@@ -8554,7 +8575,7 @@ router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
 
 
 
-        placeStatus: 'placed',
+        placeStatus: targetPlaceStatus,
 
 
 
@@ -8562,7 +8583,7 @@ router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
 
 
 
-        placeRejectReason: null,
+        placeRejectReason,
 
 
 
@@ -8570,7 +8591,7 @@ router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
 
 
 
-        placeApprovedBy: null,
+        placeApprovedBy,
 
 
 
@@ -8578,7 +8599,7 @@ router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
 
 
 
-        placeApprovedAt: null
+        placeApprovedAt
 
 
 
@@ -8586,6 +8607,18 @@ router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
 
 
 
+      });
+
+
+
+
+
+
+
+      return res.json({
+        message: 'Place added successfully — entry is in In-Transit',
+        detail,
+        needsApproval: targetPlaceStatus === 'pending'
       });
 
 
@@ -8622,22 +8655,34 @@ router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
 
 
 
-    if (!arrival) return res.status(404).json({ error: 'Inspection or Arrival not found' });    if (arrival.placeStatus === 'approved') {
-
-
-
-
-
-
-
-      return res.status(400).json({ error: 'Entry already in Band Malal Book' });
-
-
-
-
-
-
-
+    if (!arrival) return res.status(404).json({ error: 'Inspection or Arrival not found' });    // Check if this is an edit of an existing place
+    const hasExistingPlace = !!(arrival.placeDate || arrival.placeType || arrival.outturnId || arrival.placeWarehouseId || arrival.placeKunchinittuId);
+    const isPlaceEdit = arrival.placeStatus !== 'none' && hasExistingPlace;
+    
+    // Auto-approve for admin/manager/ceo roles, otherwise require approval
+    const isAutoApprovePlace = ['admin', 'ceo', 'manager', 'owner', 'inventory_head'].includes(String(req.user.role || '').toLowerCase());
+    const isBmbEntry = arrival.placeStatus === 'approved' || (arrival.placeStatus === 'pending' && arrival.placeRejectReason && String(arrival.placeRejectReason).startsWith('EDIT_PENDING:approved'));
+    
+    let targetPlaceStatus = 'approved'; // New place - auto-moves directly to Band Malal Book
+    let placeRejectReason = null;
+    let placeApprovedBy = req.user.userId;
+    let placeApprovedAt = new Date();
+    if (isPlaceEdit) {
+      if (isAutoApprovePlace) {
+        targetPlaceStatus = isBmbEntry ? 'approved' : 'placed';
+        placeApprovedBy = req.user.userId;
+        placeApprovedAt = new Date();
+      } else {
+        targetPlaceStatus = 'pending';
+        // Store previous status + old values so reject can restore them
+        placeRejectReason = 'EDIT_PENDING:' + (isBmbEntry ? 'approved' : 'placed') + ':' + JSON.stringify({
+          placeDate: arrival.placeDate,
+          placeKunchinittuId: arrival.placeKunchinittuId,
+          placeWarehouseId: arrival.placeWarehouseId,
+          placeType: arrival.placeType,
+          outturnId: arrival.outturnId
+        });
+      }
     }
 
 
@@ -8681,11 +8726,23 @@ router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
 
 
 
-      placeStatus: 'pending',
+      placeStatus: targetPlaceStatus,
 
 
 
-      placeRejectReason: null
+      placeRejectReason,
+
+
+
+      placeApprovedBy,
+
+
+
+
+
+
+
+      placeApprovedAt
 
 
 
@@ -8697,7 +8754,11 @@ router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
 
 
 
-    res.json({ message: 'Place submitted for approval', arrival });
+    res.json({
+      message: targetPlaceStatus === 'pending' ? 'Place submitted for approval' : 'Place saved successfully',
+      arrival,
+      needsApproval: targetPlaceStatus === 'pending'
+    });
 
 
 
@@ -8753,16 +8814,20 @@ router.post('/:id/wb', auth, async (req, res) => {
 
     const { 
       wbInputType, millWbId, partyWbName, partyWbEnabled, wbNo, grossWeight, tareWeight, netWeight, sute, wbDate,
-      partyWbNo, partyWbDate, partyGrossWeight, partyTareWeight, partyNetWeight, partySute
+      partyWbNo, partyWbDate, partyGrossWeight, partyTareWeight, partyNetWeight, partySute, bags
     } = req.body;
+
+    // Normalize isEdit to a strict boolean (only true when editing an existing WB)
+    const isEdit = req.body.isEdit === true;
 
     // Calculate netWeight and suteNetWeight BEFORE branching (needed in both Party and Mill WB sections)
     const calculatedNetWeight = netWeight || (grossWeight && tareWeight ? Number(grossWeight) - Number(tareWeight) : null);
-    const calculatedSuteNetWeight = calculatedNetWeight && sute ? Number(calculatedNetWeight) - Number(sute) : calculatedNetWeight;
+    const bagsCount = Number(bags) || 1;
+    const calculatedSuteNetWeight = calculatedNetWeight && sute ? Number(calculatedNetWeight) - (Number(sute) * bagsCount) : calculatedNetWeight;
 
     // Calculate Party Net Weight and Sute Net Weight
     const calculatedPartyNetWeight = partyNetWeight || (partyGrossWeight && partyTareWeight ? Number(partyGrossWeight) - Number(partyTareWeight) : null);
-    const calculatedPartySuteNetWeight = calculatedPartyNetWeight && partySute ? Number(calculatedPartyNetWeight) - Number(partySute) : calculatedPartyNetWeight;
+    const calculatedPartySuteNetWeight = calculatedPartyNetWeight && partySute ? Number(calculatedPartyNetWeight) - (Number(partySute) * bagsCount) : calculatedPartyNetWeight;
 
 
 
@@ -9044,20 +9109,8 @@ router.post('/:id/wb', auth, async (req, res) => {
 
         const isAllowedEdit = ['admin', 'manager', 'ceo'].includes(String(userRole || '').toLowerCase()) || ['ceo'].includes(String(effectiveRole || '').toLowerCase());
 
-
-
-
-
-
-
-        if (transitDetail.millWbId && transitDetail.wbStatus !== 'rejected' && !isAllowedEdit) {
-
-
-
+        if (!isEdit && transitDetail.millWbId && transitDetail.wbStatus !== 'rejected' && !isAllowedEdit) {
           return res.status(400).json({ error: 'Mill WB already added for this lorry. Cannot add duplicate WB entry.' });
-
-
-
         }
 
 
@@ -9078,7 +9131,8 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-        const calculatedSuteNetWeight = calculatedNetWeight && sute ? Number(calculatedNetWeight) - Number(sute) : calculatedNetWeight;
+        const bagsCount = Number(bags) || 1;
+        const calculatedSuteNetWeight = calculatedNetWeight && sute ? Number(calculatedNetWeight) - (Number(sute) * bagsCount) : calculatedNetWeight;
 
 
 
@@ -9610,22 +9664,9 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-      } else {
-
-
-
-        // Mill WB - check if already added (not just approved)
-
-
-
-        if (detail.millWbId && detail.wbStatus !== 'rejected') {
-
-
-
+      } else {        // Mill WB - check if already added (not just approved) - edits (isEdit=true) bypass this
+        if (!isEdit && detail.millWbId && detail.wbStatus !== 'rejected') {
           return res.status(400).json({ error: 'Mill WB already added for this lorry. Cannot add duplicate WB entry.' });
-
-
-
         }
 
 
@@ -9642,7 +9683,7 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-        const isAutoApprove = userRole === 'admin' || userRole === 'owner';
+        const isAutoApprove = ['admin', 'ceo', 'manager', 'owner'].includes(String(userRole || '').toLowerCase());
 
 
 
@@ -10068,22 +10109,9 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-      } else {
-
-
-
-        // Mill WB - check if already added (not just approved)
-
-
-
-        if (detail.millWbId && detail.wbStatus !== 'rejected') {
-
-
-
+      } else {        // Mill WB - check if already added (not just approved) - edits (isEdit=true) bypass this
+        if (!isEdit && detail.millWbId && detail.wbStatus !== 'rejected') {
           return res.status(400).json({ error: 'Mill WB already added for this lorry. Cannot add duplicate WB entry.' });
-
-
-
         }
 
 
@@ -10100,7 +10128,7 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-        const isAutoApprove = userRole === 'admin' || userRole === 'owner';
+        const isAutoApprove = ['admin', 'ceo', 'manager', 'owner'].includes(String(userRole || '').toLowerCase());
 
 
 
@@ -10725,16 +10753,8 @@ router.post('/:id/wb', auth, async (req, res) => {
 
     } else {
 
-
-
-      if (arrival.wbStatus === 'approved') {
-
-
-
+      if (!isEdit && arrival.wbStatus === 'approved') {
         return res.status(400).json({ error: 'Mill WB already approved for this entry' });
-
-
-
       }
 
 
@@ -10751,7 +10771,7 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-      const isAutoApprove = userRole === 'admin' || userRole === 'owner';
+      const isAutoApprove = ['admin', 'ceo', 'manager', 'owner'].includes(String(userRole || '').toLowerCase());
 
 
 

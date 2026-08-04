@@ -1345,6 +1345,27 @@ const AllottedSupervisors: React.FC = () => {
                                        );
                                       })()}
 
+                                     {(() => {
+                                       const fr2Offering = offeringCache[entry.id] || {};
+                                       const fr2Pending = String(fr2Offering.pendingManagerValueApprovalStatus2 || '').toLowerCase() === 'pending';
+                                       const fr2Approved = String(fr2Offering.pendingManagerValueApprovalStatus2 || '').toLowerCase() === 'approved';
+                                       const hasFr2 = fr2Offering.finalBaseRate2 != null && fr2Offering.finalBaseRate2 !== '';
+                                       if (!fr2Pending && !hasFr2) return null;
+                                       return (
+                                         <div style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: '3px', marginBottom: '3px' }}>
+                                           {fr2Pending ? (
+                                             <div style={{ fontSize: '9px', padding: '4px 6px', backgroundColor: '#ede9fe', color: '#6d28d9', border: '1px solid #6d28d9', borderRadius: '3px', textAlign: 'center', width: '100%', fontWeight: '800' }}>
+                                               🟣 Final Rate 2 Pending Approval
+                                             </div>
+                                           ) : (
+                                             <div style={{ fontSize: '9px', padding: '4px 6px', backgroundColor: '#f3e8ff', color: '#7c3aed', border: '1px solid #d8b4fe', borderRadius: '3px', textAlign: 'center', width: '100%', fontWeight: '800' }}>
+                                               🟣 FR2: Rs {fr2Offering.finalBaseRate2}{fr2Approved ? ' (Approved)' : ''}
+                                             </div>
+                                           )}
+                                         </div>
+                                       );
+                                     })()}
+
                                      <button
                                        onClick={() => handleReassign(entry.id)}
                                       disabled={!hasChanged || !!entry.lotAllotment?.closedAt}
@@ -2184,10 +2205,10 @@ const AllottedSupervisors: React.FC = () => {
                 setIsSavingFR2(true);
                 try {
                   const token = localStorage.getItem('token');
-                  await axios.post(`${API_URL}/sample-entries/${resumingEntryId}/final-rate-2`, fr2Data, {
+                  const fr2Res = await axios.post(`${API_URL}/sample-entries/${resumingEntryId}/final-rate-2`, fr2Data, {
                     headers: { Authorization: `Bearer ${token}` }
                   });
-                  showNotification('Final Rate 2 saved successfully', 'success');
+                  showNotification((fr2Res.data as any)?.message || 'Final Rate 2 saved successfully', 'success');
                   setShowFR2Form(false);
                   setIsResumeModalOpen(true);
                 } catch (error: any) {

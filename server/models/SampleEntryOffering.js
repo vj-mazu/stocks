@@ -481,6 +481,47 @@ const SampleEntryOffering = sequelize.define('SampleEntryOffering', {
         allowNull: true,
         field: 'final_reported_at_2'
     },
+    finalBaseRateType2: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+        field: 'final_base_rate_type_2'
+    },
+    // === FINAL RATE 2 APPROVAL FIELDS (mirrors FR1 manager-value approval, isolated with _2) ===
+    pendingManagerValueApprovalStatus2: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+        field: 'pending_manager_value_approval_status_2'
+    },
+    pendingManagerValueApprovalData2: {
+        type: DataTypes.JSONB,
+        allowNull: true,
+        field: 'pending_manager_value_approval_data_2'
+    },
+    pendingManagerValueApprovalQueue2: {
+        type: DataTypes.JSONB,
+        allowNull: true,
+        field: 'pending_manager_value_approval_queue_2'
+    },
+    pendingManagerValueApprovalRequestedBy2: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        field: 'pending_manager_value_approval_requested_by_2'
+    },
+    pendingManagerValueApprovalRequestedAt2: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        field: 'pending_manager_value_approval_requested_at_2'
+    },
+    pendingManagerValueApprovalApprovedBy2: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        field: 'pending_manager_value_approval_approved_by_2'
+    },
+    pendingManagerValueApprovalApprovedAt2: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        field: 'pending_manager_value_approval_approved_at_2'
+    },
     // === TRACKING ===
     createdBy: {
         type: DataTypes.INTEGER,

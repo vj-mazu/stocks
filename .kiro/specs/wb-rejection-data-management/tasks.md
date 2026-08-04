@@ -110,7 +110,7 @@ This implementation plan follows the exploratory bugfix workflow for three criti
 
   ### 3.1 Database Schema Changes
   
-  - [~] 3.1.1 Create pending_wb_submissions staging table
+  - [ ] 3.1.1 Create pending_wb_submissions staging table
     - Create migration file: `server/migrations/[timestamp]_create_pending_wb_submissions.js`
     - Copy all WB-related columns from `lorry_transit_details`:
       - wbInputType, millWbId, partyWbName, wbNo, grossWeight, tareWeight, netWeight
@@ -126,7 +126,7 @@ This implementation plan follows the exploratory bugfix workflow for three criti
     - _Preservation: Approved WB data continues to be stored in lorry_transit_details exactly as before_
     - _Requirements: 2.1, 2.2, 3.1, 3.3_
   
-  - [~] 3.1.2 Create rejected_wb_submissions audit table
+  - [ ] 3.1.2 Create rejected_wb_submissions audit table
     - Create migration file: `server/migrations/[timestamp]_create_rejected_wb_submissions.js`
     - Same columns as `pending_wb_submissions`
     - Add `rejectedBy INTEGER` (foreign key to users)
@@ -140,7 +140,7 @@ This implementation plan follows the exploratory bugfix workflow for three criti
 
   ### 3.2 Model Layer Changes
   
-  - [~] 3.2.1 Create PendingWbSubmission model
+  - [ ] 3.2.1 Create PendingWbSubmission model
     - Create file: `server/models/PendingWbSubmission.js`
     - Define Sequelize model with all WB fields
     - Add associations:
@@ -154,7 +154,7 @@ This implementation plan follows the exploratory bugfix workflow for three criti
     - _Preservation: Does not affect existing LorryTransitDetail model_
     - _Requirements: 2.1, 3.3_
   
-  - [~] 3.2.2 Create RejectedWbSubmission model
+  - [ ] 3.2.2 Create RejectedWbSubmission model
     - Create file: `server/models/RejectedWbSubmission.js`
     - Same structure as PendingWbSubmission plus rejectedBy and rejectedAt
     - Add associations to User (rejectedBy)
@@ -166,7 +166,7 @@ This implementation plan follows the exploratory bugfix workflow for three criti
 
   ### 3.3 Backend Route Changes
   
-  - [~] 3.3.1 Update WB submission logic in arrivals.js
+  - [ ] 3.3.1 Update WB submission logic in arrivals.js
     - File: `server/routes/arrivals.js`
     - Lines ~8429, ~9449, ~9895: Update WB submission creation
     - When `wbStatus = 'pending'`:
@@ -181,7 +181,7 @@ This implementation plan follows the exploratory bugfix workflow for three criti
     - _Preservation: Auto-approved WB submissions continue same flow_
     - _Requirements: 2.1, 3.1, 3.3_
   
-  - [~] 3.3.2 Update WB data retrieval in arrivals.js
+  - [ ] 3.3.2 Update WB data retrieval in arrivals.js
     - When fetching lorry details for display:
       - Check BOTH `lorry_transit_details` (for approved) AND `pending_wb_submissions` (for pending)
       - Merge results with proper status indicators
@@ -193,7 +193,7 @@ This implementation plan follows the exploratory bugfix workflow for three criti
     - _Preservation: Response format unchanged, only data source expanded_
     - _Requirements: 2.1, 2.4, 3.3_
   
-  - [~] 3.3.3 Update WB approval endpoint in in-transit.js
+  - [ ] 3.3.3 Update WB approval endpoint in in-transit.js
     - File: `server/routes/in-transit.js`
     - Endpoint: POST /:id/approve-wb (lines ~502-520)
     - Find record in `pending_wb_submissions` by physicalInspectionId
@@ -207,7 +207,7 @@ This implementation plan follows the exploratory bugfix workflow for three criti
     - _Preservation: Approval workflow UX and permissions unchanged_
     - _Requirements: 2.1, 3.1, 3.2, 3.3_
   
-  - [~] 3.3.4 Update WB rejection endpoint in in-transit.js
+  - [ ] 3.3.4 Update WB rejection endpoint in in-transit.js
     - File: `server/routes/in-transit.js`
     - Endpoint: POST /:id/reject-wb (lines ~585-595)
     - Find record in `pending_wb_submissions` by physicalInspectionId
@@ -220,7 +220,7 @@ This implementation plan follows the exploratory bugfix workflow for three criti
     - _Preservation: Rejection workflow UX and permissions unchanged_
     - _Requirements: 2.2, 2.3, 3.2, 3.8_
   
-  - [~] 3.3.5 Update pending WB queries in in-transit.js
+  - [ ] 3.3.5 Update pending WB queries in in-transit.js
     - Approval queue endpoint: Query `pending_wb_submissions` instead of filtering `lorry_transit_details` by wbStatus='pending'
     - Update all queries that look for pending WB submissions
     - Ensure proper joins to get related data (lorry info, place status, etc.)
@@ -229,7 +229,7 @@ This implementation plan follows the exploratory bugfix workflow for three criti
     - _Preservation: Approval queue UI and functionality unchanged_
     - _Requirements: 2.1, 3.2, 3.3_
   
-  - [~] 3.3.6 Update approval counts in approvals.js
+  - [ ] 3.3.6 Update approval counts in approvals.js
     - File: `server/routes/approvals.js`
     - Lines ~30-36: Update approval counts query
     - Change from `COUNT(*) FILTER (WHERE "wbStatus" = 'pending') FROM lorry_transit_details`
@@ -243,7 +243,7 @@ This implementation plan follows the exploratory bugfix workflow for three criti
 
   ### 3.4 Frontend Component Changes
   
-  - [~] 3.4.1 Add rejection reason display in SampleEntryDetailModal
+  - [ ] 3.4.1 Add rejection reason display in SampleEntryDetailModal
     - File: `client/src/components/SampleEntryDetailModal.tsx`
     - Locate WB data table rendering section
     - Add conditional rendering:
@@ -267,7 +267,7 @@ This implementation plan follows the exploratory bugfix workflow for three criti
     - _Preservation: All other modal sections display identically_
     - _Requirements: 2.4, 2.5, 3.4_
   
-  - [~] 3.4.2 Update "Add WB" button visibility logic in Arrivals.tsx
+  - [ ] 3.4.2 Update "Add WB" button visibility logic in Arrivals.tsx
     - File: `client/src/pages/Arrivals.tsx`
     - Line ~9367: Update Band Malal Book tab "Add WB" button logic
     - Replace unconditional button display with:
@@ -291,7 +291,7 @@ This implementation plan follows the exploratory bugfix workflow for three criti
     - _Preservation: Button functionality and styling unchanged, only visibility logic updated_
     - _Requirements: 2.6, 2.7, 2.8, 3.4_
   
-  - [~] 3.4.3 Update state synchronization across tabs
+  - [ ] 3.4.3 Update state synchronization across tabs
     - When WB is added in In-Transit tab:
       - Ensure state update propagates to Band Malal Book tab rendering
       - Use shared state or context to track WB existence across tabs
@@ -306,7 +306,7 @@ This implementation plan follows the exploratory bugfix workflow for three criti
 
   ### 3.5 Type Definitions
   
-  - [~] 3.5.1 Add TypeScript types for new models
+  - [ ] 3.5.1 Add TypeScript types for new models
     - File: `client/src/types/arrivals.ts` (or inline types in components)
     - Add type for pending WB submissions:
       ```typescript
@@ -340,7 +340,7 @@ This implementation plan follows the exploratory bugfix workflow for three criti
     - _Preservation: Existing type definitions unchanged, only extended_
     - _Requirements: 3.4_
 
-  - [~] 3.6 Verify bug condition exploration tests now pass
+  - [ ] 3.6 Verify bug condition exploration tests now pass
     - **Property 1: Expected Behavior** - WB Data Management Fixed
     - **IMPORTANT**: Re-run the SAME tests from task 1 - do NOT write new tests
     - The tests from task 1 encode the expected behavior
@@ -359,7 +359,7 @@ This implementation plan follows the exploratory bugfix workflow for three criti
       - Duplicate WB prevention enforced across tabs
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8_
 
-  - [~] 3.7 Verify preservation tests still pass
+  - [ ] 3.7 Verify preservation tests still pass
     - **Property 2: Preservation** - Approved WB Workflows Unchanged
     - **IMPORTANT**: Re-run the SAME tests from task 2 - do NOT write new tests
     - Run preservation property tests from step 2
@@ -377,7 +377,7 @@ This implementation plan follows the exploratory bugfix workflow for three criti
 
 ## Phase 4: Final Verification
 
-- [~] 4. Checkpoint - Ensure all tests pass
+- [ ] 4. Checkpoint - Ensure all tests pass
   - Run complete test suite:
     - Bug condition tests (should all pass)
     - Preservation property tests (should all pass)

@@ -12,7 +12,7 @@ interface SampleApprovalsHubProps {
   onPendingCountChange?: (count: number) => void;
 }
 
-type ApprovalTabKey = 'approval-for-edits' | 'approval-for-manager' | 'lorry-approvals' | 'loading-quality-approvals' | 'rate-linking-approvals';
+type ApprovalTabKey = 'approval-for-edits' | 'approval-for-manager' | 'lorry-approvals' | 'loading-quality-approvals' | 'rate-linking-approvals' | 'fr2-approvals';
 
 interface ApprovalTabConfig {
   key: ApprovalTabKey;
@@ -110,6 +110,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
   const [editApprovalCount, setEditApprovalCount] = useState(0);
   const [managerApprovalCount, setManagerApprovalCount] = useState(0);
   const [lorryApprovalCount, setLorryApprovalCount] = useState(0);
+  const [fr2ApprovalCount, setFr2ApprovalCount] = useState(0);
   const [loadingQualityApprovalCount, setLoadingQualityApprovalCount] = useState(0);
   const [rateLinkingCount, setRateLinkingCount] = useState(0);
   const [rateLinkingEntries, setRateLinkingEntries] = useState<any[]>([]);
@@ -151,6 +152,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
       baseTabs.push({ key: 'approval-for-manager', label: 'Loading Lots', color: '#16a34a' });
       baseTabs.push({ key: 'lorry-approvals', label: 'Dispute Approval', color: '#f39c12' });
       baseTabs.push({ key: 'rate-linking-approvals', label: 'Rate Linking Approvals', color: '#0284c7' });
+      baseTabs.push({ key: 'fr2-approvals', label: 'Final Rate 2', color: '#7c3aed' });
     }
     if (canAccessLoadingQuality) {
       baseTabs.push({ key: 'loading-quality-approvals', label: 'Loading Quality Approvals', color: '#1565c0' });
@@ -162,7 +164,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     const saved = localStorage.getItem('sample_approvals_hub_active_tab');
     const allowedKeys = ['approval-for-edits'];
     if (canAccessManagerApprovals) {
-      allowedKeys.push('approval-for-manager', 'lorry-approvals', 'rate-linking-approvals');
+      allowedKeys.push('approval-for-manager', 'lorry-approvals', 'rate-linking-approvals', 'fr2-approvals');
     }
     if (canAccessLoadingQuality) {
       allowedKeys.push('loading-quality-approvals');
@@ -170,7 +172,7 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     return (saved && allowedKeys.includes(saved)) ? (saved as ApprovalTabKey) : 'approval-for-edits';
   });
   const totalPendingCount = editApprovalCount + 
-    (canAccessManagerApprovals ? (managerApprovalCount + lorryApprovalCount + rateLinkingCount) : 0) + 
+    (canAccessManagerApprovals ? (managerApprovalCount + lorryApprovalCount + rateLinkingCount + fr2ApprovalCount) : 0) + 
     (canAccessLoadingQuality ? loadingQualityApprovalCount : 0);
 
   const fetchLoadingQuality = useCallback(async (isSilent = false) => {
@@ -255,11 +257,21 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
         const rateLinkEntriesList = rateLinkRes.data?.entries || [];
         setRateLinkingEntries(rateLinkEntriesList);
         setRateLinkingCount(rateLinkEntriesList.length);
+
+        // Fetch Final Rate 2 approval count (admin/owner only; isolated from other flows)
+        try {
+          const fr2Res = await axios.get(`${API_URL}/sample-entries/tabs/manager-value-approvals-2`, { headers });
+          const fr2Entries = (fr2Res.data as any)?.entries || [];
+          setFr2ApprovalCount(fr2Entries.length);
+        } catch (fr2Err) {
+          setFr2ApprovalCount(0);
+        }
       } else {
         setManagerApprovalCount(0);
         setLorryApprovalCount(0);
         setRateLinkingCount(0);
         setRateLinkingEntries([]);
+        setFr2ApprovalCount(0);
       }
     } catch (err) {
       console.error('Error fetching global approvals counts:', err);
@@ -270,7 +282,8 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     if (!canAccessManagerApprovals) {
       setManagerApprovalCount(0);
       setLorryApprovalCount(0);
-      if (activeTab === 'approval-for-manager' || activeTab === 'lorry-approvals') {
+      setFr2ApprovalCount(0);
+      if (activeTab === 'approval-for-manager' || activeTab === 'lorry-approvals' || activeTab === 'fr2-approvals') {
         setActiveTab('approval-for-edits');
       }
     }
@@ -1528,7 +1541,9 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
                 ? lorryApprovalCount
                 : tab.key === 'rate-linking-approvals'
                   ? rateLinkingCount
-                  : loadingQualityApprovalCount;
+                  : tab.key === 'fr2-approvals'
+                    ? fr2ApprovalCount
+                    : loadingQualityApprovalCount;
           return (
             <button
               key={tab.key}
@@ -1579,6 +1594,9 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
         )}
         {canAccessManagerApprovals && activeTab === 'lorry-approvals' && (
           <ManagerValueApprovals key={`lorry-${refreshKey}`} filterType="lorry" onCountChange={setLorryApprovalCount} />
+        )}
+        {canAccessManagerApprovals && activeTab === 'fr2-approvals' && (
+          <ManagerValueApprovals key={`fr2-${refreshKey}`} filterType="fr2" onCountChange={setFr2ApprovalCount} />
         )}
         {canAccessManagerApprovals && activeTab === 'rate-linking-approvals' && (
           <div key={`rate-linking-${refreshKey}`}>

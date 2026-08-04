@@ -1910,14 +1910,22 @@ const Arrivals: React.FC = () => {
 
   const [slNo, setSlNo] = useState('');
   const [inTransitDateFilter, setInTransitDateFilter] = useState('');
+  const [inTransitDateFromFilter, setInTransitDateFromFilter] = useState('');
+  const [inTransitDateToFilter, setInTransitDateToFilter] = useState('');
+  const [inTransitFiltersVisible, setInTransitFiltersVisible] = useState(true);
   const [inTransitBrokerFilter, setInTransitBrokerFilter] = useState('');
   const [inTransitVarietyFilter, setInTransitVarietyFilter] = useState('');
   const [inTransitPage, setInTransitPage] = useState(1);
+  const [inTransitPageSize, setInTransitPageSize] = useState(12);
   const [bmbDateFilter, setBmbDateFilter] = useState('');
+  const [bmbDateFromFilter, setBmbDateFromFilter] = useState('');
+  const [bmbDateToFilter, setBmbDateToFilter] = useState('');
+  const [bmbFiltersVisible, setBmbFiltersVisible] = useState(true);
   const [bmbBrokerFilter, setBmbBrokerFilter] = useState('');
   const [bmbVarietyFilter, setBmbVarietyFilter] = useState('');
   const [bmbSearchQuery, setBmbSearchQuery] = useState('');
   const [bmbPage, setBmbPage] = useState(1);
+  const [bmbPageSize, setBmbPageSize] = useState(12);
 
   const [selectedDetailEntry, setSelectedDetailEntry] = useState<any>(null);
   const [isQualitySamplingModalOpen, setIsQualitySamplingModalOpen] = useState(false);
@@ -3830,6 +3838,7 @@ const Arrivals: React.FC = () => {
 
 
   const [inTransitEntries, setInTransitEntries] = useState<any[]>([]);
+  const [openHeaderFilter, setOpenHeaderFilter] = useState<'date' | 'broker' | 'variety' | 'bmbDate' | 'bmbBroker' | 'bmbVariety' | null>(null);
 
 
 
@@ -3944,6 +3953,8 @@ const Arrivals: React.FC = () => {
   const [partyTareWeight, setPartyTareWeight] = useState('');
   const [partyNetWeight, setPartyNetWeight] = useState('');
   const [partySute, setPartySute] = useState('');
+  const [isWbEdit, setIsWbEdit] = useState(false);
+  const [isPlaceEdit, setIsPlaceEdit] = useState(false);
 
 
 
@@ -4055,6 +4066,11 @@ const Arrivals: React.FC = () => {
         const entryDate = entry.date ? new Date(entry.date).toISOString().split('T')[0] : '';
         if (entryDate !== bmbDateFilter) return false;
       }
+      // 1b. Date range from / to
+      const entryDateVal = entry.date ? new Date(entry.date).toISOString().split('T')[0] : '';
+      if (bmbDateFromFilter && entryDateVal < bmbDateFromFilter) return false;
+      if (bmbDateToFilter && entryDateVal > bmbDateToFilter) return false;
+
       // 2. Broker filter
       if (bmbBrokerFilter) {
         const brokerName = (entry.broker || '').toLowerCase();
@@ -4085,12 +4101,12 @@ const Arrivals: React.FC = () => {
       }
       return true;
     });
-  }, [bandMalalEntries, bmbDateFilter, bmbBrokerFilter, bmbVarietyFilter, bmbSearchQuery]);
+  }, [bandMalalEntries, bmbDateFilter, bmbDateFromFilter, bmbDateToFilter, bmbBrokerFilter, bmbVarietyFilter, bmbSearchQuery]);
 
   const paginatedBmbEntries = useMemo(() => {
-    const start = (bmbPage - 1) * 12;
-    return filteredBmbEntries.slice(start, start + 12);
-  }, [filteredBmbEntries, bmbPage]);
+    const start = (bmbPage - 1) * bmbPageSize;
+    return filteredBmbEntries.slice(start, start + bmbPageSize);
+  }, [filteredBmbEntries, bmbPage, bmbPageSize]);
 
   const inTransitFilteredTrips = useMemo(() => {
     const flatTrips: any[] = [];
@@ -4143,7 +4159,13 @@ const Arrivals: React.FC = () => {
 
       // Only show trips if inspections have actually started
       filteredInspections.forEach((insp: any) => {
-        if (!insp.lorryTransitDetail || insp.lorryTransitDetail.placeStatus !== 'approved') {
+        const ltd = insp.lorryTransitDetail;
+        // Band Malal Book pending edits (EDIT_PENDING:approved) belong ONLY in Band Malal Book,
+        // so never show them in the In-Transit tab.
+        if (ltd && ltd.placeStatus === 'pending' && ltd.placeRejectReason && String(ltd.placeRejectReason).startsWith('EDIT_PENDING:approved')) {
+          return;
+        }
+        if (!ltd || ltd.placeStatus !== 'approved') {
           flatTrips.push({
             entry: e,
             inspection: insp,
@@ -4165,6 +4187,8 @@ const Arrivals: React.FC = () => {
       const dateVal = trip.isPlaceholder ? trip.entry.entryDate : (trip.inspection?.inspectionDate || trip.entry.entryDate);
       const dateStr = dateVal ? new Date(dateVal).toISOString().split('T')[0] : '';
       if (inTransitDateFilter && dateStr !== inTransitDateFilter) return false;
+      if (inTransitDateFromFilter && dateStr < inTransitDateFromFilter) return false;
+      if (inTransitDateToFilter && dateStr > inTransitDateToFilter) return false;
       
       if (inTransitBrokerFilter) {
         const bName = (trip.entry?.brokerName || '').toLowerCase();
@@ -4177,26 +4201,26 @@ const Arrivals: React.FC = () => {
       }
       return true;
     });
-  }, [inTransitEntries, inTransitDateFilter, inTransitBrokerFilter, inTransitVarietyFilter]);
+  }, [inTransitEntries, inTransitDateFilter, inTransitDateFromFilter, inTransitDateToFilter, inTransitBrokerFilter, inTransitVarietyFilter]);
 
   // Auto-pagination: Switch to the last page when a new entry is added
   const prevBmbLengthRef = useRef(0);
   useEffect(() => {
     if (bandMalalEntries.length > prevBmbLengthRef.current) {
-      const lastPage = Math.max(1, Math.ceil(filteredBmbEntries.length / 12));
+      const lastPage = Math.max(1, Math.ceil(filteredBmbEntries.length / bmbPageSize));
       setBmbPage(lastPage);
     }
     prevBmbLengthRef.current = bandMalalEntries.length;
-  }, [bandMalalEntries.length, filteredBmbEntries.length]);
+  }, [bandMalalEntries.length, filteredBmbEntries.length, bmbPageSize]);
 
   const prevTransitLengthRef = useRef(0);
   useEffect(() => {
     if (inTransitEntries.length > prevTransitLengthRef.current) {
-      const lastPage = Math.max(1, Math.ceil(inTransitFilteredTrips.length / 12));
+      const lastPage = Math.max(1, Math.ceil(inTransitFilteredTrips.length / inTransitPageSize));
       setInTransitPage(lastPage);
     }
     prevTransitLengthRef.current = inTransitEntries.length;
-  }, [inTransitEntries.length, inTransitFilteredTrips.length]);
+  }, [inTransitEntries.length, inTransitFilteredTrips.length, inTransitPageSize]);
 
   useEffect(() => {
     if (!isQualitySamplingModalOpen || !qualitySamplingEntry) return;
@@ -4634,7 +4658,7 @@ const Arrivals: React.FC = () => {
 
 
 
-      await axios.post(`${API_URL}/arrivals/${id}/approve-place`, {}, {
+      const res = await axios.post(`${API_URL}/arrivals/${id}/approve-place`, {}, {
 
 
 
@@ -4646,7 +4670,7 @@ const Arrivals: React.FC = () => {
 
 
 
-      toast.success('Godown approved!');
+      toast.success(res?.data?.message || 'Godown approved!');
 
 
 
@@ -4808,6 +4832,56 @@ const Arrivals: React.FC = () => {
     }
   };
 
+  // Auto-fetch the patti-linked / final-rate SUTE for this lorry so the WB form can pre-fill Sute (Mill WB & Party WB).
+  const getAutoSuteValue = (entry: any, inspection: any): string => {
+    const toStr = (v: any): string => (v === null || v === undefined || v === '' ? '' : String(v));
+    const validSute = (lpr: any) => (lpr && !lpr.isDispute && !lpr.isRevision && lpr.sute !== null && lpr.sute !== undefined && lpr.sute !== '' ? lpr.sute : undefined);
+    const insp = inspection || {};
+    const primary = validSute(insp.linkedPattiRate)
+      ?? validSute(entry?.physicalInspection?.linkedPattiRate)
+      ?? validSute(entry?.linkedPattiRate);
+    const offering = entry?.offering || entry?.sampleEntry?.offering || {};
+    const finalRate = offering.finalSute ?? offering.finalSute2 ?? offering.sute;
+    return toStr(primary ?? finalRate);
+  };
+
+  // Number of bags used to compute Sute Net Weight = Net Weight - (Sute x Bags). Defaults to 1 when unknown.
+  const suteBags = (insp: any, entry: any): number => {
+    const n = Number(insp?.bags ?? entry?.bags ?? insp?.physicalInspection?.bags ?? 0);
+    return n > 0 ? n : 1;
+  };
+
+  // Open the Weighbridge modal pre-filled with existing WB data (used for Edit WB)
+  const openWbEditModal = (rk: string, detail: any, entry: any, inspection: any) => {
+    const d = detail || {};
+    console.log('Opening WB Edit Modal - millWbId:', d.millWbId, 'Type:', typeof d.millWbId, 'millWeightBridge:', d.millWeightBridge);
+    setIsWbEdit(true);
+    setSelectedLorryForWB(rk);
+    setSelectedLorryForPlace(null);
+    setSelectedLorryEntries([entry]);
+    // Store the inspection with millWeightBridge data for the dropdown fallback
+    setSelectedLorryInspection({ ...(inspection || entry), millWeightBridge: d.millWeightBridge });
+    setWbInputType(d.wbInputType || 'mill');
+    setWbNumber(d.wbNo || '');
+    const millWbIdStr = d.millWbId ? String(d.millWbId) : '';
+    console.log('Setting millWbId to:', millWbIdStr);
+    setMillWbId(millWbIdStr);
+    setWbGrossWeight(d.grossWeight || '');
+    setWbTareWeight(d.tareWeight || '');
+    setWbNetWeight(d.netWeight || '');
+    const autoSute = getAutoSuteValue(entry, inspection);
+    setWbSute(d.sute || autoSute);
+    setPartyWbEnabled(d.partyWbEnabled || '');
+    setPartyWbNo(d.partyWbNo || '');
+    setPartyWbDate(d.partyWbDate || new Date().toISOString().split('T')[0]);
+    setPartyWbName(d.partyWbName || '');
+    setPartyGrossWeight(d.partyGrossWeight || '');
+    setPartyTareWeight(d.partyTareWeight || '');
+    setPartyNetWeight(d.partyNetWeight || '');
+    setPartySute(d.partySute || autoSute);
+    setWbDate(d.wbDate || new Date().toISOString().split('T')[0]);
+  };
+
 
 
 
@@ -4961,6 +5035,7 @@ const Arrivals: React.FC = () => {
 
 
   const canApproveInventoryQuality = user && ['admin', 'owner', 'manager', 'ceo'].includes(user.role);
+  const canApproveWB = user && ['admin', 'owner', 'manager', 'ceo', 'inventory_head'].includes(user.role);
 
 
 
@@ -5881,110 +5956,23 @@ const Arrivals: React.FC = () => {
 
 
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
-
-
-
-            <h2 style={{ fontSize: '1.25rem', color: '#1e293b', fontWeight: 'bold', margin: 0 }}>
-
-
-
-              🚚 Active In Transit Lorries
-
-
-
-              {!loadingTransit && <span style={{ marginLeft: '10px', fontSize: '0.8rem', background: '#dbeafe', color: '#1565c0', padding: '3px 10px', borderRadius: '12px', fontWeight: 600 }}>{inTransitEntries.length} loaded</span>}
-
-
-
-            </h2>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
 
 
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-
-
-
+              <select
+                value={inTransitPageSize}
+                onChange={(e) => { setInTransitPageSize(Number(e.target.value)); setInTransitPage(1); }}
+                style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', background: '#fff', fontSize: '12px', fontWeight: 600, color: '#475569', height: '32px' }}
+              >
+                <option value={12}>12 records</option>
+                <option value={25}>25 records</option>
+                <option value={50}>50 records</option>
+                <option value={100}>100 records</option>
+              </select>
               <button onClick={handleRefreshTransit} disabled={loadingTransit} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', background: '#f8fafc', cursor: loadingTransit ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: 600, color: '#475569', display: 'flex', alignItems: 'center', gap: '4px', transition: 'all 0.2s' }}>
-
-
-
                 <span style={{ display: 'inline-block', animation: loadingTransit ? 'spin 1s linear infinite' : 'none' }}>🔄</span> Refresh
-
-
-
-              </button>
-
-
-
-            </div>
-
-
-
-          </div>
-
-
-
-
-
-
-
-          {/* Search + Top Filters Controls */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '14px', background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
-            
-            {/* Date Filter */}
-            <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>Filter by Date</label>
-              <input
-                type="date"
-                value={inTransitDateFilter}
-                onChange={(e) => { setInTransitDateFilter(e.target.value); setInTransitPage(1); }}
-                style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
-              />
-            </div>
-
-            {/* Broker Filter */}
-            <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>Filter by Broker Name</label>
-              <select
-                value={inTransitBrokerFilter}
-                onChange={(e) => { setInTransitBrokerFilter(e.target.value); setInTransitPage(1); }}
-                style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px', background: '#fff', height: '30px' }}
-              >
-                <option value="">-- All Brokers --</option>
-                {[...brokersList]
-                  .sort((a, b) => a.name.localeCompare(b.name))
-                  .map((b) => (
-                    <option key={b.id} value={b.name}>
-                      {b.name}
-                    </option>
-                  ))
-                }
-              </select>
-            </div>
-
-            {/* Variety Filter */}
-            <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>Filter by Variety</label>
-              <select
-                value={inTransitVarietyFilter}
-                onChange={(e) => { setInTransitVarietyFilter(e.target.value); setInTransitPage(1); }}
-                style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px', background: '#fff', height: '30px' }}
-              >
-                <option value="">-- All Varieties --</option>
-                {varieties?.map((v: any) => (
-                  <option key={v.id} value={v.name}>{v.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Reset Button */}
-            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-              <button
-                onClick={() => { setInTransitDateFilter(''); setInTransitBrokerFilter(''); setInTransitVarietyFilter(''); setTransitSearchQuery(''); setInTransitPage(1); }}
-                style={{ width: '100%', padding: '6px 12px', fontSize: '12px', fontWeight: 'bold', background: '#fee2e2', color: '#ef4444', border: '1px solid #fca5a5', borderRadius: '6px', cursor: 'pointer' }}
-              >
-                Clear Filters
               </button>
             </div>
           </div>
@@ -6100,72 +6088,141 @@ const Arrivals: React.FC = () => {
 
 
                   <thead>
-
-
-
                     <tr style={{ background: '#1a237e', color: '#fff', borderBottom: '1px solid #000' }}>
-
-
-
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '3%' }}>SL No</th>
-
-
-
-                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '7%' }}>Date</th>
-
-
-
-                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '10%' }}>Broker</th>
-
-
-
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%', position: 'relative' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                          <span>Date</span>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setOpenHeaderFilter(openHeaderFilter === 'date' ? null : 'date'); }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '11px', color: '#94a3b8', display: 'flex', alignItems: 'center' }}
+                          >
+                            🔻
+                          </button>
+                        </div>
+                        {openHeaderFilter === 'date' && (
+                          <div style={{ position: 'absolute', top: '100%', left: 0, background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px', zIndex: 999, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minWidth: '160px', display: 'flex', flexDirection: 'column', gap: '6px', color: '#000', textAlign: 'left' }}>
+                            <label style={{ fontSize: '10px', color: '#475569', fontWeight: 'bold' }}>From:</label>
+                            <input
+                              type="date"
+                              value={inTransitDateFromFilter}
+                              onChange={(e) => { setInTransitDateFromFilter(e.target.value); setInTransitPage(1); }}
+                              style={{ fontSize: '11px', padding: '3px', border: '1px solid #cbd5e1', borderRadius: '4px', color: '#000', width: '100%', boxSizing: 'border-box' }}
+                            />
+                            <label style={{ fontSize: '10px', color: '#475569', fontWeight: 'bold' }}>To:</label>
+                            <input
+                              type="date"
+                              value={inTransitDateToFilter}
+                              onChange={(e) => { setInTransitDateToFilter(e.target.value); setInTransitPage(1); }}
+                              style={{ fontSize: '11px', padding: '3px', border: '1px solid #cbd5e1', borderRadius: '4px', color: '#000', width: '100%', boxSizing: 'border-box' }}
+                            />
+                            <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
+                              <button
+                                type="button"
+                                onClick={() => { setInTransitDateFromFilter(''); setInTransitDateToFilter(''); setInTransitPage(1); setOpenHeaderFilter(null); }}
+                                style={{ flex: 1, fontSize: '10px', padding: '4px', border: 'none', background: '#fee2e2', color: '#ef4444', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                              >
+                                Clear
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setOpenHeaderFilter(null)}
+                                style={{ flex: 1, fontSize: '10px', padding: '4px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                              >
+                                Close
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </th>
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '11%', position: 'relative' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span>Broker</span>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setOpenHeaderFilter(openHeaderFilter === 'broker' ? null : 'broker'); }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '11px', color: '#94a3b8', display: 'flex', alignItems: 'center' }}
+                          >
+                            🔻
+                          </button>
+                        </div>
+                        {openHeaderFilter === 'broker' && (
+                          <div style={{ position: 'absolute', top: '100%', left: 0, background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px', zIndex: 999, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minWidth: '160px', display: 'flex', flexDirection: 'column', gap: '6px', color: '#000', textAlign: 'left' }}>
+                            <select
+                              value={inTransitBrokerFilter}
+                              onChange={(e) => { setInTransitBrokerFilter(e.target.value); setInTransitPage(1); }}
+                              style={{ width: '100%', fontSize: '11px', padding: '4px', color: '#000', borderRadius: '4px', border: '1px solid #cbd5e1', background: '#fff' }}
+                            >
+                              <option value="">All Brokers</option>
+                              {[...brokersList]
+                                .sort((a, b) => a.name.localeCompare(b.name))
+                                .map((b) => (
+                                  <option key={b.id} value={b.name}>{b.name}</option>
+                                ))
+                              }
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => setOpenHeaderFilter(null)}
+                              style={{ width: '100%', fontSize: '10px', padding: '4px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', marginTop: '4px' }}
+                            >
+                              Close
+                            </button>
+                          </div>
+                        )}
+                      </th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '12%' }}>Party Name</th>
-
-
-
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Godown</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>No. of Bags</th>
-
-
-
-                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '10%' }}>Variety</th>
-
-
-
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '11%', position: 'relative' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span>Variety</span>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setOpenHeaderFilter(openHeaderFilter === 'variety' ? null : 'variety'); }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '11px', color: '#94a3b8', display: 'flex', alignItems: 'center' }}
+                          >
+                            🔻
+                          </button>
+                        </div>
+                        {openHeaderFilter === 'variety' && (
+                          <div style={{ position: 'absolute', top: '100%', left: 0, background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px', zIndex: 999, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minWidth: '160px', display: 'flex', flexDirection: 'column', gap: '6px', color: '#000', textAlign: 'left' }}>
+                            <select
+                              value={inTransitVarietyFilter}
+                              onChange={(e) => { setInTransitVarietyFilter(e.target.value); setInTransitPage(1); }}
+                              style={{ width: '100%', fontSize: '11px', padding: '4px', color: '#000', borderRadius: '4px', border: '1px solid #cbd5e1', background: '#fff' }}
+                            >
+                              <option value="">All Varieties</option>
+                              {varieties?.map((v: any) => (
+                                <option key={v.id} value={v.name}>{v.name}</option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => setOpenHeaderFilter(null)}
+                              style={{ width: '100%', fontSize: '10px', padding: '4px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', marginTop: '4px' }}
+                            >
+                              Close
+                            </button>
+                          </div>
+                        )}
+                      </th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '6%' }}>Moisture</th>
-
-
-
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '6%' }}>Cutting</th>
-
-
-
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>WB Number</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Mill WB Name</th>
-                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Net Weight</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Sute Net Wt</th>
-                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Godown</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Lorry Number</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Status</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Actions</th>
-
-
-
-                      
-
-
-
                     </tr>
-
-
                   </thead>
-
-
-
                   <tbody>
 
 
 
-                    {inTransitFilteredTrips.slice((inTransitPage - 1) * 12, inTransitPage * 12).map((trip, idx) => {
+                    {inTransitFilteredTrips.slice((inTransitPage - 1) * inTransitPageSize, inTransitPage * inTransitPageSize).map((trip, idx) => {
 
 
 
@@ -6298,11 +6355,31 @@ const Arrivals: React.FC = () => {
 
 
 
-                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700' }}>{(inTransitPage - 1) * 12 + idx + 1}</td>
+                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700' }}>{(inTransitPage - 1) * inTransitPageSize + idx + 1}</td>
 
 
 
-                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>{new Date(dateVal).toLocaleDateString('en-GB')}</td>
+                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>
+                                <button
+                                  onClick={() => {
+                                    const dStr = new Date(dateVal).toISOString().split('T')[0];
+                                    setInTransitDateFromFilter(dStr);
+                                    setInTransitDateToFilter(dStr);
+                                    setInTransitPage(1);
+                                  }}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    padding: 0,
+                                    font: 'inherit',
+                                    color: '#2563eb',
+                                    textDecoration: 'underline',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  {new Date(dateVal).toLocaleDateString('en-GB')}
+                                </button>
+                              </td>
 
 
 
@@ -6422,6 +6499,117 @@ const Arrivals: React.FC = () => {
 
                               </td>
 
+                              {/* Godown - after Party Name */}
+                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontSize: '11px', verticalAlign: 'middle' }}>
+                                {transitDetail && (placeStatus === 'approved' || placeStatus === 'pending' || placeStatus === 'placed') ? (
+                                  <span style={{ 
+                                    padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold',
+                                    background: placeStatus === 'approved' ? '#dcfce7' : '#fef3c7',
+                                    color: placeStatus === 'approved' ? '#166534' : '#92400e'
+                                  }}>
+                                    {(() => {
+                                      if (transitDetail.placeType === 'kunchinittu') {
+                                        const kc = transitDetail.placeKunchinittuData?.name || '';
+                                        const wh = transitDetail.placeWarehouse?.name || '';
+                                        return wh ? `${wh} (${kc})` : (kc || '-');
+                                      }
+                                      return transitDetail.placeWarehouse?.name || transitDetail.warehouse?.name || (transitDetail.outturn ? `${transitDetail.outturn.code} (${transitDetail.outturn.allottedVariety})` : '-') || '-';
+                                    })()}
+                                  </span>
+                                ) : null}
+                                <div style={{ marginTop: transitDetail && (placeStatus === 'approved' || placeStatus === 'pending' || placeStatus === 'placed') ? '4px' : '0px' }}>                                  {placeStatus === 'approved' ? (
+                                    <button
+                                      onClick={() => {
+                                        const rowKey = isPlaceholder ? `p-${entry.id}` : `i-${inspection.id}`;
+                                        setIsPlaceEdit(true);
+                                        setSelectedLorryForPlace(rowKey);
+                                        setSelectedLorryForWB(null);
+                                        setSelectedLorryEntries([entry]);
+                                        setSelectedLorryInspection(inspection);
+                                        // Pre-fill with existing godown/place data
+                                        setPlaceType(transitDetail.placeType || 'production');
+                                        setPlaceWarehouseId(transitDetail.placeWarehouseId ? String(transitDetail.placeWarehouseId) : '');
+                                        setPlaceKunchinittuId(transitDetail.placeKunchinittuId ? String(transitDetail.placeKunchinittuId) : '');
+                                        setPlaceOutturnId(transitDetail.outturnId ? String(transitDetail.outturnId) : '');
+                                      }}
+                                      style={{
+                                        padding: '2px 4px',
+                                        border: 'none',
+                                        borderRadius: '3px',
+                                        background: '#0284c7',
+                                        color: '#fff',
+                                        fontWeight: 'bold',
+                                        fontSize: '9px',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      ✏️ Edit
+                                    </button>
+                                  ) : placeStatus === 'placed' ? (
+                                     <>
+                                       <span style={{ fontSize: '10px', color: '#2563eb', fontWeight: 'bold' }}>📍 Placed ✅</span>
+                                       {transitDetail.placeRejectReason && transitDetail.placeRejectReason.startsWith('REJECTED_EDIT:') && (
+                                         <span style={{ background: '#fee2e2', color: '#b91c1c', padding: '2px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 'bold', border: '1px solid #fca5a5', marginLeft: '4px' }}>✖ Edit Rejected</span>
+                                       )}
+                                     </>
+                                  ) : placeStatus === 'pending' && transitDetail.placeRejectReason && transitDetail.placeRejectReason.startsWith('EDIT_PENDING:') ? (
+                                     <>
+                                       <span style={{ fontSize: '9px', color: '#92400e', fontWeight: 'bold' }}>⏳ Edit Pending</span>
+                                       {isApprover ? (
+                                         <div style={{ display: 'flex', gap: '3px', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
+                                           <button
+                                             onClick={() => handleApprovePlace(transitDetail.id || inspection.id)}
+                                             style={{ padding: '2px 5px', border: 'none', borderRadius: '3px', background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}
+                                           >
+                                             ✅ Approve
+                                           </button>
+                                           <button
+                                             onClick={() => setPlaceConfirmDialog({ trip: { entry: transitDetail, inspection, isPlaceholder: false }, action: 'reject' })}
+                                             style={{ padding: '2px 5px', border: 'none', borderRadius: '3px', background: '#ef4444', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}
+                                           >
+                                             ✖ Reject
+                                           </button>
+                                         </div>
+                                       ) : (
+                                         <span style={{ fontSize: '9px', color: '#92400e', fontWeight: 'bold' }}>Waiting for approval</span>
+                                       )}
+                                     </>
+                                  ) : (user?.role === 'staff' && (user?.staffType === 'location' || user?.staffType === 'mill')) ? null : (
+                                    <button
+                                      onClick={() => {
+                                        const rowKey = isPlaceholder ? `p-${entry.id}` : `i-${inspection.id}`;
+                                        if (selectedLorryForPlace === rowKey) {
+                                          setSelectedLorryForPlace(null);
+                                          setSelectedLorryEntries([]);
+                                          setSelectedLorryInspection(null);
+                                        } else {
+                                          setSelectedLorryForPlace(rowKey);
+                                          setSelectedLorryForWB(null);
+                                          setSelectedLorryEntries([entry]);
+                                          setSelectedLorryInspection(inspection);
+                                          setPlaceWarehouseId('');
+                                          setPlaceKunchinittuId('');
+                                          setPlaceOutturnId('');
+                                          setPlaceType('production');
+                                        }
+                                      }}
+                                      style={{
+                                        padding: '3px 6px',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        background: selectedLorryForPlace === (isPlaceholder ? `p-${entry.id}` : `i-${inspection.id}`) ? '#64748b' : 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                                        color: '#fff',
+                                        fontWeight: 'bold',
+                                        fontSize: '10px',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      📍 Godown
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+
 
 
                               <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700' }}>
@@ -6465,11 +6653,16 @@ const Arrivals: React.FC = () => {
                               {/* 1. WB Number */}
                               <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', verticalAlign: 'middle' }}>
                                 {transitDetail && (wbStatus === 'approved' || wbStatus === 'pending') ? (
-                                  <span style={{ 
-                                    padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold',
-                                    background: wbStatus === 'approved' ? '#dcfce7' : '#fef3c7',
-                                    color: wbStatus === 'approved' ? '#166534' : '#92400e'
-                                  }}>
+                                  <span
+                                    onClick={() => openWbEditModal(isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id), transitDetail, entry, inspection)}
+                                    title="Click to edit WB"
+                                    style={{ 
+                                      padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold',
+                                      background: wbStatus === 'approved' ? '#dcfce7' : '#fef3c7',
+                                      color: wbStatus === 'approved' ? '#166534' : '#92400e',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
                                     {wbNoVal}
                                     {wbStatus === 'pending' && ' ⏳'}
                                   </span>
@@ -6490,9 +6683,7 @@ const Arrivals: React.FC = () => {
                                   </div>
                                 ) : null}
                                 <div style={{ 
-                                  marginTop: transitDetail && (wbStatus === 'approved' || wbStatus === 'pending' || wbStatus === 'rejected') ? '4px' : '0px', 
-                                  borderTop: transitDetail && (wbStatus === 'approved' || wbStatus === 'pending' || wbStatus === 'rejected') ? '1px solid #e2e8f0' : 'none', 
-                                  paddingTop: transitDetail && (wbStatus === 'approved' || wbStatus === 'pending' || wbStatus === 'rejected') ? '3px' : '0px' 
+                                  marginTop: transitDetail && (wbStatus === 'approved' || wbStatus === 'pending' || wbStatus === 'rejected') ? '4px' : '0px' 
                                 }}>
                                   {(() => {
                                     const tDetail = transitDetail;
@@ -6501,17 +6692,26 @@ const Arrivals: React.FC = () => {
                                     if (wbSt === 'pending') {
                                       return isApprov ? (
                                         <div style={{ display: 'flex', gap: '3px', justifyContent: 'center' }}>
-                                          <button onClick={() => handleApproveWb(inspection?.id || entry?.id, transitDetail)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>Approve WB</button>
+                                          <button onClick={() => handleApproveWb(inspection?.id || entry?.id, { ...transitDetail, bags: bagsLoaded })} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>Approve WB</button>
                                           <button onClick={() => handleRejectWb(inspection?.id || entry?.id, transitDetail)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#ef4444', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>Reject WB</button>
+                                          <button onClick={() => openWbEditModal(isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id), transitDetail, entry, inspection)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#0284c7', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>✏️ Edit</button>
                                         </div>
-                                      ) : (<span style={{ fontSize: '9px', color: '#92400e', fontWeight: 'bold' }}>⏳ Pending</span>);
+                                      ) : (
+                                        <div style={{ display: 'flex', gap: '3px', justifyContent: 'center', alignItems: 'center' }}>
+                                          <span style={{ fontSize: '9px', color: '#92400e', fontWeight: 'bold' }}>⏳ Pending</span>
+                                          <button onClick={() => openWbEditModal(isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id), transitDetail, entry, inspection)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#0284c7', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>✏️ Edit</button>
+                                        </div>
+                                      );
                                     } else if (wbSt === 'approved') {
-                                      return <div><span style={{ fontSize: '9px', color: '#16a34a', fontWeight: 'bold' }}>✅ WB Done</span></div>;
+                                      return (
+                                        <button onClick={() => openWbEditModal(isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id), transitDetail, entry, inspection)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#0284c7', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>✏️ Edit WB</button>
+                                      );
                                     } else {
                                       const isRejected = wbSt === 'rejected';
                                       return (
                                         <button onClick={() => {
                                           const rk = isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id);
+                                          const autoSute = getAutoSuteValue(entry, inspection);
                                           if (selectedLorryForWB === rk) {
                                             setSelectedLorryForWB(null);
                                             setSelectedLorryEntries([]);
@@ -6521,13 +6721,14 @@ const Arrivals: React.FC = () => {
                                             setSelectedLorryForPlace(null);
                                             setSelectedLorryEntries([entry]);
                                             setSelectedLorryInspection(inspection || entry);
+                                            setIsWbEdit(false);
                                             setWbInputType(isRejected ? 'mill' : (tDetail?.wbInputType || 'mill'));
                                             setWbNumber(isRejected ? '' : (tDetail?.wbNo || ''));
-                                            setMillWbId(isRejected ? '' : (tDetail?.millWbId || ''));
+                                            setMillWbId(isRejected ? '' : (tDetail?.millWbId ? String(tDetail.millWbId) : ''));
                                             setWbGrossWeight(isRejected ? '' : (tDetail?.grossWeight || ''));
                                             setWbTareWeight(isRejected ? '' : (tDetail?.tareWeight || ''));
                                             setWbNetWeight(isRejected ? '' : (tDetail?.netWeight || ''));
-                                            setWbSute(isRejected ? '' : (tDetail?.sute || ''));
+                                            setWbSute((!isRejected && tDetail?.sute) || autoSute);
                                             setPartyWbEnabled(isRejected ? '' : (tDetail?.partyWbEnabled || ''));
                                             setPartyWbNo(isRejected ? '' : (tDetail?.partyWbNo || ''));
                                             setPartyWbDate(new Date().toISOString().split('T')[0]);
@@ -6535,7 +6736,7 @@ const Arrivals: React.FC = () => {
                                             setPartyGrossWeight(isRejected ? '' : (tDetail?.partyGrossWeight || ''));
                                             setPartyTareWeight(isRejected ? '' : (tDetail?.partyTareWeight || ''));
                                             setPartyNetWeight(isRejected ? '' : (tDetail?.partyNetWeight || ''));
-                                            setPartySute(isRejected ? '' : (tDetail?.partySute || ''));
+                                            setPartySute((!isRejected && tDetail?.partySute) || autoSute);
                                             setWbDate(new Date().toISOString().split('T')[0]);
                                           }
                                         }} style={{ padding: '2px 5px', border: 'none', borderRadius: '3px', background: selectedLorryForWB === (isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id)) ? '#64748b' : 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer', whiteSpace: 'nowrap' }}>{isRejected ? '⚖️ Add fresh WB' : '⚖️ WB'}</button>
@@ -6562,74 +6763,13 @@ const Arrivals: React.FC = () => {
                                 )}
                               </td>
 
-                              {/* 3. Net Weight */}
-                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700' }}>
-                                <div>{netWeightVal !== '-' && netWeightVal !== null ? `${netWeightVal} Kg` : '-'}</div>
-                                {suteVal && <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 'normal', marginTop: '2px' }}>({suteVal} Kg)</div>}
-                              </td>
+
 
                               {/* 4. Sute Net Wt */}
                               <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700' }}>
                                 {transitDetail?.suteNetWeight ? `${transitDetail.suteNetWeight} Kg` : '-'}
                               </td>
 
-                              {/* 5. Godown */}
-                              <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontSize: '11px', verticalAlign: 'middle' }}>
-                                {transitDetail && (placeStatus === 'approved' || placeStatus === 'pending' || placeStatus === 'placed') ? (
-                                  <span style={{ 
-                                    padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold',
-                                    background: placeStatus === 'approved' ? '#dcfce7' : '#fef3c7',
-                                    color: placeStatus === 'approved' ? '#166534' : '#92400e'
-                                  }}>
-                                    {(() => {
-                                      if (transitDetail.placeType === 'kunchinittu') {
-                                        const kc = transitDetail.placeKunchinittuData?.name || '';
-                                        const wh = transitDetail.placeWarehouse?.name || '';
-                                        return wh ? `${wh} (${kc})` : (kc || '-');
-                                      }
-                                      return transitDetail.placeWarehouse?.name || transitDetail.warehouse?.name || (transitDetail.outturn ? `${transitDetail.outturn.code} (${transitDetail.outturn.allottedVariety})` : '-') || '-';
-                                    })()}
-                                  </span>
-                                ) : null}
-                                <div style={{ marginTop: transitDetail && (placeStatus === 'approved' || placeStatus === 'pending' || placeStatus === 'placed') ? '4px' : '0px' }}>                                  {placeStatus === 'approved' ? (
-                                    <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 'bold' }}>📍 Done</span>
-                                  ) : placeStatus === 'placed' ? (
-                                     <span style={{ fontSize: '10px', color: '#2563eb', fontWeight: 'bold' }}>📍 Placed ✅</span>
-                                  ) : (user?.role === 'staff' && (user?.staffType === 'location' || user?.staffType === 'mill')) ? null : (
-                                    <button
-                                      onClick={() => {
-                                        const rowKey = isPlaceholder ? `p-${entry.id}` : `i-${inspection.id}`;
-                                        if (selectedLorryForPlace === rowKey) {
-                                          setSelectedLorryForPlace(null);
-                                          setSelectedLorryEntries([]);
-                                          setSelectedLorryInspection(null);
-                                        } else {
-                                          setSelectedLorryForPlace(rowKey);
-                                          setSelectedLorryForWB(null);
-                                          setSelectedLorryEntries([entry]);
-                                          setSelectedLorryInspection(inspection);
-                                          setPlaceWarehouseId('');
-                                          setPlaceKunchinittuId('');
-                                          setPlaceOutturnId('');
-                                          setPlaceType('production');
-                                        }
-                                      }}
-                                      style={{
-                                        padding: '3px 6px',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        background: selectedLorryForPlace === (isPlaceholder ? `p-${entry.id}` : `i-${inspection.id}`) ? '#64748b' : 'linear-gradient(135deg, #3b82f6, #2563eb)',
-                                        color: '#fff',
-                                        fontWeight: 'bold',
-                                        fontSize: '10px',
-                                        cursor: 'pointer'
-                                      }}
-                                    >
-                                      📍 Godown
-                                    </button>
-                                  )}
-                                </div>
-                              </td>
 
                               {/* 6. Lorry Number */}
                               <td style={{ border: '1px solid #000', padding: '5px', fontWeight: '800', color: '#1e40af', textAlign: 'center' }}>{lorryNum.toUpperCase()}</td>
@@ -6723,540 +6863,7 @@ const Arrivals: React.FC = () => {
                                 })()}
                               </td>
 
-
-
-                              
-
-
                             </tr>
-
-
-
-                            
-
-
-
-                            {/* COLLAPSIBLE WB ROW */}
-
-
-
-                            {selectedLorryForWB === (isPlaceholder ? `p-${entry.id}` : `i-${inspection.id}`) && (
-
-
-
-                              <tr>
-
-
-
-                                <td colSpan={100} style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
-
-
-
-                                  <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-
-
-
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
-
-
-
-                                      <h4 style={{ margin: 0, color: '#0f172a', fontSize: '13px', fontWeight: 'bold' }}>⚖️ Add Weight Bridge for {lorryNum.toUpperCase()}</h4>
-
-
-
-
-
-
-                                    </div>
-
-
-
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(9, 1fr) auto', gap: '12px', marginBottom: '14px' }}>
-
-                                      <div>
-
-                                        <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Date</label>
-
-                                        <input
-
-                                          type="date"
-
-                                          value={wbDate}
-
-                                          onChange={(e) => setWbDate(e.target.value)}
-
-                                          style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
-
-                                        />
-
-                                      </div>
-
-
-
-
-                                      <div>
-
-
-
-                                        <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>WB Number <span style={{ color: '#ef4444' }}>*</span></label>
-
-
-
-                                        <input 
-
-
-
-                                          type="text" 
-
-
-
-                                          value={wbNumber}
-
-
-
-                                          onChange={(e) => setWbNumber(e.target.value.toUpperCase())}
-
-
-
-                                          placeholder="Enter WB number"
-
-
-
-                                          style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
-
-
-
-                                        />
-
-
-
-                                      </div>
-
-
-
-                                      
-
-
-
-
-
-
-                                        <div>
-
-
-
-                                          <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Mill WB Name <span style={{ color: '#ef4444' }}>*</span></label>
-
-
-
-                                          <select 
-
-
-
-                                            value={millWbId}
-
-
-
-                                            onChange={(e) => setMillWbId(e.target.value)}
-
-
-
-                                            style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
-
-
-
-                                          >
-
-
-
-                                            <option value="">Select Mill Weight Bridge</option>
-
-
-
-                                            {millWBList?.map(wb => (
-
-
-
-                                              <option key={wb.id} value={wb.id}>{wb.name}{wb.location ? ` (${wb.location})` : ''}</option>
-
-
-
-                                            ))}
-
-
-
-                                          </select>
-
-
-
-                                        </div>
-
-
-
-
-
-
-                                      
-
-
-
-                                      <div>
-
-
-
-                                        <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Gross Weight (Kg)</label>
-
-
-
-                                        <input 
-
-
-
-                                          type="number" 
-
-
-
-                                          value={wbGrossWeight}
-
-
-
-                                          onChange={(e) => {
-
-
-
-                                            const val = e.target.value;
-
-
-
-                                            setWbGrossWeight(val);
-
-
-
-                                            if (val && wbTareWeight) {
-
-
-
-                                              setWbNetWeight(String(Number(val) - Number(wbTareWeight)));
-
-
-
-                                            }
-
-
-
-                                          }}
-
-
-
-                                          placeholder="Enter Gross"
-
-
-
-                                          style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
-
-
-
-                                        />
-
-
-
-                                      </div>
-
-
-
-                                      
-
-
-
-                                      <div>
-
-
-
-                                        <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Tare Weight (Kg)</label>
-
-
-
-                                        <input 
-
-
-
-                                          type="number" 
-
-
-
-                                          value={wbTareWeight}
-
-
-
-                                          onChange={(e) => {
-
-
-
-                                            const val = e.target.value;
-
-
-
-                                            setWbTareWeight(val);
-
-
-
-                                            if (wbGrossWeight && val) {
-
-
-
-                                              setWbNetWeight(String(Number(wbGrossWeight) - Number(val)));
-
-
-
-                                            }
-
-
-
-                                          }}
-
-
-
-                                          placeholder="Enter Tare"
-
-
-
-                                          style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
-
-
-
-                                        />
-
-
-
-                                      </div>
-
-
-
-                                      
-
-
-
-                                      <div>
-
-
-
-                                        <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Net Weight (Kg)</label>
-
-
-
-                                        <input 
-
-
-
-                                          type="text" 
-
-
-
-                                          value={wbNetWeight}
-
-
-
-                                          disabled
-
-
-
-                                          style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px', background: '#f1f5f9' }}
-
-
-
-                                        />
-
-
-
-                                      </div>
-
-
-
-                                        <div>
-                                          <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Sute (Deduction)</label>
-                                          <input 
-                                            type="number"
-                                            value={wbSute}
-                                            onChange={(e) => setWbSute(e.target.value)}
-                                            placeholder="Enter sute"
-                                            style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
-                                          />
-                                        </div>
-                                        <div>
-                                          <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Sute Net Wt</label>
-                                          <div style={{ padding: '6px 8px', background: '#f0fdf4', border: '1.5px solid #10b981', borderRadius: '6px', fontWeight: '700', color: '#059669', fontSize: '12px', textAlign: 'center' }}>
-                                            {((parseFloat(wbGrossWeight || 0) - parseFloat(wbTareWeight || 0) - parseFloat(wbSute || 0)) || 0).toFixed(2)} Kg
-                                          </div>
-                                        </div>
-                                        <div>
-                                          <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Party WB</label>
-                                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                            <label style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                                              <input type="radio" name="partyWbEnabled" value="yes" checked={partyWbEnabled === 'yes'} onChange={() => setPartyWbEnabled('yes')} /> Yes
-                                            </label>
-                                            <label style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                                              <input type="radio" name="partyWbEnabled" value="no" checked={partyWbEnabled === 'no'} onChange={() => setPartyWbEnabled('no')} /> No
-                                            </label>
-                                            {partyWbEnabled && (
-                                              <button onClick={() => setPartyWbEnabled('')} style={{ fontSize: '10px', border: 'none', background: '#fee2e2', color: '#dc2626', borderRadius: '4px', padding: '2px 6px', cursor: 'pointer' }}>Clear</button>
-                                            )}
-                                          </div>
-                                        </div>
-                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', justifyContent: 'flex-end', height: '100%', paddingBottom: '2px' }}>
-                                          <button 
-                                            onClick={() => { setSelectedLorryForWB(null); setPartyWbNo(''); setPartyWbDate(new Date().toISOString().split('T')[0]); setPartyGrossWeight(''); setPartyTareWeight(''); setPartyNetWeight(''); setPartySute(''); }}
-                                            style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #cbd5e1', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
-                                          >
-                                            Cancel
-                                          </button>
-                                          <button 
-                                            onClick={async () => {
-                                              if (!wbNumber || !millWbId) {
-                                                toast.error('Please fill required fields (WB Number & Mill/Party WB Name)');
-                                                return;
-                                              }
-                                              if (!wbGrossWeight || !wbTareWeight) {
-                                                toast.error('Please enter both Gross Weight and Tare Weight');
-                                                return;
-                                              }
-                                              if (parseFloat(wbGrossWeight) <= parseFloat(wbTareWeight)) {
-                                                toast.error('Gross Weight must be strictly greater than Tare Weight');
-                                                return;
-                                              }
-                                              try {
-                                                const token = localStorage.getItem('token');
-                                                const response = await axios.post(`${API_URL}/arrivals/${selectedLorryInspection.id}/wb`, {
-                                                  wbInputType: 'mill',
-                                                  millWbId: millWbId ? Number(millWbId) : null,
-                                                  partyWbName: partyWbEnabled === 'yes' ? partyWbName : null,
-                                                  wbNo: wbNumber,                                               
-                                                  grossWeight: Number(wbGrossWeight),
-                                                  tareWeight: Number(wbTareWeight),
-                                                  netWeight: wbNetWeight,
-                                                  sute: wbSute || null,
-                                                  partyWbEnabled: partyWbEnabled || null,
-                                                  wbDate: wbDate || null,
-                                                  partyGrossWeight: partyWbEnabled === 'yes' && partyGrossWeight ? Number(partyGrossWeight) : null,
-                                                  partyTareWeight: partyWbEnabled === 'yes' && partyTareWeight ? Number(partyTareWeight) : null,
-                                                  partyNetWeight: partyWbEnabled === 'yes' && partyNetWeight ? Number(partyNetWeight) : null,
-                                                  partySute: partyWbEnabled === 'yes' && partySute ? Number(partySute) : null,
-                                                  partyWbNo: partyWbEnabled === 'yes' ? partyWbNo : null,
-                                                  partyWbDate: partyWbEnabled === 'yes' ? partyWbDate : null
-                                                }, {
-                                                  headers: { Authorization: `Bearer ${token}` }
-                                                });
-
-                                                const responseDetail = response?.data?.detail || response?.data?.entry || response?.data || {};
-                                                const savedStatus = wbInputType === 'party' ? 'approved' : (responseDetail?.wbStatus || response?.data?.wbStatus || 'pending');
-                                                const savedWbNo = responseDetail?.wbNo || response?.data?.wbNo || wbNumber;
-                                                const savedNetWeight = responseDetail?.netWeight ?? response?.data?.netWeight ?? wbNetWeight;
-
-                                                try {
-                                                  setInTransitEntries(prev => applyWbSaveToEntries(prev, selectedLorryInspection?.id ?? entry.id, {
-                                                    wbStatus: savedStatus,
-                                                    wbNo: savedWbNo,
-                                                    netWeight: savedNetWeight,
-                                                    partyWbName: wbInputType === 'party' ? partyWbName : (responseDetail?.partyWbName || undefined),
-                                                    wbInputType: 'mill',
-                                                    millWbId: wbInputType === 'mill' ? Number(millWbId) : undefined,
-                                                    grossWeight: Number(wbGrossWeight),
-                                                    tareWeight: Number(wbTareWeight)
-                                                  }));
-                                                } catch (reactErr) {
-                                                  console.error('In-Transit state update error:', reactErr);
-                                                }
-
-                                                if (savedStatus === 'approved') {
-                                                  toast.success('Weight Bridge saved & approved successfully!');
-                                                } else {
-                                                  toast.success('Weight Bridge saved & submitted for approval!');
-                                                }
-
-                                                setSelectedLorryForWB(null);
-                                                setSelectedLorryInspection(null);
-                                                fetchInTransitEntries();
-                                              } catch (error: any) {
-                                                toast.error(error.response?.data?.error || 'Failed to submit WB');
-                                              }
-                                            }}
-                                            style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', border: 'none', borderRadius: '4px', background: '#1e3a8a', color: '#fff', cursor: 'pointer' }}
-                                          >
-                                            Save Weight Bridge
-                                          </button>
-                                        </div>
-
-                                    </div>
-
-                                    {partyWbEnabled === 'yes' && (
-                                      <div style={{ padding: '12px', background: '#fffbeb', borderRadius: '8px', border: '2px solid #f59e0b', marginBottom: '14px' }}>
-                                        <h5 style={{ margin: '0 0 10px 0', color: '#92400e', fontSize: '12px', fontWeight: 'bold', borderBottom: '1px solid #fcd34d', paddingBottom: '6px' }}>
-                                          &#x26A1; Party WeighBridge Details
-                                        </h5>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
-                                          <div>
-                                            <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Party WB Date</label>
-                                            <input type="date" value={partyWbDate} onChange={(e) => setPartyWbDate(e.target.value)}
-                                              style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px' }} />
-                                          </div>
-                                          <div>
-                                            <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Party WB Number</label>
-                                            <input type="text" value={partyWbNo} onChange={(e) => setPartyWbNo(e.target.value.toUpperCase())} placeholder="Party WB No"
-                                              style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px' }} />
-                                          </div>
-                                          <div>
-                                            <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Party WB Name</label>
-                                            <input type="text" value={partyWbName} onChange={(e) => setPartyWbName(e.target.value)} placeholder="Party WB Name"
-                                              style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px' }} />
-                                          </div>
-                                          <div>
-                                            <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Gross Weight (Kg)</label>
-                                            <input type="number" value={partyGrossWeight}
-                                              onChange={(e) => { const v = e.target.value; setPartyGrossWeight(v); if (v && partyTareWeight) setPartyNetWeight(String(Number(v) - Number(partyTareWeight))); }}
-                                              placeholder="Party Gross" style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px' }} />
-                                          </div>
-                                          <div>
-                                            <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Tare Weight (Kg)</label>
-                                            <input type="number" value={partyTareWeight}
-                                              onChange={(e) => { const v = e.target.value; setPartyTareWeight(v); if (partyGrossWeight && v) setPartyNetWeight(String(Number(partyGrossWeight) - Number(v))); }}
-                                              placeholder="Party Tare" style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px' }} />
-                                          </div>
-                                          <div>
-                                            <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Net Weight (Kg)</label>
-                                            <input type="text" value={partyNetWeight} disabled
-                                              style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px', background: '#fef3c7' }} />
-                                          </div>
-                                          <div>
-                                            <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Sute (Deduction)</label>
-                                            <input type="number" value={partySute} onChange={(e) => setPartySute(e.target.value)} placeholder="Party Sute"
-                                              style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px' }} />
-                                          </div>
-                                          <div>
-                                            <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Sute Net Weight</label>
-                                            <div style={{ padding: '6px 8px', background: '#fef3c7', border: '1.5px solid #d97706', borderRadius: '6px', fontWeight: '700', color: '#92400e', fontSize: '12px', textAlign: 'center' }}>
-                                              {((parseFloat(partyGrossWeight || 0) - parseFloat(partyTareWeight || 0) - parseFloat(partySute || 0)) || 0).toFixed(2)} Kg
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    )}
-
-
-
-
-
-                                  </div>
-
-
-
-                                </td>
-
-
-
-                              </tr>
-
-
-
-                            )}
 
 
 
@@ -7552,7 +7159,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                                <option key={w.id} value={w.id}>{w.name} ({w.code})</option>
+                                                <option key={w.id} value={w.id}>{w.name}</option>
 
 
 
@@ -7640,7 +7247,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                                  <option key={k.id} value={k.id}>{k.name} ({k.code})</option>
+                                                  <option key={k.id} value={k.id}>{k.name}</option>
 
 
 
@@ -7752,7 +7359,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                            await axios.post(`${API_URL}/arrivals/${selectedLorryInspection.id}/place`, {
+                                            const placeResponse = await axios.post(`${API_URL}/arrivals/${selectedLorryInspection.id}/place`, {
 
 
 
@@ -7772,7 +7379,11 @@ const Arrivals: React.FC = () => {
 
 
 
-                                              outturnId: placeType === 'production' ? (placeOutturnId ? Number(placeOutturnId) : null) : null
+                                              outturnId: placeType === 'production' ? (placeOutturnId ? Number(placeOutturnId) : null) : null,
+
+
+
+                                              isEdit: isPlaceEdit
 
 
 
@@ -7788,12 +7399,13 @@ const Arrivals: React.FC = () => {
 
 
 
-                                            const isApproved = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'owner' || user?.role === 'ceo';
-                                             if (isApproved) {
-                                               toast.success('Godown details saved & approved successfully!');
-                                             } else {
-                                               toast.success('Godown submitted for approval!');
-                                             }
+                                            const needsApproval = !!(placeResponse?.data?.needsApproval);
+                                            if (isPlaceEdit) {
+                                              toast.success(needsApproval ? 'Godown edit submitted for approval!' : 'Godown details updated successfully!');
+                                            } else {
+                                              toast.success(needsApproval ? 'Godown submitted for approval!' : 'Godown saved — entry moved to Band Mall Book!');
+                                            }
+                                            fetchBandMalalEntries();
 
 
 
@@ -7894,7 +7506,7 @@ const Arrivals: React.FC = () => {
 
 
               {/* Client-side Pagination Footer */}
-              {inTransitFilteredTrips.length > 12 && (
+              {inTransitFilteredTrips.length > inTransitPageSize && (
                 <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '14px', padding: '10px 14px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
                   <button 
                     disabled={inTransitPage <= 1} 
@@ -7903,13 +7515,28 @@ const Arrivals: React.FC = () => {
                   >
                     Prev
                   </button>
-                  <span style={{ fontSize: '13px', color: '#475569', fontWeight: 600 }}>
-                    Page {inTransitPage} of {Math.ceil(inTransitFilteredTrips.length / 12)} ({inTransitFilteredTrips.length} records)
-                  </span>
+                  <div style={{ fontSize: '13px', color: '#475569', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    Page 
+                    <input 
+                      type="number" 
+                      min={1} 
+                      max={Math.ceil(inTransitFilteredTrips.length / inTransitPageSize)} 
+                      value={inTransitPage} 
+                      onChange={(e) => { 
+                        const val = parseInt(e.target.value, 10); 
+                        const maxPage = Math.ceil(inTransitFilteredTrips.length / inTransitPageSize);
+                        if (!isNaN(val) && val >= 1 && val <= maxPage) {
+                          setInTransitPage(val); 
+                        }
+                      }} 
+                      style={{ width: '55px', padding: '3px 6px', textAlign: 'center', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }} 
+                    />
+                    of {Math.ceil(inTransitFilteredTrips.length / inTransitPageSize)} ({inTransitFilteredTrips.length} records)
+                  </div>
                   <button 
-                    disabled={inTransitPage >= Math.ceil(inTransitFilteredTrips.length / 12)} 
+                    disabled={inTransitPage >= Math.ceil(inTransitFilteredTrips.length / inTransitPageSize)} 
                     onClick={() => setInTransitPage(p => p + 1)} 
-                    style={{ padding: '6px 12px', borderRadius: '4px', cursor: inTransitPage >= Math.ceil(inTransitFilteredTrips.length / 12) ? 'not-allowed' : 'pointer', background: inTransitPage >= Math.ceil(inTransitFilteredTrips.length / 12) ? '#f1f5f9' : 'white', border: '1px solid #cbd5e1', fontWeight: 'bold', fontSize: '12px' }}
+                    style={{ padding: '6px 12px', borderRadius: '4px', cursor: inTransitPage >= Math.ceil(inTransitFilteredTrips.length / inTransitPageSize) ? 'not-allowed' : 'pointer', background: inTransitPage >= Math.ceil(inTransitFilteredTrips.length / inTransitPageSize) ? '#f1f5f9' : 'white', border: '1px solid #cbd5e1', fontWeight: 'bold', fontSize: '12px' }}
                   >
                     Next
                   </button>
@@ -7979,84 +7606,20 @@ const Arrivals: React.FC = () => {
 
         <div>
 
-
-
-          <h3 style={{ margin: '0 0 16px 0', color: '#0f172a', fontSize: '16px', fontWeight: 'bold' }}>📗 Band Mall Book — Placed Entries</h3>
-
-
-
-          {/* BMB Search + Top Filters Controls */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '14px', background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
-            {/* Search Query */}
-            <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>Search Broker/Party/Variety/Lorry/WB</label>
-              <input
-                type="text"
-                placeholder="Search..."
-                value={bmbSearchQuery}
-                onChange={(e) => { setBmbSearchQuery(e.target.value); setBmbPage(1); }}
-                style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
-              />
-            </div>
-
-            {/* Date Filter */}
-            <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>Filter by Date</label>
-              <input
-                type="date"
-                value={bmbDateFilter}
-                onChange={(e) => { setBmbDateFilter(e.target.value); setBmbPage(1); }}
-                style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
-              />
-            </div>
-
-            {/* Broker Filter */}
-            <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>Filter by Broker Name</label>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <select
-                value={bmbBrokerFilter}
-                onChange={(e) => { setBmbBrokerFilter(e.target.value); setBmbPage(1); }}
-                style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px', background: '#fff', height: '30px' }}
+                value={bmbPageSize}
+                onChange={(e) => { setBmbPageSize(Number(e.target.value)); setBmbPage(1); }}
+                style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', background: '#fff', fontSize: '12px', fontWeight: 600, color: '#475569', height: '32px' }}
               >
-                <option value="">-- All Brokers --</option>
-                {[...brokersList]
-                  .sort((a, b) => a.name.localeCompare(b.name))
-                  .map((b) => (
-                    <option key={b.id} value={b.name}>
-                      {b.name}
-                    </option>
-                  ))
-                }
+                <option value={12}>12 records</option>
+                <option value={25}>25 records</option>
+                <option value={50}>50 records</option>
+                <option value={100}>100 records</option>
               </select>
-            </div>
-
-            {/* Variety Filter */}
-            <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>Filter by Variety</label>
-              <select
-                value={bmbVarietyFilter}
-                onChange={(e) => { setBmbVarietyFilter(e.target.value); setBmbPage(1); }}
-                style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px', background: '#fff', height: '30px' }}
-              >
-                <option value="">-- All Varieties --</option>
-                {varieties?.map((v: any) => (
-                  <option key={v.id} value={v.name}>{v.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Reset Button */}
-            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-              <button
-                onClick={() => { setBmbDateFilter(''); setBmbBrokerFilter(''); setBmbVarietyFilter(''); setBmbSearchQuery(''); setBmbPage(1); }}
-                style={{ width: '100%', padding: '6px 12px', fontSize: '12px', fontWeight: 'bold', background: '#fee2e2', color: '#ef4444', border: '1px solid #fca5a5', borderRadius: '6px', cursor: 'pointer' }}
-              >
-                Clear Filters
-              </button>
             </div>
           </div>
-
-
 
           {loadingTransit ? (
 
@@ -8108,51 +7671,133 @@ const Arrivals: React.FC = () => {
 
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '3%' }}>SL No</th>
 
-
-
-                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '7%' }}>Date</th>
-
-
-
-                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '10%' }}>Broker</th>
-
-
-
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%', position: 'relative' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                        <span>Date</span>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setOpenHeaderFilter(openHeaderFilter === 'bmbDate' ? null : 'bmbDate'); }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '11px', color: '#a7f3d0', display: 'flex', alignItems: 'center' }}
+                        >
+                          🔻
+                        </button>
+                      </div>
+                      {openHeaderFilter === 'bmbDate' && (
+                        <div style={{ position: 'absolute', top: '100%', left: 0, background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px', zIndex: 999, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minWidth: '160px', display: 'flex', flexDirection: 'column', gap: '6px', color: '#000', textAlign: 'left' }}>
+                          <label style={{ fontSize: '10px', color: '#475569', fontWeight: 'bold' }}>From:</label>
+                          <input
+                            type="date"
+                            value={bmbDateFromFilter}
+                            onChange={(e) => { setBmbDateFromFilter(e.target.value); setBmbPage(1); }}
+                            style={{ fontSize: '11px', padding: '3px', border: '1px solid #cbd5e1', borderRadius: '4px', color: '#000', width: '100%', boxSizing: 'border-box' }}
+                          />
+                          <label style={{ fontSize: '10px', color: '#475569', fontWeight: 'bold' }}>To:</label>
+                          <input
+                            type="date"
+                            value={bmbDateToFilter}
+                            onChange={(e) => { setBmbDateToFilter(e.target.value); setBmbPage(1); }}
+                            style={{ fontSize: '11px', padding: '3px', border: '1px solid #cbd5e1', borderRadius: '4px', color: '#000', width: '100%', boxSizing: 'border-box' }}
+                          />
+                          <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
+                            <button
+                              type="button"
+                              onClick={() => { setBmbDateFromFilter(''); setBmbDateToFilter(''); setBmbPage(1); setOpenHeaderFilter(null); }}
+                              style={{ flex: 1, fontSize: '10px', padding: '4px', border: 'none', background: '#fee2e2', color: '#ef4444', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                            >
+                              Clear
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setOpenHeaderFilter(null)}
+                              style={{ flex: 1, fontSize: '10px', padding: '4px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                            >
+                              Close
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </th>
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '11%', position: 'relative' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span>Broker</span>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setOpenHeaderFilter(openHeaderFilter === 'bmbBroker' ? null : 'bmbBroker'); }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '11px', color: '#a7f3d0', display: 'flex', alignItems: 'center' }}
+                        >
+                          🔻
+                        </button>
+                      </div>
+                      {openHeaderFilter === 'bmbBroker' && (
+                        <div style={{ position: 'absolute', top: '100%', left: 0, background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px', zIndex: 999, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minWidth: '160px', display: 'flex', flexDirection: 'column', gap: '6px', color: '#000', textAlign: 'left' }}>
+                          <select
+                            value={bmbBrokerFilter}
+                            onChange={(e) => { setBmbBrokerFilter(e.target.value); setBmbPage(1); }}
+                            style={{ width: '100%', fontSize: '11px', padding: '4px', color: '#000', borderRadius: '4px', border: '1px solid #cbd5e1', background: '#fff' }}
+                          >
+                            <option value="">All Brokers</option>
+                            {[...brokersList]
+                              .sort((a, b) => a.name.localeCompare(b.name))
+                              .map((b) => (
+                                <option key={b.id} value={b.name}>{b.name}</option>
+                              ))
+                            }
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => setOpenHeaderFilter(null)}
+                            style={{ width: '100%', fontSize: '10px', padding: '4px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', marginTop: '4px' }}
+                          >
+                            Close
+                          </button>
+                        </div>
+                      )}
+                    </th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '12%' }}>Party</th>
-
-
-
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Godown</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>No. of Bags</th>
-
-
-
-                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '10%' }}>Variety</th>
-
-
-
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '10%', position: 'relative' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span>Variety</span>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setOpenHeaderFilter(openHeaderFilter === 'bmbVariety' ? null : 'bmbVariety'); }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '11px', color: '#a7f3d0', display: 'flex', alignItems: 'center' }}
+                        >
+                          🔻
+                        </button>
+                      </div>
+                      {openHeaderFilter === 'bmbVariety' && (
+                        <div style={{ position: 'absolute', top: '100%', left: 0, background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px', zIndex: 999, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minWidth: '160px', display: 'flex', flexDirection: 'column', gap: '6px', color: '#000', textAlign: 'left' }}>
+                          <select
+                            value={bmbVarietyFilter}
+                            onChange={(e) => { setBmbVarietyFilter(e.target.value); setBmbPage(1); }}
+                            style={{ width: '100%', fontSize: '11px', padding: '4px', color: '#000', borderRadius: '4px', border: '1px solid #cbd5e1', background: '#fff' }}
+                          >
+                            <option value="">All Varieties</option>
+                            {varieties?.map((v: any) => (
+                              <option key={v.id} value={v.name}>{v.name}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => setOpenHeaderFilter(null)}
+                            style={{ width: '100%', fontSize: '10px', padding: '4px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', marginTop: '4px' }}
+                          >
+                            Close
+                          </button>
+                        </div>
+                      )}
+                    </th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '6%' }}>Moisture</th>
-
-
-
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '6%' }}>Cutting</th>
-
-
-
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>WB Number</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Mill WB Name</th>
-                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Net Weight</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>Sute Net Wt</th>
-                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Godown</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Lorry Number</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Status</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '5%' }}>Actions</th>
-
-
-
                   </tr>
-
-
-
                 </thead>
 
 
@@ -8371,13 +8016,27 @@ const Arrivals: React.FC = () => {
 
 
                           <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>
-
-
-
-                            {entry.date ? new Date(entry.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
-
-
-
+                            {entry.date ? (
+                              <button
+                                onClick={() => {
+                                  const dStr = new Date(entry.date).toISOString().split('T')[0];
+                                  setBmbDateFromFilter(dStr);
+                                  setBmbDateToFilter(dStr);
+                                  setBmbPage(1);
+                                }}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  padding: 0,
+                                  font: 'inherit',
+                                  color: '#2563eb',
+                                  textDecoration: 'underline',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                {new Date(entry.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                              </button>
+                            ) : '-'}
                           </td>
 
 
@@ -8699,7 +8358,143 @@ const Arrivals: React.FC = () => {
 
 
 
-                          
+                          {/* Column 4b: Godown */}
+                          <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: '#7c3aed' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                              <div>{placeDisplay}</div>
+                              {/* Show pending edit indicator */}
+                              {entry.placeRejectReason && entry.placeRejectReason.startsWith('EDIT_PENDING:') && (
+                                <span style={{ 
+                                  background: '#fef3c7', 
+                                  color: '#92400e', 
+                                  padding: '2px 6px', 
+                                  borderRadius: '4px', 
+                                  fontSize: '9px', 
+                                  fontWeight: 'bold',
+                                  border: '1px solid #fbbf24'
+                                }}>
+                                  ⏳ Edit Pending
+                                </span>
+                              )}
+                              {entry.placeRejectReason && entry.placeRejectReason.startsWith('REJECTED_EDIT:') && (
+                                <span style={{ 
+                                  background: '#fee2e2', 
+                                  color: '#b91c1c', 
+                                  padding: '2px 6px', 
+                                  borderRadius: '4px', 
+                                  fontSize: '9px', 
+                                  fontWeight: 'bold',
+                                  border: '1px solid #fca5a5'
+                                }}>
+                                  ✖ Edit Rejected
+                                </span>
+                              )}
+                              {placeStatus === 'pending' && entry.placeRejectReason && entry.placeRejectReason.startsWith('EDIT_PENDING:') && (
+                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', alignItems: 'center' }}>
+                                  {isApprover && (
+                                    <>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleApprovePlace(entry.transitDetailId || entry.id);
+                                        }}
+                                        style={{
+                                          padding: '3px 8px',
+                                          fontSize: '10px',
+                                          background: '#10b981',
+                                          color: 'white',
+                                          border: 'none',
+                                          borderRadius: '4px',
+                                          cursor: 'pointer',
+                                          fontWeight: '600'
+                                        }}
+                                      >
+                                        ✅ Approve
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const trip = {
+                                            entry,
+                                            inspection: entry.physicalInspection || null,
+                                            isPlaceholder: false
+                                          };
+                                          setPlaceConfirmDialog({
+                                            trip,
+                                            action: 'reject'
+                                          });
+                                        }}
+                                        style={{
+                                          padding: '3px 8px',
+                                          fontSize: '10px',
+                                          background: '#ef4444',
+                                          color: 'white',
+                                          border: 'none',
+                                          borderRadius: '4px',
+                                          cursor: 'pointer',
+                                          fontWeight: '600'
+                                        }}
+                                      >
+                                        ✖ Reject
+                                      </button>
+                                    </>
+                                  )}
+                                  {!isApprover && (
+                                    <span style={{ fontSize: '9px', color: '#92400e', fontWeight: 'bold' }}>Waiting for approval</span>
+                                  )}
+                                </div>
+                              )}
+                              {placeStatus === 'approved' && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // Clear all place state first
+                                    setPlaceDate('');
+                                    setPlaceType('production');
+                                    setPlaceWarehouseId('');
+                                    setPlaceKunchinittuId('');
+                                    setPlaceOutturnId('');
+                                    
+                                    // Set edit mode
+                                    setIsPlaceEdit(true);
+                                    // Set selectedLorryForPlace with bmb prefix to show inline form in Band Malal Book
+                                    setSelectedLorryForPlace(`bmb-${entry.id}`);
+                                    setSelectedLorryInspection(entry.physicalInspection || null);
+                                    
+                                    // Pre-fill with existing godown/place data
+                                    const editPlaceType = entry.placeType || 'production';
+                                    setTimeout(() => {
+                                      setPlaceType(editPlaceType);
+                                      setPlaceWarehouseId(entry.placeWarehouseId ? String(entry.placeWarehouseId) : (entry.placeWarehouse?.id ? String(entry.placeWarehouse.id) : (entry.toWarehouse?.id ? String(entry.toWarehouse.id) : '')));
+                                      setPlaceKunchinittuId(entry.placeKunchinittuId ? String(entry.placeKunchinittuId) : (entry.placeKunchinittuData?.id ? String(entry.placeKunchinittuData.id) : (entry.toKunchinittu?.id ? String(entry.toKunchinittu.id) : '')));
+                                      setPlaceOutturnId(entry.outturn?.id ? String(entry.outturn.id) : '');
+                                      const dateValue = entry.placeDate ? (typeof entry.placeDate === 'string' ? entry.placeDate.split('T')[0] : new Date(entry.placeDate).toISOString().split('T')[0]) : '';
+                                      setPlaceDate(dateValue);
+                                    }, 0);
+                                    
+                                    setSelectedLorryEntries([entry]);
+                                    console.log('Edit Godown - physicalInspection:', entry.physicalInspection?.id, 'outturn:', entry.outturn, 'placeType:', entry.placeType, 'editPlaceType:', editPlaceType, 'outturnId:', entry.outturn?.id, 'kunchinittuId:', entry.placeKunchinittuId, 'warehouseId:', entry.placeWarehouseId);
+                                  }}
+                                  style={{
+                                    padding: '3px 8px',
+                                    fontSize: '10px',
+                                    background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontWeight: '600',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '3px',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  ✏️ Edit
+                                </button>
+                              )}
+                            </div>
+                          </td>
 
 
 
@@ -8772,15 +8567,38 @@ const Arrivals: React.FC = () => {
                           </td>
                           
                           {/* Column 9: WB Number (Mill WB No) */}
-                          <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>
+                          <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', verticalAlign: 'middle' }}>
                             {entry.wbNo && wbStatus !== 'rejected' ? (
-                              <span style={{
-                                padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold',
-                                background: wbStatus === 'approved' ? '#dcfce7' : wbStatus === 'pending' ? '#fef3c7' : '#f1f5f9',
-                                color: wbStatus === 'approved' ? '#166534' : wbStatus === 'pending' ? '#92400e' : '#475569'
-                              }}>
-                                {entry.wbNo}{wbStatus === 'pending' ? ' ⏳' : ''}
-                              </span>
+                              <div>
+                                <span
+                                  onClick={() => openWbEditModal((entry.lorryNumber || 'N/A').toUpperCase(), entry, entry, null)}
+                                  title="Click to edit WB"
+                                  style={{
+                                    padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold',
+                                    background: wbStatus === 'approved' ? '#dcfce7' : wbStatus === 'pending' ? '#fef3c7' : '#f1f5f9',
+                                    color: wbStatus === 'approved' ? '#166534' : wbStatus === 'pending' ? '#92400e' : '#475569',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  {entry.wbNo}{wbStatus === 'pending' ? ' ⏳' : ''}
+                                </span>
+                                <div style={{ marginTop: '4px' }}>
+                                  {wbStatus === 'pending' && canApproveWB ? (
+                                    <div style={{ display: 'flex', gap: '3px', justifyContent: 'center' }}>
+                                      <button onClick={() => handleApproveWb(entry.id, entry)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>Approve WB</button>
+                                      <button onClick={() => handleRejectWb(entry.id)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#ef4444', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>Reject WB</button>
+                                      <button onClick={() => openWbEditModal((entry.lorryNumber || 'N/A').toUpperCase(), entry, entry, null)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#0284c7', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>✏️ Edit</button>
+                                    </div>
+                                  ) : wbStatus === 'pending' ? (
+                                    <div style={{ display: 'flex', gap: '3px', justifyContent: 'center', alignItems: 'center' }}>
+                                      <span style={{ fontSize: '9px', color: '#92400e', fontWeight: 'bold' }}>⏳ Pending</span>
+                                      <button onClick={() => openWbEditModal((entry.lorryNumber || 'N/A').toUpperCase(), entry, entry, null)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#0284c7', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>✏️ Edit</button>
+                                    </div>
+                                  ) : wbStatus === 'approved' ? (
+                                    <button onClick={() => openWbEditModal((entry.lorryNumber || 'N/A').toUpperCase(), entry, entry, null)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#0284c7', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>✏️ Edit WB</button>
+                                  ) : null}
+                                </div>
+                              </div>
                             ) : wbStatus === 'rejected' ? (
                               <div>
                                 <span style={{
@@ -8795,6 +8613,31 @@ const Arrivals: React.FC = () => {
                                     Reason: {entry.wbRejectReason}
                                   </div>
                                 )}
+                                <div style={{ marginTop: '4px' }}>
+                                  <button onClick={() => {
+                                    const lorry = (entry.lorryNumber || 'N/A').toUpperCase();
+                                    const autoSute = getAutoSuteValue(entry, null);
+                                    setSelectedLorryForWB(lorry);
+                                    setSelectedLorryInspection(entry);
+                                    setIsWbEdit(false);
+                                    setWbInputType('mill');
+                                    setWbNumber('');
+                                    setMillWbId('');
+                                    setWbGrossWeight('');
+                                    setWbTareWeight('');
+                                    setWbNetWeight('');
+                                    setWbSute(autoSute);
+                                    setPartyWbEnabled('');
+                                    setPartyWbNo('');
+                                    setPartyWbDate(new Date().toISOString().split('T')[0]);
+                                    setPartyWbName('');
+                                    setPartyGrossWeight('');
+                                    setPartyTareWeight('');
+                                    setPartyNetWeight('');
+                                    setPartySute(autoSute);
+                                    setWbDate(new Date().toISOString().split('T')[0]);
+                                  }} style={{ padding: '2px 5px', border: 'none', borderRadius: '3px', background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer', whiteSpace: 'nowrap' }}>⚖️ Add fresh WB</button>
+                                </div>
                               </div>
                             ) : (
                               <span style={{ color: '#94a3b8' }}>{wbStatus === 'none' ? '⚠️ Required' : '-'}</span>
@@ -8818,21 +8661,12 @@ const Arrivals: React.FC = () => {
                              )}
                            </td>
                            
-                           {/* Column 12: Net Weight */}
-                           <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700', color: '#059669' }}>
-                             <div>{entry.netWeight ? `${entry.netWeight} Kg` : '-'}</div>
-                             {entry.sute && <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 'normal', marginTop: '2px' }}>({entry.sute} Kg)</div>}
-                           </td>
 
                            {/* Column 11: Sute Net Wt */}
                            <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: '#d97706' }}>
                              {entry.suteNetWeight ? `${entry.suteNetWeight} Kg` : '-'}
                            </td>
 
-                           {/* Column 10: Godown */}
-                           <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: '#7c3aed' }}>
-                             {placeDisplay}
-                           </td>
 
                            {/* Column 12: Lorry Number */}
                            <td style={{ border: '1px solid #000', padding: '5px', fontWeight: '800', color: '#1e40af', textAlign: 'center' }}>
@@ -8857,103 +8691,7 @@ const Arrivals: React.FC = () => {
 
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
 
-
-
-                                {/* Weight Bridge Actions */}
-                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-
-
-
-                                    {wbStatus === 'pending' && isApprover ? (
-
-
-
-                                      <>
-
-
-
-                                        <button onClick={() => handleApproveWb(entry.id, detail)} style={{ padding: '4px 6px', border: 'none', borderRadius: '4px', background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer' }}>Approve</button>
-
-
-
-                                        <button onClick={() => handleRejectWb(entry.id, detail)} style={{ padding: '4px 6px', border: 'none', borderRadius: '4px', background: '#ef4444', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer' }}>Reject</button>
-
-
-
-                                      </>
-
-
-
-                                    ) : wbStatus === 'pending' ? (
-
-
-
-                                      <span style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold' }}>WB Pending</span>
-
-
-
-                                    ) : wbStatus === 'approved' ? (
-
-
-
-                                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-
-
-
-                                        <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: 'bold' }}>✅ WB Approved</span>
-
-
-
-                                        {entry.partyWbName && (
-
-
-
-                                          <span style={{ fontSize: '10px', color: '#7c3aed', fontWeight: 'bold' }}>Party: {entry.partyWbName}</span>
-
-
-
-                                        )}
-
-
-
-                                      </div>
-
-
-
-                                    ) : (
-
-
-
-                                      <button onClick={() => {
-                                        const lorry = (entry.lorryNumber || 'N/A').toUpperCase();
-                                        if (selectedLorryForWB === lorry) {
-                                          setSelectedLorryForWB(null);
-                                          setSelectedLorryInspection(null);
-                                        } else {
-                                          setSelectedLorryForWB(lorry);
-                                          setSelectedLorryInspection(entry);
-                                          setWbInputType(entry.wbInputType || 'mill');
-                                          setWbNumber(entry.wbNo || '');
-                                          setMillWbId(entry.millWbId || '');
-                                          setWbGrossWeight(entry.grossWeight || '');
-                                          setWbTareWeight(entry.tareWeight || '');
-                                          setWbNetWeight(entry.netWeight || '');
-                                          setWbSute(entry.sute || '');
-                                          setPartyWbEnabled(entry.partyWbEnabled || '');
-                                          setPartyWbNo(entry.partyWbNo || '');
-                                          setPartyWbDate(entry.partyWbDate || new Date().toISOString().split('T')[0]);
-                                          setPartyWbName(entry.partyWbName || '');
-                                          setPartyGrossWeight(entry.partyGrossWeight || '');
-                                          setPartyTareWeight(entry.partyTareWeight || '');
-                                          setPartyNetWeight(entry.partyNetWeight || '');
-                                          setPartySute(entry.partySute || '');
-                                          setWbDate(entry.wbDate || new Date().toISOString().split('T')[0]);
-                                        }
-                                      }} style={{ padding: '4px 6px', border: 'none', borderRadius: '4px', background: selectedLorryForWB === (entry.lorryNumber || 'N/A').toUpperCase() ? '#64748b' : 'linear-gradient(135deg, #d97706, #b45309)', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer' }}>Add WB</button>
-                                  )}
-                                  </div>
-
-
+                                {/* WB Actions moved to WB Number column */}
 
                                 {/* Mill Quality Button */}
 
@@ -9118,262 +8856,131 @@ const Arrivals: React.FC = () => {
 
                         </tr>
 
-
-                        {selectedLorryForWB === (entry.lorryNumber || 'N/A').toUpperCase() && selectedLorryInspection?.id === entry.id && (
+                        {/* Inline Place/Godown Edit Form */}
+                        {selectedLorryForPlace === `bmb-${entry.id}` && (
                           <tr>
-                            <td colSpan={100} style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
+                            <td colSpan={15} style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
                               <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
-                                  <h4 style={{ margin: 0, color: '#0f172a', fontSize: '13px', fontWeight: 'bold' }}>⚖️ Add Weight Bridge for {(entry.lorryNumber || 'N/A').toUpperCase()}</h4>
+                                  <h4 style={{ margin: 0, color: '#0f172a', fontSize: '13px', fontWeight: 'bold' }}>📍 Edit Godown Location for {(entry.lorryNumber || 'N/A').toUpperCase()}</h4>
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(9, 1fr) auto', gap: '12px', marginBottom: '14px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px', marginBottom: '14px' }}>
                                   <div>
-                                    <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Date</label>
-                                    <input
-                                      type="date"
-                                      value={wbDate}
-                                      onChange={(e) => setWbDate(e.target.value)}
-                                      style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
-                                    />
-                                  </div>
-                                  <div>
-                                    <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>WB Number <span style={{ color: '#ef4444' }}>*</span></label>
+                                    <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Godown Date</label>
                                     <input 
-                                      type="text" 
-                                      value={wbNumber}
-                                      onChange={(e) => setWbNumber(e.target.value.toUpperCase())}
-                                      placeholder="Enter WB number"
+                                      type="date" 
+                                      value={placeDate}
+                                      onChange={(e) => setPlaceDate(e.target.value)}
                                       style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
                                     />
                                   </div>
+                                  
                                   <div>
-                                    <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Mill WB Name <span style={{ color: '#ef4444' }}>*</span></label>
-                                    <select 
-                                      value={millWbId}
-                                      onChange={(e) => setMillWbId(e.target.value)}
+                                    <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Destination Type</label>
+                                    <select
+                                      value={placeType}
+                                      onChange={(e) => setPlaceType(e.target.value as 'production' | 'kunchinittu')}
                                       style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
                                     >
-                                      <option value="">Select Mill Weight Bridge</option>
-                                      {millWBList?.map(wb => (
-                                        <option key={wb.id} value={wb.id}>{wb.name}{wb.location ? ` (${wb.location})` : ''}</option>
-                                      ))}
+                                      <option value="production">Production (Outturn)</option>
+                                      <option value="kunchinittu">Kunchinittu</option>
                                     </select>
                                   </div>
-                                  <div>
-                                    <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Gross Weight (Kg)</label>
-                                    <input 
-                                      type="number" 
-                                      value={wbGrossWeight}
-                                      onChange={(e) => {
-                                        const val = e.target.value;
-                                        setWbGrossWeight(val);
-                                        if (val && wbTareWeight) {
-                                          setWbNetWeight(String(Number(val) - Number(wbTareWeight)));
-                                        }
-                                      }}
-                                      placeholder="Enter Gross"
-                                      style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
-                                    />
-                                  </div>
-                                  <div>
-                                    <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Tare Weight (Kg)</label>
-                                    <input 
-                                      type="number" 
-                                      value={wbTareWeight}
-                                      onChange={(e) => {
-                                        const val = e.target.value;
-                                        setWbTareWeight(val);
-                                        if (wbGrossWeight && val) {
-                                          setWbNetWeight(String(Number(wbGrossWeight) - Number(val)));
-                                        }
-                                      }}
-                                      placeholder="Enter Tare"
-                                      style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
-                                    />
-                                  </div>
-                                  <div>
-                                    <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Net Weight (Kg)</label>
-                                    <input 
-                                      type="text" 
-                                      value={wbNetWeight}
-                                      disabled
-                                      style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px', background: '#f1f5f9' }}
-                                    />
-                                  </div>
-                                  <div>
-                                    <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Sute (Deduction)</label>
-                                    <input 
-                                      type="number"
-                                      value={wbSute}
-                                      onChange={(e) => setWbSute(e.target.value)}
-                                      placeholder="Enter sute"
-                                      style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
-                                    />
-                                  </div>
-                                  <div>
-                                    <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Sute Net Wt</label>
-                                    <div style={{ padding: '6px 8px', background: '#f0fdf4', border: '1.5px solid #10b981', borderRadius: '6px', fontWeight: '700', color: '#059669', fontSize: '12px', textAlign: 'center' }}>
-                                      {((parseFloat(wbGrossWeight || 0) - parseFloat(wbTareWeight || 0) - parseFloat(wbSute || 0)) || 0).toFixed(2)} Kg
+
+                                  {placeType === 'production' ? (
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Select Outturn</label>
+                                      <select
+                                        value={placeOutturnId}
+                                        onChange={(e) => setPlaceOutturnId(e.target.value)}
+                                        style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
+                                      >
+                                        <option value="">-- Select Outturn --</option>
+                                        {outturns.map(o => (
+                                          <option key={o.id} value={o.id}>{o.code} ({o.allottedVariety})</option>
+                                        ))}
+                                      </select>
                                     </div>
-                                  </div>
-                                  <div>
-                                    <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Party WB</label>
-                                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                      <label style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                                        <input type="radio" name="partyWbEnabled" value="yes" checked={partyWbEnabled === 'yes'} onChange={() => setPartyWbEnabled('yes')} /> Yes
-                                      </label>
-                                      <label style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                                        <input type="radio" name="partyWbEnabled" value="no" checked={partyWbEnabled === 'no'} onChange={() => setPartyWbEnabled('no')} /> No
-                                      </label>
-                                      {partyWbEnabled && (
-                                        <button onClick={() => setPartyWbEnabled('')} style={{ fontSize: '10px', border: 'none', background: '#fee2e2', color: '#dc2626', borderRadius: '4px', padding: '2px 6px', cursor: 'pointer' }}>Clear</button>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', justifyContent: 'flex-end', height: '100%', paddingBottom: '2px' }}>
-                                    <button 
-                                      onClick={() => { setSelectedLorryForWB(null); setSelectedLorryInspection(null); }}
-                                      style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #cbd5e1', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
-                                    >
-                                      Cancel
-                                    </button>
-                                    <button 
-                                      onClick={async () => {
-                                        if (!wbNumber || !millWbId) {
-                                          toast.error('Please fill required fields (WB Number & Mill/Party WB Name)');
-                                          return;
-                                        }
-                                        if (!wbGrossWeight || !wbTareWeight) {
-                                          toast.error('Please enter both Gross Weight and Tare Weight');
-                                          return;
-                                        }
-                                        if (parseFloat(wbGrossWeight) <= parseFloat(wbTareWeight)) {
-                                          toast.error('Gross Weight must be strictly greater than Tare Weight');
-                                          return;
-                                        }
-                                        try {
-                                          const token = localStorage.getItem('token');
-                                          const response = await axios.post(`${API_URL}/arrivals/${entry.id}/wb`, {
-                                            wbInputType: 'mill',
-                                            millWbId: millWbId ? Number(millWbId) : null,
-                                            partyWbName: partyWbEnabled === 'yes' ? partyWbName : null,
-                                            wbNo: wbNumber,
-                                            grossWeight: Number(wbGrossWeight),
-                                            tareWeight: Number(wbTareWeight),
-                                            netWeight: Number(wbNetWeight),
-                                            sute: Number(wbSute) || null,
-                                            partyWbEnabled: partyWbEnabled || null,
-                                            wbDate: wbDate || null,
-                                            partyGrossWeight: partyWbEnabled === 'yes' && partyGrossWeight ? Number(partyGrossWeight) : null,
-                                            partyTareWeight: partyWbEnabled === 'yes' && partyTareWeight ? Number(partyTareWeight) : null,
-                                            partyNetWeight: partyWbEnabled === 'yes' && partyNetWeight ? Number(partyNetWeight) : null,
-                                            partySute: partyWbEnabled === 'yes' && partySute ? Number(partySute) : null,
-                                            partyWbNo: partyWbEnabled === 'yes' ? partyWbNo : null,
-                                            partyWbDate: partyWbEnabled === 'yes' ? partyWbDate : null
-                                          }, {
-                                            headers: { Authorization: `Bearer ${token}` }
-                                          });
-
-                                          const responseDetail = response?.data?.detail || response?.data?.entry || response?.data || {};
-                                          const savedStatus = wbInputType === 'party' ? 'approved' : (responseDetail?.wbStatus || response?.data?.wbStatus || 'pending');
-                                          const savedWbNo = responseDetail?.wbNo || response?.data?.wbNo || wbNumber;
-                                          const savedNetWeight = responseDetail?.netWeight ?? response?.data?.netWeight ?? Number(wbNetWeight);
-
-                                          try {
-                                            setBandMalalEntries(prev => prev.map(item => {
-                                              if (String(item.id) === String(entry.id)) {
-                                                return {
-                                                  ...item,
-                                                  wbStatus: savedStatus,
-                                                  wbNo: savedWbNo,
-                                                  netWeight: savedNetWeight,
-                                                  partyWbName: wbInputType === 'party' ? partyWbName : (responseDetail?.partyWbName || undefined),
-                                                  wbInputType: 'mill',
-                                                  millWbId: wbInputType === 'mill' ? Number(millWbId) : undefined,
-                                                  grossWeight: Number(wbGrossWeight),
-                                                  tareWeight: Number(wbTareWeight)
-                                                };
-                                              }
-                                              return item;
-                                            }));
-                                          } catch (reactErr) {
-                                            console.error('BMB state update error:', reactErr);
-                                          }
-
-                                          if (savedStatus === 'approved') {
-                                            toast.success('Weight Bridge saved & approved successfully!');
-                                          } else {
-                                            toast.success('Weight Bridge saved & submitted for approval!');
-                                          }
-
-                                          setSelectedLorryForWB(null);
-                                          setSelectedLorryInspection(null);
-                                          fetchBandMalalEntries();
-                                        } catch (error: any) {
-                                          toast.error(error.response?.data?.error || 'Failed to submit WB');
-                                        }
-                                      }}
-                                      style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', border: 'none', borderRadius: '4px', background: '#1e3a8a', color: '#fff', cursor: 'pointer' }}
-                                    >
-                                      Save Weight Bridge
-                                    </button>
-                                  </div>
+                                  ) : (
+                                    <>
+                                      <div>
+                                        <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Kunchinittu</label>
+                                        <select
+                                          value={placeKunchinittuId}
+                                          onChange={(e) => setPlaceKunchinittuId(e.target.value)}
+                                          style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
+                                        >
+                                          <option value="">-- Select Kunchinittu --</option>
+                                          {activeKunchinittus.map(k => (
+                                            <option key={k.id} value={k.id}>{k.name}</option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                      <div>
+                                        <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Warehouse</label>
+                                        <select
+                                          value={placeWarehouseId}
+                                          onChange={(e) => setPlaceWarehouseId(e.target.value)}
+                                          style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
+                                        >
+                                          <option value="">-- Select Warehouse --</option>
+                                          {warehouses.map(w => (
+                                            <option key={w.id} value={w.id}>{w.name}</option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                    </>
+                                  )}
                                 </div>
 
-                                {partyWbEnabled === 'yes' && (
-                                  <div style={{ padding: '12px', background: '#fffbeb', borderRadius: '8px', border: '2px solid #f59e0b', marginBottom: '14px' }}>
-                                    <h5 style={{ margin: '0 0 10px 0', color: '#92400e', fontSize: '12px', fontWeight: 'bold', borderBottom: '1px solid #fcd34d', paddingBottom: '6px' }}>
-                                      ⚡ Party WeighBridge Details
-                                    </h5>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
-                                      <div>
-                                        <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Party WB Date</label>
-                                        <input type="date" value={partyWbDate} onChange={(e) => setPartyWbDate(e.target.value)}
-                                          style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px' }} />
-                                      </div>
-                                      <div>
-                                        <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Party WB Number</label>
-                                        <input type="text" value={partyWbNo} onChange={(e) => setPartyWbNo(e.target.value.toUpperCase())} placeholder="Party WB No"
-                                          style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px' }} />
-                                      </div>
-                                      <div>
-                                        <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Party WB Name</label>
-                                        <input type="text" value={partyWbName} onChange={(e) => setPartyWbName(e.target.value)} placeholder="Party WB Name"
-                                          style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px' }} />
-                                      </div>
-                                      <div>
-                                        <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Gross Weight (Kg)</label>
-                                        <input type="number" value={partyGrossWeight}
-                                          onChange={(e) => { const v = e.target.value; setPartyGrossWeight(v); if (v && partyTareWeight) setPartyNetWeight(String(Number(v) - Number(partyTareWeight))); }}
-                                          placeholder="Party Gross" style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px' }} />
-                                      </div>
-                                      <div>
-                                        <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Tare Weight (Kg)</label>
-                                        <input type="number" value={partyTareWeight}
-                                          onChange={(e) => { const v = e.target.value; setPartyTareWeight(v); if (partyGrossWeight && v) setPartyNetWeight(String(Number(partyGrossWeight) - Number(v))); }}
-                                          placeholder="Party Tare" style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px' }} />
-                                      </div>
-                                      <div>
-                                        <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Net Weight (Kg)</label>
-                                        <input type="text" value={partyNetWeight} disabled
-                                          style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px', background: '#fef3c7' }} />
-                                      </div>
-                                      <div>
-                                        <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Sute (Deduction)</label>
-                                        <input type="number" value={partySute} onChange={(e) => setPartySute(e.target.value)} placeholder="Party Sute"
-                                          style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #d97706', borderRadius: '6px' }} />
-                                      </div>
-                                      <div>
-                                        <label style={{ fontSize: '11px', color: '#92400e', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Sute Net Weight</label>
-                                        <div style={{ padding: '6px 8px', background: '#fef3c7', border: '1.5px solid #d97706', borderRadius: '6px', fontWeight: '700', color: '#92400e', fontSize: '12px', textAlign: 'center' }}>
-                                          {((parseFloat(partyGrossWeight || 0) - parseFloat(partyTareWeight || 0) - parseFloat(partySute || 0)) || 0).toFixed(2)} Kg
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
+                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                  <button onClick={() => {
+                                    setSelectedLorryForPlace(null);
+                                    setIsPlaceEdit(false);
+                                  }} style={{ padding: '6px 12px', border: 'none', borderRadius: '5px', background: '#6b7280', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer' }}>Cancel</button>
+                                  
+                                  <button onClick={async () => {
+                                    try {
+                                      const token = localStorage.getItem('token');
+                                      // Use physicalInspection ID from the entry
+                                      const inspectionId = entry.physicalInspection?.id;
+                                      
+                                      if (!inspectionId) {
+                                        toast.error('Physical Inspection ID not found');
+                                        return;
+                                      }
+                                      
+                                      const bmbResponse = await axios.post(`${API_URL}/arrivals/${inspectionId}/place`, {
+                                        placeDate,
+                                        placeType,
+                                        placeKunchinittuId: placeType === 'kunchinittu' ? (placeKunchinittuId ? Number(placeKunchinittuId) : null) : null,
+                                        placeWarehouseId: placeType === 'production' ? null : (placeWarehouseId ? Number(placeWarehouseId) : null),
+                                        outturnId: placeType === 'production' ? (placeOutturnId ? Number(placeOutturnId) : null) : null,
+                                        isEdit: isPlaceEdit
+                                      }, {
+                                        headers: { Authorization: `Bearer ${token}` }
+                                      });
 
+                                      const bmbNeedsApproval = !!(bmbResponse?.data?.needsApproval);
+                                      if (isPlaceEdit) {
+                                        toast.success(bmbNeedsApproval ? 'Godown edit submitted for approval!' : 'Godown details updated successfully!');
+                                      } else {
+                                        toast.success(bmbNeedsApproval ? 'Godown submitted for approval!' : 'Godown details saved successfully!');
+                                      }
 
+                                      setSelectedLorryForPlace(null);
+                                      setSelectedLorryEntries([]);
+                                      setIsPlaceEdit(false);
+                                      fetchBandMalalEntries();
+                                    } catch (err: any) {
+                                      console.error('Failed to update godown:', err);
+                                      const errorMsg = err.response?.data?.error || err.message || 'Failed to update godown';
+                                      toast.error(errorMsg);
+                                    }
+                                  }} style={{ padding: '6px 12px', border: 'none', borderRadius: '5px', background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer' }}>
+                                    💾 Save
+                                  </button>
+                                </div>
                               </div>
                             </td>
                           </tr>
@@ -9406,7 +9013,7 @@ const Arrivals: React.FC = () => {
 
 
             {/* Pagination Footer */}
-            {filteredBmbEntries.length > 12 && (
+            {filteredBmbEntries.length > bmbPageSize && (
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '14px', padding: '10px 14px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
                 <button 
                   disabled={bmbPage <= 1} 
@@ -9415,13 +9022,28 @@ const Arrivals: React.FC = () => {
                 >
                   Prev
                 </button>
-                <span style={{ fontSize: '13px', color: '#475569', fontWeight: 600 }}>
-                  Page {bmbPage} of {Math.ceil(filteredBmbEntries.length / 12)} ({filteredBmbEntries.length} records)
-                </span>
+                <div style={{ fontSize: '13px', color: '#475569', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  Page 
+                  <input 
+                    type="number" 
+                    min={1} 
+                    max={Math.ceil(filteredBmbEntries.length / bmbPageSize)} 
+                    value={bmbPage} 
+                    onChange={(e) => { 
+                      const val = parseInt(e.target.value, 10); 
+                      const maxPage = Math.ceil(filteredBmbEntries.length / bmbPageSize);
+                      if (!isNaN(val) && val >= 1 && val <= maxPage) {
+                        setBmbPage(val); 
+                      }
+                    }} 
+                    style={{ width: '55px', padding: '3px 6px', textAlign: 'center', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }} 
+                  />
+                  of {Math.ceil(filteredBmbEntries.length / bmbPageSize)} ({filteredBmbEntries.length} records)
+                </div>
                 <button 
-                  disabled={bmbPage >= Math.ceil(filteredBmbEntries.length / 12)} 
+                  disabled={bmbPage >= Math.ceil(filteredBmbEntries.length / bmbPageSize)} 
                   onClick={() => setBmbPage(p => p + 1)} 
-                  style={{ padding: '6px 12px', borderRadius: '4px', cursor: bmbPage >= Math.ceil(filteredBmbEntries.length / 12) ? 'not-allowed' : 'pointer', background: bmbPage >= Math.ceil(filteredBmbEntries.length / 12) ? '#f1f5f9' : 'white', border: '1px solid #cbd5e1', fontWeight: 'bold', fontSize: '12px' }}
+                  style={{ padding: '6px 12px', borderRadius: '4px', cursor: bmbPage >= Math.ceil(filteredBmbEntries.length / bmbPageSize) ? 'not-allowed' : 'pointer', background: bmbPage >= Math.ceil(filteredBmbEntries.length / bmbPageSize) ? '#f1f5f9' : 'white', border: '1px solid #cbd5e1', fontWeight: 'bold', fontSize: '12px' }}
                 >
                   Next
                 </button>
@@ -14006,27 +13628,62 @@ const Arrivals: React.FC = () => {
               {wbConfirmDialog.action === 'approve' ? '✅ Confirm WB Approval' : '❌ Confirm WB Rejection'}
             </h3>
             <div style={{ fontSize: '12px', color: '#475569', marginBottom: '16px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', background: '#f8fafc', padding: '10px', borderRadius: '8px' }}>
-                <div style={{ gridColumn: 'span 2', fontWeight: 'bold', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px', color: '#1a237e' }}>🏭 Mill Weighbridge Details</div>
-                <div><strong>WB Number:</strong> {wbConfirmDialog.detail?.wbNo || '-'}</div>
-                <div><strong>Mill WB:</strong> {wbConfirmDialog.detail?.wbInputType === 'party' ? (wbConfirmDialog.detail?.partyWbName || '-') : (millWBList.find(w => String(w.id) === String(wbConfirmDialog.detail?.millWbId))?.name || wbConfirmDialog.detail?.millWeightBridge?.name || '-')}</div>
-                <div><strong>Gross Wt:</strong> {wbConfirmDialog.detail?.grossWeight || '-'} Kg</div>
-                <div><strong>Tare Wt:</strong> {wbConfirmDialog.detail?.tareWeight || '-'} Kg</div>
-                <div><strong>Net Wt:</strong> {wbConfirmDialog.detail?.netWeight || '-'} Kg</div>
-                <div><strong>Sute:</strong> {wbConfirmDialog.detail?.sute || '-'} Kg</div>
-                <div><strong>Date:</strong> {wbConfirmDialog.detail?.wbDate || '-'}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 
+                {/* Mill Weighbridge block */}
+                <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                  <div style={{ fontWeight: 'bold', borderBottom: '1.5px solid #cbd5e1', paddingBottom: '4px', marginBottom: '8px', color: '#1a237e', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>🏭 Mill Weighbridge Details</div>
+                  
+                  {/* Row 1 */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.2fr', gap: '8px', marginBottom: '8px', borderBottom: '1px dashed #cbd5e1', paddingBottom: '6px' }}>
+                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Date</span><strong>{wbConfirmDialog.detail?.wbDate || '-'}</strong></div>
+                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>WB Number</span><strong>{wbConfirmDialog.detail?.wbNo || '-'}</strong></div>
+                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>WB Name</span><strong>{wbConfirmDialog.detail?.wbInputType === 'party' ? (wbConfirmDialog.detail?.partyWbName || '-') : (millWBList.find(w => String(w.id) === String(wbConfirmDialog.detail?.millWbId))?.name || wbConfirmDialog.detail?.millWeightBridge?.name || '-')}</strong></div>
+                  </div>
+
+                  {/* Row 2 */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '8px', borderBottom: '1px dashed #cbd5e1', paddingBottom: '6px' }}>
+                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Gross Weight</span><strong>{wbConfirmDialog.detail?.grossWeight || '-'} Kg</strong></div>
+                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Tare Weight</span><strong>{wbConfirmDialog.detail?.tareWeight || '-'} Kg</strong></div>
+                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Net Weight</span><strong style={{ color: '#10b981' }}>{wbConfirmDialog.detail?.netWeight || '-'} Kg</strong></div>
+                  </div>
+
+                  {/* Row 3 */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Sute</span><strong>{wbConfirmDialog.detail?.sute || '0'} Kg</strong></div>
+                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Bags</span><strong>{wbConfirmDialog.detail?.bags || wbConfirmDialog.detail?.bagsLoaded || '-'}</strong></div>
+                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Sute Net Weight</span><strong style={{ color: '#16a34a' }}>{wbConfirmDialog.detail?.suteNetWeight || '-'} Kg</strong></div>
+                  </div>
+                </div>
+
+                {/* Party Weighbridge block */}
                 {wbConfirmDialog.detail?.partyWbEnabled === 'yes' && (
-                  <>
-                    <div style={{ gridColumn: 'span 2', fontWeight: 'bold', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px', paddingTop: '8px', color: '#7c3aed' }}>⚡ Party Weighbridge Details</div>
-                    <div><strong>Party WB Name:</strong> {wbConfirmDialog.detail?.partyWbName || '-'}</div>
-                    <div><strong>Party WB No:</strong> {wbConfirmDialog.detail?.partyWbNo || '-'}</div>
-                    <div><strong>Party Gross:</strong> {wbConfirmDialog.detail?.partyGrossWeight || '-'} Kg</div>
-                    <div><strong>Party Tare:</strong> {wbConfirmDialog.detail?.partyTareWeight || '-'} Kg</div>
-                    <div><strong>Party Net:</strong> {wbConfirmDialog.detail?.partyNetWeight || '-'} Kg</div>
-                    <div><strong>Party Sute:</strong> {wbConfirmDialog.detail?.partySute || '-'} Kg</div>
-                  </>
+                  <div style={{ background: '#fffbeb', padding: '12px', borderRadius: '8px', border: '1px solid #fde047' }}>
+                    <div style={{ fontWeight: 'bold', borderBottom: '1.5px solid #fde047', paddingBottom: '4px', marginBottom: '8px', color: '#7c3aed', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>⚡ Party Weighbridge Details</div>
+                    
+                    {/* Row 1 */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.2fr', gap: '8px', marginBottom: '8px', borderBottom: '1px dashed #fde047', paddingBottom: '6px' }}>
+                      <div><span style={{ color: '#854d0e', fontSize: '10px', display: 'block' }}>Date</span><strong>{wbConfirmDialog.detail?.partyWbDate || '-'}</strong></div>
+                      <div><span style={{ color: '#854d0e', fontSize: '10px', display: 'block' }}>WB Number</span><strong>{wbConfirmDialog.detail?.partyWbNo || '-'}</strong></div>
+                      <div><span style={{ color: '#854d0e', fontSize: '10px', display: 'block' }}>WB Name</span><strong>{wbConfirmDialog.detail?.partyWbName || '-'}</strong></div>
+                    </div>
+
+                    {/* Row 2 */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '8px', borderBottom: '1px dashed #fde047', paddingBottom: '6px' }}>
+                      <div><span style={{ color: '#854d0e', fontSize: '10px', display: 'block' }}>Gross Weight</span><strong>{wbConfirmDialog.detail?.partyGrossWeight || '-'} Kg</strong></div>
+                      <div><span style={{ color: '#854d0e', fontSize: '10px', display: 'block' }}>Tare Weight</span><strong>{wbConfirmDialog.detail?.partyTareWeight || '-'} Kg</strong></div>
+                      <div><span style={{ color: '#854d0e', fontSize: '10px', display: 'block' }}>Net Weight</span><strong style={{ color: '#7c3aed' }}>{wbConfirmDialog.detail?.partyNetWeight || '-'} Kg</strong></div>
+                    </div>
+
+                    {/* Row 3 */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                      <div><span style={{ color: '#854d0e', fontSize: '10px', display: 'block' }}>Sute</span><strong>{wbConfirmDialog.detail?.partySute || '0'} Kg</strong></div>
+                      <div><span style={{ color: '#854d0e', fontSize: '10px', display: 'block' }}>Bags</span><strong>{wbConfirmDialog.detail?.bags || wbConfirmDialog.detail?.bagsLoaded || '-'}</strong></div>
+                      <div><span style={{ color: '#854d0e', fontSize: '10px', display: 'block' }}>Sute Net Weight</span><strong style={{ color: '#9333ea' }}>{((parseFloat(wbConfirmDialog.detail?.partyGrossWeight || 0) - parseFloat(wbConfirmDialog.detail?.partyTareWeight || 0) - (parseFloat(wbConfirmDialog.detail?.partySute || 0) * (Number(wbConfirmDialog.detail?.bags || wbConfirmDialog.detail?.bagsLoaded || 1)))) || 0).toFixed(2)} Kg</strong></div>
+                    </div>
+                  </div>
                 )}
+
               </div>
             </div>
             {wbConfirmDialog.action === 'reject' && (
@@ -14124,15 +13781,16 @@ const Arrivals: React.FC = () => {
                 onClick={async () => {
                   if (!placeConfirmDialog) return;
                   const { trip, action } = placeConfirmDialog;
-                  const targetId = trip.inspection?.id || trip.entry?.id;
+                  // Prefer LorryTransitDetail id for consistency with approve; dual-lookup handles both
+                  const targetId = trip.entry?.transitDetailId || trip.entry?.id || trip.inspection?.id;
                   const token = localStorage.getItem('token');
                   
                   try {
                     if (action === 'move') {
-                      await axios.post(`${API_URL}/arrivals/${targetId}/approve-place`, {}, {
+                      const res = await axios.post(`${API_URL}/arrivals/${targetId}/approve-place`, {}, {
                         headers: { Authorization: `Bearer ${token}` }
                       });
-                      toast.success('Lorry moved to Band Mall Book!');
+                      toast.success(res?.data?.message || 'Lorry moved to Band Mall Book!');
                     } else {
                       if (!placeRejectReason.trim()) {
                         toast.error('Rejection reason is required');
@@ -14158,6 +13816,250 @@ const Arrivals: React.FC = () => {
                 }}
               >
                 {placeConfirmDialog.action === 'move' ? 'Confirm Move' : 'Confirm Reject'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* Centered Weighbridge Modal */}
+      {selectedLorryForWB && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.65)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9998,
+          backdropFilter: 'blur(4px)', animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <div style={{
+            background: '#ffffff', borderRadius: '16px', width: '90%', maxWidth: '850px',
+            maxHeight: '90vh', overflowY: 'auto', padding: '28px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
+            border: '1px solid #e2e8f0', position: 'relative'
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '2px solid #f1f5f9', paddingBottom: '12px' }}>
+              <h3 style={{ margin: 0, color: '#1e293b', fontSize: '1.2rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>{isWbEdit ? '✏️' : '⚖️'}</span> {isWbEdit ? 'Edit Weighbridge Parameters' : 'Weighbridge Parameters'}
+              </h3>
+              <button 
+                onClick={() => { setIsWbEdit(false); setSelectedLorryForWB(null); setSelectedLorryInspection(null); }}
+                style={{ background: 'none', border: 'none', fontSize: '20px', color: '#94a3b8', cursor: 'pointer' }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Form Fields: Mill Weighbridge */}
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px', marginBottom: '20px' }}>
+              <h4 style={{ margin: '0 0 16px 0', color: '#0f172a', fontSize: '13px', fontWeight: 'bold', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
+                🏢 Mill Weighbridge Parameters
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '14px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '6px' }}>Date</label>
+                  <input type="date" value={wbDate} onChange={(e) => setWbDate(e.target.value)}
+                    style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '6px' }}>WB Number <span style={{ color: '#ef4444' }}>*</span></label>
+                  <input type="text" value={wbNumber} onChange={(e) => setWbNumber(e.target.value.toUpperCase())} placeholder="WB number"
+                    style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '6px' }}>Mill WB Name <span style={{ color: '#ef4444' }}>*</span></label>
+                  <select value={millWbId} onChange={(e) => { console.log('Mill WB dropdown changed to:', e.target.value); setMillWbId(e.target.value); }}
+                    style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box', background: '#fff', height: '34px' }}>
+                    <option value="">Select Weight Bridge</option>
+                    {millWBList?.map(wb => {
+                      console.log('Mill WB option:', wb.id, wb.name, 'Current millWbId:', millWbId, 'Match:', String(wb.id) === millWbId);
+                      return <option key={wb.id} value={String(wb.id)}>{wb.name}{wb.location ? ` (${wb.location})` : ''}</option>;
+                    })}
+                    {/* Show the current selected WB even if it's not in the active list */}
+                    {millWbId && !millWBList?.find(wb => String(wb.id) === millWbId) && selectedLorryInspection?.millWeightBridge && (
+                      <option value={millWbId} selected>{selectedLorryInspection.millWeightBridge.name} (Inactive)</option>
+                    )}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '6px' }}>Gross Weight (Kg) <span style={{ color: '#ef4444' }}>*</span></label>
+                  <input type="number" value={wbGrossWeight}
+                    onChange={(e) => { const val = e.target.value; setWbGrossWeight(val); if (val && wbTareWeight) setWbNetWeight(String(Number(val) - Number(wbTareWeight))); }}
+                    placeholder="Gross Weight" style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '6px' }}>Tare Weight (Kg) <span style={{ color: '#ef4444' }}>*</span></label>
+                  <input type="number" value={wbTareWeight}
+                    onChange={(e) => { const val = e.target.value; setWbTareWeight(val); if (wbGrossWeight && val) setWbNetWeight(String(Number(wbGrossWeight) - Number(val))); }}
+                    placeholder="Tare Weight" style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '6px' }}>Net Weight (Kg)</label>
+                  <input type="text" value={wbNetWeight} disabled
+                    style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box', background: '#e2e8f0' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '6px' }}>Sute (Deduction)</label>
+                  <input type="number" value={wbSute} onChange={(e) => setWbSute(e.target.value)} placeholder="Sute"
+                    style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '6px' }}>Sute Net Weight</label>
+                  <div style={{ padding: '8px 10px', background: '#dcfce7', border: '1.5px solid #22c55e', borderRadius: '8px', fontWeight: '700', color: '#15803d', fontSize: '12px', textAlign: 'center', height: '34px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {((parseFloat(wbGrossWeight || 0) - parseFloat(wbTareWeight || 0) - (parseFloat(wbSute || 0) * suteBags(selectedLorryInspection, selectedLorryEntries?.[0]))) || 0).toFixed(2)} Kg
+                  </div>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '6px' }}>Enable Party WB?</label>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', height: '34px' }}>
+                    <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', color: '#334155', fontWeight: '600' }}>
+                      <input type="radio" name="partyWbEnabled" value="yes" checked={partyWbEnabled === 'yes'} onChange={() => setPartyWbEnabled('yes')} /> Yes
+                    </label>
+                    <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', color: '#334155', fontWeight: '600' }}>
+                      <input type="radio" name="partyWbEnabled" value="no" checked={partyWbEnabled === 'no'} onChange={() => setPartyWbEnabled('no')} /> No
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Form Fields: Party Weighbridge */}
+            {partyWbEnabled === 'yes' && (
+              <div style={{ background: '#fffbeb', border: '2px solid #fef08a', borderRadius: '12px', padding: '20px', marginBottom: '20px' }}>
+                <h4 style={{ margin: '0 0 16px 0', color: '#854d0e', fontSize: '13px', fontWeight: 'bold', borderBottom: '1px solid #fef08a', paddingBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  ⚡ Party Weighbridge Details
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '14px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: '#854d0e', fontWeight: 'bold', marginBottom: '6px' }}>Party WB Date</label>
+                    <input type="date" value={partyWbDate} onChange={(e) => setPartyWbDate(e.target.value)}
+                      style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #fde047', borderRadius: '8px', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: '#854d0e', fontWeight: 'bold', marginBottom: '6px' }}>Party WB Number</label>
+                    <input type="text" value={partyWbNo} onChange={(e) => setPartyWbNo(e.target.value.toUpperCase())} placeholder="Party WB No"
+                      style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #fde047', borderRadius: '8px', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: '#854d0e', fontWeight: 'bold', marginBottom: '6px' }}>Party WB Name</label>
+                    <input type="text" value={partyWbName} onChange={(e) => setPartyWbName(e.target.value)} placeholder="Party WB Name"
+                      style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #fde047', borderRadius: '8px', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: '#854d0e', fontWeight: 'bold', marginBottom: '6px' }}>Gross Weight (Kg)</label>
+                    <input type="number" value={partyGrossWeight}
+                      onChange={(e) => { const v = e.target.value; setPartyGrossWeight(v); if (v && partyTareWeight) setPartyNetWeight(String(Number(v) - Number(partyTareWeight))); }}
+                      placeholder="Gross Weight" style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #fde047', borderRadius: '8px', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: '#854d0e', fontWeight: 'bold', marginBottom: '6px' }}>Tare Weight (Kg)</label>
+                    <input type="number" value={partyTareWeight}
+                      onChange={(e) => { const v = e.target.value; setPartyTareWeight(v); if (partyGrossWeight && v) setPartyNetWeight(String(Number(partyGrossWeight) - Number(v))); }}
+                      placeholder="Tare Weight" style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #fde047', borderRadius: '8px', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: '#854d0e', fontWeight: 'bold', marginBottom: '6px' }}>Net Weight (Kg)</label>
+                    <input type="text" value={partyNetWeight} disabled
+                      style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #fde047', borderRadius: '8px', boxSizing: 'border-box', background: '#fef9c3' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: '#854d0e', fontWeight: 'bold', marginBottom: '6px' }}>Sute (Deduction)</label>
+                    <input type="number" value={partySute} onChange={(e) => setPartySute(e.target.value)} placeholder="Sute"
+                      style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #fde047', borderRadius: '8px', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: '#854d0e', fontWeight: 'bold', marginBottom: '6px' }}>Sute Net Weight</label>
+                    <div style={{ padding: '8px 10px', background: '#fef9c3', border: '1.5px solid #fde047', borderRadius: '8px', fontWeight: '700', color: '#854d0e', fontSize: '12px', textAlign: 'center', height: '34px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {((parseFloat(partyGrossWeight || 0) - parseFloat(partyTareWeight || 0) - (parseFloat(partySute || 0) * suteBags(selectedLorryInspection, selectedLorryEntries?.[0]))) || 0).toFixed(2)} Kg
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Footer Buttons */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '2px solid #f1f5f9', paddingTop: '16px' }}>
+              <button 
+                onClick={() => { setIsWbEdit(false); setSelectedLorryForWB(null); setSelectedLorryInspection(null); }}
+                style={{ padding: '8px 18px', fontSize: '12px', fontWeight: 'bold', border: '1.5px solid #cbd5e1', borderRadius: '8px', background: '#fff', cursor: 'pointer', color: '#475569' }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={async () => {
+                  if (!wbNumber || !millWbId) {
+                    toast.error('Please fill required fields (WB Number & Mill WB Name)');
+                    return;
+                  }
+                  if (!wbGrossWeight || !wbTareWeight) {
+                    toast.error('Please enter both Gross Weight and Tare Weight');
+                    return;
+                  }
+                  if (parseFloat(wbGrossWeight) <= parseFloat(wbTareWeight)) {
+                    toast.error('Gross Weight must be strictly greater than Tare Weight');
+                    return;
+                  }
+                  try {
+                    const token = localStorage.getItem('token');
+                    const response = await axios.post(`${API_URL}/arrivals/${selectedLorryInspection.id}/wb`, {
+                      wbInputType: 'mill',
+                      isEdit: isWbEdit,
+                      millWbId: millWbId ? Number(millWbId) : null,
+                      partyWbName: partyWbEnabled === 'yes' ? partyWbName : null,
+                      wbNo: wbNumber,                                               
+                      grossWeight: Number(wbGrossWeight),
+                      tareWeight: Number(wbTareWeight),
+                      netWeight: wbNetWeight,
+                      sute: wbSute || null,
+                      bags: Number(selectedLorryInspection?.bags || selectedLorryEntries?.[0]?.bags || 1),
+                      partyWbEnabled: partyWbEnabled || null,
+                      wbDate: wbDate || null,
+                      partyGrossWeight: partyWbEnabled === 'yes' && partyGrossWeight ? Number(partyGrossWeight) : null,
+                      partyTareWeight: partyWbEnabled === 'yes' && partyTareWeight ? Number(partyTareWeight) : null,
+                      partyNetWeight: partyWbEnabled === 'yes' && partyNetWeight ? Number(partyNetWeight) : null,
+                      partySute: partyWbEnabled === 'yes' && partySute ? Number(partySute) : null,
+                      partyWbNo: partyWbEnabled === 'yes' ? partyWbNo : null,
+                      partyWbDate: partyWbEnabled === 'yes' ? partyWbDate : null
+                    }, {
+                      headers: { Authorization: `Bearer ${token}` }
+                    });
+
+                    const responseDetail = response?.data?.detail || response?.data?.entry || response?.data || {};
+                    const savedStatus = wbInputType === 'party' ? 'approved' : (responseDetail?.wbStatus || response?.data?.wbStatus || 'pending');
+                    const savedWbNo = responseDetail?.wbNo || response?.data?.wbNo || wbNumber;
+                    const savedNetWeight = responseDetail?.netWeight ?? response?.data?.netWeight ?? wbNetWeight;
+
+                    try {
+                      setInTransitEntries(prev => applyWbSaveToEntries(prev, selectedLorryInspection?.id, {
+                        wbStatus: savedStatus,
+                        wbNo: savedWbNo,
+                        netWeight: savedNetWeight,
+                        partyWbName: wbInputType === 'party' ? partyWbName : (responseDetail?.partyWbName || undefined),
+                        wbInputType: 'mill',
+                        millWbId: wbInputType === 'mill' ? Number(millWbId) : undefined,
+                        grossWeight: Number(wbGrossWeight),
+                        tareWeight: Number(wbTareWeight)
+                      }));
+                    } catch (reactErr) {
+                      console.error('In-Transit state update error:', reactErr);
+                    }
+
+                    if (savedStatus === 'approved') {
+                      toast.success(isWbEdit ? 'Weight Bridge updated & approved successfully!' : 'Weight Bridge saved & approved successfully!');
+                    } else {
+                      toast.success(isWbEdit ? 'Weight Bridge updated & submitted for approval!' : 'Weight Bridge saved & submitted for approval!');
+                    }
+
+                    setIsWbEdit(false);
+                    setSelectedLorryForWB(null);
+                    setSelectedLorryInspection(null);
+                    fetchInTransitEntries();
+                    fetchBandMalalEntries();
+                  } catch (error: any) {
+                    toast.error(error.response?.data?.error || 'Failed to submit WB');
+                  }
+                }}
+                style={{ padding: '8px 18px', fontSize: '12px', fontWeight: 'bold', border: 'none', borderRadius: '8px', background: 'linear-gradient(135deg, #1e3a8a, #3b82f6)', color: '#fff', cursor: 'pointer' }}
+              >
+                Save Weight Bridge
               </button>
             </div>
           </div>

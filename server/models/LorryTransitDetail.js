@@ -222,6 +222,10 @@ LorryTransitDetail.associate = (models) => {
     foreignKey: 'wbApprovedBy',
     as: 'wbApprover'
   });
+  LorryTransitDetail.belongsTo(models.User, {
+    foreignKey: 'wbAddedBy',
+    as: 'wbAddedByUser'
+  });
   if (models.InventoryQualityParameter) {
     LorryTransitDetail.hasMany(models.InventoryQualityParameter, {
       foreignKey: 'lorryTransitDetailId',

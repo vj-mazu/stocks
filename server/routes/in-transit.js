@@ -183,7 +183,9 @@ router.get('/in-transit', auth, async (req, res) => {
 
     const where = {
       [Op.or]: [
-        { placeStatus: 'pending' },
+        // Pending entries that are BMB edits (EDIT_PENDING:approved) belong in BMB, not In-Transit.
+        // All other pending entries (including In-Transit edits EDIT_PENDING:placed) stay in In-Transit.
+        { placeStatus: 'pending', placeRejectReason: { [Op.or]: [null, { [Op.notLike]: 'EDIT_PENDING:approved%' }] } },
         { placeStatus: 'none' },
         { placeStatus: null },
         { placeStatus: 'placed' }
@@ -293,6 +295,7 @@ router.get('/in-transit', auth, async (req, res) => {
           millWbId: detail.millWbId,
           millWeightBridge: millWb,
           wbAddedBy: wbAddedByUser ? { id: wbAddedByUser.id, username: wbAddedByUser.username, fullName: wbAddedByUser.fullName } : null,
+          wbAddedByUser: wbAddedByUser ? { id: wbAddedByUser.id, username: wbAddedByUser.username, fullName: wbAddedByUser.fullName } : null,
           wbAddedAt: detail.wbAddedAt || null,
           wbApprovedBy: detail.wbApprovedBy || null,
           wbApprover: wbApproverUser ? { id: wbApproverUser.id, username: wbApproverUser.username, fullName: wbApproverUser.fullName, role: wbApproverUser.role } : null,
@@ -364,6 +367,25 @@ router.post('/:id/approve-place', auth, async (req, res) => {
     }
 
     if (detail) {
+      if (detail.placeStatus === 'pending') {
+        // Godown EDIT approval - apply the edit
+        const isBmbEdit = detail.placeRejectReason && detail.placeRejectReason.startsWith('EDIT_PENDING:approved');
+        const restoreStatus = isBmbEdit ? 'approved' : 'placed';
+        await detail.update({
+          placeStatus: restoreStatus,
+          placeRejectReason: null,
+          placeApprovedBy: req.user.userId,
+          placeApprovedAt: new Date()
+        });
+        ['sample-entries/by-role', 'arrivals/band-malal-book'].forEach(pattern => {
+          cacheService.delPattern(pattern).catch(() => {});
+        });
+        return res.json({
+          message: isBmbEdit ? 'Godown edit approved - entry restored to Band Malal Book' : 'Godown edit approved',
+          detail,
+          note: isBmbEdit ? 'Entry is back in Band Malal Book.' : 'Entry stays in In-Transit. Move to Band Malal Book when ready.'
+        });
+      }
       if (detail.placeStatus !== 'placed') {
         return res.status(400).json({ error: 'Place must be added before moving to Band Malal Book. Current status: ' + detail.placeStatus });
       }
@@ -392,6 +414,22 @@ router.post('/:id/approve-place', auth, async (req, res) => {
     if (!isNaN(id) && Number.isInteger(Number(id))) {
       const arrival = await Arrival.findByPk(Number(id));
       if (arrival) {
+        if (arrival.placeStatus === 'pending') {
+          // Godown EDIT approval - apply the edit
+          const isBmbEdit = arrival.placeRejectReason && arrival.placeRejectReason.startsWith('EDIT_PENDING:approved');
+          const restoreStatus = isBmbEdit ? 'approved' : 'placed';
+          await arrival.update({
+            placeStatus: restoreStatus,
+            placeRejectReason: null,
+            placeApprovedBy: req.user.userId,
+            placeApprovedAt: new Date()
+          });
+          return res.json({
+            message: isBmbEdit ? 'Godown edit approved - entry restored to Band Malal Book' : 'Godown edit approved',
+            arrival,
+            note: isBmbEdit ? 'Entry is back in Band Malal Book.' : 'Entry stays in current state. Move to Band Malal Book when ready.'
+          });
+        }
         if (arrival.placeStatus !== 'placed') {
           return res.status(400).json({ error: 'Place must be added before moving to Band Malal Book' });
         }
@@ -435,6 +473,40 @@ router.post('/:id/reject-place', auth, async (req, res) => {
         return res.status(400).json({ error: 'Cannot remove place from current status: ' + detail.placeStatus });
       }
 
+      // If this is a pending EDIT, restore the previous values instead of wiping the place
+      const editMarker = detail.placeRejectReason || '';
+      if (detail.placeStatus === 'pending' && editMarker.startsWith('EDIT_PENDING:')) {
+        const parts = editMarker.split(':');
+        const prevStatus = parts[1] || 'approved';
+        let oldValues = {};
+        try {
+          const jsonPart = editMarker.substring(editMarker.indexOf('{', editMarker.indexOf(':')));
+          oldValues = JSON.parse(jsonPart);
+        } catch (e) {
+          oldValues = {};
+        }
+        await detail.update({
+          placeStatus: prevStatus === 'approved' ? 'approved' : 'placed',
+          placeRejectReason: 'REJECTED_EDIT: ' + (reason || 'Edit rejected'),
+          placeDate: oldValues.hasOwnProperty('placeDate') ? oldValues.placeDate : detail.placeDate,
+          placeKunchinittuId: oldValues.hasOwnProperty('placeKunchinittuId') ? oldValues.placeKunchinittuId : detail.placeKunchinittuId,
+          placeWarehouseId: oldValues.hasOwnProperty('placeWarehouseId') ? oldValues.placeWarehouseId : detail.placeWarehouseId,
+          placeType: oldValues.hasOwnProperty('placeType') ? oldValues.placeType : detail.placeType,
+          outturnId: oldValues.hasOwnProperty('outturnId') ? oldValues.outturnId : detail.outturnId
+        });
+
+        // Invalidate caches
+        ['sample-entries/by-role', 'arrivals/band-malal-book'].forEach(pattern => {
+          cacheService.delPattern(pattern).catch(() => {});
+        });
+
+        return res.json({
+          message: prevStatus === 'approved' ? 'Godown edit rejected - entry restored to Band Malal Book' : 'Godown edit rejected',
+          detail,
+          note: prevStatus === 'approved' ? 'Entry restored to Band Malal Book with previous values.' : 'Entry restored to In-Transit with previous values.'
+        });
+      }
+
       await detail.update({
         placeStatus: 'none',
         placeRejectReason: reason || 'Removed',
@@ -458,6 +530,34 @@ router.post('/:id/reject-place', auth, async (req, res) => {
       if (arrival) {
         if (arrival.placeStatus !== 'placed' && arrival.placeStatus !== 'pending') {
           return res.status(400).json({ error: 'Cannot remove place from current status' });
+        }
+
+        // If this is a pending EDIT, restore the previous values instead of wiping the place
+        const editMarker = arrival.placeRejectReason || '';
+        if (arrival.placeStatus === 'pending' && editMarker.startsWith('EDIT_PENDING:')) {
+          const parts = editMarker.split(':');
+          const prevStatus = parts[1] || 'approved';
+          let oldValues = {};
+          try {
+            const jsonPart = editMarker.substring(editMarker.indexOf('{', editMarker.indexOf(':')));
+            oldValues = JSON.parse(jsonPart);
+          } catch (e) {
+            oldValues = {};
+          }
+          await arrival.update({
+            placeStatus: prevStatus === 'approved' ? 'approved' : 'placed',
+            placeRejectReason: 'REJECTED_EDIT: ' + (reason || 'Edit rejected'),
+            placeDate: oldValues.hasOwnProperty('placeDate') ? oldValues.placeDate : arrival.placeDate,
+            placeKunchinittuId: oldValues.hasOwnProperty('placeKunchinittuId') ? oldValues.placeKunchinittuId : arrival.placeKunchinittuId,
+            placeWarehouseId: oldValues.hasOwnProperty('placeWarehouseId') ? oldValues.placeWarehouseId : arrival.placeWarehouseId,
+            placeType: oldValues.hasOwnProperty('placeType') ? oldValues.placeType : arrival.placeType,
+            outturnId: oldValues.hasOwnProperty('outturnId') ? oldValues.outturnId : arrival.outturnId
+          });
+          return res.json({
+            message: prevStatus === 'approved' ? 'Godown edit rejected - entry restored to Band Malal Book' : 'Godown edit rejected',
+            arrival,
+            note: prevStatus === 'approved' ? 'Entry restored to Band Malal Book with previous values.' : 'Entry restored to In-Transit with previous values.'
+          });
         }
 
         await arrival.update({

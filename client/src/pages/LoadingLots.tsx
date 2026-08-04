@@ -153,7 +153,13 @@ const toOptionalInputValue = (value: any) => {
   if (value === null || value === undefined || value === '') return '';
   const num = Number(value);
   if (Number.isFinite(num) && num === 0) return '';
-  return String(value);
+  return cleanPrefillNumber(value);
+};
+const cleanPrefillNumber = (value: any) => {
+  if (value === null || value === undefined || value === '') return '';
+  const num = Number(value);
+  if (!Number.isFinite(num)) return String(value).trim();
+  return num.toString();
 };
 const parseOptionalNumber = (value: string) => value === '' ? null : parseFloat(value);
 const LF_RATE_TYPES = new Set(['PD_LOOSE', 'MD_LOOSE', 'PD_WB']);
@@ -334,15 +340,8 @@ const getEntrySmellLabel = (entry: any) => {
   }
   return '-';
 };
-const paddyColumnWidths = ['48px', '54px', '62px', '58px', '250px', '118px', '124px', '180px', '180px', '120px', '120px', '94px', '74px', '70px', '90px', '64px', '78px', '72px', '72px', '120px', '110px', '150px', '104px'];
-const frozenPaddyColumnCount = 11;
-const frozenPaddyLeftOffsets = paddyColumnWidths.reduce<number[]>((acc, width, index) => {
-  if (index >= frozenPaddyColumnCount) return acc;
-  const previous = acc[index - 1] || 0;
-  const previousWidth = index === 0 ? 0 : parseInt(paddyColumnWidths[index - 1], 10) || 0;
-  acc.push(index === 0 ? 0 : previous + previousWidth);
-  return acc;
-}, []);
+const paddyColumnWidths = ['2%', '3.5%', '3%', '3%', '8%', '4.5%', '5.5%', '5.5%', '5%', '7.5%', '6%', '4.5%', '3%', '3%', '3%', '3%', '3%', '3%', '3%', '3.5%', '3.5%', '3.5%', '5%', '5.5%'];
+const riceColumnWidths = ['2.5%', '4%', '4%', '4%', '14%', '7%', '8%', '7%', '5%', '5%', '6%', '6%', '5%', '5%', '8%', '9.5%'];
 const compactStatusText = (parts: string[]) => parts.filter(Boolean).join(' | ');
 const getAttemptLabel = (attemptNo: number) => {
   if (attemptNo <= 1) return '1st';
@@ -472,7 +471,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
   const { user } = useAuth();
   const { showNotification } = useNotification();
   const isRiceMode = entryType === 'RICE_SAMPLE';
-  const tableMinWidth = isRiceMode ? '100%' : '2500px';
+  const tableMinWidth = '100%';
   const pageSize = 100;
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const topScrollRef = useRef<HTMLDivElement | null>(null);
@@ -629,6 +628,61 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     paymentConditionValue: '15', paymentConditionUnit: 'days'
   });
 
+  // Final Rate 2 edit modal (manager → pending approval, admin/owner → direct)
+  const [fr2EditEntry, setFr2EditEntry] = useState<any>(null);
+  const [fr2EditData, setFr2EditData] = useState<any>({});
+  const [isSavingFr2Edit, setIsSavingFr2Edit] = useState(false);
+
+  const cleanFr2Int = (val: any) => {
+    if (val == null || val === '') return '';
+    const num = Number(val);
+    return Number.isFinite(num) ? num.toString() : '';
+  };
+
+  const openFr2EditModal = (entry: any) => {
+    const o = entry.offering || {};
+    setFr2EditData({
+      finalBaseRate2: cleanFr2Int(o.finalBaseRate2 ?? o.finalBaseRate ?? o.offerBaseRateValue),
+      finalSute2: cleanFr2Int(o.finalSute2 ?? o.finalSute ?? o.sute),
+      finalSuteUnit2: o.finalSuteUnit2 ?? o.finalSuteUnit ?? o.suteUnit ?? 'per_ton',
+      finalPrice2: cleanFr2Int(o.finalPrice2 ?? o.finalPrice),
+      hamali2: cleanFr2Int(o.hamali2 ?? o.hamali),
+      hamaliUnit2: o.hamaliUnit2 ?? o.hamaliUnit ?? 'per_bag',
+      brokerage2: cleanFr2Int(o.brokerage2 ?? o.brokerage),
+      brokerageUnit2: o.brokerageUnit2 ?? o.brokerageUnit ?? 'per_bag',
+      lf2: cleanFr2Int(o.lf2 ?? o.lf),
+      lfUnit2: o.lfUnit2 ?? o.lfUnit ?? 'per_bag',
+      egbValue2: cleanFr2Int(o.egbValue2 ?? o.egbValue),
+      egbType2: o.egbType2 ?? o.egbType ?? 'mill',
+      cdValue2: cleanFr2Int(o.cdValue2 ?? o.cdValue),
+      cdUnit2: o.cdUnit2 ?? o.cdUnit ?? 'lumps',
+      bankLoanValue2: cleanFr2Int(o.bankLoanValue2 ?? o.bankLoanValue),
+      bankLoanUnit2: o.bankLoanUnit2 ?? o.bankLoanUnit ?? 'lumps',
+      paymentConditionValue2: cleanFr2Int(o.paymentConditionValue2 ?? o.paymentConditionValue) || '15',
+      paymentConditionUnit2: o.paymentConditionUnit2 ?? o.paymentConditionUnit ?? 'days',
+      finalRemarks2: o.finalRemarks2 ?? ''
+    });
+    setFr2EditEntry(entry);
+  };
+
+  const submitFr2Edit = async () => {
+    if (!fr2EditEntry || isSavingFr2Edit) return;
+    setIsSavingFr2Edit(true);
+    try {
+      const token = localStorage.getItem('token');
+      const fr2Res = await axios.post(`${API_URL}/sample-entries/${fr2EditEntry.id}/final-rate-2`, fr2EditData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      showNotification((fr2Res.data as any)?.message || 'Final Rate 2 saved successfully', 'success');
+      setFr2EditEntry(null);
+      fetchEntries();
+    } catch (error: any) {
+      showNotification(error.response?.data?.error || 'Failed to save Final Rate 2', 'error');
+    } finally {
+      setIsSavingFr2Edit(false);
+    }
+  };
+
   const [paddySupervisors, setPaddySupervisors] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<Record<string, string>>({});
   const isAdminOrOwner = ['admin', 'owner'].includes(String(user?.role || '').toLowerCase());
@@ -765,25 +819,25 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
       pendingManagerValueApprovalData: pendingApprovalData
     } as any);
     setManagerData({
-      sute: effectiveOffering.finalSute?.toString() ?? effectiveOffering.sute?.toString() ?? '',
+      sute: cleanPrefillNumber(effectiveOffering.finalSute ?? effectiveOffering.sute),
       suteUnit: effectiveOffering.finalSuteUnit || effectiveOffering.suteUnit || 'per_ton',
-      moistureValue: effectiveOffering.moistureValue?.toString() ?? '',
+      moistureValue: cleanPrefillNumber(effectiveOffering.moistureValue),
       hamali: toOptionalInputValue(effectiveOffering.hamali),
       hamaliUnit: effectiveOffering.hamaliUnit || 'per_bag',
       brokerage: toOptionalInputValue(effectiveOffering.brokerage),
       brokerageUnit: isBrokerageMissing ? 'per_quintal' : (effectiveOffering.brokerageUnit || 'per_quintal'),
       lf: toOptionalInputValue(effectiveOffering.lf),
       lfUnit: effectiveOffering.lfUnit || 'per_bag',
-      finalBaseRate: effectiveOffering.finalBaseRate?.toString() ?? effectiveOffering.offerBaseRateValue?.toString() ?? '',
+      finalBaseRate: cleanPrefillNumber(effectiveOffering.finalBaseRate ?? effectiveOffering.offerBaseRateValue),
       baseRateType: effectiveOffering.baseRateType || 'PD_WB',
-      egbValue: effectiveOffering.egbValue?.toString() ?? '',
+      egbValue: cleanPrefillNumber(effectiveOffering.egbValue),
       egbType: effectiveOffering.egbType || ((effectiveOffering.egbValue && parseFloat(effectiveOffering.egbValue) > 0) ? 'purchase' : 'mill'),
       cdValue: toOptionalInputValue(effectiveOffering.cdValue),
       cdUnit: effectiveOffering.cdUnit || 'percentage',
       bankLoanValue: toOptionalInputValue(effectiveOffering.bankLoanValue),
       bankLoanUnit: effectiveOffering.bankLoanUnit || 'per_bag',
       paymentConditionEnabled: !(effectiveOffering.paymentConditionValue == null || effectiveOffering.paymentConditionValue === ''),
-      paymentConditionValue: effectiveOffering.paymentConditionValue?.toString() ?? '15',
+      paymentConditionValue: cleanPrefillNumber(effectiveOffering.paymentConditionValue) || '15',
       paymentConditionUnit: effectiveOffering.paymentConditionUnit || 'days'
     });
     setManagerModalMode(mode);
@@ -806,12 +860,12 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     setShowModal(false);
     setShowFinalEditModal(false);
     setOfferEditData({
-      offerBaseRateValue: o.offerBaseRateValue != null ? String(o.offerBaseRateValue) : '',
+      offerBaseRateValue: cleanPrefillNumber(o.offerBaseRateValue),
       baseRateType: o.baseRateType || 'PD_LOOSE',
       baseRateUnit: o.baseRateUnit || 'per_bag',
-      sute: o.sute != null ? String(o.sute) : '',
+      sute: cleanPrefillNumber(o.sute),
       suteUnit: o.suteUnit || 'per_bag',
-      moistureValue: o.moistureValue != null ? String(o.moistureValue) : '',
+      moistureValue: cleanPrefillNumber(o.moistureValue),
       hamaliEnabled: !!o.hamaliEnabled,
       hamaliValue: toOptionalInputValue(o.hamali),
       hamaliUnit: o.hamaliUnit || 'per_bag',
@@ -828,11 +882,11 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
       bankLoanValue: toOptionalInputValue(o.bankLoanValue),
       bankLoanUnit: o.bankLoanUnit || 'per_bag',
       paymentConditionEnabled: o.paymentConditionEnabled != null ? !!o.paymentConditionEnabled : true,
-      paymentConditionValue: o.paymentConditionValue != null ? String(o.paymentConditionValue) : '15',
+      paymentConditionValue: cleanPrefillNumber(o.paymentConditionValue) || '15',
       paymentConditionUnit: o.paymentConditionUnit || 'days',
       egbType: o.egbType || 'mill',
-      egbValue: o.egbType === 'purchase' ? (o.egbValue != null ? String(o.egbValue) : '') : '0',
-      customDivisor: o.customDivisor != null ? String(o.customDivisor) : '',
+      egbValue: o.egbType === 'purchase' ? cleanPrefillNumber(o.egbValue) : '0',
+      customDivisor: cleanPrefillNumber(o.customDivisor),
       remarks: o.remarks || ''
     });
     setShowOfferEditModal(true);
@@ -844,25 +898,25 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     setShowModal(false);
     setShowOfferEditModal(false);
     setFinalEditData({
-      finalSute: o.finalSute != null ? String(o.finalSute) : '',
+      finalSute: cleanPrefillNumber(o.finalSute),
       finalSuteUnit: o.finalSuteUnit || 'per_ton',
-      finalBaseRate: o.finalBaseRate != null ? String(o.finalBaseRate) : (o.offerBaseRateValue != null ? String(o.offerBaseRateValue) : ''),
+      finalBaseRate: cleanPrefillNumber(o.finalBaseRate ?? o.offerBaseRateValue),
       baseRateUnit: o.baseRateUnit || 'per_bag',
       suteEnabled: o.suteEnabled != null ? !!o.suteEnabled : true,
       moistureEnabled: o.moistureEnabled != null ? !!o.moistureEnabled : true,
       hamaliEnabled: !!o.hamaliEnabled,
       brokerageEnabled: !!o.brokerageEnabled,
       lfEnabled: !!o.lfEnabled,
-      moistureValue: o.moistureValue != null ? String(o.moistureValue) : '',
+      moistureValue: cleanPrefillNumber(o.moistureValue),
       hamali: toOptionalInputValue(o.hamali),
       hamaliUnit: o.hamaliUnit || 'per_bag',
       brokerage: toOptionalInputValue(o.brokerage),
       brokerageUnit: o.brokerageUnit || 'per_quintal',
       lf: toOptionalInputValue(o.lf),
       lfUnit: o.lfUnit || 'per_bag',
-      egbValue: o.egbValue != null ? String(o.egbValue) : '',
+      egbValue: cleanPrefillNumber(o.egbValue),
       egbType: o.egbType || ((o.egbValue && Number(o.egbValue) > 0) ? 'purchase' : 'mill'),
-      customDivisor: o.customDivisor != null ? String(o.customDivisor) : '',
+      customDivisor: cleanPrefillNumber(o.customDivisor),
       cdEnabled: !!o.cdEnabled,
       cdValue: toOptionalInputValue(o.cdValue),
       cdUnit: o.cdUnit || 'lumps',
@@ -870,9 +924,9 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
       bankLoanValue: toOptionalInputValue(o.bankLoanValue),
       bankLoanUnit: o.bankLoanUnit || 'lumps',
       paymentConditionEnabled: o.paymentConditionEnabled != null ? !!o.paymentConditionEnabled : true,
-      paymentConditionValue: o.paymentConditionValue != null ? String(o.paymentConditionValue) : '15',
+      paymentConditionValue: cleanPrefillNumber(o.paymentConditionValue) || '15',
       paymentConditionUnit: o.paymentConditionUnit || 'days',
-      finalPrice: o.finalPrice != null ? String(o.finalPrice) : (entry.finalPrice != null ? String(entry.finalPrice) : ''),
+      finalPrice: cleanPrefillNumber(o.finalPrice ?? entry.finalPrice),
       baseRateType: o.baseRateType || entry.offering?.baseRateType || 'PD_LOOSE',
       remarks: o.finalRemarks || ''
     });
@@ -1940,41 +1994,6 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
         </div>
       </div>
 
-      <div style={{ position: 'fixed', right: '16px', bottom: '22px', display: 'flex', flexDirection: 'column', gap: '8px', zIndex: 30 }}>
-        <button
-          type="button"
-          onClick={() => scrollHorizontalByViewport('left')}
-          title="Scroll left one screen"
-          style={{ width: '42px', height: '42px', borderRadius: '999px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#1e3a8a', fontSize: '18px', fontWeight: 900, cursor: 'pointer', boxShadow: '0 8px 20px rgba(15,23,42,0.16)' }}
-        >
-          ←
-        </button>
-        <button
-          type="button"
-          onClick={() => scrollHorizontalByViewport('right')}
-          title="Scroll right one screen"
-          style={{ width: '42px', height: '42px', borderRadius: '999px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#1e3a8a', fontSize: '18px', fontWeight: 900, cursor: 'pointer', boxShadow: '0 8px 20px rgba(15,23,42,0.16)' }}
-        >
-          →
-        </button>
-        <button
-          type="button"
-          onClick={() => scrollByViewport('up')}
-          title="Scroll up one screen"
-          style={{ width: '42px', height: '42px', borderRadius: '999px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#1e3a8a', fontSize: '18px', fontWeight: 900, cursor: 'pointer', boxShadow: '0 8px 20px rgba(15,23,42,0.16)' }}
-        >
-          ↑
-        </button>
-        <button
-          type="button"
-          onClick={() => scrollByViewport('down')}
-          title="Scroll down one screen"
-          style={{ width: '42px', height: '42px', borderRadius: '999px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#1e3a8a', fontSize: '18px', fontWeight: 900, cursor: 'pointer', boxShadow: '0 8px 20px rgba(15,23,42,0.16)' }}
-        >
-          ↓
-        </button>
-      </div>
-
       <div style={{ marginBottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '10px' }}>
             <button onClick={() => setShowFilters(!showFilters)} style={{ padding: '6px 14px', fontSize: '13px', background: showFilters ? '#e74c3c' : '#3498db', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
               {showFilters ? 'Hide Filters' : 'Filters'} ▾
@@ -2084,25 +2103,25 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                             <span style={{ fontSize: '13.5px', fontWeight: 800 }}>{brokerSeq}.</span> {brokerName}
                           </div>
                           <table style={{ width: '100%', minWidth: tableMinWidth, borderCollapse: 'collapse', fontSize: '12px', tableLayout: isRiceMode ? 'fixed' : 'fixed', border: '1px solid #000' }}>
-                            {!isRiceMode && (
-                              <colgroup>
-                                {paddyColumnWidths.map((width, widthIndex) => (
-                                  <col key={`${brokerName}-col-${widthIndex}`} style={{ width }} />
-                                ))}
-                              </colgroup>
-                            )}
+                            <colgroup>
+                              {(isRiceMode ? riceColumnWidths : paddyColumnWidths).map((width, widthIndex) => (
+                                <col key={`${brokerName}-col-${widthIndex}`} style={{ width }} />
+                              ))}
+                            </colgroup>
                             <thead style={{ zIndex: 2 }}>
                               <tr style={{ backgroundColor: '#1a237e', color: 'white' }}>
-                              {(isRiceMode ? ['SL', 'Type', 'Bags', 'Pkg', 'Party Name', 'Rice Location', 'Variety', 'Final Rate', 'Sute', 'Mst%', 'Hamali', 'Bkrg', 'LF', 'Lot Reason', 'Status', 'Action'] : ['SL No', 'Type', 'Bags', 'Pkg', 'Party Name', 'Paddy Location', 'Variety', 'Sample Collected By', 'Sample Report By', 'Quality Report', 'Cooking Report', 'Final Rate', 'Sute', 'Moist', 'Brokerage', 'LF', 'Hamali', 'CD', 'EGB', 'Bank Loan', 'Payment', 'Lot Reason', 'Status', 'Action']).map((header, headerIndex) => (
+                              {(isRiceMode ? ['Sl', 'Type', 'Bags', 'Pkg', 'Party', 'Loc', 'Variety', 'Rate', 'Sute', 'Mst%', 'Hamali', 'Bkrg', 'LF', 'Reason', 'Status', 'Action'] : ['Sl', 'Type', 'Bags', 'Pkg', 'Party', 'Loc', 'Variety', 'Collected By', 'Report By', 'Quality', 'Cooking', 'Rate', 'Sute', 'Mst%', 'Bkrg', 'LF', 'Hamali', 'CD', 'EGB', 'Bank Ln', 'Pay', 'Reason', 'Status', 'Action']).map((header, headerIndex) => (
                                 <th
                                   key={header}
                                   style={getFrozenCellStyle({
                                     border: '1px solid #000',
                                     padding: '3px 4px',
-                                    textAlign: ['Status', 'Action', 'EGB', 'Sute', 'Moist', 'Mst%'].includes(header) ? 'center' : 'left',
+                                    textAlign: ['Status', 'Action', 'EGB', 'Sute', 'Mst%'].includes(header) ? 'center' : 'left',
                                     fontWeight: 700,
-                                    whiteSpace: 'nowrap',
-                                    fontSize: '12px'
+                                    fontSize: '11px',
+                                    lineHeight: '1.25',
+                                    wordBreak: 'break-word',
+                                    whiteSpace: 'normal'
                                   }, '#1a237e')}
                                 >
                                   {header}
@@ -2224,6 +2243,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                 && partyNameText.toUpperCase() !== lorryText;
                               const finalRateValue = o.finalBaseRate ?? o.offerBaseRateValue;
                               const finalRateUnit = unitLabel(o.baseRateUnit || 'per_bag');
+                              const lotClosed = !!entry.lotAllotment?.closedAt;
                               const cellStyle = (missing: boolean): React.CSSProperties => ({ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', background: missing ? '#fff3cd' : rowBg, color: missing ? '#856404' : '#333', fontWeight: missing ? '700' : '400', fontSize: '12px' });
                               const offerActorMeta = getOfferActorMeta(o);
                               const finalRateActorMeta = getFinalRateActorMeta(o) || offerActorMeta;
@@ -2509,11 +2529,29 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                       );
                                     })()}
                                   </td>
-                                  <td style={{ border: '1px solid #000', padding: '3px 5px', textAlign: 'center', fontSize: '13px' }}>{finalRateValue ? <div style={{ fontWeight: 700, color: '#2e7d32', lineHeight: '1.3' }}><div>Rs {toNumberText(finalRateValue)}</div><div style={{ fontSize: '10px', color: '#5f6368', fontWeight: 600 }}>{o.baseRateType?.replace(/_/g, '/') || finalRateUnit}</div></div> : '-'}</td>
+                                  <td style={{ border: '1px solid #000', padding: '3px 5px', textAlign: 'center', fontSize: '13px' }}>{finalRateValue ? <div style={{ fontWeight: 700, color: '#2e7d32', lineHeight: '1.3' }}><div>Rs {toNumberText(finalRateValue)}</div><div style={{ fontSize: '10px', color: '#5f6368', fontWeight: 600 }}>{o.baseRateType?.replace(/_/g, '/') || finalRateUnit}</div></div> : '-'}
+                                    {(() => {
+                                      if (!lotClosed) return null;
+                                      const fr2Pending = String(o?.pendingManagerValueApprovalStatus2 || '').toLowerCase() === 'pending';
+                                      const fr2Approved = String(o?.pendingManagerValueApprovalStatus2 || '').toLowerCase() === 'approved';
+                                      const hasFr2 = o?.finalBaseRate2 != null && o?.finalBaseRate2 !== '';
+                                      return (
+                                        <div style={{ marginTop: '3px', display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center' }}>
+                                          {fr2Pending ? (
+                                            <span style={{ fontSize: '9px', fontWeight: 800, color: '#6d28d9', background: '#ede9fe', border: '1px solid #c4b5fd', borderRadius: '10px', padding: '1px 6px', display: 'inline-block', whiteSpace: 'nowrap' }}>FR2 Pending Approval</span>
+                                          ) : hasFr2 ? (
+                                            <span style={{ fontSize: '10px', fontWeight: 700, color: '#7c3aed', lineHeight: '1.2' }}>FR2: Rs {toNumberText(o.finalBaseRate2)}{fr2Approved ? ' ✓' : ''}</span>
+                                          ) : (
+                                            <span style={{ fontSize: '9px', fontWeight: 800, color: '#856404', background: '#fff3cd', border: '1px solid #ffeeba', borderRadius: '10px', padding: '1px 6px', display: 'inline-block', whiteSpace: 'nowrap' }}>FR2 Need</span>
+                                          )}
+                                        </div>
+                                      );
+                                    })()}
+                                  </td>
                                   <td style={{ ...cellStyle(suteMissing), textAlign: 'center' }}>{suteMissing ? 'Need' : fmtVal(o.finalSute ?? o.sute, o.finalSuteUnit ?? o.suteUnit)}</td>
                                   <td style={{ ...cellStyle(mstMissing), textAlign: 'center' }}>{mstMissing ? 'Need' : (o.moistureValue != null ? `${toNumberText(o.moistureValue)}%` : '-')}</td>
                                   <td style={cellStyle(bkrgMissing)}>{bkrgMissing ? 'Need' : fmtVal(o.brokerage, o.brokerageUnit)}</td>
-                                  <td style={cellStyle(lfMissing)}>{hasLf ? (lfMissing ? 'Need' : fmtVal(o.lf, o.lfUnit)) : 'Not Applicable'}</td>
+                                  <td style={cellStyle(lfMissing)}>{hasLf ? (lfMissing ? 'Need' : fmtVal(o.lf, o.lfUnit)) : 'N/A'}</td>
                                   <td style={cellStyle(hamaliMissing)}>{hamaliMissing ? 'Need' : fmtVal(effectiveHamaliValue, o.hamaliUnit)}</td>
                                   <td style={cellStyle(cdMissing)}>
                                     {o.cdEnabled ? `${Math.round(Number(o.cdValue) || 0)} ${o.cdUnit === 'percentage' ? '%' : 'L'}` : '-'}
@@ -2567,6 +2605,14 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                           >
                                             {!hasQualityReport ? 'Quality Pending' : (managerApprovalPending ? 'Edit Pending' : (needsFill ? 'Fill Values' : 'Edit'))}
                                           </button>
+                                          {lotClosed && (
+                                            <button
+                                              onClick={() => openFr2EditModal(entry)}
+                                              style={{ padding: '3px 6px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '10px', cursor: 'pointer', fontWeight: 700, width: '100%' }}
+                                            >
+                                              {String(o?.pendingManagerValueApprovalStatus2 || '').toLowerCase() === 'pending' ? 'FR2 Pending' : (o?.finalBaseRate2 != null && o?.finalBaseRate2 !== '' ? 'Edit FR2' : 'Add FR2')}
+                                            </button>
+                                          )}
                                         </>
                                       )}
                                       {isAdminOrOwner && (
@@ -3592,6 +3638,67 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
               <button onClick={() => setShowFinalEditModal(false)} style={{ padding: '6px 10px', border: '1px solid #ddd', borderRadius: '4px', background: '#fff', fontSize: '12px', cursor: 'pointer' }}>Cancel</button>
               <button onClick={handleSaveFinalEdit} style={{ padding: '6px 12px', border: 'none', borderRadius: '4px', background: '#27ae60', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>Save Final</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {fr2EditEntry && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
+          <div style={{ background: 'white', borderRadius: '12px', padding: '24px', maxWidth: '500px', width: '95%', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', color: '#1a237e' }}>✏️ Final Rate 2</h3>
+            <p style={{ margin: '0 0 16px 0', fontSize: '12px', color: '#888' }}>
+              {['admin', 'owner', 'ceo'].includes(String(user?.role || '').toLowerCase())
+                ? 'Values will be applied directly to this lot.'
+                : 'Values will be submitted for admin approval before applying.'}
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              {[
+                { key: 'finalBaseRate2', label: 'Final Rate 2', unit: 'per_bag' },
+                { key: 'finalSute2', label: 'Sute 2', unit: 'per_ton' },
+                { key: 'hamali2', label: 'Hamali 2', unit: 'per_bag' },
+                { key: 'brokerage2', label: 'Brokerage 2', unit: 'per_bag' },
+                { key: 'lf2', label: 'LF 2', unit: 'per_bag' },
+                { key: 'egbValue2', label: 'EGB Value 2', unit: 'mill' },
+                { key: 'cdValue2', label: 'CD Value 2', unit: 'lumps' },
+                { key: 'bankLoanValue2', label: 'Bank Loan 2', unit: 'lumps' },
+                { key: 'paymentConditionValue2', label: 'Payment Days 2', unit: 'days' }
+              ].map((field) => (
+                <div key={field.key}>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>{field.label}</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={fr2EditData[field.key] ?? ''}
+                    onChange={(e) => setFr2EditData({ ...fr2EditData, [field.key]: e.target.value })}
+                    style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px', boxSizing: 'border-box' }}
+                  />
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: '10px' }}>
+              <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>Final Remarks 2</label>
+              <textarea
+                value={fr2EditData.finalRemarks2 ?? ''}
+                onChange={(e) => setFr2EditData({ ...fr2EditData, finalRemarks2: e.target.value })}
+                style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px', minHeight: '50px', resize: 'vertical', boxSizing: 'border-box' }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '16px', borderTop: '1px solid #eee', paddingTop: '14px' }}>
+              <button
+                onClick={() => setFr2EditEntry(null)}
+                disabled={isSavingFr2Edit}
+                style={{ padding: '8px 16px', background: '#f5f5f5', border: '1px solid #ddd', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '14px', opacity: isSavingFr2Edit ? 0.6 : 1 }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitFr2Edit}
+                disabled={isSavingFr2Edit}
+                style={{ padding: '8px 16px', background: isSavingFr2Edit ? '#999' : '#1a237e', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' }}
+              >
+                {isSavingFr2Edit ? 'Saving...' : 'Save FR2'}
+              </button>
             </div>
           </div>
         </div>
