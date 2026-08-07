@@ -6336,8 +6336,9 @@ const Arrivals: React.FC = () => {
                                            (user as any)?.role === 'ceo' || 
                                            (user as any)?.effectiveRole === 'ceo' || 
                                            isInvHead || 
-                                           (user as any)?.role === 'admin' || 
+                                           (user as any)?.role === 'admin' ||
                                            (user as any)?.role === 'manager';
+                                           const isGodownApprover = (user as any)?.role === 'admin' || (user as any)?.role === 'md' || (user as any)?.role === 'owner';
 
 
 
@@ -6579,7 +6580,7 @@ const Arrivals: React.FC = () => {
                                        )}
                                      </>
                                   ) : placeStatus === 'pending' ? (
-                                     isApprover ? (
+                                     isGodownApprover ? (
                                        <div style={{ display: 'flex', gap: '3px', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
                                          <button
                                            onClick={() => handleApprovePlace(transitDetail.id || inspection.id)}
@@ -7966,6 +7967,7 @@ const Arrivals: React.FC = () => {
                                        isInvHead || 
                                        (user as any)?.role === 'admin' || 
                                        (user as any)?.role === 'manager';
+                                       const isGodownApprover = (user as any)?.role === 'admin' || (user as any)?.role === 'md' || (user as any)?.role === 'owner';
 
 
 
@@ -8408,7 +8410,7 @@ const Arrivals: React.FC = () => {
                               {/* Show pending edit indicator */}
                               {entry.placeRejectReason && entry.placeRejectReason.startsWith('EDIT_PENDING:') && (
                                 <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', alignItems: 'center' }}>
-                                  {isApprover && (
+                                  {isGodownApprover && (
                                     <>
                                       <button
                                         onClick={(e) => {

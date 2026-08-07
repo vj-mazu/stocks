@@ -368,6 +368,11 @@ router.post('/:id/approve-place', auth, async (req, res) => {
 
     if (detail) {
       if (detail.placeStatus === 'pending') {
+        // Only admin / MD / owner can approve pending godown edits
+        const approverRole = String(req.user.effectiveRole || req.user.role || '').toLowerCase();
+        if (!['admin', 'md', 'owner'].includes(approverRole)) {
+          return res.status(403).json({ error: 'Only admin, MD or owner can approve godown edits' });
+        }
         // Godown EDIT approval - apply the edit
         const isBmbEdit = detail.placeRejectReason && detail.placeRejectReason.startsWith('EDIT_PENDING:approved');
         const restoreStatus = isBmbEdit ? 'approved' : 'placed';
@@ -476,6 +481,11 @@ router.post('/:id/reject-place', auth, async (req, res) => {
       // If this is a pending EDIT, restore the previous values instead of wiping the place
       const editMarker = detail.placeRejectReason || '';
       if (detail.placeStatus === 'pending' && editMarker.startsWith('EDIT_PENDING:')) {
+        // Only admin / MD / owner can reject pending godown edits
+        const approverRole = String(req.user.effectiveRole || req.user.role || '').toLowerCase();
+        if (!['admin', 'md', 'owner'].includes(approverRole)) {
+          return res.status(403).json({ error: 'Only admin, MD or owner can reject godown edits' });
+        }
         const parts = editMarker.split(':');
         const prevStatus = parts[1] || 'approved';
         let oldValues = {};

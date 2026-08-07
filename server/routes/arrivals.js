@@ -8456,8 +8456,9 @@ router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
       const hasExistingPlace = !!(detail.placeDate || detail.placeType || detail.outturnId || detail.placeWarehouseId || detail.placeKunchinittuId);
       const isPlaceEdit = detail.placeStatus !== 'none' && hasExistingPlace;
       
-      // Auto-approve for admin/manager/ceo roles, otherwise require approval
-      const isAutoApprovePlace = ['admin', 'md', 'ceo', 'manager', 'owner', 'inventory_head'].includes(String(req.user.effectiveRole || req.user.role || '').toLowerCase());
+      // Godown EDIT: admin / md / owner apply directly. CEO / manager / inventory_head edits require approval.
+      const isEditAutoApprove = ['admin', 'md', 'owner'].includes(String(req.user.effectiveRole || req.user.role || '').toLowerCase());
+      const canAddDirect = ['admin', 'md', 'owner', 'ceo', 'manager', 'inventory_head'].includes(String(req.user.effectiveRole || req.user.role || '').toLowerCase());
       const isBmbEntry = detail.placeStatus === 'approved' || (detail.placeStatus === 'pending' && detail.placeRejectReason && String(detail.placeRejectReason).startsWith('EDIT_PENDING:approved'));
       
       // targetPlaceStatus logic:
@@ -8470,7 +8471,7 @@ router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
       let placeApprovedBy = req.user.userId;
       let placeApprovedAt = new Date();
       if (isPlaceEdit) {
-        if (isAutoApprovePlace) {
+        if (isEditAutoApprove) {
           targetPlaceStatus = isBmbEntry ? 'approved' : 'placed';
           placeApprovedBy = req.user.userId;
           placeApprovedAt = new Date();
@@ -8487,7 +8488,7 @@ router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
             outturnId: detail.outturnId
           });
         }
-      } else if (!isAutoApprovePlace) {
+      } else if (!canAddDirect) {
         // New place added by a non-approver requires approval before moving to Band Malal Book
         targetPlaceStatus = 'pending';
         placeApprovedBy = null;
@@ -8508,7 +8509,7 @@ router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
 
 
 
-      // Place is added DIRECTLY by authorized roles (Inventory Staff, Inventory Head, Admin, Manager, CEO)
+      // New place placement is applied directly for admin / MD / owner / CEO / manager / inventory head
 
 
 
@@ -8664,8 +8665,9 @@ router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
     const hasExistingPlace = !!(arrival.placeDate || arrival.placeType || arrival.outturnId || arrival.placeWarehouseId || arrival.placeKunchinittuId);
     const isPlaceEdit = arrival.placeStatus !== 'none' && hasExistingPlace;
     
-    // Auto-approve for admin/manager/ceo roles, otherwise require approval
-    const isAutoApprovePlace = ['admin', 'md', 'ceo', 'manager', 'owner', 'inventory_head'].includes(String(req.user.effectiveRole || req.user.role || '').toLowerCase());
+    // Godown EDIT: admin / md / owner apply directly. CEO / manager / inventory_head edits require approval.
+    const isEditAutoApprove = ['admin', 'md', 'owner'].includes(String(req.user.effectiveRole || req.user.role || '').toLowerCase());
+    const canAddDirect = ['admin', 'md', 'owner', 'ceo', 'manager', 'inventory_head'].includes(String(req.user.effectiveRole || req.user.role || '').toLowerCase());
     const isBmbEntry = arrival.placeStatus === 'approved' || (arrival.placeStatus === 'pending' && arrival.placeRejectReason && String(arrival.placeRejectReason).startsWith('EDIT_PENDING:approved'));
     
     let targetPlaceStatus = 'approved'; // New place - auto-moves directly to Band Malal Book
@@ -8673,7 +8675,7 @@ router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
     let placeApprovedBy = req.user.userId;
     let placeApprovedAt = new Date();
     if (isPlaceEdit) {
-      if (isAutoApprovePlace) {
+      if (isEditAutoApprove) {
         targetPlaceStatus = isBmbEntry ? 'approved' : 'placed';
         placeApprovedBy = req.user.userId;
         placeApprovedAt = new Date();
@@ -8688,7 +8690,7 @@ router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
           outturnId: arrival.outturnId
         });
       }
-    } else if (!isAutoApprovePlace) {
+    } else if (!canAddDirect) {
       // New place added by a non-approver requires approval before moving to Band Malal Book
       targetPlaceStatus = 'pending';
       placeApprovedBy = null;
