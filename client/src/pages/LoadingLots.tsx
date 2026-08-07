@@ -641,24 +641,32 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
 
   const openFr2EditModal = (entry: any) => {
     const o = entry.offering || {};
+    // If FR2 was already submitted, respect cleared/empty _2 values so missing fields open empty.
+    // Only fall back to FR1 values when FR2 has never been set (first-time Add FR2 / Resume).
+    const fr2AlreadySet = o.finalBaseRate2 != null && o.finalBaseRate2 !== '';
+    const fr2Num = (k2: string, ...k1: string[]) => {
+      if (fr2AlreadySet) return cleanFr2Int(o[k2]);
+      const fallback = k1.map(k => o[k]).find(v => v != null && v !== '');
+      return cleanFr2Int(fallback);
+    };
     setFr2EditData({
-      finalBaseRate2: cleanFr2Int(o.finalBaseRate2 ?? o.finalBaseRate ?? o.offerBaseRateValue),
-      finalSute2: cleanFr2Int(o.finalSute2 ?? o.finalSute ?? o.sute),
+      finalBaseRate2: fr2Num('finalBaseRate2', 'finalBaseRate', 'offerBaseRateValue'),
+      finalSute2: fr2Num('finalSute2', 'finalSute', 'sute'),
       finalSuteUnit2: o.finalSuteUnit2 ?? o.finalSuteUnit ?? o.suteUnit ?? 'per_ton',
-      finalPrice2: cleanFr2Int(o.finalPrice2 ?? o.finalPrice),
-      hamali2: cleanFr2Int(o.hamali2 ?? o.hamali),
+      finalPrice2: fr2Num('finalPrice2', 'finalPrice'),
+      hamali2: fr2Num('hamali2', 'hamali'),
       hamaliUnit2: o.hamaliUnit2 ?? o.hamaliUnit ?? 'per_bag',
-      brokerage2: cleanFr2Int(o.brokerage2 ?? o.brokerage),
+      brokerage2: fr2Num('brokerage2', 'brokerage'),
       brokerageUnit2: o.brokerageUnit2 ?? o.brokerageUnit ?? 'per_bag',
-      lf2: cleanFr2Int(o.lf2 ?? o.lf),
+      lf2: fr2Num('lf2', 'lf'),
       lfUnit2: o.lfUnit2 ?? o.lfUnit ?? 'per_bag',
-      egbValue2: cleanFr2Int(o.egbValue2 ?? o.egbValue),
+      egbValue2: fr2Num('egbValue2', 'egbValue'),
       egbType2: o.egbType2 ?? o.egbType ?? 'mill',
-      cdValue2: cleanFr2Int(o.cdValue2 ?? o.cdValue),
+      cdValue2: fr2Num('cdValue2', 'cdValue'),
       cdUnit2: o.cdUnit2 ?? o.cdUnit ?? 'lumps',
-      bankLoanValue2: cleanFr2Int(o.bankLoanValue2 ?? o.bankLoanValue),
+      bankLoanValue2: fr2Num('bankLoanValue2', 'bankLoanValue'),
       bankLoanUnit2: o.bankLoanUnit2 ?? o.bankLoanUnit ?? 'lumps',
-      paymentConditionValue2: cleanFr2Int(o.paymentConditionValue2 ?? o.paymentConditionValue) || '15',
+      paymentConditionValue2: fr2Num('paymentConditionValue2', 'paymentConditionValue') || '15',
       paymentConditionUnit2: o.paymentConditionUnit2 ?? o.paymentConditionUnit ?? 'days',
       finalRemarks2: o.finalRemarks2 ?? ''
     });
@@ -673,7 +681,12 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
       const fr2Res = await axios.post(`${API_URL}/sample-entries/${fr2EditEntry.id}/final-rate-2`, fr2EditData, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      showNotification((fr2Res.data as any)?.message || 'Final Rate 2 saved successfully', 'success');
+      const fr2Msg = (fr2Res.data as any)?.message || 'Final Rate 2 saved successfully';
+      const fr2MissingResp = (fr2Res.data as any)?.missingFields;
+      showNotification(
+        fr2MissingResp && fr2MissingResp.length > 0 ? `${fr2Msg} — Missing: ${fr2MissingResp.join(' | ')}` : fr2Msg,
+        fr2MissingResp && fr2MissingResp.length > 0 ? 'warning' : 'success'
+      );
       setFr2EditEntry(null);
       fetchEntries();
     } catch (error: any) {
@@ -682,6 +695,39 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
       setIsSavingFr2Edit(false);
     }
   };
+
+  // FR2 missing-field helpers for the edit modal (mirrors FR1 missing-value highlighting)
+  const fr2EditFieldMissing = (key: string): boolean => {
+    const fr2Offering = fr2EditEntry?.offering || {};
+    const v = fr2EditData[key];
+    switch (key) {
+      case 'finalBaseRate2':
+      case 'finalSute2':
+      case 'brokerage2':
+        return !(parseFloat(v ?? '') > 0);
+      case 'hamali2':
+        return !hasPositiveAmount(v);
+      case 'lf2':
+        return hasLfForRateType(fr2Offering.baseRateType) && !(parseFloat(v ?? '') > 0);
+      case 'egbValue2':
+        return hasEgbForRateType(fr2Offering.baseRateType) && fr2EditData.egbType2 === 'purchase' && !(parseFloat(v ?? '') > 0);
+      case 'cdValue2':
+        return !!fr2Offering.cdEnabled && !(parseFloat(v ?? '') > 0);
+      case 'bankLoanValue2':
+        return !!fr2Offering.bankLoanEnabled && !(parseFloat(v ?? '') > 0);
+      default:
+        return false;
+    }
+  };
+  const fr2EditMissingLabels = [
+    fr2EditFieldMissing('finalBaseRate2') ? 'Final Rate' : '',
+    fr2EditFieldMissing('finalSute2') ? 'Sute' : '',
+    fr2EditFieldMissing('hamali2') ? 'Hamali' : '',
+    fr2EditFieldMissing('brokerage2') ? 'Brokerage' : '',
+    fr2EditFieldMissing('lf2') ? 'LF' : '',
+    fr2EditFieldMissing('cdValue2') ? 'CD' : '',
+    fr2EditFieldMissing('bankLoanValue2') ? 'Bank Loan' : ''
+  ].filter(Boolean);
 
   const [paddySupervisors, setPaddySupervisors] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<Record<string, string>>({});
@@ -1194,7 +1240,8 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     groupedByDateBroker[dt][broker].push(entry);
   });
 
-  const isManagerOrOwner = user?.role === 'manager' || user?.role === 'ceo' || user?.role === 'owner' || user?.role === 'admin';
+  const isManagerOrOwner = user?.role === 'manager' || user?.role === 'ceo' || user?.role === 'owner' || user?.role === 'admin' || user?.role === 'md';
+  const canEditFr2 = ['manager', 'ceo', 'admin', 'owner', 'md'].includes(String(user?.role || '').toLowerCase());
   const totalPages = Math.ceil(total / pageSize);
 
   const getCollectorLabel = (value?: string | null) => {
@@ -2121,7 +2168,8 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                     fontSize: '11px',
                                     lineHeight: '1.25',
                                     wordBreak: 'break-word',
-                                    whiteSpace: 'normal'
+                                    whiteSpace: 'normal',
+                                    minWidth: header === 'Action' ? '96px' : undefined
                                   }, '#1a237e')}
                                 >
                                   {header}
@@ -2156,6 +2204,27 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                 bankLoanMissing ? 'BL' : '',
                                 paymentMissing ? 'Payment' : ''
                               ].filter(Boolean);
+                              // Final Rate 2 missing-value tracking (mirrors FR1)
+                              const fr2Pending = String(o.pendingManagerValueApprovalStatus2 || '').toLowerCase() === 'pending';
+                              const fr2Approved = String(o.pendingManagerValueApprovalStatus2 || '').toLowerCase() === 'approved';
+                              const hasFr2 = o.finalBaseRate2 != null && o.finalBaseRate2 !== '';
+                              const fr2SuteMissing = !parseFloat(o.finalSute2 ?? '');
+                              const fr2HamaliMissing = !hasPositiveAmount(o.hamali2);
+                              const fr2BrokerageMissing = !parseFloat(o.brokerage2 ?? '');
+                              const fr2LfMissing = hasLf && !parseFloat(o.lf2 ?? '');
+                              const fr2CdMissing = !!o.cdEnabled && !parseFloat(o.cdValue2 ?? '');
+                              const fr2BankLoanMissing = !!o.bankLoanEnabled && !parseFloat(o.bankLoanValue2 ?? '');
+                              const fr2PaymentMissing = !(o.paymentConditionValue2 == null || o.paymentConditionValue2 === '') && !parseInt(o.paymentConditionValue2, 10);
+                              const fr2MissingLabels = [
+                                fr2SuteMissing ? 'Sute' : '',
+                                fr2HamaliMissing ? 'Hamali' : '',
+                                fr2BrokerageMissing ? 'Brokerage' : '',
+                                fr2LfMissing ? 'LF' : '',
+                                fr2CdMissing ? 'CD' : '',
+                                fr2BankLoanMissing ? 'BL' : '',
+                                fr2PaymentMissing ? 'Payment' : ''
+                              ].filter(Boolean);
+                              const fr2NeedsFill = hasFr2 && fr2MissingLabels.length > 0;
                               const qualityData = entry.qualityParameters || {};
                               const qualityAttempts = getQualityAttemptsForEntry(entry);
                               const qualityRows = buildQualityStatusRows(entry);
@@ -2312,8 +2381,9 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                       )}
                                     </td>
                                     <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}><div><span style={{ padding: '2px 6px', borderRadius: '10px', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap', display: 'inline-block', marginBottom: '2px', border: finalRateActorMeta.style.border, background: finalRateActorMeta.style.background, color: finalRateActorMeta.style.color }}>{finalRateActorMeta.label}</span></div><div><span style={{ padding: '2px 6px', borderRadius: '10px', fontSize: '10px', fontWeight: 700, background: managerApprovalPending ? '#ede9fe' : (needsFill ? '#fff3cd' : '#d4edda'), color: managerApprovalPending ? '#6d28d9' : (needsFill ? '#856404' : '#155724'), whiteSpace: 'nowrap', display: 'inline-block', marginBottom: '2px', border: managerApprovalPending ? '1px solid #c4b5fd' : (needsFill ? '1px solid #ffeeba' : '1px solid #c3e6cb') }}>{managerApprovalPending ? 'Pending Approval' : (needsFill ? 'Manager Missing' : (isApprovedByManager ? 'Manager Added' : 'Admin Added'))}</span></div></td>
-                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
+                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', minWidth: '96px' }}>
                                       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'center' }}>
+                                        {!isManagerOrOwner && <span style={{ color: '#94a3b8', fontSize: '10px' }}>—</span>}
                                         {isManagerOrOwner && (
                                           <>
                                             <button onClick={() => handleManagerValuesModalOpen(entry, 'view')} style={modalActionButtonStyle('view')}>View</button>
@@ -2531,18 +2601,20 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                   </td>
                                   <td style={{ border: '1px solid #000', padding: '3px 5px', textAlign: 'center', fontSize: '13px' }}>{finalRateValue ? <div style={{ fontWeight: 700, color: '#2e7d32', lineHeight: '1.3' }}><div>Rs {toNumberText(finalRateValue)}</div><div style={{ fontSize: '10px', color: '#5f6368', fontWeight: 600 }}>{o.baseRateType?.replace(/_/g, '/') || finalRateUnit}</div></div> : '-'}
                                     {(() => {
-                                      if (!lotClosed) return null;
-                                      const fr2Pending = String(o?.pendingManagerValueApprovalStatus2 || '').toLowerCase() === 'pending';
-                                      const fr2Approved = String(o?.pendingManagerValueApprovalStatus2 || '').toLowerCase() === 'approved';
-                                      const hasFr2 = o?.finalBaseRate2 != null && o?.finalBaseRate2 !== '';
+                                      if (!lotClosed && !fr2Pending && !hasFr2) return null;
                                       return (
                                         <div style={{ marginTop: '3px', display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center' }}>
                                           {fr2Pending ? (
-                                            <span style={{ fontSize: '9px', fontWeight: 800, color: '#6d28d9', background: '#ede9fe', border: '1px solid #c4b5fd', borderRadius: '10px', padding: '1px 6px', display: 'inline-block', whiteSpace: 'nowrap' }}>FR2 Pending Approval</span>
+                                            <span style={{ fontSize: '9px', fontWeight: 800, color: '#6d28d9', background: '#ede9fe', border: '1px solid #c4b5fd', borderRadius: '10px', padding: '1px 6px', display: 'inline-block', maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', lineHeight: 1.25 }}>FR2 Pending Approval</span>
                                           ) : hasFr2 ? (
-                                            <span style={{ fontSize: '10px', fontWeight: 700, color: '#7c3aed', lineHeight: '1.2' }}>FR2: Rs {toNumberText(o.finalBaseRate2)}{fr2Approved ? ' ✓' : ''}</span>
+                                            <>
+                                              <span style={{ fontSize: '10px', fontWeight: 700, color: '#7c3aed', lineHeight: '1.2' }}>FR2: Rs {toNumberText(o.finalBaseRate2)}{fr2Approved ? ' ✓' : ''}</span>
+                                              {fr2NeedsFill && (
+                                                <span style={{ fontSize: '9px', fontWeight: 800, color: '#856404', background: '#fff3cd', border: '1px solid #ffeeba', borderRadius: '10px', padding: '1px 6px', display: 'inline-block', maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', lineHeight: 1.25 }}>Missing: {fr2MissingLabels.join(' | ')}</span>
+                                              )}
+                                            </>
                                           ) : (
-                                            <span style={{ fontSize: '9px', fontWeight: 800, color: '#856404', background: '#fff3cd', border: '1px solid #ffeeba', borderRadius: '10px', padding: '1px 6px', display: 'inline-block', whiteSpace: 'nowrap' }}>FR2 Need</span>
+                                            <span style={{ fontSize: '9px', fontWeight: 800, color: '#856404', background: '#fff3cd', border: '1px solid #ffeeba', borderRadius: '10px', padding: '1px 6px', display: 'inline-block', maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', lineHeight: 1.25 }}>FR2 Need</span>
                                           )}
                                         </div>
                                       );
@@ -2579,8 +2651,9 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                       </div>
                                     </div>
                                   </td>
-                                  <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
+                                  <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', minWidth: '96px' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                                      {!isManagerOrOwner && <span style={{ color: '#94a3b8', fontSize: '10px' }}>—</span>}
                                       {isManagerOrOwner && (
                                         <>
                                           <button
@@ -2605,12 +2678,12 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                                           >
                                             {!hasQualityReport ? 'Quality Pending' : (managerApprovalPending ? 'Edit Pending' : (needsFill ? 'Fill Values' : 'Edit'))}
                                           </button>
-                                          {lotClosed && (
+                                          {(lotClosed || fr2Pending || hasFr2) && canEditFr2 && (
                                             <button
                                               onClick={() => openFr2EditModal(entry)}
                                               style={{ padding: '3px 6px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '10px', cursor: 'pointer', fontWeight: 700, width: '100%' }}
                                             >
-                                              {String(o?.pendingManagerValueApprovalStatus2 || '').toLowerCase() === 'pending' ? 'FR2 Pending' : (o?.finalBaseRate2 != null && o?.finalBaseRate2 !== '' ? 'Edit FR2' : 'Add FR2')}
+                                              {fr2Pending ? 'FR2 Pending' : (hasFr2 ? (fr2NeedsFill ? 'Fill FR2' : 'Edit FR2') : 'Add FR2')}
                                             </button>
                                           )}
                                         </>
@@ -3652,6 +3725,11 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                 ? 'Values will be applied directly to this lot.'
                 : 'Values will be submitted for admin approval before applying.'}
             </p>
+            {fr2EditMissingLabels.length > 0 && (
+              <div style={{ marginBottom: '10px', padding: '6px 8px', borderRadius: '6px', background: '#fff3cd', border: '1px solid #ffeeba', color: '#856404', fontSize: '11px', fontWeight: 700 }}>
+                ⚠️ Missing FR2 values: {fr2EditMissingLabels.join(' | ')}
+              </div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               {[
                 { key: 'finalBaseRate2', label: 'Final Rate 2', unit: 'per_bag' },
@@ -3671,7 +3749,15 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                     step="any"
                     value={fr2EditData[field.key] ?? ''}
                     onChange={(e) => setFr2EditData({ ...fr2EditData, [field.key]: e.target.value })}
-                    style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px', boxSizing: 'border-box' }}
+                    style={{
+                      width: '100%',
+                      padding: '5px 8px',
+                      border: fr2EditFieldMissing(field.key) ? '1.5px solid #f5c542' : '1px solid #ccc',
+                      background: fr2EditFieldMissing(field.key) ? '#fffdf3' : '#fff',
+                      borderRadius: '4px',
+                      fontSize: '13px',
+                      boxSizing: 'border-box'
+                    }}
                   />
                 </div>
               ))}

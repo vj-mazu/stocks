@@ -316,9 +316,9 @@ router.post('/', auth, authorize('manager', 'admin'), async (req, res) => {
     const existingRate = await PurchaseRate.findOne({ where: { arrivalId } });
 
     // Status based on role: admin = approved, manager = pending
-    const rateStatus = req.user.role === 'admin' ? 'approved' : 'pending';
-    const adminApprovedBy = req.user.role === 'admin' ? req.user.userId : null;
-    const adminApprovedAt = req.user.role === 'admin' ? new Date() : null;
+    const rateStatus = (req.user.role === 'admin' || req.user.role === 'md') ? 'approved' : 'pending';
+    const adminApprovedBy = (req.user.role === 'admin' || req.user.role === 'md') ? req.user.userId : null;
+    const adminApprovedAt = (req.user.role === 'admin' || req.user.role === 'md') ? new Date() : null;
 
     let purchaseRate;
     let created = false;

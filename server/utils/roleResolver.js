@@ -14,6 +14,10 @@ function resolveEffectiveRole(user = {}) {
     return 'physical_supervisor';
   }
 
+  if (role === 'inventory_staff' && user.subRole === 'head') {
+    return 'inventory_head';
+  }
+
   if (role !== 'staff') {
     return role;
   }

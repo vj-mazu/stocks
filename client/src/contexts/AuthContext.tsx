@@ -6,9 +6,10 @@ import { API_URL } from '../config/api';
 interface User {
   id: number;
   username: string;
-  role: 'owner' | 'staff' | 'manager' | 'ceo' | 'admin' | 'quality_supervisor' | 'physical_supervisor' | 'inventory_staff' | 'inventory_head' | 'financial_account' | 'paddy_supervisor';
+  role: 'owner' | 'staff' | 'manager' | 'md' | 'ceo' | 'admin' | 'quality_supervisor' | 'physical_supervisor' | 'inventory_staff' | 'inventory_head' | 'financial_account' | 'paddy_supervisor';
   fullName: string | null;
   staffType?: 'mill' | 'location' | null;
+  subRole?: string | null;
 }
 
 interface AuthContextType {

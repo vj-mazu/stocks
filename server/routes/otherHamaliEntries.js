@@ -364,7 +364,7 @@ router.post('/bulk', auth, async (req, res) => {
         });
 
         // Determine status based on user role
-        const status = (req.user.role === 'manager' || req.user.role === 'admin') ? 'approved' : 'pending';
+        const status = (req.user.role === 'manager' || req.user.role === 'admin' || req.user.role === 'md') ? 'approved' : 'pending';
         const approvedBy = (status === 'approved') ? req.user.userId : null;
         const approvedAt = (status === 'approved') ? new Date() : null;
 
@@ -404,7 +404,7 @@ router.post('/bulk', auth, async (req, res) => {
       processedEntries.push(processedEntry);
     }
 
-    const autoApproved = req.user.role === 'manager' || req.user.role === 'admin';
+    const autoApproved = req.user.role === 'manager' || req.user.role === 'admin' || req.user.role === 'md';
 
     res.status(201).json({
       message: `${processedEntries.length} other hamali ${processedEntries.length === 1 ? 'entry' : 'entries'} processed successfully`,

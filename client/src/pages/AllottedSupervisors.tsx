@@ -97,6 +97,31 @@ const formatDecimal = (val: any) => {
   return isNaN(num) ? val.toString() : num.toString();
 };
 
+// Final Rate 2 missing-value helpers (mirrors LoadingLots/FR1 logic)
+const hasPositiveAmount = (value: any) => {
+  const num = Number(value);
+  return Number.isFinite(num) && num > 0;
+};
+const LF_RATE_TYPES = new Set(['PD_LOOSE', 'MD_LOOSE', 'PD_WB']);
+const hasLfForRateType = (value?: string) => LF_RATE_TYPES.has(String(value || '').toUpperCase());
+const cleanFr2Int = (val: any) => {
+  if (val == null || val === '') return '';
+  const num = Number(val);
+  return Number.isFinite(num) ? num.toString() : '';
+};
+const getFr2MissingLabels = (offering: any): string[] => {
+  const o = offering || {};
+  return [
+    !parseFloat(o.finalSute2 ?? '') ? 'Sute' : '',
+    !hasPositiveAmount(o.hamali2) ? 'Hamali' : '',
+    !parseFloat(o.brokerage2 ?? '') ? 'Brokerage' : '',
+    hasLfForRateType(o.baseRateType) && !parseFloat(o.lf2 ?? '') ? 'LF' : '',
+    !!o.cdEnabled && !parseFloat(o.cdValue2 ?? '') ? 'CD' : '',
+    !!o.bankLoanEnabled && !parseFloat(o.bankLoanValue2 ?? '') ? 'BL' : '',
+    !(o.paymentConditionValue2 == null || o.paymentConditionValue2 === '') && !parseInt(o.paymentConditionValue2, 10) ? 'Payment' : ''
+  ].filter(Boolean);
+};
+
 const handleCuttingInput = (value: string, entryType?: string) => {
   if (entryType === 'RICE_SAMPLE') {
     const cleaned = value.replace(/[^0-9.]/g, '');
@@ -200,6 +225,7 @@ const AllottedSupervisors: React.FC = () => {
   const [showFR2Form, setShowFR2Form] = useState(false);
   const [fr2Data, setFr2Data] = useState<any>({});
   const [isSavingFR2, setIsSavingFR2] = useState(false);
+  const [fr2StandaloneEntryId, setFr2StandaloneEntryId] = useState<string | null>(null);
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
   const [completingEntryId, setCompletingEntryId] = useState<string | null>(null);
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
@@ -689,37 +715,84 @@ const AllottedSupervisors: React.FC = () => {
     setIsCompleteModalOpen(true);
   };
 
-  const triggerResumeLot = (entryId: string) => {
-    const cleanInt = (val: any) => {
-      if (val == null || val === '') return '';
-      const num = Number(val);
-      return Number.isFinite(num) ? num.toString() : '';
-    };
+  const openFr2Form = (entryId: string, mode: 'resume' | 'fill') => {
     const o = offeringCache[entryId] || {};
+    // If FR2 was already submitted, respect cleared/empty _2 values so missing fields open empty.
+    // Only fall back to FR1 values when FR2 has never been set (first-time Add FR2 / Resume).
+    const fr2AlreadySet = o.finalBaseRate2 != null && o.finalBaseRate2 !== '';
+    const fr2Num = (k2: string, ...k1: string[]) => {
+      if (fr2AlreadySet) return cleanFr2Int(o[k2]);
+      const fallback = k1.map(k => o[k]).find(v => v != null && v !== '');
+      return cleanFr2Int(fallback);
+    };
     setFr2Data({
-      finalBaseRate2: cleanInt(o.finalBaseRate ?? o.offerBaseRateValue),
-      finalSute2: cleanInt(o.finalSute ?? o.sute),
-      finalSuteUnit2: o.finalSuteUnit ?? o.suteUnit ?? 'per_ton',
-      finalPrice2: cleanInt(o.finalPrice),
-      hamali2: cleanInt(o.hamali),
-      hamaliUnit2: o.hamaliUnit ?? 'per_bag',
-      brokerage2: cleanInt(o.brokerage),
-      brokerageUnit2: o.brokerageUnit ?? 'per_bag',
-      lf2: cleanInt(o.lf),
-      lfUnit2: o.lfUnit ?? 'per_bag',
-      egbValue2: cleanInt(o.egbValue),
-      egbType2: o.egbType ?? 'mill',
-      cdValue2: cleanInt(o.cdValue),
-      cdUnit2: o.cdUnit ?? 'lumps',
-      bankLoanValue2: cleanInt(o.bankLoanValue),
-      bankLoanUnit2: o.bankLoanUnit ?? 'lumps',
-      paymentConditionValue2: cleanInt(o.paymentConditionValue) || '15',
-      paymentConditionUnit2: o.paymentConditionUnit ?? 'days',
-      finalRemarks2: ''
+      finalBaseRate2: fr2Num('finalBaseRate2', 'finalBaseRate', 'offerBaseRateValue'),
+      finalSute2: fr2Num('finalSute2', 'finalSute', 'sute'),
+      finalSuteUnit2: o.finalSuteUnit2 ?? o.finalSuteUnit ?? o.suteUnit ?? 'per_ton',
+      finalPrice2: fr2Num('finalPrice2', 'finalPrice'),
+      hamali2: fr2Num('hamali2', 'hamali'),
+      hamaliUnit2: o.hamaliUnit2 ?? o.hamaliUnit ?? 'per_bag',
+      brokerage2: fr2Num('brokerage2', 'brokerage'),
+      brokerageUnit2: o.brokerageUnit2 ?? o.brokerageUnit ?? 'per_bag',
+      lf2: fr2Num('lf2', 'lf'),
+      lfUnit2: o.lfUnit2 ?? o.lfUnit ?? 'per_bag',
+      egbValue2: fr2Num('egbValue2', 'egbValue'),
+      egbType2: o.egbType2 ?? o.egbType ?? 'mill',
+      cdValue2: fr2Num('cdValue2', 'cdValue'),
+      cdUnit2: o.cdUnit2 ?? o.cdUnit ?? 'lumps',
+      bankLoanValue2: fr2Num('bankLoanValue2', 'bankLoanValue'),
+      bankLoanUnit2: o.bankLoanUnit2 ?? o.bankLoanUnit ?? 'lumps',
+      paymentConditionValue2: fr2Num('paymentConditionValue2', 'paymentConditionValue') || '15',
+      paymentConditionUnit2: o.paymentConditionUnit2 ?? o.paymentConditionUnit ?? 'days',
+      finalRemarks2: o.finalRemarks2 ?? ''
     });
-    setResumingEntryId(entryId);
-    setShowFR2Prompt(true);
+    if (mode === 'resume') {
+      setFr2StandaloneEntryId(null);
+      setResumingEntryId(entryId);
+      setShowFR2Prompt(true);
+    } else {
+      setResumingEntryId(null);
+      setFr2StandaloneEntryId(entryId);
+      setShowFR2Form(true);
+    }
   };
+
+  const triggerResumeLot = (entryId: string) => openFr2Form(entryId, 'resume');
+  const openFr2Fill = (entryId: string) => openFr2Form(entryId, 'fill');
+
+  // FR2 missing-field helpers for the FR2 form (mirrors FR1 missing-value highlighting)
+  const fr2FormOffering = () => {
+    const activeId = resumingEntryId || fr2StandaloneEntryId;
+    return activeId ? (offeringCache[activeId] || {}) : {};
+  };
+  const fr2FormMissing = (key: string): boolean => {
+    const v = fr2Data[key];
+    switch (key) {
+      case 'finalBaseRate2':
+      case 'finalSute2':
+      case 'brokerage2':
+        return !(parseFloat(v ?? '') > 0);
+      case 'hamali2':
+        return !hasPositiveAmount(v);
+      case 'lf2':
+        return hasLfForRateType(fr2FormOffering().baseRateType) && !(parseFloat(v ?? '') > 0);
+      case 'cdValue2':
+        return !!fr2FormOffering().cdEnabled && !(parseFloat(v ?? '') > 0);
+      case 'bankLoanValue2':
+        return !!fr2FormOffering().bankLoanEnabled && !(parseFloat(v ?? '') > 0);
+      default:
+        return false;
+    }
+  };
+  const fr2FormMissingLabels = [
+    fr2FormMissing('finalBaseRate2') ? 'Final Rate' : '',
+    fr2FormMissing('finalSute2') ? 'Sute' : '',
+    fr2FormMissing('hamali2') ? 'Hamali' : '',
+    fr2FormMissing('brokerage2') ? 'Brokerage' : '',
+    fr2FormMissing('lf2') ? 'LF' : '',
+    fr2FormMissing('cdValue2') ? 'CD' : '',
+    fr2FormMissing('bankLoanValue2') ? 'Bank Loan' : ''
+  ].filter(Boolean);
 
   const executeResumeLot = async () => {
     if (!resumingEntryId) return;
@@ -1350,6 +1423,7 @@ const AllottedSupervisors: React.FC = () => {
                                        const fr2Pending = String(fr2Offering.pendingManagerValueApprovalStatus2 || '').toLowerCase() === 'pending';
                                        const fr2Approved = String(fr2Offering.pendingManagerValueApprovalStatus2 || '').toLowerCase() === 'approved';
                                        const hasFr2 = fr2Offering.finalBaseRate2 != null && fr2Offering.finalBaseRate2 !== '';
+                                       const fr2MissingLabels = getFr2MissingLabels(fr2Offering);
                                        if (!fr2Pending && !hasFr2) return null;
                                        return (
                                          <div style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: '3px', marginBottom: '3px' }}>
@@ -1358,11 +1432,36 @@ const AllottedSupervisors: React.FC = () => {
                                                🟣 Final Rate 2 Pending Approval
                                              </div>
                                            ) : (
-                                             <div style={{ fontSize: '9px', padding: '4px 6px', backgroundColor: '#f3e8ff', color: '#7c3aed', border: '1px solid #d8b4fe', borderRadius: '3px', textAlign: 'center', width: '100%', fontWeight: '800' }}>
-                                               🟣 FR2: Rs {fr2Offering.finalBaseRate2}{fr2Approved ? ' (Approved)' : ''}
-                                             </div>
+                                             <>
+                                               <div style={{ fontSize: '9px', padding: '4px 6px', backgroundColor: '#f3e8ff', color: '#7c3aed', border: '1px solid #d8b4fe', borderRadius: '3px', textAlign: 'center', width: '100%', fontWeight: '800' }}>
+                                                 🟣 FR2: Rs {fr2Offering.finalBaseRate2}{fr2Approved ? ' (Approved)' : ''}
+                                               </div>
+                                               {fr2MissingLabels.length > 0 && (
+                                                 <div style={{ fontSize: '9px', padding: '4px 6px', backgroundColor: '#fff3cd', color: '#856404', border: '1px solid #ffeeba', borderRadius: '3px', textAlign: 'center', width: '100%', fontWeight: '800' }}>
+                                                   ⚠️ Missing: {fr2MissingLabels.join(' | ')}
+                                                 </div>
+                                               )}
+                                             </>
                                            )}
                                          </div>
+                                       );
+                                     })()}
+
+                                     {(() => {
+                                       if (!['admin', 'manager', 'ceo', 'owner', 'md'].includes(String(user?.role || '').toLowerCase())) return null;
+                                       const fr2Offering = offeringCache[entry.id] || {};
+                                       const fr2Pending = String(fr2Offering.pendingManagerValueApprovalStatus2 || '').toLowerCase() === 'pending';
+                                       const hasFr2 = fr2Offering.finalBaseRate2 != null && fr2Offering.finalBaseRate2 !== '';
+                                       const fr2Missing = getFr2MissingLabels(fr2Offering);
+                                       const fr2LotClosed = !!entry.lotAllotment?.closedAt;
+                                       if (!fr2LotClosed && !fr2Pending && !hasFr2) return null;
+                                       return (
+                                         <button
+                                           onClick={() => openFr2Fill(entry.id)}
+                                           style={{ fontSize: '10px', padding: '4px 8px', backgroundColor: '#7c3aed', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', width: '100%', marginTop: '4px', fontWeight: '700' }}
+                                         >
+                                           {fr2Pending ? 'FR2 Pending' : (hasFr2 ? (fr2Missing.length > 0 ? 'Fill FR2' : 'Edit FR2') : 'Add FR2')}
+                                         </button>
                                        );
                                      })()}
 
@@ -1437,7 +1536,7 @@ const AllottedSupervisors: React.FC = () => {
                                         </button>
                                       );
                                     })()}
-                                    {['admin', 'manager', 'ceo'].includes(user?.role) && entry.lotAllotment?.closedAt && (
+                                    {['admin', 'manager', 'ceo', 'owner', 'md'].includes(user?.role) && entry.lotAllotment?.closedAt && (
                                       <button
                                         onClick={() => triggerResumeLot(entry.id)}
                                         style={{
@@ -2138,36 +2237,41 @@ const AllottedSupervisors: React.FC = () => {
         </div>
       )}
       {/* FR2 Editor Form */}
-      {resumingEntryId && showFR2Form && (
+      {(resumingEntryId || fr2StandaloneEntryId) && showFR2Form && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
           <div style={{ background: 'white', borderRadius: '12px', padding: '24px', maxWidth: '500px', width: '95%', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
             <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', color: '#1a237e' }}>✏️ Final Rate 2</h3>
             <p style={{ margin: '0 0 16px 0', fontSize: '12px', color: '#888' }}>Values pre-filled from existing Final Rate. Edit as needed.</p>
+            {fr2FormMissingLabels.length > 0 && (
+              <div style={{ marginBottom: '10px', padding: '6px 8px', borderRadius: '6px', background: '#fff3cd', border: '1px solid #ffeeba', color: '#856404', fontSize: '11px', fontWeight: 700 }}>
+                ⚠️ Missing FR2 values: {fr2FormMissingLabels.join(' | ')}
+              </div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>Final Rate 2</label>
                 <input type="number" step="any" value={fr2Data.finalBaseRate2} onChange={e => setFr2Data({...fr2Data, finalBaseRate2: e.target.value})}
-                  style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' }} />
+                  style={{ width: '100%', padding: '5px 8px', border: fr2FormMissing('finalBaseRate2') ? '1.5px solid #f5c542' : '1px solid #ccc', background: fr2FormMissing('finalBaseRate2') ? '#fffdf3' : '#fff', borderRadius: '4px', fontSize: '13px' }} />
               </div>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>Sute 2</label>
                 <input type="number" step="any" value={fr2Data.finalSute2} onChange={e => setFr2Data({...fr2Data, finalSute2: e.target.value})}
-                  style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' }} />
+                  style={{ width: '100%', padding: '5px 8px', border: fr2FormMissing('finalSute2') ? '1.5px solid #f5c542' : '1px solid #ccc', background: fr2FormMissing('finalSute2') ? '#fffdf3' : '#fff', borderRadius: '4px', fontSize: '13px' }} />
               </div>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>Hamali 2</label>
                 <input type="number" step="any" value={fr2Data.hamali2} onChange={e => setFr2Data({...fr2Data, hamali2: e.target.value})}
-                  style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' }} />
+                  style={{ width: '100%', padding: '5px 8px', border: fr2FormMissing('hamali2') ? '1.5px solid #f5c542' : '1px solid #ccc', background: fr2FormMissing('hamali2') ? '#fffdf3' : '#fff', borderRadius: '4px', fontSize: '13px' }} />
               </div>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>Brokerage 2</label>
                 <input type="number" step="any" value={fr2Data.brokerage2} onChange={e => setFr2Data({...fr2Data, brokerage2: e.target.value})}
-                  style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' }} />
+                  style={{ width: '100%', padding: '5px 8px', border: fr2FormMissing('brokerage2') ? '1.5px solid #f5c542' : '1px solid #ccc', background: fr2FormMissing('brokerage2') ? '#fffdf3' : '#fff', borderRadius: '4px', fontSize: '13px' }} />
               </div>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>LF 2</label>
                 <input type="number" step="any" value={fr2Data.lf2} onChange={e => setFr2Data({...fr2Data, lf2: e.target.value})}
-                  style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' }} />
+                  style={{ width: '100%', padding: '5px 8px', border: fr2FormMissing('lf2') ? '1.5px solid #f5c542' : '1px solid #ccc', background: fr2FormMissing('lf2') ? '#fffdf3' : '#fff', borderRadius: '4px', fontSize: '13px' }} />
               </div>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>EGB Value 2</label>
@@ -2177,12 +2281,12 @@ const AllottedSupervisors: React.FC = () => {
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>CD Value 2</label>
                 <input type="number" step="any" value={fr2Data.cdValue2} onChange={e => setFr2Data({...fr2Data, cdValue2: e.target.value})}
-                  style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' }} />
+                  style={{ width: '100%', padding: '5px 8px', border: fr2FormMissing('cdValue2') ? '1.5px solid #f5c542' : '1px solid #ccc', background: fr2FormMissing('cdValue2') ? '#fffdf3' : '#fff', borderRadius: '4px', fontSize: '13px' }} />
               </div>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>Bank Loan 2</label>
                 <input type="number" step="any" value={fr2Data.bankLoanValue2} onChange={e => setFr2Data({...fr2Data, bankLoanValue2: e.target.value})}
-                  style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' }} />
+                  style={{ width: '100%', padding: '5px 8px', border: fr2FormMissing('bankLoanValue2') ? '1.5px solid #f5c542' : '1px solid #ccc', background: fr2FormMissing('bankLoanValue2') ? '#fffdf3' : '#fff', borderRadius: '4px', fontSize: '13px' }} />
               </div>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#555', display: 'block', marginBottom: '3px' }}>Payment Days 2</label>
@@ -2196,7 +2300,7 @@ const AllottedSupervisors: React.FC = () => {
                 style={{ width: '100%', padding: '5px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px', minHeight: '50px', resize: 'vertical' }} />
             </div>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '16px', borderTop: '1px solid #eee', paddingTop: '14px' }}>
-              <button onClick={() => { setShowFR2Form(false); setResumingEntryId(null); }}
+              <button onClick={() => { setShowFR2Form(false); setResumingEntryId(null); setFr2StandaloneEntryId(null); }}
                 disabled={isSavingFR2}
                 style={{ padding: '8px 16px', background: '#f5f5f5', border: '1px solid #ddd', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '14px', opacity: isSavingFR2 ? 0.6 : 1 }}>
                 Cancel
@@ -2204,13 +2308,30 @@ const AllottedSupervisors: React.FC = () => {
               <button onClick={async () => {
                 setIsSavingFR2(true);
                 try {
+                  const fr2EntryId = resumingEntryId || fr2StandaloneEntryId;
+                  if (!fr2EntryId) {
+                    setShowFR2Form(false);
+                    setResumingEntryId(null);
+                    setFr2StandaloneEntryId(null);
+                    return;
+                  }
                   const token = localStorage.getItem('token');
-                  const fr2Res = await axios.post(`${API_URL}/sample-entries/${resumingEntryId}/final-rate-2`, fr2Data, {
+                  const fr2Res = await axios.post(`${API_URL}/sample-entries/${fr2EntryId}/final-rate-2`, fr2Data, {
                     headers: { Authorization: `Bearer ${token}` }
                   });
-                  showNotification((fr2Res.data as any)?.message || 'Final Rate 2 saved successfully', 'success');
+                  const fr2Msg = (fr2Res.data as any)?.message || 'Final Rate 2 saved successfully';
+                  const fr2MissingResp = (fr2Res.data as any)?.missingFields;
+                  showNotification(
+                    fr2MissingResp && fr2MissingResp.length > 0 ? `${fr2Msg} — Missing: ${fr2MissingResp.join(' | ')}` : fr2Msg,
+                    fr2MissingResp && fr2MissingResp.length > 0 ? 'warning' : 'success'
+                  );
                   setShowFR2Form(false);
-                  setIsResumeModalOpen(true);
+                  if (fr2StandaloneEntryId) {
+                    setFr2StandaloneEntryId(null);
+                    loadEntries();
+                  } else {
+                    setIsResumeModalOpen(true);
+                  }
                 } catch (error: any) {
                   showNotification(error.response?.data?.error || 'Failed to save Final Rate 2', 'error');
                 } finally {
@@ -2219,7 +2340,7 @@ const AllottedSupervisors: React.FC = () => {
               }}
                 disabled={isSavingFR2}
                 style={{ padding: '8px 16px', background: isSavingFR2 ? '#999' : '#1a237e', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' }}>
-                {isSavingFR2 ? 'Saving...' : 'Save & Resume Lot'}
+                {isSavingFR2 ? 'Saving...' : (fr2StandaloneEntryId ? 'Save FR2' : 'Save & Resume Lot')}
               </button>
             </div>
           </div>

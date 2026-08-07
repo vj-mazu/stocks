@@ -433,6 +433,7 @@ router.post('/bmb/:transitDetailId/inventory-quality', auth, async (req, res) =>
       userRole === 'inventory_head' ||
       effectiveRole === 'inventory_head' ||
       userRole === 'admin' ||
+      userRole === 'md' ||
       userRole === 'owner' ||
       userRole === 'manager' ||
       userRole === 'ceo' ||
@@ -567,6 +568,7 @@ router.post('/bmb/inventory-quality/:qualityId/approve', auth, async (req, res) 
     // Authorization: Admin, Owner, Manager, CEO
     const canApprove =
       userRole === 'admin' ||
+      userRole === 'md' ||
       userRole === 'owner' ||
       userRole === 'manager' ||
       userRole === 'ceo' ||
@@ -635,6 +637,7 @@ router.post('/bmb/inventory-quality/:qualityId/reject', auth, async (req, res) =
     // Authorization: Admin, Owner, Manager, CEO
     const canReject =
       userRole === 'admin' ||
+      userRole === 'md' ||
       userRole === 'owner' ||
       userRole === 'manager' ||
       userRole === 'ceo' ||
@@ -686,6 +689,7 @@ router.post('/bmb/inventory-quality/:qualityId/recheck', auth, async (req, res) 
     // Authorization: Admin, Owner, Manager, CEO
     const canRecheck =
       userRole === 'admin' ||
+      userRole === 'md' ||
       userRole === 'owner' ||
       userRole === 'manager' ||
       userRole === 'ceo' ||

@@ -59,6 +59,8 @@ const handleCuttingInput = (value: string, entryType?: string) => {
     return { raw: cleaned, part1: cleaned, part2: '' };
   }
 
+  // Auto-insert × symbol for cutting/bend - 1 digit before × and 4 digits after ×
+  // (matches Sample Entry quality parameters behavior)
   let clean = value.replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×');
   const xCount = (clean.match(/×/g) || []).length;
   if (xCount > 1) {
@@ -69,7 +71,7 @@ const handleCuttingInput = (value: string, entryType?: string) => {
     clean = clean + '×';
   }
   const parts = clean.split('×');
-  const first = (parts[0] || '').substring(0, 4);
+  const first = (parts[0] || '').substring(0, 1);
   const second = (parts[1] || '').substring(0, 4);
   clean = second !== undefined && clean.includes('×') ? `${first}×${second}` : first;
   return { raw: clean, part1: first, part2: second || '' };
@@ -82,6 +84,8 @@ const handleBendInput = (value: string, entryType?: string) => {
     return { raw: cleaned, part1: cleaned, part2: '' };
   }
 
+  // Auto-insert × symbol for cutting/bend - 1 digit before × and 4 digits after ×
+  // (matches Sample Entry quality parameters behavior)
   let clean = value.replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×');
   const xCount = (clean.match(/×/g) || []).length;
   if (xCount > 1) {
@@ -92,7 +96,7 @@ const handleBendInput = (value: string, entryType?: string) => {
     clean = clean + '×';
   }
   const parts = clean.split('×');
-  const first = (parts[0] || '').substring(0, 4);
+  const first = (parts[0] || '').substring(0, 1);
   const second = (parts[1] || '').substring(0, 4);
   clean = second !== undefined && clean.includes('×') ? `${first}×${second}` : first;
   return { raw: clean, part1: first, part2: second || '' };
@@ -4371,13 +4375,7 @@ const PhysicalInspection: React.FC = () => {
                                                 type="text"
                                                 disabled={isLocked}
                                                 value={cardData.cutting}
-                                                placeholder="1×"
-                                                onFocus={() => {
-                                                  if (!cardData.cutting) {
-                                                    const res = handleCuttingInput('1×', entry.entryType);
-                                                    handleStageInputChange(entry.id, stage, 'cutting', res.raw);
-                                                  }
-                                                }}
+                                                placeholder="e.g. 1×12"
                                                 onChange={(e) => {
                                                   const res = handleCuttingInput(e.target.value, entry.entryType);
                                                   handleStageInputChange(entry.id, stage, 'cutting', res.raw);
@@ -4391,13 +4389,7 @@ const PhysicalInspection: React.FC = () => {
                                                 type="text"
                                                 disabled={isLocked}
                                                 value={cardData.bend}
-                                                placeholder="1×"
-                                                onFocus={() => {
-                                                  if (!cardData.bend) {
-                                                    const res = handleBendInput('1×', entry.entryType);
-                                                    handleStageInputChange(entry.id, stage, 'bend', res.raw);
-                                                  }
-                                                }}
+                                                placeholder="e.g. 1×12"
                                                 onChange={(e) => {
                                                   const res = handleBendInput(e.target.value, entry.entryType);
                                                   handleStageInputChange(entry.id, stage, 'bend', res.raw);
@@ -5557,42 +5549,28 @@ const PhysicalInspection: React.FC = () => {
                       {/* Row 2: Cutting, Bend, Mix */}
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <div style={{ flex: 1 }}>
-                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Cutting{isNewMode ? '' : ' *'}</label>
-                          <input
-                            type="text"
-                            disabled={isLocked}
-                            value={cardData.cutting}
-                            placeholder="1×"
-                            onFocus={() => {
-                              if (!cardData.cutting) {
-                                const res = handleCuttingInput('1×', entry.entryType);
+                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Cutting{isNewMode ? '' : ' *'}</label>                            <input
+                              type="text"
+                              disabled={isLocked}
+                              value={cardData.cutting}
+                              placeholder="e.g. 1×12"
+                              onChange={(e) => {
+                                const res = handleCuttingInput(e.target.value, entry.entryType);
                                 handleStageInputChange(entry.id, stage, 'cutting', res.raw);
-                              }
-                            }}
-                            onChange={(e) => {
-                              const res = handleCuttingInput(e.target.value, entry.entryType);
-                              handleStageInputChange(entry.id, stage, 'cutting', res.raw);
-                            }}
+                              }}
                             style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
                           />
                         </div>
                         <div style={{ flex: 1 }}>
-                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Bend{isNewMode ? '' : ' *'}</label>
-                          <input
-                            type="text"
-                            disabled={isLocked}
-                            value={cardData.bend}
-                            placeholder="1×"
-                            onFocus={() => {
-                              if (!cardData.bend) {
-                                const res = handleBendInput('1×', entry.entryType);
+                          <label style={{ display: 'block', fontWeight: '600', marginBottom: '3px' }}>Bend{isNewMode ? '' : ' *'}</label>                            <input
+                              type="text"
+                              disabled={isLocked}
+                              value={cardData.bend}
+                              placeholder="e.g. 1×12"
+                              onChange={(e) => {
+                                const res = handleBendInput(e.target.value, entry.entryType);
                                 handleStageInputChange(entry.id, stage, 'bend', res.raw);
-                              }
-                            }}
-                            onChange={(e) => {
-                              const res = handleBendInput(e.target.value, entry.entryType);
-                              handleStageInputChange(entry.id, stage, 'bend', res.raw);
-                            }}
+                              }}
                             style={{ width: '100%', padding: '5px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '4px' }}
                           />
                         </div>

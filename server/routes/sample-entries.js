@@ -66,6 +66,21 @@ const normalizePendingManagerApprovalQueue2 = (offering) => {
 
   return [];
 };
+
+// Missing Final Rate 2 fields — mirrors the FR1 missing-value tracking shown on the client.
+// Returns the always-required set + payment validation; the client table adds the
+// rate-type/enabled-flag conditional fields (LF/CD/Bank Loan).
+const computeFr2MissingFields = (vals) => {
+  const missing = [];
+  if (!(parseFloat(vals?.finalBaseRate2 ?? '') > 0)) missing.push('Final Rate');
+  if (!(parseFloat(vals?.finalSute2 ?? '') > 0)) missing.push('Sute');
+  if (!(parseFloat(vals?.hamali2 ?? '') > 0)) missing.push('Hamali');
+  if (!(parseFloat(vals?.brokerage2 ?? '') > 0)) missing.push('Brokerage');
+  const pay = vals?.paymentConditionValue2;
+  if (pay != null && pay !== '' && !(parseInt(pay, 10) > 0)) missing.push('Payment');
+  return missing;
+};
+
 const { auth: authenticateToken } = require('../middleware/auth');
 const SampleEntryService = require('../services/SampleEntryService');
 const QualityParametersService = require('../services/QualityParametersService');
@@ -1303,7 +1318,7 @@ router.get('/tabs/edit-approvals', authenticateToken, cacheMiddleware(15), async
 router.get('/tabs/manager-value-approvals', authenticateToken, cacheMiddleware(15), async (req, res) => {
   try {
     const workflowRole = getWorkflowRole(req.user);
-    if (!['admin', 'owner'].includes(workflowRole)) {
+    if (!['admin', 'owner', 'md'].includes(workflowRole)) {
       return res.status(403).json({ error: 'Only admin can view manager value approvals' });
     }
 
@@ -1359,7 +1374,7 @@ router.get('/tabs/manager-value-approvals', authenticateToken, cacheMiddleware(1
 router.get('/tabs/rate-linking-approvals', authenticateToken, cacheMiddleware(15), async (req, res) => {
   try {
     const workflowRole = getWorkflowRole(req.user);
-    if (!['admin', 'owner'].includes(workflowRole)) {
+    if (!['admin', 'owner', 'md'].includes(workflowRole)) {
       return res.status(403).json({ error: 'Only admin can view rate linking approvals' });
     }
 
@@ -1389,7 +1404,7 @@ router.get('/tabs/rate-linking-approvals', authenticateToken, cacheMiddleware(15
 router.post('/:id/rate-linking-decision', authenticateToken, async (req, res) => {
   try {
     const workflowRole = getWorkflowRole(req.user);
-    if (!['admin', 'owner'].includes(workflowRole)) {
+    if (!['admin', 'owner', 'md'].includes(workflowRole)) {
       return res.status(403).json({ error: 'Only admin can approve rate linking requests' });
     }
 
@@ -1605,7 +1620,7 @@ router.post('/:id/edit-approval-decision', authenticateToken, async (req, res) =
 router.post('/:id/manager-value-approval-decision', authenticateToken, async (req, res) => {
   try {
     const workflowRole = getWorkflowRole(req.user);
-    if (!['admin', 'owner'].includes(workflowRole)) {
+    if (!['admin', 'owner', 'md'].includes(workflowRole)) {
       return res.status(403).json({ error: 'Only admin can approve manager value requests' });
     }
 
@@ -2693,7 +2708,7 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
             }
             invalidateSampleEntryTabCaches();
             return res.status(200).json(updatedQuality);
-          } else if (['admin', 'manager', 'owner'].includes(req.user.role)) {
+          } else if (['admin', 'md', 'manager', 'owner'].includes(req.user.role)) {
             // Admin/manager/owner can always update - no restriction
             if (req.file) {
               const uploadResult = await FileUploadService.uploadFile(req.file, { compress: true });
@@ -3118,7 +3133,7 @@ router.post('/:id/physical-inspection/:inspectionId/reject-stage', authenticateT
       return res.status(400).json({ error: 'Stage is required' });
     }
 
-    const allowedRoles = ['quality_supervisor', 'manager', 'admin', 'owner'];
+    const allowedRoles = ['quality_supervisor', 'manager', 'admin', 'md', 'owner'];
     if (!allowedRoles.includes(req.user.role)) {
       return res.status(403).json({ error: 'Only quality supervisor or manager can reject a stage' });
     }
@@ -3863,7 +3878,7 @@ router.post('/:id/complete-loading', authenticateToken, async (req, res) => {
     const sampleEntryId = req.params.id;
 
     // Only manager/admin can complete loading
-    if (!['manager', 'admin'].includes(req.user.role)) {
+    if (!['manager', 'admin', 'md'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Only manager or admin can complete loading lots' });
     }
 
@@ -3946,7 +3961,7 @@ router.post('/:id/close-lot', authenticateToken, async (req, res) => {
     const { reason } = req.body;
 
     // Only manager/admin can close lots
-    if (!['manager', 'admin'].includes(req.user.role)) {
+    if (!['manager', 'admin', 'md'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Only manager or admin can close lots' });
     }
 
@@ -4014,7 +4029,7 @@ router.post('/:id/resume-lot', authenticateToken, async (req, res) => {
     const sampleEntryId = req.params.id;
 
     // Only manager and admin can resume lots
-    if (!['manager', 'admin'].includes(req.user.role)) {
+    if (!['manager', 'admin', 'md'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Only manager or admin can resume lots' });
     }
 
@@ -4240,7 +4255,7 @@ router.delete('/:id/physical-inspection/:inspectionId', authenticateToken, async
     const AuditService = require('../services/AuditService');
 
     // Only quality supervisor, manager, admin, or owner can reject/delete a trip
-    const allowedRoles = ['quality_supervisor', 'manager', 'admin', 'owner'];
+    const allowedRoles = ['quality_supervisor', 'manager', 'admin', 'md', 'owner'];
     if (!allowedRoles.includes(req.user.role)) {
       return res.status(403).json({ error: 'Only quality supervisor or manager can reject a trip' });
     }
@@ -4598,7 +4613,7 @@ router.post('/:id/final-rate-2', authenticateToken, async (req, res) => {
     } = req.body;
 
     const fr2Role = getWorkflowRole(req.user);
-    if (!['manager', 'admin', 'owner', 'ceo'].includes(fr2Role)) {
+    if (!['manager', 'admin', 'owner', 'ceo', 'md'].includes(fr2Role)) {
       return res.status(403).json({ error: 'Only manager, admin or owner can set Final Rate 2' });
     }
 
@@ -4616,10 +4631,11 @@ router.post('/:id/final-rate-2', authenticateToken, async (req, res) => {
       offering = await SampleEntryOffering.create({ sampleEntryId });
     }
 
-    const isManager = String(fr2Role || '').toLowerCase() === 'manager';
+    // CEO and Manager submit FR2 values → go for approval (isolated _2 flow).
+    // Owner / MD / Admin apply directly (auto-approved).
+    const requiresApproval = ['manager', 'ceo'].includes(String(fr2Role || '').toLowerCase());
 
-    // Manager submits FR2 values → goes for admin approval (isolated _2 flow)
-    if (isManager) {
+    if (requiresApproval) {
       const DEFAULT_FR2_UNITS2 = {
         finalSuteUnit2: 'per_ton', hamaliUnit2: 'per_bag', brokerageUnit2: 'per_bag',
         lfUnit2: 'per_bag', egbType2: 'mill', cdUnit2: 'lumps',
@@ -4662,7 +4678,8 @@ router.post('/:id/final-rate-2', authenticateToken, async (req, res) => {
       invalidateSampleEntryTabCaches();
       return res.json({
         message: 'Final Rate 2 submitted for approval',
-        pending: true
+        pending: true,
+        missingFields: computeFr2MissingFields(pendingData2)
       });
     }
 
@@ -4692,6 +4709,13 @@ router.post('/:id/final-rate-2', authenticateToken, async (req, res) => {
       isFinalized2: true,
       finalReportedBy2: req.user.fullName || req.user.username || 'Unknown',
       finalReportedAt2: new Date(),
+      // Owner / MD / Admin apply directly → record as auto-approved so the UI shows (Approved),
+      // and clear any earlier pending manager/CEO request so it doesn't resurface.
+      pendingManagerValueApprovalStatus2: 'approved',
+      pendingManagerValueApprovalApprovedBy2: req.user.userId,
+      pendingManagerValueApprovalApprovedAt2: new Date(),
+      pendingManagerValueApprovalQueue2: [],
+      pendingManagerValueApprovalData2: null,
       updatedBy: req.user.userId
     };
 
@@ -4700,7 +4724,8 @@ router.post('/:id/final-rate-2', authenticateToken, async (req, res) => {
     invalidateSampleEntryTabCaches();
     res.json({
       message: 'Final Rate 2 saved successfully',
-      offering
+      offering,
+      missingFields: computeFr2MissingFields(updateData)
     });
   } catch (error) {
     console.error('Error saving Final Rate 2:', error);
@@ -4713,7 +4738,7 @@ router.post('/:id/final-rate-2', authenticateToken, async (req, res) => {
 router.get('/tabs/manager-value-approvals-2', authenticateToken, async (req, res) => {
   try {
     const workflowRole = getWorkflowRole(req.user);
-    if (!['admin', 'owner'].includes(workflowRole)) {
+    if (!['admin', 'owner', 'md'].includes(workflowRole)) {
       return res.status(403).json({ error: 'Only admin can view Final Rate 2 approvals' });
     }
 
@@ -4772,7 +4797,7 @@ router.get('/tabs/manager-value-approvals-2', authenticateToken, async (req, res
 router.post('/:id/final-rate-2-approval-decision', authenticateToken, async (req, res) => {
   try {
     const workflowRole = getWorkflowRole(req.user);
-    if (!['admin', 'owner'].includes(workflowRole)) {
+    if (!['admin', 'owner', 'md'].includes(workflowRole)) {
       return res.status(403).json({ error: 'Only admin can approve Final Rate 2 requests' });
     }
 

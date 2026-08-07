@@ -1926,6 +1926,8 @@ const Arrivals: React.FC = () => {
   const [bmbSearchQuery, setBmbSearchQuery] = useState('');
   const [bmbPage, setBmbPage] = useState(1);
   const [bmbPageSize, setBmbPageSize] = useState(12);
+  const [inTransitStatusFilter, setInTransitStatusFilter] = useState<'all' | 'pending'>('all');
+  const [bmbStatusFilter, setBmbStatusFilter] = useState<'all' | 'pending'>('all');
 
   const [selectedDetailEntry, setSelectedDetailEntry] = useState<any>(null);
   const [isQualitySamplingModalOpen, setIsQualitySamplingModalOpen] = useState(false);
@@ -3209,7 +3211,7 @@ const Arrivals: React.FC = () => {
 
 
 
-    ((parseFloat(grossWeight || 0) - parseFloat(tareWeight || 0)) || 0).toFixed(2) : '0.00';
+    stripDecimals(((parseFloat(grossWeight || 0) - parseFloat(tareWeight || 0)) || 0)) : '';
 
 
 
@@ -3966,7 +3968,7 @@ const Arrivals: React.FC = () => {
 
 
 
-  const [placeType, setPlaceType] = useState<'production' | 'kunchinittu'>('production');
+  const [placeType, setPlaceType] = useState<'production' | 'kunchinittu' | ''>('');
 
 
 
@@ -4059,22 +4061,42 @@ const Arrivals: React.FC = () => {
     return params.find((p: any) => p.type === inventoryQualityType && p.status === 'rejected' && p.rejectReason && p.rejectReason.startsWith('RECHECK:'));
   }, [qualitySamplingEntry, inventoryQualityType]);
 
+  // Timezone-safe date string (YYYY-MM-DD) — avoids toISOString() day-shift bugs in filters
+  function safeDateStr(value: any): string {
+    if (!value) return '';
+    if (typeof value === 'string') {
+      const t = value.indexOf('T') >= 0 ? value.split('T')[0] : value.split(' ')[0];
+      if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+    }
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return '';
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  // Show only the decimals the user actually entered (15.00 → 15, 15.50 stays)
+  function stripDecimals(value: any): string {
+    if (value === null || value === undefined || value === '') return String(value ?? '-');
+    const n = Number(value);
+    if (!isFinite(n)) return String(value);
+    return String(parseFloat(n.toFixed(2)));
+  }
+
   const filteredBmbEntries = useMemo(() => {
     return bandMalalEntries.filter((entry) => {
       // 1. Date filter
       if (bmbDateFilter) {
-        const entryDate = entry.date ? new Date(entry.date).toISOString().split('T')[0] : '';
+        const entryDate = safeDateStr(entry.date);
         if (entryDate !== bmbDateFilter) return false;
       }
       // 1b. Date range from / to
-      const entryDateVal = entry.date ? new Date(entry.date).toISOString().split('T')[0] : '';
+      const entryDateVal = safeDateStr(entry.date);
       if (bmbDateFromFilter && entryDateVal < bmbDateFromFilter) return false;
       if (bmbDateToFilter && entryDateVal > bmbDateToFilter) return false;
 
       // 2. Broker filter
       if (bmbBrokerFilter) {
         const brokerName = (entry.broker || '').toLowerCase();
-        if (brokerName !== bmbBrokerFilter.toLowerCase()) return false;
+        if (!brokerName.includes(bmbBrokerFilter.toLowerCase())) return false;
       }
       // 3. Variety filter
       if (bmbVarietyFilter) {
@@ -4099,9 +4121,17 @@ const Arrivals: React.FC = () => {
           return false;
         }
       }
+      // 5. Status filter (All / Pending approval)
+      if (bmbStatusFilter === 'pending') {
+        const qParams = entry.inventoryQualityParameters || [];
+        const hasPendingQuality = qParams.some((p: any) => p.status === 'pending');
+        const isPlacePending = entry.placeStatus === 'pending' || (entry.placeRejectReason && String(entry.placeRejectReason).startsWith('EDIT_PENDING:'));
+        const isWbPending = entry.wbStatus === 'pending';
+        if (!hasPendingQuality && !isPlacePending && !isWbPending) return false;
+      }
       return true;
     });
-  }, [bandMalalEntries, bmbDateFilter, bmbDateFromFilter, bmbDateToFilter, bmbBrokerFilter, bmbVarietyFilter, bmbSearchQuery]);
+  }, [bandMalalEntries, bmbDateFilter, bmbDateFromFilter, bmbDateToFilter, bmbBrokerFilter, bmbVarietyFilter, bmbSearchQuery, bmbStatusFilter]);
 
   const paginatedBmbEntries = useMemo(() => {
     const start = (bmbPage - 1) * bmbPageSize;
@@ -4185,7 +4215,7 @@ const Arrivals: React.FC = () => {
     // Apply top filters
     return flatTrips.filter(trip => {
       const dateVal = trip.isPlaceholder ? trip.entry.entryDate : (trip.inspection?.inspectionDate || trip.entry.entryDate);
-      const dateStr = dateVal ? new Date(dateVal).toISOString().split('T')[0] : '';
+      const dateStr = safeDateStr(dateVal);
       if (inTransitDateFilter && dateStr !== inTransitDateFilter) return false;
       if (inTransitDateFromFilter && dateStr < inTransitDateFromFilter) return false;
       if (inTransitDateToFilter && dateStr > inTransitDateToFilter) return false;
@@ -4199,9 +4229,18 @@ const Arrivals: React.FC = () => {
         const vName = (trip.entry?.variety || '').toLowerCase();
         if (!vName.includes(inTransitVarietyFilter.toLowerCase())) return false;
       }
+      // Status filter (All / Pending approval: WB pending, godown pending, or Lot Avg/Gutti pending)
+      if (inTransitStatusFilter === 'pending') {
+        const tDetail = trip.inspection?.lorryTransitDetail;
+        const isWbPending = tDetail?.wbStatus === 'pending';
+        const isPlacePending = tDetail?.placeStatus === 'pending';
+        const iqParams = trip.inspection?.inventoryQualityParameters || trip.entry?.inventoryQualityParameters || [];
+        const hasPendingQuality = iqParams.some((p: any) => p.status === 'pending');
+        if (!isWbPending && !isPlacePending && !hasPendingQuality) return false;
+      }
       return true;
     });
-  }, [inTransitEntries, inTransitDateFilter, inTransitDateFromFilter, inTransitDateToFilter, inTransitBrokerFilter, inTransitVarietyFilter]);
+  }, [inTransitEntries, inTransitDateFilter, inTransitDateFromFilter, inTransitDateToFilter, inTransitBrokerFilter, inTransitVarietyFilter, inTransitStatusFilter]);
 
   // Auto-pagination: Switch to the last page when a new entry is added
   const prevBmbLengthRef = useRef(0);
@@ -5035,7 +5074,7 @@ const Arrivals: React.FC = () => {
 
 
   const canApproveInventoryQuality = user && ['admin', 'owner', 'manager', 'ceo'].includes(user.role);
-  const canApproveWB = user && ['admin', 'owner', 'manager', 'ceo', 'inventory_head'].includes(user.role);
+  const canApproveWB = user && ['admin', 'md', 'owner', 'manager', 'ceo', 'inventory_head'].includes(user.role);
 
 
 
@@ -5971,6 +6010,14 @@ const Arrivals: React.FC = () => {
                 <option value={50}>50 records</option>
                 <option value={100}>100 records</option>
               </select>
+              <select
+                value={inTransitStatusFilter}
+                onChange={(e) => { setInTransitStatusFilter(e.target.value as any); setInTransitPage(1); }}
+                style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', background: '#fff', fontSize: '12px', fontWeight: 600, color: '#475569', height: '32px' }}
+              >
+                <option value="all">All Status</option>
+                <option value="pending">⏳ Pending Approval</option>
+              </select>
               <button onClick={handleRefreshTransit} disabled={loadingTransit} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', background: '#f8fafc', cursor: loadingTransit ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: 600, color: '#475569', display: 'flex', alignItems: 'center', gap: '4px', transition: 'all 0.2s' }}>
                 <span style={{ display: 'inline-block', animation: loadingTransit ? 'spin 1s linear infinite' : 'none' }}>🔄</span> Refresh
               </button>
@@ -6275,7 +6322,7 @@ const Arrivals: React.FC = () => {
 
 
                         const displayNetWeight = transitDetail?.suteNetWeight !== undefined && transitDetail?.suteNetWeight !== null ? 
-                          `${transitDetail.suteNetWeight} Kg` : (netWeightVal !== '-' && netWeightVal !== null ? `${netWeightVal} Kg` : '-');
+                          `${stripDecimals(transitDetail.suteNetWeight)} Kg` : (netWeightVal !== '-' && netWeightVal !== null ? `${stripDecimals(netWeightVal)} Kg` : '-');
 
 
 
@@ -6283,30 +6330,13 @@ const Arrivals: React.FC = () => {
 
 
 
+                        const isInvHead = (user as any)?.role === 'inventory_head' || ((user as any)?.role === 'inventory_staff' && (user as any)?.subRole === 'head');
                         const isApprover = (user as any)?.role === 'owner' || 
-
-
-
+                                           (user as any)?.role === 'md' || 
                                            (user as any)?.role === 'ceo' || 
-
-
-
                                            (user as any)?.effectiveRole === 'ceo' || 
-
-
-
-                                           (user as any)?.role === 'inventory_head' || 
-
-
-
-                                           (user as any)?.effectiveRole === 'inventory_head' || 
-
-
-
+                                           isInvHead || 
                                            (user as any)?.role === 'admin' || 
-
-
-
                                            (user as any)?.role === 'manager';
 
 
@@ -6362,7 +6392,7 @@ const Arrivals: React.FC = () => {
                               <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center' }}>
                                 <button
                                   onClick={() => {
-                                    const dStr = new Date(dateVal).toISOString().split('T')[0];
+                                    const dStr = safeDateStr(dateVal);
                                     setInTransitDateFromFilter(dStr);
                                     setInTransitDateToFilter(dStr);
                                     setInTransitPage(1);
@@ -6502,11 +6532,35 @@ const Arrivals: React.FC = () => {
                               {/* Godown - after Party Name */}
                               <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontSize: '11px', verticalAlign: 'middle' }}>
                                 {transitDetail && (placeStatus === 'approved' || placeStatus === 'pending' || placeStatus === 'placed') ? (
-                                  <span style={{ 
-                                    padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold',
-                                    background: placeStatus === 'approved' ? '#dcfce7' : '#fef3c7',
-                                    color: placeStatus === 'approved' ? '#166534' : '#92400e'
-                                  }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (!isApprover) return;
+                                      const rowKey = isPlaceholder ? `p-${entry.id}` : `i-${inspection.id}`;
+                                      setIsPlaceEdit(true);
+                                      setSelectedLorryForPlace(rowKey);
+                                      setSelectedLorryForWB(null);
+                                      setSelectedLorryEntries([entry]);
+                                      setSelectedLorryInspection(inspection);
+                                      setPlaceDate(transitDetail.placeDate ? String(transitDetail.placeDate).slice(0, 10) : new Date().toISOString().split('T')[0]);
+                                      // Pre-fill with existing godown/place data
+                                      setPlaceType(transitDetail.placeType || '');
+                                      setPlaceWarehouseId(transitDetail.placeWarehouseId ? String(transitDetail.placeWarehouseId) : '');
+                                      setPlaceKunchinittuId(transitDetail.placeKunchinittuId ? String(transitDetail.placeKunchinittuId) : '');
+                                      setPlaceOutturnId(transitDetail.outturnId ? String(transitDetail.outturnId) : '');
+                                    }}
+                                    title={isApprover ? 'Click to edit godown' : ''}
+                                    disabled={!isApprover}
+                                    style={{ 
+                                      padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold',
+                                      background: placeStatus === 'approved' ? '#dcfce7' : '#fef3c7',
+                                      color: placeStatus === 'approved' ? '#166534' : '#92400e',
+                                      border: 'none',
+                                      fontSize: '11px',
+                                      cursor: isApprover ? 'pointer' : 'default',
+                                      opacity: isApprover ? 1 : 0.55
+                                    }}
+                                  >
                                     {(() => {
                                       if (transitDetail.placeType === 'kunchinittu') {
                                         const kc = transitDetail.placeKunchinittuData?.name || '';
@@ -6515,65 +6569,32 @@ const Arrivals: React.FC = () => {
                                       }
                                       return transitDetail.placeWarehouse?.name || transitDetail.warehouse?.name || (transitDetail.outturn ? `${transitDetail.outturn.code} (${transitDetail.outturn.allottedVariety})` : '-') || '-';
                                     })()}
-                                  </span>
+                                  </button>
                                 ) : null}
-                                <div style={{ marginTop: transitDetail && (placeStatus === 'approved' || placeStatus === 'pending' || placeStatus === 'placed') ? '4px' : '0px' }}>                                  {placeStatus === 'approved' ? (
-                                    <button
-                                      onClick={() => {
-                                        const rowKey = isPlaceholder ? `p-${entry.id}` : `i-${inspection.id}`;
-                                        setIsPlaceEdit(true);
-                                        setSelectedLorryForPlace(rowKey);
-                                        setSelectedLorryForWB(null);
-                                        setSelectedLorryEntries([entry]);
-                                        setSelectedLorryInspection(inspection);
-                                        // Pre-fill with existing godown/place data
-                                        setPlaceType(transitDetail.placeType || 'production');
-                                        setPlaceWarehouseId(transitDetail.placeWarehouseId ? String(transitDetail.placeWarehouseId) : '');
-                                        setPlaceKunchinittuId(transitDetail.placeKunchinittuId ? String(transitDetail.placeKunchinittuId) : '');
-                                        setPlaceOutturnId(transitDetail.outturnId ? String(transitDetail.outturnId) : '');
-                                      }}
-                                      style={{
-                                        padding: '2px 4px',
-                                        border: 'none',
-                                        borderRadius: '3px',
-                                        background: '#0284c7',
-                                        color: '#fff',
-                                        fontWeight: 'bold',
-                                        fontSize: '9px',
-                                        cursor: 'pointer'
-                                      }}
-                                    >
-                                      ✏️ Edit
-                                    </button>
-                                  ) : placeStatus === 'placed' ? (
+                                <div style={{ marginTop: transitDetail && (placeStatus === 'approved' || placeStatus === 'pending' || placeStatus === 'placed') ? '4px' : '0px' }}>
+                                  {placeStatus === 'placed' ? (
                                      <>
-                                       <span style={{ fontSize: '10px', color: '#2563eb', fontWeight: 'bold' }}>📍 Placed ✅</span>
                                        {transitDetail.placeRejectReason && transitDetail.placeRejectReason.startsWith('REJECTED_EDIT:') && (
                                          <span style={{ background: '#fee2e2', color: '#b91c1c', padding: '2px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 'bold', border: '1px solid #fca5a5', marginLeft: '4px' }}>✖ Edit Rejected</span>
                                        )}
                                      </>
-                                  ) : placeStatus === 'pending' && transitDetail.placeRejectReason && transitDetail.placeRejectReason.startsWith('EDIT_PENDING:') ? (
-                                     <>
-                                       <span style={{ fontSize: '9px', color: '#92400e', fontWeight: 'bold' }}>⏳ Edit Pending</span>
-                                       {isApprover ? (
-                                         <div style={{ display: 'flex', gap: '3px', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
-                                           <button
-                                             onClick={() => handleApprovePlace(transitDetail.id || inspection.id)}
-                                             style={{ padding: '2px 5px', border: 'none', borderRadius: '3px', background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}
-                                           >
-                                             ✅ Approve
-                                           </button>
-                                           <button
-                                             onClick={() => setPlaceConfirmDialog({ trip: { entry: transitDetail, inspection, isPlaceholder: false }, action: 'reject' })}
-                                             style={{ padding: '2px 5px', border: 'none', borderRadius: '3px', background: '#ef4444', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}
-                                           >
-                                             ✖ Reject
-                                           </button>
-                                         </div>
-                                       ) : (
-                                         <span style={{ fontSize: '9px', color: '#92400e', fontWeight: 'bold' }}>Waiting for approval</span>
-                                       )}
-                                     </>
+                                  ) : placeStatus === 'pending' ? (
+                                     isApprover ? (
+                                       <div style={{ display: 'flex', gap: '3px', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
+                                         <button
+                                           onClick={() => handleApprovePlace(transitDetail.id || inspection.id)}
+                                           style={{ padding: '2px 5px', border: 'none', borderRadius: '3px', background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}
+                                         >
+                                           ✅ Approve
+                                         </button>
+                                         <button
+                                           onClick={() => setPlaceConfirmDialog({ trip: { entry: transitDetail, inspection, isPlaceholder: false }, action: 'reject' })}
+                                           style={{ padding: '2px 5px', border: 'none', borderRadius: '3px', background: '#ef4444', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}
+                                         >
+                                           ✖ Reject
+                                         </button>
+                                       </div>
+                                     ) : null
                                   ) : (user?.role === 'staff' && (user?.staffType === 'location' || user?.staffType === 'mill')) ? null : (
                                     <button
                                       onClick={() => {
@@ -6590,7 +6611,7 @@ const Arrivals: React.FC = () => {
                                           setPlaceWarehouseId('');
                                           setPlaceKunchinittuId('');
                                           setPlaceOutturnId('');
-                                          setPlaceType('production');
+                                          setPlaceType('');
                                         }
                                       }}
                                       style={{
@@ -6664,7 +6685,6 @@ const Arrivals: React.FC = () => {
                                     }}
                                   >
                                     {wbNoVal}
-                                    {wbStatus === 'pending' && ' ⏳'}
                                   </span>
                                 ) : wbStatus === 'rejected' ? (
                                   <div>
@@ -6694,18 +6714,10 @@ const Arrivals: React.FC = () => {
                                         <div style={{ display: 'flex', gap: '3px', justifyContent: 'center' }}>
                                           <button onClick={() => handleApproveWb(inspection?.id || entry?.id, { ...transitDetail, bags: bagsLoaded })} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>Approve WB</button>
                                           <button onClick={() => handleRejectWb(inspection?.id || entry?.id, transitDetail)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#ef4444', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>Reject WB</button>
-                                          <button onClick={() => openWbEditModal(isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id), transitDetail, entry, inspection)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#0284c7', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>✏️ Edit</button>
                                         </div>
-                                      ) : (
-                                        <div style={{ display: 'flex', gap: '3px', justifyContent: 'center', alignItems: 'center' }}>
-                                          <span style={{ fontSize: '9px', color: '#92400e', fontWeight: 'bold' }}>⏳ Pending</span>
-                                          <button onClick={() => openWbEditModal(isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id), transitDetail, entry, inspection)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#0284c7', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>✏️ Edit</button>
-                                        </div>
-                                      );
+                                      ) : null;
                                     } else if (wbSt === 'approved') {
-                                      return (
-                                        <button onClick={() => openWbEditModal(isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id), transitDetail, entry, inspection)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#0284c7', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>✏️ Edit WB</button>
-                                      );
+                                      return null;
                                     } else {
                                       const isRejected = wbSt === 'rejected';
                                       return (
@@ -6767,7 +6779,7 @@ const Arrivals: React.FC = () => {
 
                               {/* 4. Sute Net Wt */}
                               <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700' }}>
-                                {transitDetail?.suteNetWeight ? `${transitDetail.suteNetWeight} Kg` : '-'}
+                                {transitDetail?.suteNetWeight ? `${stripDecimals(transitDetail.suteNetWeight)} Kg` : '-'}
                               </td>
 
 
@@ -6991,6 +7003,10 @@ const Arrivals: React.FC = () => {
 
 
 
+                                          <option value="">-- Select Destination --</option>
+
+
+
                                           <option value="production">Production</option>
 
 
@@ -7011,7 +7027,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                                      {placeType === 'production' ? (
+                                      {placeType === 'production' && (
 
 
 
@@ -7080,13 +7096,8 @@ const Arrivals: React.FC = () => {
 
 
                                         </>
-
-
-
-                                      ) : (
-
-
-
+                                      )}
+                                      {placeType === 'kunchinittu' && (
                                         <>
 
 
@@ -7618,6 +7629,14 @@ const Arrivals: React.FC = () => {
                 <option value={50}>50 records</option>
                 <option value={100}>100 records</option>
               </select>
+              <select
+                value={bmbStatusFilter}
+                onChange={(e) => { setBmbStatusFilter(e.target.value as any); setBmbPage(1); }}
+                style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', background: '#fff', fontSize: '12px', fontWeight: 600, color: '#475569', height: '32px' }}
+              >
+                <option value="all">All Status</option>
+                <option value="pending">⏳ Pending Approval</option>
+              </select>
             </div>
           </div>
 
@@ -7827,7 +7846,7 @@ const Arrivals: React.FC = () => {
 
 
                     const displayNetWeight = entry.suteNetWeight !== undefined && entry.suteNetWeight !== null ? 
-                      `${entry.suteNetWeight} Kg` : (netWeightVal ? `${netWeightVal} Kg` : '-');
+                      `${stripDecimals(entry.suteNetWeight)} Kg` : (netWeightVal ? `${stripDecimals(netWeightVal)} Kg` : '-');
 
 
 
@@ -7939,30 +7958,13 @@ const Arrivals: React.FC = () => {
 
 
 
+                    const isInvHead = (user as any)?.role === 'inventory_head' || ((user as any)?.role === 'inventory_staff' && (user as any)?.subRole === 'head');
                     const isApprover = (user as any)?.role === 'owner' || 
-
-
-
+                                       (user as any)?.role === 'md' || 
                                        (user as any)?.role === 'ceo' || 
-
-
-
                                        (user as any)?.effectiveRole === 'ceo' || 
-
-
-
-                                       (user as any)?.role === 'inventory_head' || 
-
-
-
-                                       (user as any)?.effectiveRole === 'inventory_head' || 
-
-
-
+                                       isInvHead || 
                                        (user as any)?.role === 'admin' || 
-
-
-
                                        (user as any)?.role === 'manager';
 
 
@@ -8019,7 +8021,7 @@ const Arrivals: React.FC = () => {
                             {entry.date ? (
                               <button
                                 onClick={() => {
-                                  const dStr = new Date(entry.date).toISOString().split('T')[0];
+                                  const dStr = safeDateStr(entry.date);
                                   setBmbDateFromFilter(dStr);
                                   setBmbDateToFilter(dStr);
                                   setBmbPage(1);
@@ -8361,35 +8363,50 @@ const Arrivals: React.FC = () => {
                           {/* Column 4b: Godown */}
                           <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: '#7c3aed' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                              <div>{placeDisplay}</div>
+                              <button
+                                type="button"
+                                disabled={!isApprover}
+                                title={isApprover ? 'Click to edit godown' : ''}
+                                onClick={() => {
+                                  if (!isApprover) return;
+                                  // Clear all place state first
+                                  setPlaceDate('');
+                                  setPlaceType('');
+                                  setPlaceWarehouseId('');
+                                  setPlaceKunchinittuId('');
+                                  setPlaceOutturnId('');
+                                  // Set edit mode
+                                  setIsPlaceEdit(true);
+                                  // Set selectedLorryForPlace with bmb prefix to show inline form in Band Malal Book
+                                  setSelectedLorryForPlace(`bmb-${entry.id}`);
+                                  setSelectedLorryInspection(entry.physicalInspection || null);
+                                  // Pre-fill with existing godown/place data
+                                  const editPlaceType = entry.placeType || '';
+                                  setTimeout(() => {
+                                    setPlaceType(editPlaceType);
+                                    setPlaceWarehouseId(entry.placeWarehouseId ? String(entry.placeWarehouseId) : (entry.placeWarehouse?.id ? String(entry.placeWarehouse.id) : (entry.toWarehouse?.id ? String(entry.toWarehouse.id) : '')));
+                                    setPlaceKunchinittuId(entry.placeKunchinittuId ? String(entry.placeKunchinittuId) : (entry.placeKunchinittuData?.id ? String(entry.placeKunchinittuData.id) : (entry.toKunchinittu?.id ? String(entry.toKunchinittu.id) : '')));
+                                    setPlaceOutturnId(entry.outturn?.id ? String(entry.outturn.id) : '');
+                                    const dateValue = entry.placeDate ? (typeof entry.placeDate === 'string' ? entry.placeDate.split('T')[0] : safeDateStr(entry.placeDate)) : '';
+                                    setPlaceDate(dateValue);
+                                  }, 0);
+                                  setSelectedLorryEntries([entry]);
+                                }}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  padding: 0,
+                                  font: 'inherit',
+                                  color: '#7c3aed',
+                                  fontWeight: '600',
+                                  textDecoration: isApprover ? 'underline' : 'none',
+                                  cursor: isApprover ? 'pointer' : 'default'
+                                }}
+                              >
+                                {placeDisplay}
+                              </button>
                               {/* Show pending edit indicator */}
                               {entry.placeRejectReason && entry.placeRejectReason.startsWith('EDIT_PENDING:') && (
-                                <span style={{ 
-                                  background: '#fef3c7', 
-                                  color: '#92400e', 
-                                  padding: '2px 6px', 
-                                  borderRadius: '4px', 
-                                  fontSize: '9px', 
-                                  fontWeight: 'bold',
-                                  border: '1px solid #fbbf24'
-                                }}>
-                                  ⏳ Edit Pending
-                                </span>
-                              )}
-                              {entry.placeRejectReason && entry.placeRejectReason.startsWith('REJECTED_EDIT:') && (
-                                <span style={{ 
-                                  background: '#fee2e2', 
-                                  color: '#b91c1c', 
-                                  padding: '2px 6px', 
-                                  borderRadius: '4px', 
-                                  fontSize: '9px', 
-                                  fontWeight: 'bold',
-                                  border: '1px solid #fca5a5'
-                                }}>
-                                  ✖ Edit Rejected
-                                </span>
-                              )}
-                              {placeStatus === 'pending' && entry.placeRejectReason && entry.placeRejectReason.startsWith('EDIT_PENDING:') && (
                                 <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', alignItems: 'center' }}>
                                   {isApprover && (
                                     <>
@@ -8439,60 +8456,9 @@ const Arrivals: React.FC = () => {
                                       </button>
                                     </>
                                   )}
-                                  {!isApprover && (
-                                    <span style={{ fontSize: '9px', color: '#92400e', fontWeight: 'bold' }}>Waiting for approval</span>
-                                  )}
                                 </div>
                               )}
-                              {placeStatus === 'approved' && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    // Clear all place state first
-                                    setPlaceDate('');
-                                    setPlaceType('production');
-                                    setPlaceWarehouseId('');
-                                    setPlaceKunchinittuId('');
-                                    setPlaceOutturnId('');
-                                    
-                                    // Set edit mode
-                                    setIsPlaceEdit(true);
-                                    // Set selectedLorryForPlace with bmb prefix to show inline form in Band Malal Book
-                                    setSelectedLorryForPlace(`bmb-${entry.id}`);
-                                    setSelectedLorryInspection(entry.physicalInspection || null);
-                                    
-                                    // Pre-fill with existing godown/place data
-                                    const editPlaceType = entry.placeType || 'production';
-                                    setTimeout(() => {
-                                      setPlaceType(editPlaceType);
-                                      setPlaceWarehouseId(entry.placeWarehouseId ? String(entry.placeWarehouseId) : (entry.placeWarehouse?.id ? String(entry.placeWarehouse.id) : (entry.toWarehouse?.id ? String(entry.toWarehouse.id) : '')));
-                                      setPlaceKunchinittuId(entry.placeKunchinittuId ? String(entry.placeKunchinittuId) : (entry.placeKunchinittuData?.id ? String(entry.placeKunchinittuData.id) : (entry.toKunchinittu?.id ? String(entry.toKunchinittu.id) : '')));
-                                      setPlaceOutturnId(entry.outturn?.id ? String(entry.outturn.id) : '');
-                                      const dateValue = entry.placeDate ? (typeof entry.placeDate === 'string' ? entry.placeDate.split('T')[0] : new Date(entry.placeDate).toISOString().split('T')[0]) : '';
-                                      setPlaceDate(dateValue);
-                                    }, 0);
-                                    
-                                    setSelectedLorryEntries([entry]);
-                                    console.log('Edit Godown - physicalInspection:', entry.physicalInspection?.id, 'outturn:', entry.outturn, 'placeType:', entry.placeType, 'editPlaceType:', editPlaceType, 'outturnId:', entry.outturn?.id, 'kunchinittuId:', entry.placeKunchinittuId, 'warehouseId:', entry.placeWarehouseId);
-                                  }}
-                                  style={{
-                                    padding: '3px 8px',
-                                    fontSize: '10px',
-                                    background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    fontWeight: '600',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '3px',
-                                    whiteSpace: 'nowrap'
-                                  }}
-                                >
-                                  ✏️ Edit
-                                </button>
-                              )}
+
                             </div>
                           </td>
 
@@ -8580,22 +8546,14 @@ const Arrivals: React.FC = () => {
                                     cursor: 'pointer'
                                   }}
                                 >
-                                  {entry.wbNo}{wbStatus === 'pending' ? ' ⏳' : ''}
+                                  {entry.wbNo}
                                 </span>
                                 <div style={{ marginTop: '4px' }}>
                                   {wbStatus === 'pending' && canApproveWB ? (
                                     <div style={{ display: 'flex', gap: '3px', justifyContent: 'center' }}>
                                       <button onClick={() => handleApproveWb(entry.id, entry)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>Approve WB</button>
                                       <button onClick={() => handleRejectWb(entry.id)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#ef4444', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>Reject WB</button>
-                                      <button onClick={() => openWbEditModal((entry.lorryNumber || 'N/A').toUpperCase(), entry, entry, null)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#0284c7', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>✏️ Edit</button>
                                     </div>
-                                  ) : wbStatus === 'pending' ? (
-                                    <div style={{ display: 'flex', gap: '3px', justifyContent: 'center', alignItems: 'center' }}>
-                                      <span style={{ fontSize: '9px', color: '#92400e', fontWeight: 'bold' }}>⏳ Pending</span>
-                                      <button onClick={() => openWbEditModal((entry.lorryNumber || 'N/A').toUpperCase(), entry, entry, null)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#0284c7', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>✏️ Edit</button>
-                                    </div>
-                                  ) : wbStatus === 'approved' ? (
-                                    <button onClick={() => openWbEditModal((entry.lorryNumber || 'N/A').toUpperCase(), entry, entry, null)} style={{ padding: '2px 4px', border: 'none', borderRadius: '3px', background: '#0284c7', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}>✏️ Edit WB</button>
                                   ) : null}
                                 </div>
                               </div>
@@ -8664,7 +8622,7 @@ const Arrivals: React.FC = () => {
 
                            {/* Column 11: Sute Net Wt */}
                            <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: '#d97706' }}>
-                             {entry.suteNetWeight ? `${entry.suteNetWeight} Kg` : '-'}
+                             {entry.suteNetWeight ? `${stripDecimals(entry.suteNetWeight)} Kg` : '-'}
                            </td>
 
 
@@ -8879,15 +8837,16 @@ const Arrivals: React.FC = () => {
                                     <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Destination Type</label>
                                     <select
                                       value={placeType}
-                                      onChange={(e) => setPlaceType(e.target.value as 'production' | 'kunchinittu')}
+                                      onChange={(e) => setPlaceType(e.target.value as any)}
                                       style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
                                     >
+                                      <option value="">-- Select Destination --</option>
                                       <option value="production">Production (Outturn)</option>
                                       <option value="kunchinittu">Kunchinittu</option>
                                     </select>
                                   </div>
 
-                                  {placeType === 'production' ? (
+                                  {placeType === 'production' && (
                                     <div>
                                       <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Select Outturn</label>
                                       <select
@@ -8901,7 +8860,9 @@ const Arrivals: React.FC = () => {
                                         ))}
                                       </select>
                                     </div>
-                                  ) : (
+                                  )}
+
+                                  {placeType === 'kunchinittu' && (
                                     <>
                                       <div>
                                         <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Kunchinittu</label>
@@ -13348,7 +13309,7 @@ const Arrivals: React.FC = () => {
 
 
 
-          {netWeight !== '0.00' && (
+          {netWeight && netWeight !== '0' && (
 
 
 
@@ -13380,7 +13341,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                  <InfoTableValue>{grossWeight} kg</InfoTableValue>
+                  <InfoTableValue>{stripDecimals(grossWeight)} kg</InfoTableValue>
 
 
 
@@ -13396,7 +13357,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                  <InfoTableValue>{tareWeight} kg</InfoTableValue>
+                  <InfoTableValue>{stripDecimals(tareWeight)} kg</InfoTableValue>
 
 
 
@@ -13416,7 +13377,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                    {netWeight} kg
+                    {stripDecimals(netWeight)} kg
 
 
 
@@ -13460,6 +13421,7 @@ const Arrivals: React.FC = () => {
           completedLotsOrder={true}
           showCollectorLoginPair={true}
           isCompactOverride={arrivalsActiveSubTab === 'transit' || arrivalsActiveSubTab === 'bandmalal'}
+          isArrivalsView={arrivalsActiveSubTab === 'transit' || arrivalsActiveSubTab === 'bandmalal'}
           onClose={() => {
             setIsDetailOpen(false);
             setSelectedDetailEntry(null);
@@ -13556,9 +13518,9 @@ const Arrivals: React.FC = () => {
                   <div style={{ padding: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '11px' }}>
                     <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>WB Number</span><strong>{transitDetail?.wbNo || '-'}</strong></div>
                     <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>Mill Weight Bridge</span>{transitDetail?.millWeightBridge?.name || transitDetail?.partyWbName || '-'}</div>
-                    <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>Gross Weight</span>{transitDetail?.grossWeight ? `${transitDetail.grossWeight} Kg` : '-'}</div>
-                    <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>Tare Weight</span>{transitDetail?.tareWeight ? `${transitDetail.tareWeight} Kg` : '-'}</div>
-                    <div style={{ gridColumn: 'span 2' }}><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>Net Weight</span><strong style={{ color: '#10b981', fontSize: '13px' }}>{transitDetail?.netWeight ? `${transitDetail.netWeight} Kg` : '-'}</strong></div>
+                    <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>Gross Weight</span>{transitDetail?.grossWeight ? `${stripDecimals(transitDetail.grossWeight)} Kg` : '-'}</div>
+                    <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>Tare Weight</span>{transitDetail?.tareWeight ? `${stripDecimals(transitDetail.tareWeight)} Kg` : '-'}</div>
+                    <div style={{ gridColumn: 'span 2' }}><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>Net Weight</span><strong style={{ color: '#10b981', fontSize: '13px' }}>{transitDetail?.netWeight ? `${stripDecimals(transitDetail.netWeight)} Kg` : '-'}</strong></div>
                     <div style={{ gridColumn: 'span 2' }}>
                       <span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold', marginBottom: '2px' }}>WB Status</span>
                       <span style={{
@@ -13643,9 +13605,9 @@ const Arrivals: React.FC = () => {
 
                   {/* Row 2 */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '8px', borderBottom: '1px dashed #cbd5e1', paddingBottom: '6px' }}>
-                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Gross Weight</span><strong>{wbConfirmDialog.detail?.grossWeight || '-'} Kg</strong></div>
-                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Tare Weight</span><strong>{wbConfirmDialog.detail?.tareWeight || '-'} Kg</strong></div>
-                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Net Weight</span><strong style={{ color: '#10b981' }}>{wbConfirmDialog.detail?.netWeight || '-'} Kg</strong></div>
+                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Gross Weight</span><strong>{stripDecimals(wbConfirmDialog.detail?.grossWeight) || '-'} Kg</strong></div>
+                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Tare Weight</span><strong>{stripDecimals(wbConfirmDialog.detail?.tareWeight) || '-'} Kg</strong></div>
+                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Net Weight</span><strong style={{ color: '#10b981' }}>{stripDecimals(wbConfirmDialog.detail?.netWeight) || '-'} Kg</strong></div>
                   </div>
 
                   {/* Row 3 */}
@@ -13679,7 +13641,7 @@ const Arrivals: React.FC = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
                       <div><span style={{ color: '#854d0e', fontSize: '10px', display: 'block' }}>Sute</span><strong>{wbConfirmDialog.detail?.partySute || '0'} Kg</strong></div>
                       <div><span style={{ color: '#854d0e', fontSize: '10px', display: 'block' }}>Bags</span><strong>{wbConfirmDialog.detail?.bags || wbConfirmDialog.detail?.bagsLoaded || '-'}</strong></div>
-                      <div><span style={{ color: '#854d0e', fontSize: '10px', display: 'block' }}>Sute Net Weight</span><strong style={{ color: '#9333ea' }}>{((parseFloat(wbConfirmDialog.detail?.partyGrossWeight || 0) - parseFloat(wbConfirmDialog.detail?.partyTareWeight || 0) - (parseFloat(wbConfirmDialog.detail?.partySute || 0) * (Number(wbConfirmDialog.detail?.bags || wbConfirmDialog.detail?.bagsLoaded || 1)))) || 0).toFixed(2)} Kg</strong></div>
+                      <div><span style={{ color: '#854d0e', fontSize: '10px', display: 'block' }}>Sute Net Weight</span><strong style={{ color: '#9333ea' }}>{stripDecimals(((parseFloat(wbConfirmDialog.detail?.partyGrossWeight || 0) - parseFloat(wbConfirmDialog.detail?.partyTareWeight || 0) - (parseFloat(wbConfirmDialog.detail?.partySute || 0) * (Number(wbConfirmDialog.detail?.bags || wbConfirmDialog.detail?.bagsLoaded || 1)))) || 0))} Kg</strong></div>
                     </div>
                   </div>
                 )}
@@ -13904,7 +13866,7 @@ const Arrivals: React.FC = () => {
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '6px' }}>Sute Net Weight</label>
                   <div style={{ padding: '8px 10px', background: '#dcfce7', border: '1.5px solid #22c55e', borderRadius: '8px', fontWeight: '700', color: '#15803d', fontSize: '12px', textAlign: 'center', height: '34px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {((parseFloat(wbGrossWeight || 0) - parseFloat(wbTareWeight || 0) - (parseFloat(wbSute || 0) * suteBags(selectedLorryInspection, selectedLorryEntries?.[0]))) || 0).toFixed(2)} Kg
+                    {stripDecimals(((parseFloat(wbGrossWeight || 0) - parseFloat(wbTareWeight || 0) - (parseFloat(wbSute || 0) * suteBags(selectedLorryInspection, selectedLorryEntries?.[0]))) || 0))} Kg
                   </div>
                 </div>
                 <div>
@@ -13968,7 +13930,7 @@ const Arrivals: React.FC = () => {
                   <div>
                     <label style={{ display: 'block', fontSize: '11px', color: '#854d0e', fontWeight: 'bold', marginBottom: '6px' }}>Sute Net Weight</label>
                     <div style={{ padding: '8px 10px', background: '#fef9c3', border: '1.5px solid #fde047', borderRadius: '8px', fontWeight: '700', color: '#854d0e', fontSize: '12px', textAlign: 'center', height: '34px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {((parseFloat(partyGrossWeight || 0) - parseFloat(partyTareWeight || 0) - (parseFloat(partySute || 0) * suteBags(selectedLorryInspection, selectedLorryEntries?.[0]))) || 0).toFixed(2)} Kg
+                      {stripDecimals(((parseFloat(partyGrossWeight || 0) - parseFloat(partyTareWeight || 0) - (parseFloat(partySute || 0) * suteBags(selectedLorryInspection, selectedLorryEntries?.[0]))) || 0))} Kg
                     </div>
                   </div>
                 </div>

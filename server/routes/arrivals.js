@@ -2856,11 +2856,11 @@ router.post('/', auth, async (req, res) => {
 
 
 
-    const adminApprovedBy = req.user.role === 'admin' ? req.user.userId : null;
+    const adminApprovedBy = (req.user.role === 'admin' || req.user.role === 'md') ? req.user.userId : null;
 
 
 
-    const adminApprovedAt = req.user.role === 'admin' ? new Date() : null;
+    const adminApprovedAt = (req.user.role === 'admin' || req.user.role === 'md') ? new Date() : null;
 
 
 
@@ -2892,7 +2892,7 @@ router.post('/', auth, async (req, res) => {
 
 
 
-      isAdminApproved: req.user.role === 'admin',
+      isAdminApproved: req.user.role === 'admin' || req.user.role === 'md',
 
 
 
@@ -3236,7 +3236,7 @@ router.post('/', auth, async (req, res) => {
 
 
 
-      willTransfer: req.user.role === 'admin' && movementType === 'shifting' && fromKunchinintuId && toKunchinintuId
+      willTransfer: (req.user.role === 'admin' || req.user.role === 'md') && movementType === 'shifting' && fromKunchinintuId && toKunchinintuId
 
 
 
@@ -3248,7 +3248,7 @@ router.post('/', auth, async (req, res) => {
 
 
 
-    if (req.user.role === 'admin' && movementType === 'shifting' && fromKunchinintuId && toKunchinintuId) {
+    if ((req.user.role === 'admin' || req.user.role === 'md') && movementType === 'shifting' && fromKunchinintuId && toKunchinintuId) {
 
 
 
@@ -3540,7 +3540,7 @@ router.post('/', auth, async (req, res) => {
 
 
 
-    if (req.user.role === 'admin' && movementType === 'production-shifting' && fromKunchinintuId && outturnId) {
+    if ((req.user.role === 'admin' || req.user.role === 'md') && movementType === 'production-shifting' && fromKunchinintuId && outturnId) {
 
 
 
@@ -6791,7 +6791,7 @@ router.get('/pending-list', auth, authorize('manager', 'admin'), async (req, res
 
 
 
-    } else if (req.user.role === 'admin') {
+    } else if (req.user.role === 'admin' || req.user.role === 'md') {
 
 
 
@@ -8457,7 +8457,7 @@ router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
       const isPlaceEdit = detail.placeStatus !== 'none' && hasExistingPlace;
       
       // Auto-approve for admin/manager/ceo roles, otherwise require approval
-      const isAutoApprovePlace = ['admin', 'ceo', 'manager', 'owner', 'inventory_head'].includes(String(req.user.role || '').toLowerCase());
+      const isAutoApprovePlace = ['admin', 'md', 'ceo', 'manager', 'owner', 'inventory_head'].includes(String(req.user.effectiveRole || req.user.role || '').toLowerCase());
       const isBmbEntry = detail.placeStatus === 'approved' || (detail.placeStatus === 'pending' && detail.placeRejectReason && String(detail.placeRejectReason).startsWith('EDIT_PENDING:approved'));
       
       // targetPlaceStatus logic:
@@ -8487,6 +8487,11 @@ router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
             outturnId: detail.outturnId
           });
         }
+      } else if (!isAutoApprovePlace) {
+        // New place added by a non-approver requires approval before moving to Band Malal Book
+        targetPlaceStatus = 'pending';
+        placeApprovedBy = null;
+        placeApprovedAt = null;
       }
 
 
@@ -8660,7 +8665,7 @@ router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
     const isPlaceEdit = arrival.placeStatus !== 'none' && hasExistingPlace;
     
     // Auto-approve for admin/manager/ceo roles, otherwise require approval
-    const isAutoApprovePlace = ['admin', 'ceo', 'manager', 'owner', 'inventory_head'].includes(String(req.user.role || '').toLowerCase());
+    const isAutoApprovePlace = ['admin', 'md', 'ceo', 'manager', 'owner', 'inventory_head'].includes(String(req.user.effectiveRole || req.user.role || '').toLowerCase());
     const isBmbEntry = arrival.placeStatus === 'approved' || (arrival.placeStatus === 'pending' && arrival.placeRejectReason && String(arrival.placeRejectReason).startsWith('EDIT_PENDING:approved'));
     
     let targetPlaceStatus = 'approved'; // New place - auto-moves directly to Band Malal Book
@@ -8683,6 +8688,11 @@ router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
           outturnId: arrival.outturnId
         });
       }
+    } else if (!isAutoApprovePlace) {
+      // New place added by a non-approver requires approval before moving to Band Malal Book
+      targetPlaceStatus = 'pending';
+      placeApprovedBy = null;
+      placeApprovedAt = null;
     }
 
 

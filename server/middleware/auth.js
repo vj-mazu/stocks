@@ -79,6 +79,9 @@ const authorize = (...roles) => {
     if (userRoles.includes('ceo')) {
       userRoles.push('manager');
     }
+    if (userRoles.includes('md')) {
+      userRoles.push('admin');
+    }
     if (!roles.some(role => userRoles.includes(role))) {
       return res.status(403).json({ error: 'Access denied. Insufficient permissions.' });
     }

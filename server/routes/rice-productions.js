@@ -514,7 +514,7 @@ router.post('/', auth, async (req, res) => {
     // Date validation removed - allow any date for rice production entry
 
     // Determine if entry should be auto-approved (admin or manager)
-    const isAdminOrManager = req.user.role === 'admin' || req.user.role === 'manager';
+    const isAdminOrManager = req.user.role === 'admin' || req.user.role === 'md' || req.user.role === 'manager';
     const entryStatus = isAdminOrManager ? 'approved' : 'pending';
 
     // Create rice production
@@ -592,7 +592,7 @@ Stack: ${error.stack}
 });
 
 // Approve rice production (Manager/Admin only)
-router.post('/:id/approve', auth, authorize('manager', 'admin'), async (req, res) => {
+router.post('/:id/approve', auth, authorize('manager', 'admin', 'inventory_head'), async (req, res) => {
   try {
     const production = await RiceProduction.findByPk(req.params.id);
 
@@ -630,7 +630,7 @@ router.post('/:id/approve', auth, authorize('manager', 'admin'), async (req, res
 });
 
 // Bulk approve rice productions (Manager/Admin only)
-router.post('/bulk-approve', auth, authorize('manager', 'admin'), async (req, res) => {
+router.post('/bulk-approve', auth, authorize('manager', 'admin', 'inventory_head'), async (req, res) => {
   try {
     const { productionIds } = req.body;
 
@@ -674,7 +674,7 @@ router.post('/bulk-approve', auth, authorize('manager', 'admin'), async (req, re
 });
 
 // Bulk reject rice productions (Manager/Admin only)
-router.post('/bulk-reject', auth, authorize('manager', 'admin'), async (req, res) => {
+router.post('/bulk-reject', auth, authorize('manager', 'admin', 'inventory_head'), async (req, res) => {
   try {
     const { productionIds, remarks } = req.body;
 
@@ -716,7 +716,7 @@ router.post('/bulk-reject', auth, authorize('manager', 'admin'), async (req, res
 });
 
 // Update rice production (Manager/Admin only - Staff cannot edit)
-router.put('/:id', auth, authorize('manager', 'admin'), async (req, res) => {
+router.put('/:id', auth, authorize('manager', 'admin', 'inventory_head'), async (req, res) => {
   try {
     const production = await RiceProduction.findByPk(req.params.id);
 
@@ -873,7 +873,7 @@ router.put('/:id', auth, authorize('manager', 'admin'), async (req, res) => {
 });
 
 // Delete rice production (Manager/Admin only - Staff cannot delete)
-router.delete('/:id', auth, authorize('manager', 'admin'), async (req, res) => {
+router.delete('/:id', auth, authorize('manager', 'admin', 'inventory_head'), async (req, res) => {
   try {
     const production = await RiceProduction.findByPk(req.params.id);
 

@@ -141,8 +141,8 @@ const SampleApprovalsHub: React.FC<SampleApprovalsHubProps> = ({ entryType, excl
     }
   }, []);
 
-  const canAccessManagerApprovals = ['admin', 'owner', 'manager', 'ceo'].includes(String(currentUser?.role || '').toLowerCase());
-  const canAccessLoadingQuality = ['admin', 'owner', 'manager', 'ceo'].includes(String(currentUser?.role || '').toLowerCase());
+  const canAccessManagerApprovals = ['admin', 'owner', 'manager', 'ceo', 'md'].includes(String(currentUser?.role || '').toLowerCase());
+  const canAccessLoadingQuality = ['admin', 'owner', 'manager', 'ceo', 'md'].includes(String(currentUser?.role || '').toLowerCase());
 
   const tabs = useMemo<ApprovalTabConfig[]>(() => {
     const baseTabs: ApprovalTabConfig[] = [

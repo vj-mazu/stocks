@@ -27,7 +27,7 @@ router.post('/login', async (req, res) => {
             { isActive: true }
           ]
         },
-        attributes: ['id', 'username', 'password', 'role', 'staffType', 'fullName']
+        attributes: ['id', 'username', 'password', 'role', 'staffType', 'subRole', 'fullName']
       });
     } catch (findErr) {
       // Fallback: try without staffType if column doesn't exist
@@ -38,7 +38,7 @@ router.post('/login', async (req, res) => {
             { isActive: true }
           ]
         },
-        attributes: ['id', 'username', 'password', 'role', 'fullName']
+        attributes: ['id', 'username', 'password', 'role', 'subRole', 'fullName']
       });
     }
 
@@ -59,7 +59,8 @@ router.post('/login', async (req, res) => {
         username: user.username,
         role: user.role,
         fullName: user.fullName,
-        staffType: user.staffType || null
+        staffType: user.staffType || null,
+        subRole: user.subRole || null
       },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN }
@@ -73,7 +74,8 @@ router.post('/login', async (req, res) => {
         username: user.username,
         role: user.role,
         fullName: user.fullName,
-        staffType: user.staffType
+        staffType: user.staffType,
+        subRole: user.subRole
       }
     });
   } catch (error) {
@@ -86,7 +88,7 @@ router.post('/login', async (req, res) => {
 router.get('/me', auth, async (req, res) => {
   try {
     const user = await User.findByPk(req.user.userId, {
-      attributes: ['id', 'username', 'role', 'isActive', 'staffType', 'fullName']
+      attributes: ['id', 'username', 'role', 'isActive', 'staffType', 'subRole', 'fullName']
     });
 
     if (!user) {

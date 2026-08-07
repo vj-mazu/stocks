@@ -615,7 +615,7 @@ const CompletedLots: React.FC<CompletedLotsProps> = ({ excludeEntryType }) => {
                                                                             return (
                                                                                 <>
                                                                                     <div style={{ fontSize: '12px', fontWeight: '800', marginBottom: '4px', color: '#1a237e' }}>
-                                                                                        🚚 LORRY TRIP FINAL RATE DETAILS ({progress.previousInspections.length})
+                                                                                        🚚 LORRY WISE LINKED FINAL RATE DETAIL ({progress.previousInspections.length})
                                                                                     </div>
                                                                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', border: '1px solid #000', backgroundColor: '#ffffff' }}>
                                                                                         <thead>
@@ -665,7 +665,9 @@ const CompletedLots: React.FC<CompletedLotsProps> = ({ excludeEntryType }) => {
                             // Payment condition comes from the entry's offering/patti that was linked to this trip
                             const payVal = entry.offering?.paymentConditionValue;
                             const payUnit = entry.offering?.paymentConditionUnit || 'Days';
-                            return payVal != null && payVal !== '' ? `${payVal} ${payUnit === 'month' ? 'Month' : 'Days'}` : '-';
+                            const payNum = Number(payVal);
+                            const payDisplay = payVal != null && payVal !== '' ? (isFinite(payNum) ? String(parseFloat(payNum.toFixed(2))) : payVal) : '';
+                            return payDisplay !== '' ? `${payDisplay} ${payUnit === 'month' ? 'Month' : 'Days'}` : '-';
                         })()
                     ) : (
                         '-'
@@ -674,7 +676,7 @@ const CompletedLots: React.FC<CompletedLotsProps> = ({ excludeEntryType }) => {
                 <td style={{ border: '1px solid #000', padding: '4px 3px', textAlign: 'center' }}>
                     {insp.linkedPattiRate ? (
                         <span style={{ color: '#16a34a', fontWeight: '700' }}>
-                            Rs {insp.linkedPattiRate.rate} ({insp.linkedPattiRate.rateType === 'PD_LOOSE' ? 'Loose' : insp.linkedPattiRate.rateType || 'WB'})
+                            Rs {toNumberText(insp.linkedPattiRate.rate)} ({(() => { const t = insp.linkedPattiRate.rateType || 'WB'; return t === 'PD_LOOSE' ? 'PD/Loose' : t === 'MD_LOOSE' ? 'MD/Loose' : String(t).replace(/_/g, '/'); })()})
                         </span>
                     ) : (
                         <span style={{ color: '#d97706', fontWeight: '700' }}>Pending</span>

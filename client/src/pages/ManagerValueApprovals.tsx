@@ -28,6 +28,8 @@ interface ApprovalEntry {
 }
 
 const toTitleCase = (value: string) => String(value || '').replace(/\b\w/g, (char) => char.toUpperCase()).trim();
+const LF_RATE_TYPES = new Set(['PD_LOOSE', 'MD_LOOSE', 'PD_WB']);
+const hasLfForRateType = (value?: string) => LF_RATE_TYPES.has(String(value || '').toUpperCase());
 const toDisplayNumber = (value: any) => {
   const num = Number(value);
   if (!Number.isFinite(num)) return String(value ?? '-');
@@ -227,40 +229,49 @@ const buildPendingSummary2 = (data?: Record<string, any> | null, offering?: Reco
     rows.push({ key, label, value, tone: standardPendingFieldTone });
   };
 
-  if (pendingData.finalBaseRate2 !== undefined && pendingData.finalBaseRate2 !== null && pendingData.finalBaseRate2 !== '') {
+  // Show only fields that were actually edited - i.e. differ from the currently
+  // approved FR2 values. First-time FR2 (no current values) shows all fields.
+  const edited = (key: string): boolean => {
+    const p = pendingData[key];
+    if (p === undefined || p === null || p === '') return false;
+    const cur = offering ? offering[key] : null;
+    if (cur === undefined || cur === null || cur === '') return true;
+    return String(p) !== String(cur);
+  };
+  if (edited('finalBaseRate2')) {
     pushRow('finalBaseRate2', 'Final Rate 2', `₹${toDisplayNumber(pendingData.finalBaseRate2)} (${pendingData.finalBaseRateType2 || offering?.finalBaseRateType || offering?.baseRateType || 'PD/WB'})`);
   }
-  if (pendingData.finalPrice2 !== undefined && pendingData.finalPrice2 !== null && pendingData.finalPrice2 !== '') {
+  if (edited('finalPrice2')) {
     pushRow('finalPrice2', 'Final Price 2', `₹${toDisplayNumber(pendingData.finalPrice2)}`);
   }
-  if (pendingData.finalSute2 !== undefined && pendingData.finalSute2 !== null && pendingData.finalSute2 !== '') {
+  if (edited('finalSute2')) {
     pushRow('finalSute2', 'Sute 2', `${toDisplayNumber(pendingData.finalSute2)} ${formatChargeUnit(pendingData.finalSuteUnit2)}`.trim());
   }
-  if (pendingData.hamali2 !== undefined && pendingData.hamali2 !== null && pendingData.hamali2 !== '') {
+  if (edited('hamali2')) {
     pushRow('hamali2', 'Hamali 2', `${toDisplayNumber(pendingData.hamali2)} ${formatChargeUnit(pendingData.hamaliUnit2)}`.trim());
   }
-  if (pendingData.brokerage2 !== undefined && pendingData.brokerage2 !== null && pendingData.brokerage2 !== '') {
+  if (edited('brokerage2')) {
     pushRow('brokerage2', 'Brokerage 2', `${toDisplayNumber(pendingData.brokerage2)} ${formatChargeUnit(pendingData.brokerageUnit2)}`.trim());
   }
-  if (pendingData.lf2 !== undefined && pendingData.lf2 !== null && pendingData.lf2 !== '') {
+  if (edited('lf2')) {
     pushRow('lf2', 'LF 2', `${toDisplayNumber(pendingData.lf2)} ${formatChargeUnit(pendingData.lfUnit2)}`.trim());
   }
-  if (pendingData.egbValue2 !== undefined && pendingData.egbValue2 !== null && pendingData.egbValue2 !== '') {
+  if (edited('egbValue2')) {
     pushRow('egbValue2', 'EGB 2', `${toDisplayNumber(pendingData.egbValue2)}${pendingData.egbType2 ? ` (${toTitleCase(pendingData.egbType2)})` : ''}`);
   }
-  if (pendingData.cdValue2 !== undefined && pendingData.cdValue2 !== null && pendingData.cdValue2 !== '') {
+  if (edited('cdValue2')) {
     pushRow('cdValue2', 'CD 2', `${toDisplayNumber(pendingData.cdValue2)} ${formatChargeUnit(pendingData.cdUnit2)}`.trim());
   }
-  if (pendingData.bankLoanValue2 !== undefined && pendingData.bankLoanValue2 !== null && pendingData.bankLoanValue2 !== '') {
-    pushRow('bankLoanValue2', 'Bank Loan 2', `${toDisplayNumber(pendingData.bankLoanValue2)} ${formatChargeUnit(pendingData.bankLoanUnit2)}`.trim());
-  }
-  if (pendingData.paymentConditionValue2 !== undefined && pendingData.paymentConditionValue2 !== null && pendingData.paymentConditionValue2 !== '') {
-    pushRow('paymentConditionValue2', 'Payment 2', `${toDisplayNumber(pendingData.paymentConditionValue2)} ${formatChargeUnit(pendingData.paymentConditionUnit2)}`.trim());
-  }
-  if (pendingData.finalRemarks2 !== undefined && pendingData.finalRemarks2 !== null && pendingData.finalRemarks2 !== '') {
-    pushRow('finalRemarks2', 'Remarks 2', String(pendingData.finalRemarks2));
-  }
-  return rows;
+  if (edited('bankLoanValue2')) {
+pushRow('bankLoanValue2', 'Bank Loan 2', `${toDisplayNumber(pendingData.bankLoanValue2)} ${formatChargeUnit(pendingData.bankLoanUnit2)}`.trim());
+}
+if (edited('paymentConditionValue2')) {
+pushRow('paymentConditionValue2', 'Payment 2', `${toDisplayNumber(pendingData.paymentConditionValue2)} ${formatChargeUnit(pendingData.paymentConditionUnit2)}`.trim());
+}
+if (edited('finalRemarks2')) {
+pushRow('finalRemarks2', 'Remarks 2', String(pendingData.finalRemarks2));
+}
+return rows;
 };
 
 const buildOriginalSummary = (data?: Record<string, any> | null, offering?: Record<string, any>): PendingSummaryRow[] => {
@@ -358,7 +369,7 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
     }
   };
 
-  const canManageApprovals = ['admin', 'owner'].includes(String(user?.role || '').toLowerCase());
+  const canManageApprovals = ['admin', 'owner', 'md'].includes(String(user?.role || '').toLowerCase());
 
   const filteredEntries = useMemo(() => {
     return entries.filter((entry) => {
@@ -450,7 +461,7 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
   if (!canManageApprovals) {
     return (
       <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #dbeafe', padding: '24px', color: '#475569', fontWeight: 600 }}>
-        Manager value approvals are available only for admin and owner.
+        Manager value approvals are available only for admin, MD and owner.
       </div>
     );
   }
@@ -493,6 +504,21 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
                 const summaryRows = filterType === 'fr2'
                   ? buildPendingSummary2(entry.offering?.pendingManagerValueApprovalData2, entry.offering)
                   : buildPendingSummary(entry.offering?.pendingManagerValueApprovalData, entry.offering);
+                const fr2MissingLabels = filterType === 'fr2'
+                  ? (() => {
+                      const pd = entry.offering?.pendingManagerValueApprovalData2 || {};
+                      const off = entry.offering || {};
+                      const missing = [];
+                      if (!(parseFloat(pd.finalBaseRate2 ?? '') > 0)) missing.push('Final Rate');
+                      if (!(parseFloat(pd.finalSute2 ?? '') > 0)) missing.push('Sute');
+                      if (!(parseFloat(pd.hamali2 ?? '') > 0)) missing.push('Hamali');
+                      if (!(parseFloat(pd.brokerage2 ?? '') > 0)) missing.push('Brokerage');
+                      if (hasLfForRateType(off.baseRateType) && !(parseFloat(pd.lf2 ?? '') > 0)) missing.push('LF');
+                      if (!!off.cdEnabled && !(parseFloat(pd.cdValue2 ?? '') > 0)) missing.push('CD');
+                      if (!!off.bankLoanEnabled && !(parseFloat(pd.bankLoanValue2 ?? '') > 0)) missing.push('Bank Loan');
+                      return missing;
+                    })()
+                  : [];
                 return (
                   <tr key={`${entry.id}-${entry.pendingManagerValueApprovalRequestId || index}`} style={{ background: index % 2 === 0 ? '#fff7ed' : '#fffbeb' }}>
                     <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', fontWeight: 700, fontSize: '11px', verticalAlign: 'top', textAlign: 'left' }}>{index + 1}</td>
@@ -562,6 +588,11 @@ const ManagerValueApprovals: React.FC<ManagerValueApprovalsProps> = ({ onCountCh
                     )}
                     <td style={{ padding: '6px 8px', border: '1.5px solid #cbd5e1', verticalAlign: 'top', textAlign: 'left' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        {fr2MissingLabels.length > 0 && (
+                          <div style={{ fontSize: '11px', fontWeight: 800, color: '#856404', background: '#fff3cd', border: '1.5px solid #ffeeba', borderRadius: '7px', padding: '3px 5px', lineHeight: 1.15, whiteSpace: 'normal', overflowWrap: 'anywhere' }}>
+                            ⚠️ Missing: {fr2MissingLabels.join(' | ')}
+                          </div>
+                        )}
                         {summaryRows.length === 0 ? (
                           <div style={{
                             fontSize: '12px',

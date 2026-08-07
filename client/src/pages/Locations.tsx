@@ -441,7 +441,9 @@ const Locations: React.FC<LocationsProps> = ({ defaultTab, hideTabs = false }) =
   const [hamaliRatesId, setHamaliRatesId] = useState<number | null>(null);
   const [editingHamaliRates, setEditingHamaliRates] = useState(false);
 
-  const canEdit = user?.role === 'manager' || user?.role === 'admin';
+  const isInvHead = user?.role === 'inventory_head' || (user?.role === 'inventory_staff' && user?.subRole === 'head');
+  const canEdit = user?.role === 'manager' || user?.role === 'admin' ||
+    (isInvHead && ['warehouse', 'kunchinittu', 'variety', 'production', 'packaging', 'riceStockLocation'].includes(activeTab));
   const toTitleCase = (value?: string | null) => {
     const str = typeof value === 'string' ? value.trim() : '';
     if (!str) return '';

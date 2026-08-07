@@ -90,6 +90,8 @@ const RoleBadge = styled.span<{ role: string }>`
         switch (props.role) {
             case 'admin':
                 return 'background: #fee2e2; color: #dc2626;';
+            case 'md':
+                return 'background: #fecaca; color: #991b1b;';
             case 'manager':
                 return 'background: #fef3c7; color: #d97706;';
             case 'ceo':
@@ -100,6 +102,8 @@ const RoleBadge = styled.span<{ role: string }>`
                 return 'background: #fce7f3; color: #db2777;';
             case 'inventory_staff':
                 return 'background: #d1fae5; color: #059669;';
+            case 'inventory_head':
+                return 'background: #ede9fe; color: #7c3aed;';
             case 'financial_account':
                 return 'background: #fef3c7; color: #ca8a04;';
             default:
@@ -314,7 +318,7 @@ interface User {
     username: string;
     fullName: string;
     customUserId: string;
-    role: 'owner' | 'staff' | 'manager' | 'admin' | 'quality_supervisor' | 'physical_supervisor' | 'inventory_staff' | 'financial_account' | 'ceo';
+    role: 'owner' | 'staff' | 'manager' | 'md' | 'admin' | 'quality_supervisor' | 'physical_supervisor' | 'inventory_staff' | 'financial_account' | 'ceo' | 'inventory_head';
     isActive: boolean;
     staffType?: string;
     subRole?: string;
@@ -499,8 +503,10 @@ const EditModal: React.FC<EditModalProps> = ({ user, mode, onClose, onSave }) =>
                                 <option value="manager">Manager</option>
                                 <option value="ceo">CEO</option>
                                 <option value="admin">Admin</option>
+                                <option value="md">MD</option>
                                 <option value="inventory_staff">Inventory</option>
                                 <option value="financial_account">Finance</option>
+                                <option value="inventory_head">Inventory Head</option>
                             </Select>
                         </FormGroup>
                     )}
@@ -650,6 +656,7 @@ const UserManagement: React.FC = () => {
                 const r = String(role || '').toLowerCase().trim();
                 const s = String(staffType || '').toLowerCase().trim();
                 
+                if (r === 'md') return 11;
                 if (r === 'admin') return 10;
                 if (r === 'ceo') return 9;
                 if (r === 'manager') return 8;
@@ -828,6 +835,7 @@ const UserManagement: React.FC = () => {
                                                 {user.role === 'staff' ? 'Paddy Supervisor' : 
                                                  user.role === 'inventory_staff' ? 'Inventory' : 
                                                  user.role === 'financial_account' ? 'Finance' : 
+                                                 user.role === 'md' ? 'MD' : 
                                                  user.role === 'ceo' ? 'CEO' : 
                                                  user.role}
                                             </RoleBadge>

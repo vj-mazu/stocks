@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 interface ProtectedRouteProps {
   children: ReactNode;
-  roles?: ('owner' | 'staff' | 'manager' | 'admin' | 'quality_supervisor' | 'physical_supervisor' | 'inventory_staff' | 'inventory_head' | 'financial_account' | 'paddy_supervisor')[];
+  roles?: ('owner' | 'staff' | 'manager' | 'md' | 'admin' | 'quality_supervisor' | 'physical_supervisor' | 'inventory_staff' | 'inventory_head' | 'financial_account' | 'paddy_supervisor')[];
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, roles }) => {
@@ -22,7 +22,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, roles }) => {
     return <Navigate to="/login" replace />;
   }
 
-  const effectiveRole = user?.role === 'ceo' ? 'manager' : user?.role;
+  // MD has the same access as Admin; CEO inherits manager access
+  const isInvHead = user?.role === 'inventory_head' || (user?.role === 'inventory_staff' && user?.subRole === 'head');
+  const effectiveRole = user?.role === 'ceo' ? 'manager' : user?.role === 'md' ? 'admin' : isInvHead ? 'inventory_head' : user?.role;
 
   if (roles && user && !roles.includes(effectiveRole as any)) {
     return (

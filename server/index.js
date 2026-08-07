@@ -1892,6 +1892,15 @@ const startServer = async () => {
         console.log('⚠️ Migration 150 warning:', error.message);
       }
 
+      // Migration 151: Add MD role to users enum (MD has full admin access)
+      try {
+        const addMdRole = require('./migrations/151_add_md_role_to_users');
+        await addMdRole.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('✅ Migration 151: MD role added to users enum');
+      } catch (error) {
+        console.log('⚠️ Migration 151 warning:', error.message);
+      }
+
     // Default warehouses removed - users should create their own warehouses
 
     // Create default users if they don't exist

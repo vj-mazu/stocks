@@ -614,7 +614,7 @@ const getApprovedFullAvgBags = (stages: any, defaultBags: any) => {
     return defaultBags || '-';
 };
 
-export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpdate, showCollectorLoginPair = false, progressiveMode = false, completedLotsOrder = false, onEditStage, onTriggerDispute, autoTriggerDisputeKey, targetRateLinkAction, targetLorryTripId, isCompactOverride, isAdminSampleBook2 = false, onApproveQuality, onRejectQuality, onRecheckQuality }: { detailEntry: SampleEntry, detailMode: 'quick' | 'history' | 'summary' | 'full', onClose: () => void, onUpdate?: (gpsCoordinates?: string) => void | Promise<void>, showCollectorLoginPair?: boolean, progressiveMode?: boolean, completedLotsOrder?: boolean, onEditStage?: (lorryNumber: string, stageKey: string) => void, onTriggerDispute?: (entry: SampleEntry) => void, autoTriggerDisputeKey?: { inspectionId: string; stageKey: string }, targetRateLinkAction?: (rateInfo: { rate: number; rateType: string; sute: number; suteUnit: string; moisture: number; hamali: number; hamaliUnit: string; lf: number; lfUnit: string; disputeReason?: string; isDispute: boolean; isRevision: boolean; linkedRevisionId?: string | null }) => void | Promise<void>, targetLorryTripId?: string, isCompactOverride?: boolean, isAdminSampleBook2?: boolean, onApproveQuality?: (qualityId: string | number) => void | Promise<void>, onRejectQuality?: (qualityId: string | number, reason: string) => void | Promise<void>, onRecheckQuality?: (qualityId: string | number, reason: string) => void | Promise<void> }) => {
+export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpdate, showCollectorLoginPair = false, progressiveMode = false, completedLotsOrder = false, onEditStage, onTriggerDispute, autoTriggerDisputeKey, targetRateLinkAction, targetLorryTripId, isCompactOverride, isAdminSampleBook2 = false, isArrivalsView = false, onApproveQuality, onRejectQuality, onRecheckQuality }: { detailEntry: SampleEntry, detailMode: 'quick' | 'history' | 'summary' | 'full', onClose: () => void, onUpdate?: (gpsCoordinates?: string) => void | Promise<void>, showCollectorLoginPair?: boolean, progressiveMode?: boolean, completedLotsOrder?: boolean, onEditStage?: (lorryNumber: string, stageKey: string) => void, onTriggerDispute?: (entry: SampleEntry) => void, autoTriggerDisputeKey?: { inspectionId: string; stageKey: string }, targetRateLinkAction?: (rateInfo: { rate: number; rateType: string; sute: number; suteUnit: string; moisture: number; hamali: number; hamaliUnit: string; lf: number; lfUnit: string; disputeReason?: string; isDispute: boolean; isRevision: boolean; linkedRevisionId?: string | null }) => void | Promise<void>, targetLorryTripId?: string, isCompactOverride?: boolean, isAdminSampleBook2?: boolean, isArrivalsView?: boolean, onApproveQuality?: (qualityId: string | number) => void | Promise<void>, onRejectQuality?: (qualityId: string | number, reason: string) => void | Promise<void>, onRecheckQuality?: (qualityId: string | number, reason: string) => void | Promise<void> }) => {
     const { user } = useAuth();
     const buildMapHref = (value: any) => {
         const raw = typeof value === 'object' && value !== null
@@ -1171,7 +1171,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         return 'Pending';
     };
 
-    const renderHorizontalTable = (title: React.ReactNode, icon: string, headerColor: string, columns: string[], rows: any[], options: { isQuality?: boolean; compact?: boolean } = {}) => {
+    const renderHorizontalTable = (title: React.ReactNode, icon: string, headerColor: string, columns: string[], rows: any[], options: { isQuality?: boolean; compact?: boolean; headerRowColor?: string } = {}) => {
         if (rows.length === 0) return null;
         const isCompact = options.compact === true || isCompactOverride || Boolean(detailEntry.isBandMalal || detailEntry.isBandMalalBook || detailEntry.transitDetailId || (detailEntry as any).isTransit || detailEntry.workflowStatus === 'IN_TRANSIT' || detailEntry.workflowStatus === 'BAND_MALAL_BOOK');
 
@@ -1284,8 +1284,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                             {rows.map((row, i) => {
                                 if (row && row.type === 'header') {
                                     return (
-                                        <tr key={i} style={{ backgroundColor: '#e2e8f0', borderBottom: '2px solid #cbd5e1' }}>
-                                            <td colSpan={columns.length} style={{ padding: isCompact ? '4px 6px' : '8px 10px', fontWeight: '800', color: '#1e293b', fontSize: isCompact ? '10px' : '12px', textTransform: 'uppercase', letterSpacing: '0.4px', border: '1px solid #000000' }}>
+                                        <tr key={i} style={{ backgroundColor: options.headerRowColor || '#e2e8f0', borderBottom: '2px solid #cbd5e1' }}>
+                                            <td colSpan={columns.length} style={{ padding: isCompact ? '4px 6px' : '8px 10px', fontWeight: '800', color: options.headerRowColor ? '#ffffff' : '#1e293b', fontSize: isCompact ? '10px' : '12px', textTransform: 'uppercase', letterSpacing: '0.4px', border: '1px solid #000000' }}>
                                                 {row.content}
                                             </td>
                                         </tr>
@@ -2930,6 +2930,60 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         return rows;
     };
 
+    // Normalize a quality row to exactly `targetLen` cells: drop the P COLOR cell (index 18)
+    // so all quality tables share the same 19-column layout, then pad/trim to the target length.
+    const normalizeQualityRow = (r: any, targetLen: number) => {
+        const cells = Array.isArray(r) ? [...r] : [r];
+        const trimmed = cells.length >= 20 ? cells.slice(0, 18).concat(cells.slice(19)) : cells;
+        while (trimmed.length < targetLen) trimmed.push('-');
+        if (trimmed.length > targetLen) trimmed.length = targetLen;
+        if ((r as any).hasSmell) (trimmed as any).hasSmell = (r as any).hasSmell;
+        if ((r as any).isHighlighted) (trimmed as any).isHighlighted = (r as any).isHighlighted;
+        return trimmed;
+    };
+
+    // Merged quality rows: initial sample rows + per-load (trip) rows with "Load N" section bars.
+    // Used ONLY for the Arrivals view (In Transit / Band Mall Book) so all stages show in ONE table.
+    const buildMergedQualityRows = () => {
+        const merged: any[] = [];
+
+        // 1. Initial sample-entry quality rows (18 cells; +1 '-' when progressive) → map to 19
+        const initialRows = buildInitialQualityRows();
+        initialRows.forEach((r: any) => {
+            if (r && r.type) { merged.push(r); return; }
+            const cells = normalizeQualityRow(r, 19);
+            // The pushed '-' placeholder (index 18) lands in the ACTIONS column — blank it out for non-trip rows
+            if (cells.length === 19 && cells[18] === '-') cells[18] = '';
+            merged.push(cells);
+        });
+
+        // 2. Per-load trip rows with "Load N - LORRY | Bags Loaded: X" section bars
+        const insps = (inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections)
+            ? inspectionsProgress.previousInspections
+            : (Array.isArray((detailEntry as any).physicalInspections) ? (detailEntry as any).physicalInspections : []))
+            .filter((insp: any) => {
+                if (!insp.lorryNumber || !detailEntry.lorryNumber) return true;
+                return insp.lorryNumber.trim().toUpperCase() === detailEntry.lorryNumber.trim().toUpperCase();
+            });
+
+        insps.forEach((insp: any, idx: number) => {
+            const stages = insp.samplingStages || {};
+            const bagsLoaded = getApprovedFullAvgBags(stages, insp.bags);
+            const lorryLabel = (insp.lorryNumber || 'Lorry').toUpperCase();
+            merged.push({
+                type: 'header',
+                content: `🚚 Load ${idx + 1} - ${lorryLabel} | Bags Loaded: ${bagsLoaded}`
+            });
+            const tripRows = buildTripQualityRows(insp, idx);
+            tripRows.forEach((r: any) => {
+                if (r && r.type) { merged.push(r); return; }
+                merged.push(normalizeQualityRow(r, 19));
+            });
+        });
+
+        return merged;
+    };
+
     const buildCookingRows = () => {
         const statusRows = buildCookingStatusRows(detailEntry);
         if (statusRows.length === 0) return [];
@@ -4179,22 +4233,24 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 </div>
                                 {/* Standardized Horizontal Tables Section */}
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: isCompact ? '4px' : '16px', marginTop: isCompact ? '4px' : '16px' }}>
-                                    {/* 1. Quality Parameters (Sample entry details) */}
+                                    {/* 1. Quality Parameters (Sample entry details) — merged with per-load rows for Arrivals view */}
                                     <div style={{ position: isCompact ? 'relative' : 'sticky', top: '0', zIndex: 20, backgroundColor: '#ffffff', paddingBottom: isCompact ? '2px' : '10px', boxShadow: isCompact ? 'none' : '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
                                         {renderHorizontalTable(
                                             'Quality Parameters', 
                                             '🔬', 
                                             '#f97316', 
-                                            progressiveMode
-                                                ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', '', 'ACTIONS']
-                                                : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', ''],
-                                            buildInitialQualityRows(),
-                                            { isQuality: true }
+                                            isArrivalsView
+                                                ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'ACTIONS']
+                                                : (progressiveMode
+                                                    ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', '', 'ACTIONS']
+                                                    : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', '']),
+                                            isArrivalsView ? buildMergedQualityRows() : buildInitialQualityRows(),
+                                            { isQuality: true, headerRowColor: isArrivalsView ? '#c2410c' : undefined }
                                         )}
                                     </div>
 
-                                    {/* 2. Lorry Load Details (Progressive Loads) for Band Mall Book and In-Transit */}
-                                    {((detailEntry as any).isBandMalalBook || progressiveMode || isAdminSampleBook2) && (() => {
+                                    {/* 2. Lorry Load Details (Progressive Loads) for Band Mall Book and In-Transit — hidden in Arrivals view (merged above) */}
+                                    {!isArrivalsView && ((detailEntry as any).isBandMalalBook || progressiveMode || isAdminSampleBook2) && (() => {
                                         const insps = (inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections)
                                             ? inspectionsProgress.previousInspections
                                             : (Array.isArray((detailEntry as any).physicalInspections) ? (detailEntry as any).physicalInspections : []))
@@ -4216,7 +4272,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                 title,
                                                                 '🚚',
                                                                 isNewRulesMode ? '#2563eb' : '#f97316',
-                                                                ['STAGE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'P COLOR', 'ACTIONS'],
+                                                                ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'P COLOR', 'ACTIONS'],
                                                                 buildTripQualityRows(insp, idx),
                                                                 { isQuality: true }
                                                             )}
@@ -4234,11 +4290,18 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                          return (
                                              <div style={{ marginTop: isCompact ? '2px' : '8px' }}>
                                                  {renderHorizontalTable(
-                                                     'Quality Sampling', 
+                                                     isArrivalsView ? 'Mill Quality Sampling' : 'Quality Sampling', 
                                                      '🔬', 
-                                                     '#7c3aed', 
-                                                     ['TYPE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'P COLOR', 'STATUS'],
-                                                     buildBmbQualityRows(paramsList),
+                                                     isArrivalsView ? '#c2410c' : '#7c3aed', 
+                                                     isArrivalsView
+                                                         ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'ACTIONS']
+                                                         : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'P COLOR', 'ACTIONS'],
+                                                     isArrivalsView
+                                                         ? buildBmbQualityRows(paramsList).map((row: any) => {
+                                                             if (row && row.type) return row;
+                                                             return normalizeQualityRow(row, 19);
+                                                         })
+                                                         : buildBmbQualityRows(paramsList),
                                                      { isQuality: true }
                                                  )}
                                              </div>
@@ -4299,6 +4362,13 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             } catch { return '-'; }
                                         };
 
+                                        // Show only the weight decimals the user actually entered (15.00 → 15)
+                                        const stripWt = (v: any) => {
+                                            if (v === null || v === undefined || v === '') return '';
+                                            const n = Number(v);
+                                            return isFinite(n) ? String(parseFloat(n.toFixed(3))) : String(v);
+                                        };
+
                                         const thS: React.CSSProperties = { padding: isCompact ? '3px 4px' : '6px 8px', fontWeight: 800, fontSize: isCompact ? '9px' : '10.5px', textTransform: 'uppercase', letterSpacing: '0.3px', textAlign: 'center', border: '1px solid #000', whiteSpace: 'nowrap', color: '#fff' };
                                         const tdS: React.CSSProperties = { padding: isCompact ? '3px 4px' : '6px 8px', fontSize: isCompact ? '10px' : '12px', fontWeight: '600', textAlign: 'center', border: '1px solid #000', whiteSpace: 'nowrap' };
                                         const labelS: React.CSSProperties = { padding: isCompact ? '3px 4px' : '6px 8px', fontSize: isCompact ? '9.5px' : '11.5px', fontWeight: '700', textAlign: 'left', border: '1px solid #000', whiteSpace: 'nowrap' };
@@ -4310,28 +4380,29 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                         ? `${de.millWeightBridge.name} (${de.millWeightBridge.location})`
                                                         : (de.millWeightBridge?.name || de.partyWbName || '-');
                                                     const millWbNo = de.wbNo || '-';
-                                                    const millGross = de.grossWeight ? `${de.grossWeight} Kg` : '-';
-                                                    const millTare = de.tareWeight ? `${de.tareWeight} Kg` : '-';
-                                                    const millNet = de.netWeight ? `${de.netWeight} Kg` : '-';
-                                                    const millSute = (de.sute != null && de.sute !== '') ? de.sute : '-';
-                                                    const millSuteNet = de.suteNetWeight ? `${de.suteNetWeight} Kg` : '-';
+                                                    const millGross = de.grossWeight ? `${stripWt(de.grossWeight)} Kg` : '-';
+                                                    const millTare = de.tareWeight ? `${stripWt(de.tareWeight)} Kg` : '-';
+                                                    const millNet = de.netWeight ? `${stripWt(de.netWeight)} Kg` : '-';
+                                                    const millSute = (de.sute != null && de.sute !== '') ? stripWt(de.sute) : '-';
+                                                    const millSuteNet = de.suteNetWeight ? `${stripWt(de.suteNetWeight)} Kg` : '-';
                                                     const millStatus = de.wbStatus && de.wbStatus !== 'none' ? toTitleCase(de.wbStatus) : '-';
                                                     const millAddedBy = de.wbAddedByUser?.fullName || de.wbAddedByUser?.username || de.wbAddedBy?.fullName || de.wbAddedBy?.username || '-';
                                                     const millAddedAt = de.wbAddedAt || null;
                                                     const wbApproverRole = de.wbApprover?.role || de.wbApproverUser?.role || '';
                                                     const wbApproverNameVal = de.wbApprover?.fullName || de.wbApprover?.username || de.wbApproverUser?.fullName || de.wbApproverUser?.username || '';
+                                                    // Show the approver name ONCE (no role-bracket duplication)
                                                     const wbApproverName = wbApproverNameVal
-                                                        ? (wbApproverRole ? `${wbApproverRole.toUpperCase()} (${wbApproverNameVal.toUpperCase()})` : wbApproverNameVal.toUpperCase())
+                                                        ? wbApproverNameVal.toUpperCase()
                                                         : (wbApproverRole ? wbApproverRole.toUpperCase() : (de.wbStatus === 'approved' ? 'Auto Approved' : '-'));
 
                                                     const hasPartyWb = !!(de.partyWbName && (de.partyWbEnabled === 'yes' || de.partyGrossWeight || de.partyNetWeight || (de.sampleEntry?.partyWbName && de.sampleEntry?.grossWeight)));
                                                     const partyWbName = de.partyWbName || de.sampleEntry?.partyWbName || '-';
                                                     const partyWbNo = de.partyWbNo || de.sampleEntry?.partyWbNo || '-';
-                                                    const partyGross = de.partyGrossWeight ? `${de.partyGrossWeight} Kg` : (de.sampleEntry?.grossWeight ? `${de.sampleEntry.grossWeight} Kg` : '-');
-                                                    const partyTare = de.partyTareWeight ? `${de.partyTareWeight} Kg` : (de.sampleEntry?.tareWeight ? `${de.sampleEntry.tareWeight} Kg` : '-');
-                                                    const partyNet = de.partyNetWeight ? `${de.partyNetWeight} Kg` : (de.sampleEntry?.netWeight ? `${de.sampleEntry.netWeight} Kg` : '-');
-                                                    const partySute = (de.partySute != null && de.partySute !== '') ? de.partySute : '-';
-                                                    const partySuteNet = de.partySuteNetWeight ? `${de.partySuteNetWeight} Kg` : '-';
+                                                    const partyGross = de.partyGrossWeight ? `${stripWt(de.partyGrossWeight)} Kg` : (de.sampleEntry?.grossWeight ? `${stripWt(de.sampleEntry.grossWeight)} Kg` : '-');
+                                                    const partyTare = de.partyTareWeight ? `${stripWt(de.partyTareWeight)} Kg` : (de.sampleEntry?.tareWeight ? `${stripWt(de.sampleEntry.tareWeight)} Kg` : '-');
+                                                    const partyNet = de.partyNetWeight ? `${stripWt(de.partyNetWeight)} Kg` : (de.sampleEntry?.netWeight ? `${stripWt(de.sampleEntry.netWeight)} Kg` : '-');
+                                                    const partySute = (de.partySute != null && de.partySute !== '') ? stripWt(de.partySute) : '-';
+                                                    const partySuteNet = de.partySuteNetWeight ? `${stripWt(de.partySuteNetWeight)} Kg` : '-';
                                                     const partyStatus = de.wbStatus && de.wbStatus !== 'none' ? toTitleCase(de.wbStatus) : '-';
                                                     const partyAddedBy = de.wbAddedByUser?.fullName || de.wbAddedByUser?.username || de.wbAddedBy?.fullName || de.wbAddedBy?.username || de.sampleEntry?.creator?.fullName || de.sampleEntry?.creator?.username || detailEntry?.creator?.fullName || detailEntry?.creator?.username || '-';
                                                     const partyAddedAt = de.partyWbDate || de.wbAddedAt || null;
@@ -4903,7 +4974,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                         `Lorry Trip ${targetIdx + 1} Quality Parameters`,
                                                         '🔬',
                                                         isNewRulesMode ? '#2563eb' : '#f97316',
-                                                        ['STAGE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'P COLOR', 'ACTIONS'],
+                                                        ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'P COLOR', 'ACTIONS'],
                                                         buildTripQualityRows(targetInsp, targetIdx),
                                                         { isQuality: true }
                                                     )}

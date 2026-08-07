@@ -427,6 +427,11 @@ const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // MD role has the same access as Admin everywhere
+  const isAdminLike = user?.role === 'admin' || user?.role === 'md';
+  const isInventoryHead = user?.role === 'inventory_head' || (user as any)?.effectiveRole === 'inventory_head' || (user?.role === 'inventory_staff' && user?.subRole === 'head');
+  const canMasterCreate = user?.role === 'manager' || user?.role === 'ceo' || isAdminLike || isInventoryHead;
+
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -500,7 +505,7 @@ const Navbar: React.FC = () => {
   }, [location.pathname, location.search]);
 
   useEffect(() => {
-    if (user && (user.role === 'manager' || user.role === 'ceo' || user.role === 'admin')) {
+    if (user && (user.role === 'manager' || user.role === 'ceo' || user.role === 'admin' || user.role === 'md')) {
       fetchPendingCount();
       fetchResampleCount();
       fetchEditApprovalCount();
@@ -654,7 +659,7 @@ const Navbar: React.FC = () => {
               <NavLink to="/records" $active={isActive('/records')}>Records Management</NavLink>
             </>
           )}
-          {user && user.role === 'admin' && (
+          {user && isAdminLike && (
             <>
               <NavLink to="/paddy-sample-reports" $active={isActive('/paddy-sample-reports') || isActive('/owner-sample-reports')} style={{ whiteSpace: 'normal', textAlign: 'center', lineHeight: 1.1 }}>
                 Paddy Sample<br />Reports
@@ -668,7 +673,7 @@ const Navbar: React.FC = () => {
           )}
 
           {/* Ledgers Dropdown - for Manager, CEO and Admin only (NOT inventory_staff) */}
-          {(user?.role === 'manager' || user?.role === 'ceo' || user?.role === 'admin') && (
+          {(user?.role === 'manager' || user?.role === 'ceo' || user?.role === 'admin' || user?.role === 'md') && (
             <DropdownWrapper ref={ledgersRef}>
               <DropdownTrigger
                 $active={isLedgersActive}
@@ -704,7 +709,7 @@ const Navbar: React.FC = () => {
           )}
 
           {/* Master Creation Dropdown - for Manager, CEO and Admin only (NOT inventory_staff) */}
-          {(user?.role === 'manager' || user?.role === 'ceo' || user?.role === 'admin') && (
+          {canMasterCreate && (
             <DropdownWrapper ref={masterRef}>
               <DropdownTrigger
                 $active={isMasterActive}
@@ -716,26 +721,36 @@ const Navbar: React.FC = () => {
               >Master Creation ▾</DropdownTrigger>
               {masterDropdownOpen && (
                 <DropdownMenu>
-                  {user?.role === 'admin' && (
+                  {isAdminLike && (
                     <DropdownLink to="/admin/users" $active={isActive('/admin/users')}>User Management</DropdownLink>
                   )}
-                  <DropdownLink to="/admin/brokers" $active={isActive('/admin/brokers')}>Broker</DropdownLink>
+                  {!isInventoryHead && (
+                    <DropdownLink to="/admin/brokers" $active={isActive('/admin/brokers')}>Broker</DropdownLink>
+                  )}
                   <DropdownLink to="/admin/varieties" $active={isActive('/admin/varieties')}>Variety</DropdownLink>
                   <DropdownLink to="/admin/warehouses" $active={isActive('/admin/warehouses')}>Warehouse</DropdownLink>
                   <DropdownLink to="/admin/rice-stock-locations" $active={isActive('/admin/rice-stock-locations')}>Rice Stock Location</DropdownLink>
                   <DropdownLink to="/admin/kunchinittus" $active={isActive('/admin/kunchinittus')}>Kunchinintu</DropdownLink>
                   <DropdownLink to="/admin/weight-bridges" $active={isActive('/admin/weight-bridges')}>Weigh Bridge</DropdownLink>
-                  <DropdownLink to="/admin/production" $active={isActive('/admin/production')}>Production (Outturn)</DropdownLink>
-                  <DropdownLink to="/admin/packaging" $active={isActive('/admin/packaging')}>Brand Management</DropdownLink>
-                  <DropdownLink to="/admin/paddy-hamali" $active={isActive('/admin/paddy-hamali')}>Paddy Hamali</DropdownLink>
-                  <DropdownLink to="/admin/rice-hamali" $active={isActive('/admin/rice-hamali')}>Rice Hamali</DropdownLink>
+                  {!isInventoryHead && (
+                    <DropdownLink to="/admin/production" $active={isActive('/admin/production')}>Production (Outturn)</DropdownLink>
+                  )}
+                  {!isInventoryHead && (
+                    <DropdownLink to="/admin/packaging" $active={isActive('/admin/packaging')}>Brand Management</DropdownLink>
+                  )}
+                  {!isInventoryHead && (
+                    <DropdownLink to="/admin/paddy-hamali" $active={isActive('/admin/paddy-hamali')}>Paddy Hamali</DropdownLink>
+                  )}
+                  {!isInventoryHead && (
+                    <DropdownLink to="/admin/rice-hamali" $active={isActive('/admin/rice-hamali')}>Rice Hamali</DropdownLink>
+                  )}
                 </DropdownMenu>
               )}
             </DropdownWrapper>
           )}
 
           {/* Workflow Dropdown */}
-          {user && user.role !== 'admin' && user.role !== 'manager' && user.role !== 'staff' && user.role !== 'inventory_staff' && user.role !== 'inventory_head' && (
+          {user && !isAdminLike && user.role !== 'manager' && user.role !== 'staff' && user.role !== 'inventory_staff' && user.role !== 'inventory_head' && (
             <DropdownWrapper ref={workflowRef}>
               <DropdownTrigger
                 $active={isWorkflowActive}
@@ -745,14 +760,14 @@ const Navbar: React.FC = () => {
                 }}
               >
                 Workflow ▾
-                {pendingCount > 0 && (user.role === 'manager' || user.role === 'ceo' || user.role === 'admin') && (
+                {pendingCount > 0 && (user.role === 'manager' || user.role === 'ceo' || user.role === 'admin' || user.role === 'md') && (
                   <InlineBadge>{pendingCount}</InlineBadge>
                 )}
               </DropdownTrigger>
               {workflowDropdownOpen && (
                 <DropdownMenu>
                   <DropdownLink to="/sample-entry" $active={isActive('/sample-entry')}>New Paddy Sample</DropdownLink>
-                  {(user.role === 'manager' || user.role === 'ceo' || user.role === 'admin') && (
+                  {(user.role === 'manager' || user.role === 'ceo' || user.role === 'admin' || user.role === 'md') && (
                     <>
                       <DropdownLink to="/sample-workflow" $active={isActive('/sample-workflow')}>Workflow Board</DropdownLink>
                       <DropdownLink to="/pending-approvals" $active={isActive('/pending-approvals')}>
@@ -761,19 +776,19 @@ const Navbar: React.FC = () => {
                     </>
                   )}
                   {user.role !== 'staff' && <DropdownDivider />}
-                  {(user.role === 'inventory_staff' || user.role === 'admin') && (
+                  {(user.role === 'inventory_staff' || isAdminLike) && (
                     <DropdownLink to="/inventory-entry" $active={isActive('/inventory-entry')}>Inventory Entry</DropdownLink>
                   )}
                   {(user.role === 'physical_supervisor' || user.role === 'paddy_supervisor') && (
                     <DropdownLink to="/physical-inspection" $active={isActive('/physical-inspection')}>Lots Allotted</DropdownLink>
                   )}
-                  {user.role === 'admin' && (
+                  {isAdminLike && (
                     <DropdownLink to="/owner-financial" $active={isActive('/owner-financial')}>Owner Financial</DropdownLink>
                   )}
-                  {(user.role === 'manager' || user.role === 'ceo' || user.role === 'admin') && (
+                  {(user.role === 'manager' || user.role === 'ceo' || user.role === 'admin' || user.role === 'md') && (
                     <>
                       <DropdownDivider />
-                      {user.role === 'admin' && (
+                      {isAdminLike && (
                         <DropdownLink to="/manager-sample-reports" $active={isActive('/manager-sample-reports')}>Manager Sample Reports</DropdownLink>
                       )}
                       <DropdownLink to="/manager-financial" $active={isActive('/manager-financial')}>Manager Financial</DropdownLink>
@@ -781,7 +796,7 @@ const Navbar: React.FC = () => {
                       <DropdownLink to="/allotting-supervisors" $active={isActive('/allotting-supervisors')}>Allot Supervisor</DropdownLink>
                     </>
                   )}
-                  {user.role === 'admin' && (
+                  {isAdminLike && (
                     <>
                       <DropdownDivider />
                       <DropdownLink to="/paddy-sample-reports" $active={isActive('/paddy-sample-reports') || isActive('/owner-sample-reports')}>Paddy Sample Reports</DropdownLink>
@@ -795,7 +810,19 @@ const Navbar: React.FC = () => {
 
 
           <UserInfo onClick={() => setShowPasswordModal(true)}>
-            <UserBadge>{user?.role === 'staff' ? 'Paddy Supervisor' : user?.role}</UserBadge>
+            <UserBadge>
+              {user?.role === 'staff' 
+                ? 'Paddy Supervisor' 
+                : (user?.role === 'inventory_staff' && user?.subRole === 'head')
+                  ? 'Inventory Head'
+                  : user?.role === 'inventory_staff'
+                    ? 'Inventory Staff'
+                    : (user?.role === 'financial_account' && user?.subRole === 'head')
+                      ? 'Finance Head'
+                      : user?.role === 'financial_account'
+                        ? 'Finance Staff'
+                        : user?.role}
+            </UserBadge>
             <span style={{ textTransform: 'capitalize' }}>{user?.username}</span>
           </UserInfo>
           <LogoutButton onClick={handleLogout}>Logout</LogoutButton>

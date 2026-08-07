@@ -68,7 +68,7 @@ router.get('/warehouses', auth, async (req, res) => {
 });
 
 // Create warehouse (Manager/Admin only)
-router.post('/warehouses', auth, authorize('manager', 'admin'), async (req, res) => {
+router.post('/warehouses', auth, authorize('manager', 'admin', 'inventory_head'), async (req, res) => {
   try {
     const { name, code, location, capacity, type, shortCutName } = req.body;
 
@@ -110,7 +110,7 @@ router.post('/warehouses', auth, authorize('manager', 'admin'), async (req, res)
 });
 
 // Update warehouse (Manager/Admin only)
-router.put('/warehouses/:id', auth, authorize('manager', 'admin'), async (req, res) => {
+router.put('/warehouses/:id', auth, authorize('manager', 'admin', 'inventory_head'), async (req, res) => {
   try {
     const warehouse = await Warehouse.findByPk(req.params.id);
     if (!warehouse) {
@@ -154,7 +154,7 @@ router.put('/warehouses/:id', auth, authorize('manager', 'admin'), async (req, r
 });
 
 // Delete warehouse (Manager/Admin only)
-router.delete('/warehouses/:id', auth, authorize('manager', 'admin'), async (req, res) => {
+router.delete('/warehouses/:id', auth, authorize('manager', 'admin', 'inventory_head'), async (req, res) => {
   try {
     const warehouse = await Warehouse.findByPk(req.params.id);
     if (!warehouse) {
@@ -237,7 +237,7 @@ router.get('/kunchinittus', auth, async (req, res) => {
 });
 
 // Create kunchinittu (Manager/Admin only)
-router.post('/kunchinittus', auth, authorize('manager', 'admin'), async (req, res) => {
+router.post('/kunchinittus', auth, authorize('manager', 'admin', 'inventory_head'), async (req, res) => {
   try {
     const { name, code, warehouseId, varietyId, capacity } = req.body;
 
@@ -305,7 +305,7 @@ router.post('/kunchinittus', auth, authorize('manager', 'admin'), async (req, re
 });
 
 // Update kunchinittu (Manager/Admin only)
-router.put('/kunchinittus/:id', auth, authorize('manager', 'admin'), async (req, res) => {
+router.put('/kunchinittus/:id', auth, authorize('manager', 'admin', 'inventory_head'), async (req, res) => {
   try {
     const kunchinittu = await Kunchinittu.findByPk(req.params.id);
     if (!kunchinittu) {
@@ -375,7 +375,7 @@ router.put('/kunchinittus/:id', auth, authorize('manager', 'admin'), async (req,
 });
 
 // Delete kunchinittu (Manager/Admin only)
-router.delete('/kunchinittus/:id', auth, authorize('manager', 'admin'), async (req, res) => {
+router.delete('/kunchinittus/:id', auth, authorize('manager', 'admin', 'inventory_head'), async (req, res) => {
   try {
     const kunchinittu = await Kunchinittu.findByPk(req.params.id);
     if (!kunchinittu) {
@@ -498,7 +498,7 @@ router.get('/varieties', auth, cacheMiddleware(300), async (req, res) => {
 });
 
 // Create variety (Manager/Admin only)
-router.post('/varieties', auth, authorize('manager', 'admin'), async (req, res) => {
+router.post('/varieties', auth, authorize('manager', 'admin', 'inventory_head'), async (req, res) => {
   try {
     const { name, code, description } = req.body;
 
@@ -543,7 +543,7 @@ router.post('/varieties', auth, authorize('manager', 'admin'), async (req, res) 
 });
 
 // Update variety (Manager/Admin only)
-router.put('/varieties/:id', auth, authorize('manager', 'admin'), async (req, res) => {
+router.put('/varieties/:id', auth, authorize('manager', 'admin', 'inventory_head'), async (req, res) => {
   try {
     const variety = await Variety.findByPk(req.params.id);
     if (!variety) {
@@ -639,7 +639,7 @@ router.put('/varieties/:id', auth, authorize('manager', 'admin'), async (req, re
 });
 
 // Delete variety (Manager/Admin only)
-router.delete('/varieties/:id', auth, authorize('manager', 'admin'), async (req, res) => {
+router.delete('/varieties/:id', auth, authorize('manager', 'admin', 'inventory_head'), async (req, res) => {
   try {
     const variety = await Variety.findByPk(req.params.id);
     if (!variety) {
@@ -737,7 +737,7 @@ router.get('/rice-stock-locations', auth, async (req, res) => {
 });
 
 // Create rice stock location (Manager/Admin only)
-router.post('/rice-stock-locations', auth, authorize('manager', 'admin'), async (req, res) => {
+router.post('/rice-stock-locations', auth, authorize('manager', 'admin', 'inventory_head'), async (req, res) => {
   try {
     console.log('📍 Creating rice stock location...');
     console.log('Request body:', req.body);
@@ -802,7 +802,7 @@ router.post('/rice-stock-locations', auth, authorize('manager', 'admin'), async 
 });
 
 // Update rice stock location (Manager/Admin only)
-router.put('/rice-stock-locations/:id', auth, authorize('manager', 'admin'), async (req, res) => {
+router.put('/rice-stock-locations/:id', auth, authorize('manager', 'admin', 'inventory_head'), async (req, res) => {
   try {
     const { code, name, isActive } = req.body;
 
@@ -905,7 +905,7 @@ router.get('/rice-varieties', auth, async (req, res) => {
 });
 
 // Create rice variety (Manager/Admin only)
-router.post('/rice-varieties', auth, authorize('manager', 'admin'), async (req, res) => {
+router.post('/rice-varieties', auth, authorize('manager', 'admin', 'inventory_head'), async (req, res) => {
   try {
     const { name, code } = req.body;
 
@@ -938,7 +938,7 @@ router.post('/rice-varieties', auth, authorize('manager', 'admin'), async (req, 
 });
 
 // Update rice variety (Manager/Admin only)
-router.put('/rice-varieties/:id', auth, authorize('manager', 'admin'), async (req, res) => {
+router.put('/rice-varieties/:id', auth, authorize('manager', 'admin', 'inventory_head'), async (req, res) => {
   try {
     const variety = await RiceVariety.findByPk(req.params.id);
     if (!variety) {

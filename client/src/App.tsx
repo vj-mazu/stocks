@@ -201,7 +201,7 @@ const AppContent: React.FC = () => {
               <Route
                 path="/admin/varieties"
                 element={
-                  <ProtectedRoute roles={['manager', 'admin']}>
+                  <ProtectedRoute roles={['manager', 'admin', 'inventory_head']}>
                     <Layout>
                       <VarietyManagement />
                     </Layout>
@@ -211,7 +211,7 @@ const AppContent: React.FC = () => {
               <Route
                 path="/admin/warehouses"
                 element={
-                  <ProtectedRoute roles={['manager', 'admin']}>
+                  <ProtectedRoute roles={['manager', 'admin', 'inventory_head']}>
                     <Layout>
                       <WarehouseManagement />
                     </Layout>
@@ -221,7 +221,7 @@ const AppContent: React.FC = () => {
               <Route
                 path="/admin/rice-stock-locations"
                 element={
-                  <ProtectedRoute roles={['manager', 'admin']}>
+                  <ProtectedRoute roles={['manager', 'admin', 'inventory_head']}>
                     <Layout>
                       <RiceStockLocationManagement />
                     </Layout>
@@ -231,7 +231,7 @@ const AppContent: React.FC = () => {
               <Route
                 path="/admin/production"
                 element={
-                  <ProtectedRoute roles={['manager', 'admin']}>
+                  <ProtectedRoute roles={['manager', 'admin', 'inventory_head']}>
                     <Layout>
                       <ProductionManagement />
                     </Layout>
@@ -241,7 +241,7 @@ const AppContent: React.FC = () => {
               <Route
                 path="/admin/kunchinittus"
                 element={
-                  <ProtectedRoute roles={['manager', 'admin']}>
+                  <ProtectedRoute roles={['manager', 'admin', 'inventory_head']}>
                     <Layout>
                       <KunchinintuManagement />
                     </Layout>
@@ -251,7 +251,7 @@ const AppContent: React.FC = () => {
               <Route
                 path="/admin/weight-bridges"
                 element={
-                  <ProtectedRoute roles={['manager', 'admin', 'ceo']}>
+                  <ProtectedRoute roles={['manager', 'admin', 'ceo', 'inventory_head']}>
                     <Layout>
                       <WeightBridgeManagement />
                     </Layout>
@@ -261,7 +261,7 @@ const AppContent: React.FC = () => {
               <Route
                 path="/admin/packaging"
                 element={
-                  <ProtectedRoute roles={['manager', 'admin']}>
+                  <ProtectedRoute roles={['manager', 'admin', 'inventory_head']}>
                     <Layout>
                       <PackagingManagement />
                     </Layout>

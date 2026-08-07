@@ -1768,7 +1768,7 @@ router.post('/movements', auth, async (req, res) => {
         });
 
         // FIXED: Auto-approve if created by admin or manager
-        const isAdminOrManager = req.user.role === 'admin' || req.user.role === 'manager';
+        const isAdminOrManager = req.user.role === 'admin' || req.user.role === 'md' || req.user.role === 'manager';
         const status = isAdminOrManager ? 'approved' : 'pending';
         console.log(`📊 Setting status to '${status}' for user role: ${req.user.role}`);
 

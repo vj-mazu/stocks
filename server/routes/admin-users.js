@@ -238,7 +238,7 @@ router.post('/users', auth, authorize('admin'), async (req, res) => {
             return res.status(400).json({ error: 'Full Name is required' });
         }
 
-        const validRoles = ['staff', 'manager', 'admin', 'inventory_staff', 'financial_account', 'paddy_supervisor', 'ceo'];
+        const validRoles = ['staff', 'manager', 'admin', 'md', 'inventory_staff', 'financial_account', 'paddy_supervisor', 'ceo', 'inventory_head'];
         if (!validRoles.includes(normalizedRole)) {
             console.warn(`⚠️ Admin ${req.user.username} tried to create user with invalid role: ${role}`);
             return res.status(400).json({ error: 'Invalid role' });
@@ -347,7 +347,7 @@ router.put('/users/:id/credentials', auth, async (req, res) => {
         const normalizeName = (value = '') => String(value).trim().replace(/\s+/g, ' ').toLowerCase();
 
         const isSelf = String(req.user.userId) === String(id);
-        const isAdmin = req.user.role === 'admin';
+        const isAdmin = req.user.role === 'admin' || req.user.role === 'md';
 
         if (!isAdmin && !isSelf) {
             return res.status(403).json({ error: 'Access denied. You can only update your own password.' });
@@ -543,9 +543,9 @@ router.put('/users/:id/role', auth, authorize('admin'), async (req, res) => {
             return res.status(400).json({ error: 'You cannot change your own role' });
         }
 
-        const validRoles = ['staff', 'manager', 'admin', 'quality_supervisor', 'physical_supervisor', 'inventory_staff', 'financial_account', 'paddy_supervisor', 'ceo'];
+        const validRoles = ['staff', 'manager', 'admin', 'quality_supervisor', 'physical_supervisor', 'inventory_staff', 'financial_account', 'paddy_supervisor', 'ceo', 'inventory_head'];
         if (!validRoles.includes(normalizedRole)) {
-            return res.status(400).json({ error: 'Invalid role. Must be one of: staff, paddy_supervisor, manager, admin, quality_supervisor, physical_supervisor, inventory_staff, financial_account, ceo' });
+            return res.status(400).json({ error: 'Invalid role. Must be one of: staff, paddy_supervisor, manager, admin, quality_supervisor, physical_supervisor, inventory_staff, financial_account, ceo, inventory_head' });
         }
 
         // Limit Admin and Manager roles to maximum of 2 users

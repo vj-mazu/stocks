@@ -39,7 +39,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // Create packaging (Manager/Admin only)
-router.post('/', auth, authorize('manager', 'admin'), async (req, res) => {
+router.post('/', auth, authorize('manager', 'admin', 'inventory_head'), async (req, res) => {
   try {
     const { brandName, code, allottedKg } = req.body;
 
@@ -77,7 +77,7 @@ router.post('/', auth, authorize('manager', 'admin'), async (req, res) => {
 });
 
 // Update packaging (Manager/Admin only)
-router.put('/:id', auth, authorize('manager', 'admin'), async (req, res) => {
+router.put('/:id', auth, authorize('manager', 'admin', 'inventory_head'), async (req, res) => {
   try {
     const packaging = await Packaging.findByPk(req.params.id);
     if (!packaging) {
@@ -141,7 +141,7 @@ router.put('/:id', auth, authorize('manager', 'admin'), async (req, res) => {
 });
 
 // Delete packaging (Manager/Admin only)
-router.delete('/:id', auth, authorize('manager', 'admin'), async (req, res) => {
+router.delete('/:id', auth, authorize('manager', 'admin', 'inventory_head'), async (req, res) => {
   try {
     const packaging = await Packaging.findByPk(req.params.id);
     if (!packaging) {

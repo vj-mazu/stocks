@@ -86,7 +86,7 @@ router.post('/', auth, async (req, res) => {
 });
 
 // Update outturn (Manager/Admin only)
-router.put('/:id', auth, authorize('manager', 'admin'), async (req, res) => {
+router.put('/:id', auth, authorize('manager', 'admin', 'inventory_head'), async (req, res) => {
   try {
     const { id } = req.params;
     const { code, allottedVariety, type } = req.body;
@@ -168,7 +168,7 @@ router.delete('/:id', auth, async (req, res) => {
 });
 
 // Clear outturn - Consume remaining bags and close outturn (Admin/Manager only)
-router.post('/:id/clear', auth, authorize('admin', 'manager'), async (req, res) => {
+router.post('/:id/clear', auth, authorize('admin', 'manager', 'inventory_head'), async (req, res) => {
   const { sequelize } = require('../config/database');
   const transaction = await sequelize.transaction();
 

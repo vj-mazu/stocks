@@ -195,7 +195,7 @@ router.post('/bulk', auth, async (req, res) => {
     }
 
     // Determine status based on user role
-    const status = (userRole === 'manager' || userRole === 'admin') ? 'approved' : 'pending';
+    const status = (userRole === 'manager' || userRole === 'admin' || userRole === 'md') ? 'approved' : 'pending';
     const approvedBy = (status === 'approved') ? userId : null;
     const approvedAt = (status === 'approved') ? new Date() : null;
 
@@ -304,7 +304,7 @@ router.post('/', auth, async (req, res) => {
     const amount = parseFloat(rate) * parseInt(bags);
 
     // Determine status based on user role
-    const status = (userRole === 'manager' || userRole === 'admin') ? 'approved' : 'pending';
+    const status = (userRole === 'manager' || userRole === 'admin' || userRole === 'md') ? 'approved' : 'pending';
     const approvedBy = (status === 'approved') ? userId : null;
     const approvedAt = (status === 'approved') ? new Date() : null;
 
