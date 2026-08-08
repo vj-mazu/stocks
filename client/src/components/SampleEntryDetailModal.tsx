@@ -1332,7 +1332,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             } else if (upperCol === 'SMELL' || upperCol === 'PADDY WB') {
                                                 cellStyle.width = '50px';
                                                 cellStyle.textAlign = 'center';
-                                            } else if (upperCol === 'P COLOR' || upperCol === '') {
+                                            } else if (upperCol === 'P COLOR' || upperCol === 'P COLOR / KADIGA' || upperCol === '') {
                                                 cellStyle.width = '100px';
                                                 cellStyle.maxWidth = '100px';
                                                 cellStyle.textAlign = 'center';
@@ -1484,6 +1484,21 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 formatQ(attempt.wbTRaw, attempt.wbT),
                 renderBeautifulSmell(getQualityAttemptSmellLabel(detailEntry, attempt)),
                 formatQ(attempt.paddyWbRaw, attempt.paddyWb),
+                (() => {
+                    const isKadigaVal = attempt.kadiga === 'Y' || attempt.kadiga === 'Yes' || attempt.kadiga === true || attempt.kadiga === 'true' || 
+                                        (idx === 0 && (detailEntry.kadiga === 'Y' || detailEntry.kadiga === 'Yes' || detailEntry.kadiga === true || detailEntry.kadiga === 'true'));
+                    const pColorVal = attempt.pColor || (idx === 0 ? detailEntry.pColor : '');
+                    const hasColor = !!pColorVal;
+                    const hasKadiga = isKadigaVal;
+                    if (!hasColor && !hasKadiga) return '-';
+                    return (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#7c2d12', fontWeight: '800', gap: '2px' }}>
+                            {hasColor && <span>{pColorVal}</span>}
+                            {hasColor && hasKadiga && <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />}
+                            {hasKadiga && <span>ಕಡಿಗಾ: Yes</span>}
+                        </div>
+                    );
+                })(),
                 '-'
             ];
 
@@ -2966,7 +2981,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
     // so all quality tables share the same 19-column layout, then pad/trim to the target length.
     const normalizeQualityRow = (r: any, targetLen: number) => {
         const cells = Array.isArray(r) ? [...r] : [r];
-        const trimmed = cells.length >= 20 ? cells.slice(0, 18).concat(cells.slice(19)) : cells;
+        const trimmed = (targetLen < 20 && cells.length >= 20)
+            ? cells.slice(0, 18).concat(cells.slice(19))
+            : cells;
         while (trimmed.length < targetLen) trimmed.push('-');
         if (trimmed.length > targetLen) trimmed.length = targetLen;
         if ((r as any).hasSmell) (trimmed as any).hasSmell = (r as any).hasSmell;
@@ -3009,7 +3026,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             const tripRows = buildTripQualityRows(insp, idx);
             tripRows.forEach((r: any) => {
                 if (r && r.type) { merged.push(r); return; }
-                merged.push(normalizeQualityRow(r, 19));
+                merged.push(normalizeQualityRow(r, 20));
             });
         });
 
@@ -3150,7 +3167,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     || String(param.smellHas).trim().toUpperCase() === 'YES'
                     || (smellLabel && smellLabel !== '-' && smellLabel !== 'No' && smellLabel !== 'No Smell');
 
-                merged.push(normalizeQualityRow(rowData, 19));
+                merged.push(normalizeQualityRow(rowData, 20));
             });
         }
 
@@ -4413,10 +4430,10 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             '🔬', 
                                             isArrivalsView ? '#2563eb' : '#f97316', 
                                             isArrivalsView
-                                                ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'ACTIONS']
+                                                ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'P COLOR / KADIGA', 'ACTIONS']
                                                 : (progressiveMode
-                                                    ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', '', 'ACTIONS']
-                                                    : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', '']),
+                                                    ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'P COLOR / KADIGA', 'ACTIONS']
+                                                    : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'P COLOR / KADIGA']),
                                             isArrivalsView ? buildMergedQualityRows() : buildInitialQualityRows(),
                                             { isQuality: true, headerRowColor: isArrivalsView ? '#c2410c' : undefined }
                                         )}
@@ -4445,7 +4462,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                 title,
                                                                 '🚚',
                                                                 isNewRulesMode ? '#2563eb' : '#f97316',
-                                                                ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'P COLOR', 'ACTIONS'],
+                                                                ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'P COLOR / KADIGA', 'ACTIONS'],
                                                                 buildTripQualityRows(insp, idx),
                                                                 { isQuality: true }
                                                             )}
@@ -4468,7 +4485,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                      isArrivalsView ? '#c2410c' : '#7c3aed', 
                                                      isArrivalsView
                                                          ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'ACTIONS']
-                                                         : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'P COLOR', 'ACTIONS'],
+                                                         : ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'P COLOR / KADIGA', 'ACTIONS'],
                                                      isArrivalsView
                                                          ? buildBmbQualityRows(paramsList).map((row: any) => {
                                                              if (row && row.type) return row;
