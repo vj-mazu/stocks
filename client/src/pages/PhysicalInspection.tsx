@@ -62,13 +62,13 @@ const handleCuttingInput = (value: string, entryType?: string) => {
   // Auto-insert × symbol for cutting/bend - 1 digit before × and 4 digits after ×
   // (matches Sample Entry quality parameters behavior)
   let clean = value.replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×');
+  if (!clean.includes('×') && clean.length > 0) {
+    clean = '1×' + clean;
+  }
   const xCount = (clean.match(/×/g) || []).length;
   if (xCount > 1) {
     const idx = clean.indexOf('×');
     clean = clean.substring(0, idx + 1) + clean.substring(idx + 1).replace(/×/g, '');
-  }
-  if (clean.length === 1 && !clean.includes('×') && /^\d$/.test(clean)) {
-    clean = clean + '×';
   }
   const parts = clean.split('×');
   const first = (parts[0] || '').substring(0, 1);
@@ -87,13 +87,13 @@ const handleBendInput = (value: string, entryType?: string) => {
   // Auto-insert × symbol for cutting/bend - 1 digit before × and 4 digits after ×
   // (matches Sample Entry quality parameters behavior)
   let clean = value.replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×');
+  if (!clean.includes('×') && clean.length > 0) {
+    clean = '1×' + clean;
+  }
   const xCount = (clean.match(/×/g) || []).length;
   if (xCount > 1) {
     const idx = clean.indexOf('×');
     clean = clean.substring(0, idx + 1) + clean.substring(idx + 1).replace(/×/g, '');
-  }
-  if (clean.length === 1 && !clean.includes('×') && /^\d$/.test(clean)) {
-    clean = clean + '×';
   }
   const parts = clean.split('×');
   const first = (parts[0] || '').substring(0, 1);
@@ -571,13 +571,13 @@ const PhysicalInspection: React.FC = () => {
 
     if (field === 'cutting' || field === 'bend') {
       let clean = String(value || '').replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×');
+      if (!clean.includes('×') && clean.length > 0) {
+        clean = '1×' + clean;
+      }
       const xCount = (clean.match(/×/g) || []).length;
       if (xCount > 1) {
         const idx = clean.indexOf('×');
         clean = clean.substring(0, idx + 1) + clean.substring(idx + 1).replace(/×/g, '');
-      }
-      if (clean.length === 1 && !clean.includes('×') && /^\d$/.test(clean)) {
-        clean = clean + '×';
       }
       const parts = clean.split('×');
       const first = (parts[0] || '').substring(0, 1);
@@ -4376,6 +4376,12 @@ const PhysicalInspection: React.FC = () => {
                                                 disabled={isLocked}
                                                 value={cardData.cutting}
                                                 placeholder="e.g. 1×12"
+                                                onFocus={() => {
+                                                  if (!cardData.cutting && !isLocked) {
+                                                    const res = handleCuttingInput('1×', entry.entryType);
+                                                    handleStageInputChange(entry.id, stage, 'cutting', res.raw);
+                                                  }
+                                                }}
                                                 onChange={(e) => {
                                                   const res = handleCuttingInput(e.target.value, entry.entryType);
                                                   handleStageInputChange(entry.id, stage, 'cutting', res.raw);
@@ -4390,6 +4396,12 @@ const PhysicalInspection: React.FC = () => {
                                                 disabled={isLocked}
                                                 value={cardData.bend}
                                                 placeholder="e.g. 1×12"
+                                                onFocus={() => {
+                                                  if (!cardData.bend && !isLocked) {
+                                                    const res = handleBendInput('1×', entry.entryType);
+                                                    handleStageInputChange(entry.id, stage, 'bend', res.raw);
+                                                  }
+                                                }}
                                                 onChange={(e) => {
                                                   const res = handleBendInput(e.target.value, entry.entryType);
                                                   handleStageInputChange(entry.id, stage, 'bend', res.raw);

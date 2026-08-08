@@ -4024,7 +4024,7 @@ const Arrivals: React.FC = () => {
 
 
 
-  const [inventoryQualityType, setInventoryQualityType] = useState<'lot_avg' | 'full_lorry_avg'>('lot_avg');
+  const [inventoryQualityType, setInventoryQualityType] = useState<'lot_avg' | 'full_lorry_avg' | null>(null);
 
 
 
@@ -4036,9 +4036,10 @@ const Arrivals: React.FC = () => {
   });
 
   const [wbEnabled, setWbEnabled] = useState(false);
+  const [wbEnabledState, setWbEnabledState] = useState<'Yes' | 'No' | null>(null);
 
   const [inventoryQualityToggle, setInventoryQualityToggle] = useState({
-    dryMoisture: 'Y', sMix: 'Y', lMix: 'Y', paddyWb: 'Y', kadiga: 'Y', smellHas: 'No'
+    dryMoisture: '', sMix: '', lMix: '', paddyWb: '', kadiga: '', smellHas: ''
   });
 
   // Auto-calculate WB (T) = WB (R) + WB (BK)
@@ -4282,7 +4283,7 @@ const Arrivals: React.FC = () => {
         smell: String(activeRecheck.smell ?? ''),
         paddyWb: String(activeRecheck.paddyWb ?? ''),
         pColor: String(activeRecheck.pColor ?? ''),
-        kadiga: String(activeRecheck.kadiga ?? 'No'),
+        kadiga: String(activeRecheck.kadiga ?? ''),
         remarks: String(activeRecheck.remarks ?? ''),
         reportedByUserId: String(activeRecheck.reportedByUserId ?? activeRecheck.createdBy ?? '')
       });
@@ -4290,23 +4291,26 @@ const Arrivals: React.FC = () => {
         dryMoisture: activeRecheck.dryMoisture ? 'Y' : 'N',
         sMix: activeRecheck.sMix ? 'Y' : 'N',
         lMix: activeRecheck.lMix ? 'Y' : 'N',
-        paddyWb: activeRecheck.paddyWb ? 'Y' : 'N',
+        paddyWb: activeRecheck.paddyWb ? 'Yes' : 'No',
         kadiga: activeRecheck.kadiga === 'Yes' ? 'Yes' : 'No',
         smellHas: activeRecheck.smell ? 'Yes' : 'No'
       });
-      setWbEnabled(!!activeRecheck.wbR || !!activeRecheck.wbBk);
+      const hasWbVal = !!activeRecheck.wbR || !!activeRecheck.wbBk;
+      setWbEnabled(hasWbVal);
+      setWbEnabledState(hasWbVal ? 'Yes' : 'No');
     } else {
       setInventoryQualityForm({
         moisture: '', dryMoisture: '', cutting: '', bend: '', grains: '',
         mix: '', sMix: '', lMix: '', kandu: '', oil: '', sk: '',
         wbR: '', wbBk: '', wbT: '',
-        smell: '', paddyWb: '', pColor: '', kadiga: 'No', remarks: '',
+        smell: '', paddyWb: '', pColor: '', kadiga: '', remarks: '',
         reportedByUserId: ''
       });
       setInventoryQualityToggle({
-        dryMoisture: 'Y', sMix: 'Y', lMix: 'Y', paddyWb: 'Y', kadiga: 'Y', smellHas: 'No'
+        dryMoisture: '', sMix: '', lMix: '', paddyWb: '', kadiga: '', smellHas: ''
       });
       setWbEnabled(false);
+      setWbEnabledState(null);
     }
   }, [inventoryQualityType, isQualitySamplingModalOpen, qualitySamplingEntry, activeRecheck]);
 
@@ -4322,52 +4326,16 @@ const Arrivals: React.FC = () => {
 
     let clean = String(value || '');
 
-
-
-
-
-
-
     if (field === 'cutting' || field === 'bend') {
-
-
-
       clean = clean.replace(/[^0-9×xX]/g, '').replace(/[xX]/g, '×');
-
-
-
+      if (!clean.includes('×') && clean.length > 0) {
+        clean = '1×' + clean;
+      }
       const xCount = (clean.match(/×/g) || []).length;
-
-
-
       if (xCount > 1) {
-
-
-
         const idx = clean.indexOf('×');
-
-
-
         clean = clean.substring(0, idx + 1) + clean.substring(idx + 1).replace(/×/g, '');
-
-
-
       }
-
-
-
-      if (clean.length === 1 && !clean.includes('×') && /^\d$/.test(clean)) {
-
-
-
-        clean = `${clean}×`;
-
-
-
-      }
-
-
-
       const parts = clean.split('×');
 
 
@@ -5304,6 +5272,16 @@ const Arrivals: React.FC = () => {
       return false;
     }
 
+    if (wbEnabledState === null) {
+      toast.error('WB R/BK Yes/No option is required');
+      return false;
+    }
+
+    if (wbEnabledState === 'Yes' && (!inventoryQualityForm.wbR || !inventoryQualityForm.wbR.trim() || !inventoryQualityForm.wbBk || !inventoryQualityForm.wbBk.trim())) {
+      toast.error('WB R and BK values are required when WB is Yes');
+      return false;
+    }
+
 
 
 
@@ -5409,8 +5387,8 @@ const Arrivals: React.FC = () => {
 
   // Handler for the Quality Sampling popup modal "Next/Save" button
 
-  // Submit Lot Avg only — saves data without transitioning to Full Lorry
-  const handleSubmitLotAvg = async () => {
+  // Unified handler for the Quality Sampling popup modal submission
+  const handleQualitySamplingSubmit = async () => {
     if (!qualitySamplingEntry) return;
     const transitDetailId =
       qualitySamplingEntry?.transitDetailId ||
@@ -5420,74 +5398,65 @@ const Arrivals: React.FC = () => {
       toast.error('Could not find Transit Detail ID. Please try again.');
       return;
     }
-    const success = await handleSubmitInventoryQuality(String(transitDetailId), false);
-    if (!success) return;
-    const isApproved = user?.role === 'admin';
-    if (isApproved) {
-      toast.success('Before Unloading (Lot Avg) saved & approved successfully.');
-    } else {
-      toast.success('Before Unloading (Lot Avg) saved successfully.');
-    }
-    setIsQualitySamplingModalOpen(false);
-    setQualitySamplingEntry(null);
-    fetchInTransitEntries();
-    fetchBandMalalEntries();
-  };
-
-  // Next on Lot Avg: saves Lot Avg (if data exists) AND transitions to Full Lorry
-  // Submit on Full Lorry: validates, saves, and closes modal
-  const handleQualitySamplingNext = async () => {
-    if (!qualitySamplingEntry) return;
-    const transitDetailId =
-      qualitySamplingEntry?.transitDetailId ||
-      qualitySamplingEntry?.lorryTransitDetail?.id ||
-      qualitySamplingEntry?.id;
-    if (!transitDetailId) {
-      toast.error('Could not find Transit Detail ID. Please try again.');
-      return;
-    }
-
-    // Check if any quality data was entered in Lot Avg form
-    const qualityFields = ['moisture', 'dryMoisture', 'cutting', 'bend', 'grains', 'mix', 'sMix', 'lMix', 'kandu', 'oil', 'sk', 'pColor', 'paddyWb'];
-    const hasLotAvgData = qualityFields.some(
-      field => inventoryQualityForm[field as keyof typeof inventoryQualityForm]?.toString().trim() !== ''
-    );
 
     if (inventoryQualityType === 'lot_avg') {
-      if (hasLotAvgData) {
-        // Save Lot Avg data to backend, then transition to Full Lorry
-        const success = await handleSubmitInventoryQuality(String(transitDetailId), false);
-        if (!success) return;
-        const isApproved = user?.role === 'admin';
-        if (isApproved) {
-          toast.info('Before Unloading (Lot Avg) saved & approved. Please enter Full Lorry Avg (Gutti) parameters.');
-        } else {
-          toast.info('Before Unloading (Lot Avg) saved. Please enter Full Lorry Avg (Gutti) parameters.');
-        }
+      const success = await handleSubmitInventoryQuality(String(transitDetailId), false);
+      if (!success) return;
+
+      const addGutti = window.confirm("Before Unloading (Lot Avg) saved successfully. Do you want to add Gutti (Full Lorry Avg) now?");
+      if (addGutti) {
+        setInventoryQualityType('full_lorry_avg');
+        setInventoryQualityForm({
+          moisture: '', dryMoisture: '', cutting: '', bend: '', grains: '',
+          mix: '', sMix: '', lMix: '', kandu: '', oil: '', sk: '',
+          wbR: '', wbBk: '', wbT: '',
+          smell: '', paddyWb: '', pColor: '', kadiga: '', remarks: '',
+          reportedByUserId: inventoryQualityForm.reportedByUserId
+        });
+        setInventoryQualityToggle({
+          dryMoisture: '', sMix: '', lMix: '', paddyWb: '', kadiga: '', smellHas: ''
+        });
+        setWbEnabled(false);
+        setWbEnabledState(null);
       } else {
-        // No data entered — skip submission, will add later after Full Lorry is approved
-        toast.info('Lot Avg data will be added later. Please enter Full Lorry Avg parameters now.');
+        setIsQualitySamplingModalOpen(false);
+        setQualitySamplingEntry(null);
       }
-      // Transition to full lorry avg next
-      setInventoryQualityType('full_lorry_avg');
-      // Reset form fields for full lorry entry
-      setInventoryQualityForm({
-        moisture: '', dryMoisture: '', cutting: '', bend: '', grains: '',
-        mix: '', sMix: '', lMix: '', kandu: '', oil: '', sk: '',
-        wbR: '', wbBk: '', wbT: '',
-        smell: '', paddyWb: '', pColor: '', kadiga: '', remarks: ''
-      });
-      setInventoryQualityToggle({
-        dryMoisture: 'Y', sMix: 'Y', lMix: 'Y', paddyWb: 'Y', kadiga: 'Y', smellHas: 'No'
-      });
-      setWbEnabled(false);
     } else {
-      // Full Lorry Avg — submit and close
+      // Check if Lot Avg is done
+      const modalParams = qualitySamplingEntry?.inventoryQualityParameters || 
+                          qualitySamplingEntry?.lorryTransitDetail?.inventoryQualityParameters || 
+                          (qualitySamplingEntry?.physicalInspections && qualitySamplingEntry?.physicalInspections[0]?.inventoryQualityParameters) || 
+                          [];
+      const hasLotDone = modalParams.some((p: any) => p.type === 'lot_avg' && p.status !== 'rejected');
+
+      if (!hasLotDone) {
+        const addLotFirst = window.confirm("Before Unloading (Lot Avg) has not been added yet. Do you want to add Lot Avg first?");
+        if (addLotFirst) {
+          setInventoryQualityType('lot_avg');
+          setInventoryQualityForm({
+            moisture: '', dryMoisture: '', cutting: '', bend: '', grains: '',
+            mix: '', sMix: '', lMix: '', kandu: '', oil: '', sk: '',
+            wbR: '', wbBk: '', wbT: '',
+            smell: '', paddyWb: '', pColor: '', kadiga: '', remarks: '',
+            reportedByUserId: inventoryQualityForm.reportedByUserId
+          });
+          setInventoryQualityToggle({
+            dryMoisture: '', sMix: '', lMix: '', paddyWb: '', kadiga: '', smellHas: ''
+          });
+          setWbEnabled(false);
+          setWbEnabledState(null);
+          return;
+        }
+      }
+
+      // Submit Full Lorry Avg
       const success = await handleSubmitInventoryQuality(String(transitDetailId));
       if (!success) return;
       setIsQualitySamplingModalOpen(false);
       setQualitySamplingEntry(null);
     }
+
     // Refresh both tabs
     fetchInTransitEntries();
     fetchBandMalalEntries();
@@ -6834,8 +6803,8 @@ const Arrivals: React.FC = () => {
                                         onClick={() => {
                                           setQualitySamplingEntry(isPlaceholder ? entry : { ...entry, ...(inspection || {}) });
                                           setIsQualitySamplingModalOpen(true);
-                                          const hasLot = params.some((p: any) => p.type === 'lot_avg' && p.status !== 'rejected');
-                                          setInventoryQualityType(!hasLot ? 'lot_avg' : 'full_lorry_avg');
+                                          setInventoryQualityType(null);
+                                          setWbEnabledState(null);
                                           setInventoryQualityForm({
                                             moisture: '', dryMoisture: '', cutting: '', bend: '', grains: '',
                                             mix: '', sMix: '', lMix: '', kandu: '', oil: '', sk: '',
@@ -6843,7 +6812,7 @@ const Arrivals: React.FC = () => {
                                             smell: '', paddyWb: '', pColor: '', kadiga: '', remarks: ''
                                           });
                                           setInventoryQualityToggle({
-                                            dryMoisture: 'Y', sMix: 'Y', lMix: 'Y', paddyWb: 'Y', kadiga: 'Y', smellHas: 'No'
+                                            dryMoisture: '', sMix: '', lMix: '', paddyWb: '', kadiga: '', smellHas: ''
                                           });
                                         }}
                                         style={{
@@ -8719,7 +8688,8 @@ const Arrivals: React.FC = () => {
                                        onClick={() => {
                                          setQualitySamplingEntry(entry);
                                          setIsQualitySamplingModalOpen(true);
-                                         setInventoryQualityType('full_lorry_avg');
+                                         setInventoryQualityType(null);
+                                         setWbEnabledState(null);
                                          setInventoryQualityForm({
                                            moisture: '', dryMoisture: '', cutting: '', bend: '', grains: '',
                                            mix: '', sMix: '', lMix: '', kandu: '', oil: '', sk: '',
@@ -8727,7 +8697,7 @@ const Arrivals: React.FC = () => {
                                            smell: '', paddyWb: '', pColor: '', kadiga: '', remarks: ''
                                          });
                                          setInventoryQualityToggle({
-                                           dryMoisture: 'Y', sMix: 'Y', lMix: 'Y', paddyWb: 'Y', kadiga: 'Y', smellHas: 'No'
+                                           dryMoisture: '', sMix: '', lMix: '', paddyWb: '', kadiga: '', smellHas: ''
                                          });
                                        }}
 
@@ -14126,172 +14096,191 @@ const Arrivals: React.FC = () => {
               );
             })()}
 
-            {/* 3-column grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-              {[
-                { label: 'Moisture (%)', key: 'moisture', type: 'text', placeholder: '16.5', required: true },
-                { label: 'Dry Moisture', key: 'dryMoisture', type: 'text', placeholder: '14.2', required: true },
-                { label: 'Grains Count', key: 'grains', type: 'text', placeholder: '85', required: true },
-                { label: 'Cutting', key: 'cutting', type: 'text', placeholder: '1x', required: true },
-                { label: 'Bend', key: 'bend', type: 'text', placeholder: '1x', required: true },
-                { label: 'Mix (%)', key: 'mix', type: 'text', placeholder: '5', required: true },
-                { label: 'SMix', key: 'sMix', type: 'text', placeholder: '2', required: true },
-                { label: 'LMix', key: 'lMix', type: 'text', placeholder: '1', required: true },
-                { label: 'SK (%)', key: 'sk', type: 'text', placeholder: '0.5', required: true },
-                { label: 'Kandu (%)', key: 'kandu', type: 'text', placeholder: '1', required: true },
-                { label: 'Oil (%)', key: 'oil', type: 'text', placeholder: '0.5', required: true },
-                { label: 'Paddy Discolor', key: 'pColor', type: 'select', options: ['Normal Color', 'Light Discolor', 'Medium Discolor', 'Dark Discolor'] },
-                { label: 'Kadiga', key: 'kadiga', type: 'kadiga', required: true },
-                { label: 'Smell', key: 'smell', type: 'smell' }
-              ].map((field) => (
-                <div key={field.key} style={{ display: 'flex', flexDirection: 'column', minHeight: '52px' }}>
-                  <label style={{ fontWeight: '600', color: '#333', fontSize: '10px', marginBottom: '2px' }}>
-                    {field.label}{field.required && <span style={{ color: '#e53935' }}>*</span>}
-                  </label>
-                  {field.type === 'select' ? (
-                    <select value={inventoryQualityForm[field.key]} onChange={(e) => setInventoryQualityForm(p => ({ ...p, [field.key]: e.target.value }))}
-                      style={{ width: '100%', padding: '4px', border: activeRecheck ? '1.5px solid #ef4444' : '1px solid #ccc', borderRadius: '3px', fontSize: '11px', boxSizing: 'border-box', background: activeRecheck ? '#fef2f2' : '#fff', height: '28px' }}>
-                      <option value=''>Select</option>
-                      {field.options?.map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  ) : field.type === 'kadiga' ? (
-                    <div style={{ display: 'flex', gap: '8px', height: '28px', alignItems: 'center' }}>
-                      {['Yes', 'No'].map(v => (
-                        <label key={v} style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px', fontWeight: 'normal' }}>
-                          <input type="radio" name="kadiga_qs" checked={inventoryQualityForm.kadiga === v}
-                            onChange={() => setInventoryQualityForm(p => ({ ...p, kadiga: v }))}
-                            style={{ margin: 0 }} /> {v}
-                        </label>
-                      ))}
+            {inventoryQualityType === null ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ padding: '24px 14px', textAlign: 'center', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '6px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#334155', marginBottom: '8px' }}>
+                    Select Sample Type to Continue
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>
+                    Please choose either Lot Avg (Before Unloading) or Gutti (Full Avg) above to enter parameters.
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #e2e8f0', paddingTop: '8px', marginTop: '8px' }}>
+                  <button type="button" onClick={() => { setIsQualitySamplingModalOpen(false); setQualitySamplingEntry(null); }}
+                    style={{ padding: '5px 12px', border: '1px solid #cbd5e1', borderRadius: '4px', background: '#fff', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', color: '#64748b' }}>
+                    Close
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* 3-column grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                  {[
+                    { label: 'Moisture (%)', key: 'moisture', type: 'text', placeholder: '16.5', required: true },
+                    { label: 'Dry Moisture', key: 'dryMoisture', type: 'text', placeholder: '14.2', required: true },
+                    { label: 'Grains Count', key: 'grains', type: 'text', placeholder: '85', required: true },
+                    { label: 'Cutting', key: 'cutting', type: 'text', placeholder: '1x', required: true },
+                    { label: 'Bend', key: 'bend', type: 'text', placeholder: '1x', required: true },
+                    { label: 'Mix (%)', key: 'mix', type: 'text', placeholder: '5', required: true },
+                    { label: 'SMix', key: 'sMix', type: 'text', placeholder: '2', required: true },
+                    { label: 'LMix', key: 'lMix', type: 'text', placeholder: '1', required: true },
+                    { label: 'SK (%)', key: 'sk', type: 'text', placeholder: '0.5', required: true },
+                    { label: 'Kandu (%)', key: 'kandu', type: 'text', placeholder: '1', required: true },
+                    { label: 'Oil (%)', key: 'oil', type: 'text', placeholder: '0.5', required: true },
+                    { label: 'Paddy Discolor', key: 'pColor', type: 'select', options: ['Normal Color', 'Light Discolor', 'Medium Discolor', 'Dark Discolor'] },
+                    { label: 'Kadiga', key: 'kadiga', type: 'kadiga', required: true },
+                    { label: 'Smell', key: 'smell', type: 'smell' }
+                  ].map((field) => (
+                    <div key={field.key} style={{ display: 'flex', flexDirection: 'column', minHeight: '52px' }}>
+                      <label style={{ fontWeight: '600', color: '#333', fontSize: '10px', marginBottom: '2px' }}>
+                        {field.label}{field.required && <span style={{ color: '#e53935' }}>*</span>}
+                      </label>
+                      {field.type === 'select' ? (
+                        <select value={inventoryQualityForm[field.key as keyof typeof inventoryQualityForm]} onChange={(e) => setInventoryQualityForm(p => ({ ...p, [field.key]: e.target.value }))}
+                          style={{ width: '100%', padding: '4px', border: activeRecheck ? '1.5px solid #ef4444' : '1px solid #ccc', borderRadius: '3px', fontSize: '11px', boxSizing: 'border-box', background: activeRecheck ? '#fef2f2' : '#fff', height: '28px' }}>
+                          <option value=''>Select</option>
+                          {field.options?.map(o => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                      ) : field.type === 'kadiga' ? (
+                        <div style={{ display: 'flex', gap: '8px', height: '28px', alignItems: 'center' }}>
+                          {['Yes', 'No'].map(v => (
+                            <label key={v} style={{ fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px', fontWeight: 'normal' }}>
+                              <input type="radio" name="kadiga_qs" checked={inventoryQualityForm.kadiga === v}
+                                onChange={() => setInventoryQualityForm(p => ({ ...p, kadiga: v }))}
+                                style={{ margin: 0 }} /> {v}
+                            </label>
+                          ))}
+                        </div>
+                      ) : field.type === 'smell' ? (
+                        <>
+                          <div style={{ display: 'flex', gap: '8px', marginBottom: '2px' }}>
+                            {['Yes', 'No'].map(v => (
+                              <label key={v} style={{ fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                <input type="radio" name="smell_has_qs" checked={inventoryQualityToggle.smellHas === v}
+                                  onChange={() => { setInventoryQualityToggle(p => ({ ...p, smellHas: v })); if (v === 'No') setInventoryQualityForm(p => ({ ...p, smell: '' })); }}
+                                  style={{ margin: 0 }} /> {v}
+                              </label>
+                            ))}
+                          </div>
+                          {inventoryQualityToggle.smellHas === 'Yes' && (
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              {['Light', 'Medium', 'Dark'].map(opt => (
+                                <label key={opt} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '10px' }}>
+                                  <input type="radio" name="smell_type_qs" checked={inventoryQualityForm.smell === opt}
+                                    onChange={() => setInventoryQualityForm(p => ({ ...p, smell: opt }))} /> {opt}
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <input type="text" value={inventoryQualityForm[field.key as keyof typeof inventoryQualityForm]}
+                          onChange={(e) => setInventoryQualityForm(p => ({ ...p, [field.key]: sanitizeInventoryQualityField(field.key, e.target.value) }))}
+                          onFocus={() => {
+                            if (['cutting', 'bend'].includes(field.key) && !inventoryQualityForm[field.key as keyof typeof inventoryQualityForm]) {
+                              setInventoryQualityForm(p => ({ ...p, [field.key]: '1×' }));
+                            }
+                          }}
+                          style={{ width: '100%', padding: '4px', border: activeRecheck ? '1.5px solid #ef4444' : '1px solid #ccc', borderRadius: '3px', fontSize: '11px', boxSizing: 'border-box', backgroundColor: activeRecheck ? '#fef2f2' : '#fff' }}
+                          placeholder={field.placeholder} />
+                      )}
                     </div>
-                  ) : field.type === 'smell' ? (
-                    <>
-                      <div style={{ display: 'flex', gap: '8px', marginBottom: '2px' }}>
+                  ))}
+                </div>
+
+                {/* WB Parameters */}
+                <div style={{ background: '#f0f7ff', borderRadius: '4px', border: '1px solid #d0e3f7', padding: '8px', marginTop: '8px' }}>
+                  <div style={{ fontSize: '9px', fontWeight: '700', color: '#1565c0', marginBottom: '6px' }}>WB PARAMETERS</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+                    <div>
+                      <label style={{ fontWeight: '600', color: '#333', fontSize: '10px' }}>WB (R) & WB (BK)</label>
+                      <div style={{ display: 'flex', gap: '6px', marginBottom: '2px' }}>
                         {['Yes', 'No'].map(v => (
                           <label key={v} style={{ fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                            <input type="radio" name="smell_has_qs" checked={inventoryQualityToggle.smellHas === v}
-                              onChange={() => { setInventoryQualityToggle(p => ({ ...p, smellHas: v })); if (v === 'No') setInventoryQualityForm(p => ({ ...p, smell: '' })); }}
+                            <input type="radio" name="wbEnabled_qs" checked={wbEnabledState === v}
+                              onChange={() => {
+                                setWbEnabledState(v as any);
+                                if (v === 'No') {
+                                  setWbEnabled(false);
+                                  setInventoryQualityForm(p => ({ ...p, wbR: '', wbBk: '' }));
+                                } else {
+                                  setWbEnabled(true);
+                                }
+                              }}
                               style={{ margin: 0 }} /> {v}
                           </label>
                         ))}
                       </div>
-                      {inventoryQualityToggle.smellHas === 'Yes' && (
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          {['Light', 'Medium', 'Dark'].map(opt => (
-                            <label key={opt} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '10px' }}>
-                              <input type="radio" name="smell_type_qs" checked={inventoryQualityForm.smell === opt}
-                                onChange={() => setInventoryQualityForm(p => ({ ...p, smell: opt }))} /> {opt}
-                            </label>
-                          ))}
-                        </div>
+                      <div style={{ display: 'flex', gap: '4px', visibility: wbEnabled ? 'visible' : 'hidden' }}>
+                        <input type="number" step="0.01" placeholder="R" value={inventoryQualityForm.wbR} onChange={(e) => setInventoryQualityForm(p => ({ ...p, wbR: e.target.value }))} disabled={!wbEnabled}
+                          style={{ flex: 1, padding: '3px', border: activeRecheck ? '1.5px solid #ef4444' : '1px solid #ccc', borderRadius: '3px', fontSize: '10px', backgroundColor: activeRecheck ? '#fef2f2' : '#fff' }} />
+                        <input type="number" step="0.01" placeholder="BK" value={inventoryQualityForm.wbBk} onChange={(e) => setInventoryQualityForm(p => ({ ...p, wbBk: e.target.value }))} disabled={!wbEnabled}
+                          style={{ flex: 1, padding: '3px', border: activeRecheck ? '1.5px solid #ef4444' : '1px solid #ccc', borderRadius: '3px', fontSize: '10px', backgroundColor: activeRecheck ? '#fef2f2' : '#fff' }} />
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ fontWeight: '600', color: '#333', fontSize: '10px' }}>WB (T) — Auto</label>
+                      <input type="number" step="0.01" readOnly value={inventoryQualityForm.wbT}
+                        style={{ width: '100%', padding: '3px', border: '1px solid #a5d6a7', borderRadius: '3px', fontSize: '10px', backgroundColor: '#e8f5e9', fontWeight: '700', cursor: 'not-allowed', boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontWeight: '600', color: '#333', fontSize: '10px' }}>Paddy WB</label>
+                      <div style={{ display: 'flex', gap: '6px', marginBottom: '2px' }}>
+                        {['Yes', 'No'].map(v => (
+                          <label key={v} style={{ fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                            <input type="radio" name="paddyWbHas_qs" checked={inventoryQualityToggle.paddyWb === v}
+                              onChange={() => {
+                                setInventoryQualityToggle(p => ({ ...p, paddyWb: v }));
+                                if (v === 'No') {
+                                  setInventoryQualityForm(p => ({ ...p, paddyWb: '' }));
+                                }
+                              }}
+                              style={{ margin: 0 }} /> {v}
+                          </label>
+                        ))}
+                      </div>
+                      {(inventoryQualityToggle.paddyWb === 'Yes') && (
+                        <input type="number" step="0.01" value={inventoryQualityForm.paddyWb} onChange={(e) => setInventoryQualityForm(p => ({ ...p, paddyWb: sanitizeInventoryQualityField('paddyWb', e.target.value) }))}
+                          style={{ width: '100%', padding: '4px', border: activeRecheck ? '1.5px solid #ef4444' : '1px solid #ccc', borderRadius: '3px', fontSize: '10px', boxSizing: 'border-box', backgroundColor: activeRecheck ? '#fef2f2' : '#fff' }}
+                          placeholder="Val" />
                       )}
-                    </>
-                  ) : (
-                    <input type="text" value={inventoryQualityForm[field.key]} onChange={(e) => setInventoryQualityForm(p => ({ ...p, [field.key]: sanitizeInventoryQualityField(field.key, e.target.value) }))}
-                      style={{ width: '100%', padding: '4px', border: activeRecheck ? '1.5px solid #ef4444' : '1px solid #ccc', borderRadius: '3px', fontSize: '11px', boxSizing: 'border-box', backgroundColor: activeRecheck ? '#fef2f2' : '#fff' }}
-                      placeholder={field.placeholder} />
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {/* WB Parameters */}
-            <div style={{ background: '#f0f7ff', borderRadius: '4px', border: '1px solid #d0e3f7', padding: '8px', marginTop: '8px' }}>
-              <div style={{ fontSize: '9px', fontWeight: '700', color: '#1565c0', marginBottom: '6px' }}>WB PARAMETERS</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
-                <div>
-                  <label style={{ fontWeight: '600', color: '#333', fontSize: '10px' }}>WB (R) & WB (BK)</label>
-                  <div style={{ display: 'flex', gap: '6px', marginBottom: '2px' }}>
-                    {['Yes', 'No'].map(v => (
-                      <label key={v} style={{ fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                        <input type="radio" name="wbEnabled_qs" checked={v === 'Yes' ? wbEnabled : !wbEnabled}
-                          onChange={() => { if (v === 'No') { setWbEnabled(false); setInventoryQualityForm(p => ({ ...p, wbR: '', wbBk: '' })); } else setWbEnabled(true); }}
-                          style={{ margin: 0 }} /> {v}
-                      </label>
-                    ))}
-                  </div>
-                  <div style={{ display: 'flex', gap: '4px', visibility: wbEnabled ? 'visible' : 'hidden' }}>
-                    <input type="number" step="0.01" placeholder="R" value={inventoryQualityForm.wbR} onChange={(e) => setInventoryQualityForm(p => ({ ...p, wbR: e.target.value }))} disabled={!wbEnabled}
-                      style={{ flex: 1, padding: '3px', border: activeRecheck ? '1.5px solid #ef4444' : '1px solid #ccc', borderRadius: '3px', fontSize: '10px', backgroundColor: activeRecheck ? '#fef2f2' : '#fff' }} />
-                    <input type="number" step="0.01" placeholder="BK" value={inventoryQualityForm.wbBk} onChange={(e) => setInventoryQualityForm(p => ({ ...p, wbBk: e.target.value }))} disabled={!wbEnabled}
-                      style={{ flex: 1, padding: '3px', border: activeRecheck ? '1.5px solid #ef4444' : '1px solid #ccc', borderRadius: '3px', fontSize: '10px', backgroundColor: activeRecheck ? '#fef2f2' : '#fff' }} />
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <label style={{ fontWeight: '600', color: '#333', fontSize: '10px' }}>WB (T) — Auto</label>
-                  <input type="number" step="0.01" readOnly value={inventoryQualityForm.wbT}
-                    style={{ width: '100%', padding: '3px', border: '1px solid #a5d6a7', borderRadius: '3px', fontSize: '10px', backgroundColor: '#e8f5e9', fontWeight: '700', cursor: 'not-allowed', boxSizing: 'border-box' }} />
+
+                {/* Remarks */}
+                <div style={{ display: 'flex', flexDirection: 'column', marginTop: '8px' }}>
+                  <label style={{ fontWeight: '600', color: '#333', fontSize: '10px', marginBottom: '2px' }}>Remarks</label>
+                  <input type="text" value={inventoryQualityForm.remarks} onChange={(e) => setInventoryQualityForm(p => ({ ...p, remarks: e.target.value }))}
+                    style={{ width: '100%', padding: '5px', border: '1px solid #ccc', borderRadius: '3px', fontSize: '11px', boxSizing: 'border-box' }}
+                    placeholder="Notes..." />
                 </div>
-                <div>
-                  <label style={{ fontWeight: '600', color: '#333', fontSize: '10px' }}>Paddy WB</label>
-                  <div style={{ display: 'flex', gap: '6px', marginBottom: '2px' }}>
-                    {['Yes', 'No'].map(v => (
-                      <label key={v} style={{ fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                        <input type="radio" name="paddyWbHas_qs" checked={(v === 'Yes' && inventoryQualityToggle.paddyWb !== 'No') || (v === 'No' && inventoryQualityToggle.paddyWb === 'No')}
-                          onChange={() => {
-                            setInventoryQualityToggle(p => ({ ...p, paddyWb: v }));
-                            if (v === 'No') {
-                              setInventoryQualityForm(p => ({ ...p, paddyWb: '' }));
-                            }
-                          }}
-                          style={{ margin: 0 }} /> {v}
-                      </label>
-                    ))}
-                  </div>
-                  {(inventoryQualityToggle.paddyWb !== 'No') && (
-                    <input type="number" step="0.01" value={inventoryQualityForm.paddyWb} onChange={(e) => setInventoryQualityForm(p => ({ ...p, paddyWb: sanitizeInventoryQualityField('paddyWb', e.target.value) }))}
-                      style={{ width: '100%', padding: '4px', border: activeRecheck ? '1.5px solid #ef4444' : '1px solid #ccc', borderRadius: '3px', fontSize: '10px', boxSizing: 'border-box', backgroundColor: activeRecheck ? '#fef2f2' : '#fff' }}
-                      placeholder="Val" />
-                  )}
+
+                {/* Reported By */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px', alignItems: 'center' }}>
+                  <label style={{ fontWeight: '600', color: '#333', fontSize: '10px', whiteSpace: 'nowrap' }}>Reported By <span style={{ color: '#e53935' }}>*</span></label>
+                  <select value={inventoryQualityForm.reportedByUserId || user?.id || ''} onChange={(e) => setInventoryQualityForm(p => ({ ...p, reportedByUserId: e.target.value }))}
+                    style={{ padding: '3px', border: '1px solid #ccc', borderRadius: '3px', fontSize: '10px', background: '#fff', height: '26px', maxWidth: '180px' }}>
+                    <option value="">Choose</option>
+                    {usersList.map(u => <option key={u.id} value={u.id}>{u.fullName || u.username}</option>)}
+                  </select>
                 </div>
-              </div>
-            </div>
 
-            {/* Remarks */}
-            <div style={{ display: 'flex', flexDirection: 'column', marginTop: '8px' }}>
-              <label style={{ fontWeight: '600', color: '#333', fontSize: '10px', marginBottom: '2px' }}>Remarks</label>
-              <input type="text" value={inventoryQualityForm.remarks} onChange={(e) => setInventoryQualityForm(p => ({ ...p, remarks: e.target.value }))}
-                style={{ width: '100%', padding: '5px', border: '1px solid #ccc', borderRadius: '3px', fontSize: '11px', boxSizing: 'border-box' }}
-                placeholder="Notes..." />
-            </div>
-
-            {/* Reported By */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px', alignItems: 'center' }}>
-              <label style={{ fontWeight: '600', color: '#333', fontSize: '10px', whiteSpace: 'nowrap' }}>Reported By <span style={{ color: '#e53935' }}>*</span></label>
-              <select value={inventoryQualityForm.reportedByUserId || user?.id || ''} onChange={(e) => setInventoryQualityForm(p => ({ ...p, reportedByUserId: e.target.value }))}
-                style={{ padding: '3px', border: '1px solid #ccc', borderRadius: '3px', fontSize: '10px', background: '#fff', height: '26px', maxWidth: '180px' }}>
-                <option value="">Choose</option>
-                {usersList.map(u => <option key={u.id} value={u.id}>{u.fullName || u.username}</option>)}
-              </select>
-            </div>
-
-            {/* Footer */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '6px', borderTop: '1px solid #e2e8f0', paddingTop: '8px', marginTop: '8px' }}>
-              <button type="button" onClick={() => {
-                if (inventoryQualityType === 'lot_avg') {
-                  setInventoryQualityType('full_lorry_avg');
-                  setInventoryQualityForm({ moisture: '', dryMoisture: '', cutting: '', bend: '', grains: '', mix: '', sMix: '', lMix: '', kandu: '', oil: '', sk: '', wbR: '', wbBk: '', wbT: '', smell: '', paddyWb: '', pColor: '', kadiga: '', remarks: '' });
-                  setInventoryQualityToggle({ dryMoisture: 'Y', sMix: 'Y', lMix: 'Y', paddyWb: 'Y', kadiga: 'Y', smellHas: 'No' });
-                  toast.info('Lot Avg skipped. Enter Full Lorry Avg.');
-                } else {
-                  setIsQualitySamplingModalOpen(false); setQualitySamplingEntry(null);
-                }
-              }} style={{ padding: '5px 12px', border: '1px solid #cbd5e1', borderRadius: '4px', background: '#fff', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', color: '#64748b' }}>
-                {inventoryQualityType === 'lot_avg' ? 'Skip' : 'Close'}
-              </button>
-              <div style={{ display: 'flex', gap: '6px' }}>
-                {inventoryQualityType === 'lot_avg' && (
-                  <button type="button" onClick={handleSubmitLotAvg}
-                    style={{ padding: '5px 14px', border: '1px solid #16a34a', borderRadius: '4px', background: '#fff', color: '#16a34a', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
+                {/* Footer */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '6px', borderTop: '1px solid #e2e8f0', paddingTop: '8px', marginTop: '8px' }}>
+                  <button type="button" onClick={() => { setIsQualitySamplingModalOpen(false); setQualitySamplingEntry(null); }}
+                    style={{ padding: '5px 12px', border: '1px solid #cbd5e1', borderRadius: '4px', background: '#fff', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', color: '#64748b' }}>
+                    Close
+                  </button>
+                  <button type="button" onClick={handleQualitySamplingSubmit}
+                    style={{ padding: '5px 14px', border: 'none', borderRadius: '4px', background: 'linear-gradient(135deg, #1a237e, #3b82f6)', color: '#fff', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
                     Submit
                   </button>
-                )}
-                <button type="button" onClick={handleQualitySamplingNext}
-                  style={{ padding: '5px 14px', border: 'none', borderRadius: '4px', background: 'linear-gradient(135deg, #1a237e, #3b82f6)', color: '#fff', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
-                  {inventoryQualityType === 'lot_avg' ? 'Next' : 'Submit'}
-                </button>
-              </div>
-            </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

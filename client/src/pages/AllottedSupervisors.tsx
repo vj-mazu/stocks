@@ -1065,7 +1065,7 @@ const AllottedSupervisors: React.FC = () => {
                           <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'center', whiteSpace: 'normal', wordBreak: 'break-word', width: '9%' }}>Progress</th>
                           <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'left',   whiteSpace: 'normal', wordBreak: 'break-word', width: '9%' }}>Supervisor</th>
                           <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'left',   whiteSpace: 'normal', wordBreak: 'break-word', width: '9%' }}>Change To</th>
-                          <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'left',   whiteSpace: 'normal', wordBreak: 'break-word', width: '10%' }}>Actions</th>
+                          <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'left',   whiteSpace: 'normal', wordBreak: 'break-word', width: '180px', minWidth: '180px' }}>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1286,8 +1286,8 @@ const AllottedSupervisors: React.FC = () => {
                                     ))}
                                   </select>
                                 </td>
-                                <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left' }}>
-                                   <div style={{ display: 'flex', gap: '6px', flexDirection: 'column', alignItems: 'flex-start' }}>
+                                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'left', minWidth: '180px', width: '180px' }}>
+                                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '4px', width: '100%', alignItems: 'stretch' }}>
                                      {(() => {
                                        const o = offeringCache[entry.id] || {};
                                         const pendingQueue = String(o.pendingManagerValueApprovalStatus || '').toLowerCase() === 'pending'
@@ -1308,7 +1308,7 @@ const AllottedSupervisors: React.FC = () => {
                                        return (
                                          <>
                                             {hasPendingDispute ? (
-                                              <div style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: '3px', marginBottom: '3px' }}>
+                                              <div style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: '3px', gridColumn: 'span 2' }}>
                                                 <div style={{
                                                   fontSize: '9px',
                                                   padding: '4px 6px',
@@ -1353,7 +1353,6 @@ const AllottedSupervisors: React.FC = () => {
                                                   borderRadius: '3px',
                                                   cursor: 'pointer',
                                                   width: '100%',
-                                                  marginBottom: '3px',
                                                   fontWeight: '700'
                                                 }}
                                               >
@@ -1362,7 +1361,7 @@ const AllottedSupervisors: React.FC = () => {
                                             )}
 
                                             {hasPendingRevision ? (
-                                              <div style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: '3px', marginBottom: '3px' }}>
+                                              <div style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: '3px', gridColumn: 'span 2' }}>
                                                 <div style={{
                                                   fontSize: '9px',
                                                   padding: '4px 6px',
@@ -1407,7 +1406,6 @@ const AllottedSupervisors: React.FC = () => {
                                                   borderRadius: '3px',
                                                   cursor: 'pointer',
                                                   width: '100%',
-                                                  marginBottom: '3px',
                                                   fontWeight: '700'
                                                 }}
                                               >
@@ -1426,7 +1424,7 @@ const AllottedSupervisors: React.FC = () => {
                                        const fr2MissingLabels = getFr2MissingLabels(fr2Offering);
                                        if (!fr2Pending && !hasFr2) return null;
                                        return (
-                                         <div style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: '3px', marginBottom: '3px' }}>
+                                         <div style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: '3px', gridColumn: 'span 2' }}>
                                            {fr2Pending ? (
                                              <div style={{ fontSize: '9px', padding: '4px 6px', backgroundColor: '#ede9fe', color: '#6d28d9', border: '1px solid #6d28d9', borderRadius: '3px', textAlign: 'center', width: '100%', fontWeight: '800' }}>
                                                🟣 Final Rate 2 Pending Approval
@@ -1458,7 +1456,7 @@ const AllottedSupervisors: React.FC = () => {
                                        return (
                                          <button
                                            onClick={() => openFr2Fill(entry.id)}
-                                           style={{ fontSize: '10px', padding: '4px 8px', backgroundColor: '#7c3aed', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', width: '100%', marginTop: '4px', fontWeight: '700' }}
+                                           style={{ fontSize: '10px', padding: '4px 8px', backgroundColor: '#7c3aed', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', width: '100%', fontWeight: '700', gridColumn: 'span 2' }}
                                          >
                                            {fr2Pending ? 'FR2 Pending' : (hasFr2 ? (fr2Missing.length > 0 ? 'Fill FR2' : 'Edit FR2') : 'Add FR2')}
                                          </button>
@@ -1476,7 +1474,8 @@ const AllottedSupervisors: React.FC = () => {
                                         border: 'none',
                                         borderRadius: '3px',
                                         cursor: (hasChanged && !entry.lotAllotment?.closedAt) ? 'pointer' : 'not-allowed',
-                                        width: '100%'
+                                        width: '100%',
+                                        gridColumn: 'span 2'
                                       }}
                                     >
                                       {(hasChanged && !entry.lotAllotment?.closedAt) ? 'Reassign' : 'No Change'}
@@ -1501,7 +1500,7 @@ const AllottedSupervisors: React.FC = () => {
                                           borderRadius: '3px',
                                           cursor: 'pointer',
                                           width: '100%',
-                                          marginTop: '4px'
+                                          gridColumn: 'span 2'
                                         }}
                                       >
                                         ❌ Close Lot ({progress?.remainingBags || 0} bags left)
@@ -1528,8 +1527,8 @@ const AllottedSupervisors: React.FC = () => {
                                             borderRadius: '3px',
                                             cursor: 'pointer',
                                             width: '100%',
-                                            marginTop: '4px',
-                                            fontWeight: '700'
+                                            fontWeight: '700',
+                                            gridColumn: 'span 2'
                                           }}
                                         >
                                           ✔️ Completed
@@ -1548,8 +1547,8 @@ const AllottedSupervisors: React.FC = () => {
                                           borderRadius: '3px',
                                           cursor: 'pointer',
                                           width: '100%',
-                                          marginTop: '4px',
-                                          fontWeight: '700'
+                                          fontWeight: '700',
+                                          gridColumn: 'span 2'
                                         }}
                                       >
                                         🔄 Resume Lot

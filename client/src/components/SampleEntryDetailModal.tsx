@@ -1284,8 +1284,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                             {rows.map((row, i) => {
                                 if (row && row.type === 'header') {
                                     return (
-                                        <tr key={i} style={{ backgroundColor: options.headerRowColor || '#e2e8f0', borderBottom: '2px solid #cbd5e1' }}>
-                                            <td colSpan={columns.length} style={{ padding: isCompact ? '4px 6px' : '8px 10px', fontWeight: '800', color: options.headerRowColor ? '#ffffff' : '#1e293b', fontSize: isCompact ? '10px' : '12px', textTransform: 'uppercase', letterSpacing: '0.4px', border: '1px solid #000000' }}>
+                                        <tr key={i} style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #000000' }}>
+                                            <td colSpan={columns.length} style={{ padding: isCompact ? '4px 6px' : '8px 10px', fontWeight: '800', color: '#2563eb', fontSize: isCompact ? '10px' : '12px', textTransform: 'none', letterSpacing: '0.4px', border: '1px solid #000000' }}>
                                                 {row.content}
                                             </td>
                                         </tr>
@@ -2131,7 +2131,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         const entryParams = (detailEntry as any).inventoryQualityParameters || [];
         entryParams.forEach((p: any) => {
             if (p && !list.some(item => String(item.id) === String(p.id))) {
-                list.push(p);
+                const copy = { ...p, lorryNumber: detailEntry.lorryNumber, bags: detailEntry.bags };
+                list.push(copy);
             }
         });
         const insps = inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections)
@@ -2141,13 +2142,15 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             const inspParams = insp.inventoryQualityParameters || [];
             inspParams.forEach((p: any) => {
                 if (p && !list.some(item => String(item.id) === String(p.id))) {
-                    list.push(p);
+                    const copy = { ...p, lorryNumber: insp.lorryNumber, bags: insp.bags };
+                    list.push(copy);
                 }
             });
             const transitParams = insp.lorryTransitDetail?.inventoryQualityParameters || [];
             transitParams.forEach((p: any) => {
                 if (p && !list.some(item => String(item.id) === String(p.id))) {
-                    list.push(p);
+                    const copy = { ...p, lorryNumber: insp.lorryNumber || insp.lorryTransitDetail?.lorryNumber, bags: insp.bags || insp.lorryTransitDetail?.bags };
+                    list.push(copy);
                 }
             });
         });
@@ -2156,186 +2159,215 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
 
     const buildBmbQualityRows = (paramsList?: any[]) => {
         const params = paramsList || (detailEntry as any).inventoryQualityParameters || [];
-        return params.map((param: any, idx: number) => {
-            const label = param.type === 'lot_avg' ? 'Before Unloading Lot Avg' : 'Full Lorry Avg (Gattu)';
-            const reportedAt = param.createdAt;
-            
-            const formatQ = (val: any) => {
-                const s = String(val === undefined || val === null ? '' : val).trim();
-                if (!s || s === '0' || s === '0.00') return '-';
-                return s;
-            };
+        
+        // Group params by lorryNumber
+        const groups: { [lorry: string]: any[] } = {};
+        params.forEach((param: any) => {
+            const lorry = (param.lorryNumber || detailEntry.lorryNumber || 'Lorry').trim().toUpperCase();
+            if (!groups[lorry]) {
+                groups[lorry] = [];
+            }
+            groups[lorry].push(param);
+        });
 
-            const moisture = param.moisture ? `${param.moisture}%` : '-';
-            const cutting = param.cutting || '-';
-            const bend = param.bend || '-';
-            const grains = param.grains ? `(${param.grains})` : '-';
+        const rows: any[] = [];
+        let loadIdx = 1;
 
-            const renderStackedDateTime = (dtStr: any) => {
-                if (!dtStr) return '-';
-                try {
-                    const d = new Date(dtStr);
-                    const dStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                    const tStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase();
-                    return (
-                        <div style={{ display: 'flex', flexDirection: 'column', fontSize: '10.5px', lineHeight: '1.2' }}>
-                            <span style={{ fontWeight: '600' }}>{dStr}</span>
-                            <span style={{ color: '#64748b', fontSize: '9.5px' }}>{tStr}</span>
-                        </div>
-                    );
-                } catch {
-                    return '-';
-                }
-            };
+        Object.keys(groups).forEach((lorry) => {
+            const groupParams = groups[lorry];
+            const firstParam = groupParams[0];
+            const bags = firstParam.bags || detailEntry.bags || 0;
 
-            const isKadigaVal = param.kadiga === 'Y' || param.kadiga === 'Yes' || param.kadiga === true || param.kadiga === 'true';
-            const pColorCell = (() => {
-                const hasColor = !!param.pColor;
-                const hasKadiga = isKadigaVal;
-                if (!hasColor && !hasKadiga) return '-';
-                return (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#7c2d12', fontWeight: '800', gap: '2px' }}>
-                        {hasColor && <span>{param.pColor}</span>}
-                        {hasColor && hasKadiga && <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />}
-                        {hasKadiga && <span>ಕಡಿಗಾ: Yes</span>}
-                    </div>
-                );
-            })();
+            // Prepend a load header row similar to the first table
+            rows.push({
+                type: 'header',
+                content: `🚚 Load ${loadIdx} - ${lorry} | Bags Loaded: ${bags}`
+            });
+            loadIdx++;
 
-            const isApproved = param.status === 'approved';
-            const isRejected = param.status === 'rejected';
-            const isRecheck = isRejected && param.rejectReason && param.rejectReason.startsWith('RECHECK:');
-            const actualRejected = isRejected && !isRecheck;
-            const canApprove = ['admin', 'owner', 'manager', 'ceo'].includes(String(user?.role || '').toLowerCase());
+            groupParams.forEach((param: any) => {
+                const label = param.type === 'lot_avg' ? 'Before Unloading Lot Avg' : 'Full Lorry Avg (Gattu)';
+                const reportedAt = param.createdAt;
+                
+                const formatQ = (val: any) => {
+                    const s = String(val === undefined || val === null ? '' : val).trim();
+                    if (!s || s === '0' || s === '0.00') return '-';
+                    return s;
+                };
 
-            const statusCell = (() => {
-                if (isApproved) {
-                    const roleStr = param.approver?.role || param.approvedByUser?.role || 'MANAGER';
-                    const nameStr = param.approver?.fullName || param.approver?.username || param.approvedByUser?.fullName || param.approvedByUser?.username || param.approvedBy || '';
-                    const approverName = nameStr ? `${roleStr.toUpperCase()} (${nameStr.toUpperCase()})` : roleStr.toUpperCase();
-                    return (
-                        <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.1', border: '1px solid rgba(39, 174, 96, 0.3)', backgroundColor: '#e8f5e9', padding: '3px 8px', borderRadius: '4px', textAlign: 'center' }}>
-                            <span style={{ color: '#2e7d32', fontWeight: '700', fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>✅ Approved</span>
-                            <span style={{ color: '#1b5e20', fontSize: '12px', fontWeight: '900' }}>by {approverName}</span>
-                            {param.updatedAt && (
-                                <span style={{ color: '#64748b', fontSize: '8.5px', marginTop: '2px', whiteSpace: 'nowrap' }}>
-                                    {formatShortDateTime(param.updatedAt)}
-                                </span>
-                            )}
-                        </div>
-                    );
-                } else if (isRecheck) {
-                    return (
-                        <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-                            <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #93c5fd' }}>
-                                🔄 Recheck
-                            </span>
-                            {param.rejectReason && (
-                                <span style={{ fontSize: '9px', color: '#dc2626', fontWeight: '600', maxWidth: '120px', wordBreak: 'break-word', textAlign: 'center' }}>
-                                    Reason: {param.rejectReason.replace(/^RECHECK:\s*/, '')}
-                                </span>
-                            )}
-                        </div>
-                    );
-                } else if (actualRejected) {
-                    return (
-                        <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-                            <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', background: '#fee2e2', color: '#991b1b', border: '1px solid #f87171' }}>
-                                ❌ Rejected
-                            </span>
-                            {param.rejectReason && (
-                                <span style={{ fontSize: '9px', color: '#991b1b', fontWeight: '600', maxWidth: '120px', wordBreak: 'break-word', textAlign: 'center' }}>
-                                    Reason: {param.rejectReason}
-                                </span>
-                            )}
-                        </div>
-                    );
-                } else {
-                    if (canApprove) {
+                const moisture = param.moisture ? `${param.moisture}%` : '-';
+                const cutting = param.cutting || '-';
+                const bend = param.bend || '-';
+                const grains = param.grains ? `(${param.grains})` : '-';
+
+                const renderStackedDateTime = (dtStr: any) => {
+                    if (!dtStr) return '-';
+                    try {
+                        const d = new Date(dtStr);
+                        const dStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                        const tStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase();
                         return (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-                                <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', background: '#fef3c7', color: '#92400e', border: '1px solid #fbbf24' }}>
-                                    ⏳ Pending
-                                </span>
-                                <div style={{ display: 'flex', gap: '3px' }}>
-                                    <button
-                                        onClick={async () => {
-                                            if (onApproveQuality) {
-                                                await onApproveQuality(param.id);
-                                            }
-                                        }}
-                                        style={{ padding: '3.5px 7px', fontSize: '9px', fontWeight: '800', background: '#22c55e', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer' }}
-                                    >
-                                        Approve
-                                    </button>
-                                    <button
-                                        onClick={async () => {
-                                            if (onRejectQuality) {
-                                                const reason = window.prompt("Enter rejection reason:");
-                                                if (reason !== null && reason.trim()) {
-                                                    await onRejectQuality(param.id, reason.trim());
-                                                }
-                                            }
-                                        }}
-                                        style={{ padding: '3.5px 7px', fontSize: '9px', fontWeight: '800', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer' }}
-                                    >
-                                        Reject
-                                    </button>
-                                    <button
-                                        onClick={async () => {
-                                            if (onRecheckQuality) {
-                                                const reason = window.prompt("Enter recheck instructions/reason:");
-                                                if (reason !== null && reason.trim()) {
-                                                    await onRecheckQuality(param.id, reason.trim());
-                                                }
-                                            }
-                                        }}
-                                        style={{ padding: '3.5px 7px', fontSize: '9px', fontWeight: '800', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer' }}
-                                    >
-                                        Recheck
-                                    </button>
-                                </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', fontSize: '10.5px', lineHeight: '1.2' }}>
+                                <span style={{ fontWeight: '600' }}>{dStr}</span>
+                                <span style={{ color: '#64748b', fontSize: '9.5px' }}>{tStr}</span>
                             </div>
                         );
+                    } catch {
+                        return '-';
                     }
+                };
+
+                const isKadigaVal = param.kadiga === 'Y' || param.kadiga === 'Yes' || param.kadiga === true || param.kadiga === 'true';
+                const pColorCell = (() => {
+                    const hasColor = !!param.pColor;
+                    const hasKadiga = isKadigaVal;
+                    if (!hasColor && !hasKadiga) return '-';
                     return (
-                        <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', background: '#fef3c7', color: '#92400e', border: '1px solid #fbbf24' }}>
-                            ⏳ Pending
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#7c2d12', fontWeight: '800', gap: '2px' }}>
+                            {hasColor && <span>{param.pColor}</span>}
+                            {hasColor && hasKadiga && <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />}
+                            {hasKadiga && <span>ಕಡಿಗಾ: Yes</span>}
+                        </div>
                     );
-                }
-            })();
+                })();
 
-            const rowData = [
-                <span style={{ color: '#7c3aed', fontWeight: 'bold' }}>{label}</span>,
-                <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#1e293b' }}>{param.reporter?.username || 'admin'}</span>,
-                renderStackedDateTime(reportedAt),
-                <span style={{ fontSize: '9.5px', fontWeight: '700' }}>{moisture}</span>,
-                cutting,
-                bend,
-                <span style={{ fontSize: '9.5px', fontWeight: '700', color: '#475569' }}>{grains}</span>,
-                formatQ(param.mix),
-                formatQ(param.sMix),
-                formatQ(param.lMix),
-                formatQ(param.kandu),
-                formatQ(param.oil),
-                formatQ(param.sk),
-                formatQ(param.wbR),
-                formatQ(param.wbBk),
-                formatQ(param.wbT),
-                renderBeautifulSmell(param.smell || (param.smellHas ? param.smellType : '-')),
-                formatQ(param.paddyWb),
-                pColorCell,
-                statusCell
-            ];
+                const isApproved = param.status === 'approved';
+                const isRejected = param.status === 'rejected';
+                const isRecheck = isRejected && param.rejectReason && param.rejectReason.startsWith('RECHECK:');
+                const actualRejected = isRejected && !isRecheck;
+                const canApprove = ['admin', 'owner', 'manager', 'ceo'].includes(String(user?.role || '').toLowerCase());
 
-            const smellLabel = param.smell || (param.smellHas ? param.smellType : '-');
-            (rowData as any).hasSmell = param.smellHas === true 
-                || String(param.smellHas).trim().toUpperCase() === 'YES'
-                || (smellLabel && smellLabel !== '-' && smellLabel !== 'No' && smellLabel !== 'No Smell');
+                const statusCell = (() => {
+                    if (isApproved) {
+                        const roleStr = param.approver?.role || param.approvedByUser?.role || 'MANAGER';
+                        const nameStr = param.approver?.fullName || param.approver?.username || param.approvedByUser?.fullName || param.approvedByUser?.username || param.approvedBy || '';
+                        const approverName = nameStr ? `${roleStr.toUpperCase()} (${nameStr.toUpperCase()})` : roleStr.toUpperCase();
+                        return (
+                            <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.1', border: '1px solid rgba(39, 174, 96, 0.3)', backgroundColor: '#e8f5e9', padding: '3px 8px', borderRadius: '4px', textAlign: 'center' }}>
+                                <span style={{ color: '#2e7d32', fontWeight: '700', fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>✅ Approved</span>
+                                <span style={{ color: '#1b5e20', fontSize: '12px', fontWeight: '900' }}>by {approverName}</span>
+                                {param.updatedAt && (
+                                    <span style={{ color: '#64748b', fontSize: '8.5px', marginTop: '2px', whiteSpace: 'nowrap' }}>
+                                        {formatShortDateTime(param.updatedAt)}
+                                    </span>
+                                )}
+                            </div>
+                        );
+                    } else if (isRecheck) {
+                        return (
+                            <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #93c5fd' }}>
+                                    🔄 Recheck
+                                </span>
+                                {param.rejectReason && (
+                                    <span style={{ fontSize: '9px', color: '#dc2626', fontWeight: '600', maxWidth: '120px', wordBreak: 'break-word', textAlign: 'center' }}>
+                                        Reason: {param.rejectReason.replace(/^RECHECK:\s*/, '')}
+                                    </span>
+                                )}
+                            </div>
+                        );
+                    } else if (actualRejected) {
+                        return (
+                            <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', background: '#fee2e2', color: '#991b1b', border: '1px solid #f87171' }}>
+                                    ❌ Rejected
+                                </span>
+                                {param.rejectReason && (
+                                    <span style={{ fontSize: '9px', color: '#991b1b', fontWeight: '600', maxWidth: '120px', wordBreak: 'break-word', textAlign: 'center' }}>
+                                        Reason: {param.rejectReason}
+                                    </span>
+                                )}
+                            </div>
+                        );
+                    } else {
+                        if (canApprove) {
+                            return (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                                    <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', background: '#fef3c7', color: '#92400e', border: '1px solid #fbbf24' }}>
+                                        ⏳ Pending
+                                    </span>
+                                    <div style={{ display: 'flex', gap: '3px' }}>
+                                        <button
+                                            onClick={async () => {
+                                                if (onApproveQuality) {
+                                                    await onApproveQuality(param.id);
+                                                }
+                                            }}
+                                            style={{ padding: '3.5px 7px', fontSize: '9px', fontWeight: '800', background: '#22c55e', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer' }}
+                                        >
+                                            Approve
+                                        </button>
+                                        <button
+                                            onClick={async () => {
+                                                if (onRejectQuality) {
+                                                    const reason = window.prompt("Enter rejection reason:");
+                                                    if (reason !== null && reason.trim()) {
+                                                        await onRejectQuality(param.id, reason.trim());
+                                                    }
+                                                }
+                                            }}
+                                            style={{ padding: '3.5px 7px', fontSize: '9px', fontWeight: '800', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer' }}
+                                        >
+                                            Reject
+                                        </button>
+                                        <button
+                                            onClick={async () => {
+                                                if (onRecheckQuality) {
+                                                    const reason = window.prompt("Enter recheck instructions/reason:");
+                                                    if (reason !== null && reason.trim()) {
+                                                        await onRecheckQuality(param.id, reason.trim());
+                                                    }
+                                                }
+                                            }}
+                                            style={{ padding: '3.5px 7px', fontSize: '9px', fontWeight: '800', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer' }}
+                                        >
+                                            Recheck
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        }
+                        return (
+                            <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', background: '#fef3c7', color: '#92400e', border: '1px solid #fbbf24' }}>
+                                ⏳ Pending
+                            </span>
+                        );
+                    }
+                })();
 
-            return rowData;
+                const rowData = [
+                    <span style={{ color: '#7c3aed', fontWeight: 'bold' }}>{label}</span>,
+                    <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#1e293b' }}>{param.reporter?.username || 'admin'}</span>,
+                    renderStackedDateTime(reportedAt),
+                    <span style={{ fontSize: '9.5px', fontWeight: '700' }}>{moisture}</span>,
+                    cutting,
+                    bend,
+                    <span style={{ fontSize: '9.5px', fontWeight: '700', color: '#475569' }}>{grains}</span>,
+                    formatQ(param.mix),
+                    formatQ(param.sMix),
+                    formatQ(param.lMix),
+                    formatQ(param.kandu),
+                    formatQ(param.oil),
+                    formatQ(param.sk),
+                    formatQ(param.wbR),
+                    formatQ(param.wbBk),
+                    formatQ(param.wbT),
+                    renderBeautifulSmell(param.smell || (param.smellHas ? param.smellType : '-')),
+                    formatQ(param.paddyWb),
+                    pColorCell,
+                    statusCell
+                ];
+
+                const smellLabel = param.smell || (param.smellHas ? param.smellType : '-');
+                (rowData as any).hasSmell = param.smellHas === true 
+                    || String(param.smellHas).trim().toUpperCase() === 'YES'
+                    || (smellLabel && smellLabel !== '-' && smellLabel !== 'No' && smellLabel !== 'No Smell');
+
+                rows.push(rowData);
+            });
         });
+
+        return rows;
     };
 
     const buildTripQualityRows = (insp: any, tripIdx: number) => {
@@ -2972,7 +3004,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             const lorryLabel = (insp.lorryNumber || 'Lorry').toUpperCase();
             merged.push({
                 type: 'header',
-                content: `🚚 Load ${idx + 1} - ${lorryLabel} | Bags Loaded: ${bagsLoaded}`
+                content: `Load ${idx + 1} - ${lorryLabel} | Bags Loaded: ${bagsLoaded}`
             });
             const tripRows = buildTripQualityRows(insp, idx);
             tripRows.forEach((r: any) => {
@@ -2980,6 +3012,147 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 merged.push(normalizeQualityRow(r, 19));
             });
         });
+
+        // 3. Mill - Avg Quality Sampling section
+        const paramsList = getAllMillQualityParameters();
+        if (paramsList.length > 0) {
+            merged.push({
+                type: 'header',
+                content: 'Mill - Avg Quality Sampling'
+            });
+            paramsList.forEach((param: any) => {
+                const label = param.type === 'lot_avg' ? 'Before Unloading Lot Avg' : 'Full Lorry Avg (Gattu)';
+                const reportedAt = param.createdAt;
+                
+                const formatQ = (val: any) => {
+                    const s = String(val === undefined || val === null ? '' : val).trim();
+                    if (!s || s === '0' || s === '0.00') return '-';
+                    return s;
+                };
+
+                const moisture = param.moisture ? `${param.moisture}%` : '-';
+                const cutting = param.cutting || '-';
+                const bend = param.bend || '-';
+                const grains = param.grains ? `(${param.grains})` : '-';
+
+                const renderStackedDateTime = (dtStr: any) => {
+                    if (!dtStr) return '-';
+                    try {
+                        const d = new Date(dtStr);
+                        const dStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                        const tStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase();
+                        return (
+                            <div style={{ display: 'flex', flexDirection: 'column', fontSize: '10.5px', lineHeight: '1.2' }}>
+                                <span style={{ fontWeight: '600' }}>{dStr}</span>
+                                <span style={{ color: '#64748b', fontSize: '9.5px' }}>{tStr}</span>
+                            </div>
+                        );
+                    } catch {
+                        return '-';
+                    }
+                };
+
+                const isKadigaVal = param.kadiga === 'Y' || param.kadiga === 'Yes' || param.kadiga === true || param.kadiga === 'true';
+                const pColorCell = (() => {
+                    const hasColor = !!param.pColor;
+                    const hasKadiga = isKadigaVal;
+                    if (!hasColor && !hasKadiga) return '-';
+                    return (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#7c2d12', fontWeight: '800', gap: '2px' }}>
+                            {hasColor && <span>{param.pColor}</span>}
+                            {hasColor && hasKadiga && <hr style={{ width: '100%', border: 'none', borderTop: '1px dashed #cbd5e1', margin: '2px 0' }} />}
+                            {hasKadiga && <span>ಕಡಿಗಾ: Yes</span>}
+                        </div>
+                    );
+                })();
+
+                const isApproved = param.status === 'approved';
+                const isRejected = param.status === 'rejected';
+                const isRecheck = isRejected && param.rejectReason && param.rejectReason.startsWith('RECHECK:');
+                const actualRejected = isRejected && !isRecheck;
+
+                const statusCell = (() => {
+                    if (isApproved) {
+                        const roleStr = param.approver?.role || param.approvedByUser?.role || 'MANAGER';
+                        const nameStr = param.approver?.fullName || param.approver?.username || param.approvedByUser?.fullName || param.approvedByUser?.username || param.approvedBy || '';
+                        const approverName = nameStr ? `${roleStr.toUpperCase()} (${nameStr.toUpperCase()})` : roleStr.toUpperCase();
+                        return (
+                            <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.1', border: '1px solid rgba(39, 174, 96, 0.3)', backgroundColor: '#e8f5e9', padding: '3px 8px', borderRadius: '4px', textAlign: 'center' }}>
+                                <span style={{ color: '#2e7d32', fontWeight: '700', fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>✅ Approved</span>
+                                <span style={{ color: '#1b5e20', fontSize: '12px', fontWeight: '900' }}>by {approverName}</span>
+                                {param.updatedAt && (
+                                    <span style={{ color: '#64748b', fontSize: '8.5px', marginTop: '2px', whiteSpace: 'nowrap' }}>
+                                        {formatShortDateTime(param.updatedAt)}
+                                    </span>
+                                )}
+                            </div>
+                        );
+                    } else if (isRecheck) {
+                        return (
+                            <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #93c5fd' }}>
+                                    🔄 Recheck
+                                </span>
+                                {param.rejectReason && (
+                                    <span style={{ fontSize: '9px', color: '#dc2626', fontWeight: '600', maxWidth: '120px', wordBreak: 'break-word', textAlign: 'center' }}>
+                                        Reason: {param.rejectReason.replace(/^RECHECK:\s*/, '')}
+                                    </span>
+                                )}
+                            </div>
+                        );
+                    } else if (actualRejected) {
+                        return (
+                            <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', background: '#fee2e2', color: '#991b1b', border: '1px solid #f87171' }}>
+                                    ❌ Rejected
+                                </span>
+                                {param.rejectReason && (
+                                    <span style={{ fontSize: '9px', color: '#991b1b', fontWeight: '600', maxWidth: '120px', wordBreak: 'break-word', textAlign: 'center' }}>
+                                        Reason: {param.rejectReason}
+                                    </span>
+                                )}
+                            </div>
+                        );
+                    } else {
+                        return (
+                            <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', background: '#fef3c7', color: '#92400e', border: '1px solid #fbbf24' }}>
+                                ⏳ Pending
+                            </span>
+                        );
+                    }
+                })();
+
+                const rowData = [
+                    <span style={{ color: '#7c3aed', fontWeight: 'bold' }}>{label}</span>,
+                    <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#1e293b' }}>{param.reporter?.username || 'admin'}</span>,
+                    renderStackedDateTime(reportedAt),
+                    <span style={{ fontSize: '9.5px', fontWeight: '700' }}>{moisture}</span>,
+                    cutting,
+                    bend,
+                    <span style={{ fontSize: '9.5px', fontWeight: '700', color: '#475569' }}>{grains}</span>,
+                    formatQ(param.mix),
+                    formatQ(param.sMix),
+                    formatQ(param.lMix),
+                    formatQ(param.kandu),
+                    formatQ(param.oil),
+                    formatQ(param.sk),
+                    formatQ(param.wbR),
+                    formatQ(param.wbBk),
+                    formatQ(param.wbT),
+                    renderBeautifulSmell(param.smell || (param.smellHas ? param.smellType : '-')),
+                    formatQ(param.paddyWb),
+                    pColorCell,
+                    statusCell
+                ];
+
+                const smellLabel = param.smell || (param.smellHas ? param.smellType : '-');
+                (rowData as any).hasSmell = param.smellHas === true 
+                    || String(param.smellHas).trim().toUpperCase() === 'YES'
+                    || (smellLabel && smellLabel !== '-' && smellLabel !== 'No' && smellLabel !== 'No Smell');
+
+                merged.push(normalizeQualityRow(rowData, 19));
+            });
+        }
 
         return merged;
     };
@@ -4238,7 +4411,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         {renderHorizontalTable(
                                             'Quality Parameters', 
                                             '🔬', 
-                                            '#f97316', 
+                                            isArrivalsView ? '#2563eb' : '#f97316', 
                                             isArrivalsView
                                                 ? ['SAMPLE', 'REPORTED BY', 'REPORTED AT', 'MOISTURE', 'CUTTING', 'BEND', 'GRAINS', 'MIX', 'S MIX', 'L MIX', 'KANDU', 'OIL', 'SK', 'WB-R', 'WB-BK', 'WB-T', 'SMELL', 'PADDY WB', 'ACTIONS']
                                                 : (progressiveMode
@@ -4284,7 +4457,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                     })()}
 
                                     {/* 3. Mill Quality Parameters (Inventory Quality) */}
-                                    {((detailEntry as any).isBandMalalBook || progressiveMode || (detailEntry as any).isTransit || detailEntry.workflowStatus === 'IN_TRANSIT' || detailEntry.workflowStatus === 'BAND_MALAL_BOOK' || isAdminSampleBook2) && (() => {
+                                    {!isArrivalsView && ((detailEntry as any).isBandMalalBook || progressiveMode || (detailEntry as any).isTransit || detailEntry.workflowStatus === 'IN_TRANSIT' || detailEntry.workflowStatus === 'BAND_MALAL_BOOK' || isAdminSampleBook2) && (() => {
                                          const paramsList = getAllMillQualityParameters();
                                          if (paramsList.length === 0) return null;
                                          return (
