@@ -6178,13 +6178,22 @@ const Arrivals: React.FC = () => {
                                 ))
                               }
                             </select>
-                            <button
-                              type="button"
-                              onClick={() => setOpenHeaderFilter(null)}
-                              style={{ width: '100%', fontSize: '10px', padding: '4px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', marginTop: '4px' }}
-                            >
-                              Close
-                            </button>
+                            <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
+                              <button
+                                type="button"
+                                onClick={() => { setInTransitBrokerFilter(''); setInTransitPage(1); setOpenHeaderFilter(null); }}
+                                style={{ flex: 1, fontSize: '10px', padding: '4px', border: 'none', background: '#fee2e2', color: '#ef4444', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                              >
+                                Clear
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setOpenHeaderFilter(null)}
+                                style={{ flex: 1, fontSize: '10px', padding: '4px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                              >
+                                Close
+                              </button>
+                            </div>
                           </div>
                         )}
                       </th>
@@ -6214,13 +6223,22 @@ const Arrivals: React.FC = () => {
                                 <option key={v.id} value={v.name}>{v.name}</option>
                               ))}
                             </select>
-                            <button
-                              type="button"
-                              onClick={() => setOpenHeaderFilter(null)}
-                              style={{ width: '100%', fontSize: '10px', padding: '4px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', marginTop: '4px' }}
-                            >
-                              Close
-                            </button>
+                            <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
+                              <button
+                                type="button"
+                                onClick={() => { setInTransitVarietyFilter(''); setInTransitPage(1); setOpenHeaderFilter(null); }}
+                                style={{ flex: 1, fontSize: '10px', padding: '4px', border: 'none', background: '#fee2e2', color: '#ef4444', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                              >
+                                Clear
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setOpenHeaderFilter(null)}
+                                style={{ flex: 1, fontSize: '10px', padding: '4px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                              >
+                                Close
+                              </button>
+                            </div>
                           </div>
                         )}
                       </th>
@@ -7732,13 +7750,22 @@ const Arrivals: React.FC = () => {
                               ))
                             }
                           </select>
-                          <button
-                            type="button"
-                            onClick={() => setOpenHeaderFilter(null)}
-                            style={{ width: '100%', fontSize: '10px', padding: '4px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', marginTop: '4px' }}
-                          >
-                            Close
-                          </button>
+                            <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
+                              <button
+                                type="button"
+                                onClick={() => { setBmbBrokerFilter(''); setBmbPage(1); setOpenHeaderFilter(null); }}
+                                style={{ flex: 1, fontSize: '10px', padding: '4px', border: 'none', background: '#fee2e2', color: '#ef4444', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                              >
+                                Clear
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setOpenHeaderFilter(null)}
+                                style={{ flex: 1, fontSize: '10px', padding: '4px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                              >
+                                Close
+                              </button>
+                            </div>
                         </div>
                       )}
                     </th>
@@ -7768,13 +7795,22 @@ const Arrivals: React.FC = () => {
                               <option key={v.id} value={v.name}>{v.name}</option>
                             ))}
                           </select>
-                          <button
-                            type="button"
-                            onClick={() => setOpenHeaderFilter(null)}
-                            style={{ width: '100%', fontSize: '10px', padding: '4px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', marginTop: '4px' }}
-                          >
-                            Close
-                          </button>
+                            <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
+                              <button
+                                type="button"
+                                onClick={() => { setBmbVarietyFilter(''); setBmbPage(1); setOpenHeaderFilter(null); }}
+                                style={{ flex: 1, fontSize: '10px', padding: '4px', border: 'none', background: '#fee2e2', color: '#ef4444', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                              >
+                                Clear
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setOpenHeaderFilter(null)}
+                                style={{ flex: 1, fontSize: '10px', padding: '4px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                              >
+                                Close
+                              </button>
+                            </div>
                         </div>
                       )}
                     </th>
