@@ -5987,11 +5987,118 @@ const Arrivals: React.FC = () => {
                 <option value="all">All Status</option>
                 <option value="pending">⏳ Pending Approval</option>
               </select>
+              <button 
+                onClick={() => setInTransitFiltersVisible(!inTransitFiltersVisible)} 
+                style={{ 
+                  padding: '6px 12px', 
+                  border: '1px solid #cbd5e1', 
+                  borderRadius: '6px', 
+                  background: inTransitFiltersVisible ? '#eff6ff' : '#f8fafc', 
+                  borderColor: inTransitFiltersVisible ? '#bfdbfe' : '#cbd5e1',
+                  cursor: 'pointer', 
+                  fontSize: '12px', 
+                  fontWeight: 600, 
+                  color: inTransitFiltersVisible ? '#1d4ed8' : '#475569', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '4px' 
+                }}
+              >
+                🔍 Filters
+              </button>
               <button onClick={handleRefreshTransit} disabled={loadingTransit} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', background: '#f8fafc', cursor: loadingTransit ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: 600, color: '#475569', display: 'flex', alignItems: 'center', gap: '4px', transition: 'all 0.2s' }}>
                 <span style={{ display: 'inline-block', animation: loadingTransit ? 'spin 1s linear infinite' : 'none' }}>🔄</span> Refresh
               </button>
             </div>
           </div>
+
+          {inTransitFiltersVisible && (
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
+              gap: '12px', 
+              padding: '16px', 
+              background: '#f8fafc', 
+              borderRadius: '8px', 
+              border: '1px solid #cbd5e1', 
+              marginBottom: '16px',
+              alignItems: 'end'
+            }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>Date From</label>
+                <input 
+                  type="date" 
+                  value={inTransitDateFromFilter}
+                  onChange={(e) => { setInTransitDateFromFilter(e.target.value); setInTransitPage(1); }}
+                  style={{ width: '100%', padding: '6px 10px', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '6px', height: '34px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>Date To</label>
+                <input 
+                  type="date" 
+                  value={inTransitDateToFilter}
+                  onChange={(e) => { setInTransitDateToFilter(e.target.value); setInTransitPage(1); }}
+                  style={{ width: '100%', padding: '6px 10px', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '6px', height: '34px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>Broker</label>
+                <select
+                  value={inTransitBrokerFilter}
+                  onChange={(e) => { setInTransitBrokerFilter(e.target.value); setInTransitPage(1); }}
+                  style={{ width: '100%', padding: '6px 10px', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '6px', background: '#fff', height: '34px' }}
+                >
+                  <option value="">All Brokers</option>
+                  {[...brokersList]
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((b) => (
+                      <option key={b.id} value={b.name}>{b.name}</option>
+                    ))
+                  }
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>Variety</label>
+                <select
+                  value={inTransitVarietyFilter}
+                  onChange={(e) => { setInTransitVarietyFilter(e.target.value); setInTransitPage(1); }}
+                  style={{ width: '100%', padding: '6px 10px', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '6px', background: '#fff', height: '34px' }}
+                >
+                  <option value="">All Varieties</option>
+                  {varieties?.map((v: any) => (
+                    <option key={v.id} value={v.name}>{v.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInTransitDateFromFilter('');
+                    setInTransitDateToFilter('');
+                    setInTransitBrokerFilter('');
+                    setInTransitVarietyFilter('');
+                    setInTransitPage(1);
+                  }}
+                  style={{ 
+                    width: '100%', 
+                    height: '34px', 
+                    padding: '6px 12px', 
+                    border: 'none', 
+                    borderRadius: '6px', 
+                    background: '#fee2e2', 
+                    color: '#ef4444', 
+                    fontWeight: 'bold', 
+                    fontSize: '12px', 
+                    cursor: 'pointer' 
+                  }}
+                >
+                  Clear Filters
+                </button>
+              </div>
+            </div>
+          )}
 
 
 
@@ -6106,142 +6213,12 @@ const Arrivals: React.FC = () => {
                   <thead>
                     <tr style={{ background: '#1a237e', color: '#fff', borderBottom: '1px solid #000' }}>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '3%' }}>SL No</th>
-                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%', position: 'relative' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                          <span>Date</span>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); setOpenHeaderFilter(openHeaderFilter === 'date' ? null : 'date'); }}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '11px', color: '#94a3b8', display: 'flex', alignItems: 'center' }}
-                          >
-                            🔻
-                          </button>
-                        </div>
-                        {openHeaderFilter === 'date' && (
-                          <div style={{ position: 'absolute', top: '100%', left: 0, background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px', zIndex: 999, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minWidth: '160px', display: 'flex', flexDirection: 'column', gap: '6px', color: '#000', textAlign: 'left' }}>
-                            <label style={{ fontSize: '10px', color: '#475569', fontWeight: 'bold' }}>From:</label>
-                            <input
-                              type="date"
-                              value={inTransitDateFromFilter}
-                              onChange={(e) => { setInTransitDateFromFilter(e.target.value); setInTransitPage(1); }}
-                              style={{ fontSize: '11px', padding: '3px', border: '1px solid #cbd5e1', borderRadius: '4px', color: '#000', width: '100%', boxSizing: 'border-box' }}
-                            />
-                            <label style={{ fontSize: '10px', color: '#475569', fontWeight: 'bold' }}>To:</label>
-                            <input
-                              type="date"
-                              value={inTransitDateToFilter}
-                              onChange={(e) => { setInTransitDateToFilter(e.target.value); setInTransitPage(1); }}
-                              style={{ fontSize: '11px', padding: '3px', border: '1px solid #cbd5e1', borderRadius: '4px', color: '#000', width: '100%', boxSizing: 'border-box' }}
-                            />
-                            <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
-                              <button
-                                type="button"
-                                onClick={() => { setInTransitDateFromFilter(''); setInTransitDateToFilter(''); setInTransitPage(1); setOpenHeaderFilter(null); }}
-                                style={{ flex: 1, fontSize: '10px', padding: '4px', border: 'none', background: '#fee2e2', color: '#ef4444', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                              >
-                                Clear
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setOpenHeaderFilter(null)}
-                                style={{ flex: 1, fontSize: '10px', padding: '4px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                              >
-                                Close
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </th>
-                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '11%', position: 'relative' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <span>Broker</span>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); setOpenHeaderFilter(openHeaderFilter === 'broker' ? null : 'broker'); }}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '11px', color: '#94a3b8', display: 'flex', alignItems: 'center' }}
-                          >
-                            🔻
-                          </button>
-                        </div>
-                        {openHeaderFilter === 'broker' && (
-                          <div style={{ position: 'absolute', top: '100%', left: 0, background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px', zIndex: 999, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minWidth: '160px', display: 'flex', flexDirection: 'column', gap: '6px', color: '#000', textAlign: 'left' }}>
-                            <select
-                              value={inTransitBrokerFilter}
-                              onChange={(e) => { setInTransitBrokerFilter(e.target.value); setInTransitPage(1); }}
-                              style={{ width: '100%', fontSize: '11px', padding: '4px', color: '#000', borderRadius: '4px', border: '1px solid #cbd5e1', background: '#fff' }}
-                            >
-                              <option value="">All Brokers</option>
-                              {[...brokersList]
-                                .sort((a, b) => a.name.localeCompare(b.name))
-                                .map((b) => (
-                                  <option key={b.id} value={b.name}>{b.name}</option>
-                                ))
-                              }
-                            </select>
-                            <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
-                              <button
-                                type="button"
-                                onClick={() => { setInTransitBrokerFilter(''); setInTransitPage(1); setOpenHeaderFilter(null); }}
-                                style={{ flex: 1, fontSize: '10px', padding: '4px', border: 'none', background: '#fee2e2', color: '#ef4444', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                              >
-                                Clear
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setOpenHeaderFilter(null)}
-                                style={{ flex: 1, fontSize: '10px', padding: '4px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                              >
-                                Close
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </th>
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Date</th>
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '11%' }}>Broker</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '12%' }}>Party Name</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Godown</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>No. of Bags</th>
-                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '11%', position: 'relative' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <span>Variety</span>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); setOpenHeaderFilter(openHeaderFilter === 'variety' ? null : 'variety'); }}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '11px', color: '#94a3b8', display: 'flex', alignItems: 'center' }}
-                          >
-                            🔻
-                          </button>
-                        </div>
-                        {openHeaderFilter === 'variety' && (
-                          <div style={{ position: 'absolute', top: '100%', left: 0, background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px', zIndex: 999, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minWidth: '160px', display: 'flex', flexDirection: 'column', gap: '6px', color: '#000', textAlign: 'left' }}>
-                            <select
-                              value={inTransitVarietyFilter}
-                              onChange={(e) => { setInTransitVarietyFilter(e.target.value); setInTransitPage(1); }}
-                              style={{ width: '100%', fontSize: '11px', padding: '4px', color: '#000', borderRadius: '4px', border: '1px solid #cbd5e1', background: '#fff' }}
-                            >
-                              <option value="">All Varieties</option>
-                              {varieties?.map((v: any) => (
-                                <option key={v.id} value={v.name}>{v.name}</option>
-                              ))}
-                            </select>
-                            <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
-                              <button
-                                type="button"
-                                onClick={() => { setInTransitVarietyFilter(''); setInTransitPage(1); setOpenHeaderFilter(null); }}
-                                style={{ flex: 1, fontSize: '10px', padding: '4px', border: 'none', background: '#fee2e2', color: '#ef4444', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                              >
-                                Clear
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setOpenHeaderFilter(null)}
-                                style={{ flex: 1, fontSize: '10px', padding: '4px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                              >
-                                Close
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </th>
+                      <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '11%' }}>Variety</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '6%' }}>Moisture</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '6%' }}>Cutting</th>
                       <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>WB Number</th>
@@ -7625,11 +7602,117 @@ const Arrivals: React.FC = () => {
                 <option value="all">All Status</option>
                 <option value="pending">⏳ Pending Approval</option>
               </select>
+              <button 
+                onClick={() => setBmbFiltersVisible(!bmbFiltersVisible)} 
+                style={{ 
+                  padding: '6px 12px', 
+                  border: '1px solid #cbd5e1', 
+                  borderRadius: '6px', 
+                  background: bmbFiltersVisible ? '#eff6ff' : '#f8fafc', 
+                  borderColor: bmbFiltersVisible ? '#bfdbfe' : '#cbd5e1',
+                  cursor: 'pointer', 
+                  fontSize: '12px', 
+                  fontWeight: 600, 
+                  color: bmbFiltersVisible ? '#1d4ed8' : '#475569', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '4px' 
+                }}
+              >
+                🔍 Filters
+              </button>
             </div>
           </div>
 
-          {loadingTransit ? (
+          {bmbFiltersVisible && (
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
+              gap: '12px', 
+              padding: '16px', 
+              background: '#f8fafc', 
+              borderRadius: '8px', 
+              border: '1px solid #cbd5e1', 
+              marginBottom: '16px',
+              alignItems: 'end'
+            }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>Date From</label>
+                <input 
+                  type="date" 
+                  value={bmbDateFromFilter}
+                  onChange={(e) => { setBmbDateFromFilter(e.target.value); setBmbPage(1); }}
+                  style={{ width: '100%', padding: '6px 10px', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '6px', height: '34px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>Date To</label>
+                <input 
+                  type="date" 
+                  value={bmbDateToFilter}
+                  onChange={(e) => { setBmbDateToFilter(e.target.value); setBmbPage(1); }}
+                  style={{ width: '100%', padding: '6px 10px', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '6px', height: '34px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>Broker</label>
+                <select
+                  value={bmbBrokerFilter}
+                  onChange={(e) => { setBmbBrokerFilter(e.target.value); setBmbPage(1); }}
+                  style={{ width: '100%', padding: '6px 10px', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '6px', background: '#fff', height: '34px' }}
+                >
+                  <option value="">All Brokers</option>
+                  {[...brokersList]
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((b) => (
+                      <option key={b.id} value={b.name}>{b.name}</option>
+                    ))
+                  }
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 'bold', marginBottom: '4px' }}>Variety</label>
+                <select
+                  value={bmbVarietyFilter}
+                  onChange={(e) => { setBmbVarietyFilter(e.target.value); setBmbPage(1); }}
+                  style={{ width: '100%', padding: '6px 10px', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '6px', background: '#fff', height: '34px' }}
+                >
+                  <option value="">All Varieties</option>
+                  {varieties?.map((v: any) => (
+                    <option key={v.id} value={v.name}>{v.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBmbDateFromFilter('');
+                    setBmbDateToFilter('');
+                    setBmbBrokerFilter('');
+                    setBmbVarietyFilter('');
+                    setBmbPage(1);
+                  }}
+                  style={{ 
+                    width: '100%', 
+                    height: '34px', 
+                    padding: '6px 12px', 
+                    border: 'none', 
+                    borderRadius: '6px', 
+                    background: '#fee2e2', 
+                    color: '#ef4444', 
+                    fontWeight: 'bold', 
+                    fontSize: '12px', 
+                    cursor: 'pointer' 
+                  }}
+                >
+                  Clear Filters
+                </button>
+              </div>
+            </div>
+          )}
 
+          {loadingTransit ? (
 
 
             <div style={{ padding: '40px 16px', textAlign: 'center', color: '#64748b' }}>⏳ Loading...</div>
@@ -7677,143 +7760,12 @@ const Arrivals: React.FC = () => {
 
 
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '3%' }}>SL No</th>
-
-                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%', position: 'relative' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                        <span>Date</span>
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); setOpenHeaderFilter(openHeaderFilter === 'bmbDate' ? null : 'bmbDate'); }}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '11px', color: '#a7f3d0', display: 'flex', alignItems: 'center' }}
-                        >
-                          🔻
-                        </button>
-                      </div>
-                      {openHeaderFilter === 'bmbDate' && (
-                        <div style={{ position: 'absolute', top: '100%', left: 0, background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px', zIndex: 999, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minWidth: '160px', display: 'flex', flexDirection: 'column', gap: '6px', color: '#000', textAlign: 'left' }}>
-                          <label style={{ fontSize: '10px', color: '#475569', fontWeight: 'bold' }}>From:</label>
-                          <input
-                            type="date"
-                            value={bmbDateFromFilter}
-                            onChange={(e) => { setBmbDateFromFilter(e.target.value); setBmbPage(1); }}
-                            style={{ fontSize: '11px', padding: '3px', border: '1px solid #cbd5e1', borderRadius: '4px', color: '#000', width: '100%', boxSizing: 'border-box' }}
-                          />
-                          <label style={{ fontSize: '10px', color: '#475569', fontWeight: 'bold' }}>To:</label>
-                          <input
-                            type="date"
-                            value={bmbDateToFilter}
-                            onChange={(e) => { setBmbDateToFilter(e.target.value); setBmbPage(1); }}
-                            style={{ fontSize: '11px', padding: '3px', border: '1px solid #cbd5e1', borderRadius: '4px', color: '#000', width: '100%', boxSizing: 'border-box' }}
-                          />
-                          <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
-                            <button
-                              type="button"
-                              onClick={() => { setBmbDateFromFilter(''); setBmbDateToFilter(''); setBmbPage(1); setOpenHeaderFilter(null); }}
-                              style={{ flex: 1, fontSize: '10px', padding: '4px', border: 'none', background: '#fee2e2', color: '#ef4444', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                            >
-                              Clear
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setOpenHeaderFilter(null)}
-                              style={{ flex: 1, fontSize: '10px', padding: '4px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                            >
-                              Close
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </th>
-                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '11%', position: 'relative' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <span>Broker</span>
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); setOpenHeaderFilter(openHeaderFilter === 'bmbBroker' ? null : 'bmbBroker'); }}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '11px', color: '#a7f3d0', display: 'flex', alignItems: 'center' }}
-                        >
-                          🔻
-                        </button>
-                      </div>
-                      {openHeaderFilter === 'bmbBroker' && (
-                        <div style={{ position: 'absolute', top: '100%', left: 0, background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px', zIndex: 999, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minWidth: '160px', display: 'flex', flexDirection: 'column', gap: '6px', color: '#000', textAlign: 'left' }}>
-                          <select
-                            value={bmbBrokerFilter}
-                            onChange={(e) => { setBmbBrokerFilter(e.target.value); setBmbPage(1); }}
-                            style={{ width: '100%', fontSize: '11px', padding: '4px', color: '#000', borderRadius: '4px', border: '1px solid #cbd5e1', background: '#fff' }}
-                          >
-                            <option value="">All Brokers</option>
-                            {[...brokersList]
-                              .sort((a, b) => a.name.localeCompare(b.name))
-                              .map((b) => (
-                                <option key={b.id} value={b.name}>{b.name}</option>
-                              ))
-                            }
-                          </select>
-                            <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
-                              <button
-                                type="button"
-                                onClick={() => { setBmbBrokerFilter(''); setBmbPage(1); setOpenHeaderFilter(null); }}
-                                style={{ flex: 1, fontSize: '10px', padding: '4px', border: 'none', background: '#fee2e2', color: '#ef4444', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                              >
-                                Clear
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setOpenHeaderFilter(null)}
-                                style={{ flex: 1, fontSize: '10px', padding: '4px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                              >
-                                Close
-                              </button>
-                            </div>
-                        </div>
-                      )}
-                    </th>
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '10%' }}>Date</th>
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '11%' }}>Broker</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '12%' }}>Party</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '12%' }}>Godown</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>No. of Bags</th>
-                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '10%', position: 'relative' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <span>Variety</span>
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); setOpenHeaderFilter(openHeaderFilter === 'bmbVariety' ? null : 'bmbVariety'); }}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '11px', color: '#a7f3d0', display: 'flex', alignItems: 'center' }}
-                        >
-                          🔻
-                        </button>
-                      </div>
-                      {openHeaderFilter === 'bmbVariety' && (
-                        <div style={{ position: 'absolute', top: '100%', left: 0, background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px', zIndex: 999, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minWidth: '160px', display: 'flex', flexDirection: 'column', gap: '6px', color: '#000', textAlign: 'left' }}>
-                          <select
-                            value={bmbVarietyFilter}
-                            onChange={(e) => { setBmbVarietyFilter(e.target.value); setBmbPage(1); }}
-                            style={{ width: '100%', fontSize: '11px', padding: '4px', color: '#000', borderRadius: '4px', border: '1px solid #cbd5e1', background: '#fff' }}
-                          >
-                            <option value="">All Varieties</option>
-                            {varieties?.map((v: any) => (
-                              <option key={v.id} value={v.name}>{v.name}</option>
-                            ))}
-                          </select>
-                            <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
-                              <button
-                                type="button"
-                                onClick={() => { setBmbVarietyFilter(''); setBmbPage(1); setOpenHeaderFilter(null); }}
-                                style={{ flex: 1, fontSize: '10px', padding: '4px', border: 'none', background: '#fee2e2', color: '#ef4444', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                              >
-                                Clear
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setOpenHeaderFilter(null)}
-                                style={{ flex: 1, fontSize: '10px', padding: '4px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                              >
-                                Close
-                              </button>
-                            </div>
-                        </div>
-                      )}
-                    </th>
+                    <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'left', width: '10%' }}>Variety</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '6%' }}>Moisture</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '6%' }}>Cutting</th>
                     <th style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', textAlign: 'center', width: '8%' }}>WB Number</th>
