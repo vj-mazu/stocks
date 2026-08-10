@@ -50,10 +50,30 @@ function VirtualizedTable<T>({
 }: VirtualizedTableProps<T>) {
     const parentRef = useRef<HTMLDivElement>(null);
 
+    // Mobile detection (≤767px) → render vertical labeled cards like the rest of the app
+    const [isMobile, setIsMobile] = React.useState(false);
+    React.useEffect(() => {
+        const mq = window.matchMedia('(max-width: 767px)');
+        const update = () => setIsMobile(mq.matches);
+        update();
+        mq.addEventListener?.('change', update);
+        window.addEventListener('resize', update);
+        return () => {
+            mq.removeEventListener?.('change', update);
+            window.removeEventListener('resize', update);
+        };
+    }, []);
+
+    // Mobile cards stack one label/value row per column — height must fit all
+    // lines or rows will overlap. Cap generously; virtualization still bounds
+    // how many rows are actually rendered.
+    const mobileRowHeight = Math.min(640, Math.max(60, columns.length * 26 + 16));
+    const effectiveRowHeight = isMobile ? mobileRowHeight : rowHeight;
+
     const virtualizer = useVirtualizer({
         count: data.length,
         getScrollElement: () => parentRef.current,
-        estimateSize: () => rowHeight,
+        estimateSize: () => effectiveRowHeight,
         overscan: 10, // Render 10 extra rows above/below viewport
     });
 
@@ -160,26 +180,61 @@ function VirtualizedTable<T>({
                                     height: `${virtualRow.size}px`,
                                     transform: `translateY(${virtualRow.start}px)`,
                                     display: 'flex',
-                                    alignItems: 'center',
+                                    alignItems: isMobile ? 'stretch' : 'center',
                                     backgroundColor: idx % 2 === 0 ? 'white' : '#f8f9fa',
                                     cursor: onRowClick ? 'pointer' : 'default',
                                     borderBottom: '1px solid #e9ecef',
                                 }}
                             >
-                                {columns.map(col => (
-                                    <div key={col.key} style={{
-                                        padding: '4px 6px',
-                                        fontSize: '11px',
-                                        textAlign: col.align || 'left',
-                                        width: col.width ? `${col.width}px` : `${100 / columns.length}%`,
-                                        flexShrink: 0,
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
-                                        whiteSpace: 'nowrap',
-                                    }}>
-                                        {col.render(row, idx)}
+                                {isMobile ? (
+                                    <div style={{ width: '100%', padding: '8px 10px' }}>
+                                        {columns.map(col => (
+                                            <div
+                                                key={col.key}
+                                                style={{
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    alignItems: 'flex-start',
+                                                    gap: '10px',
+                                                    padding: '3px 0',
+                                                    borderBottom: '1px dashed #eef2f7',
+                                                }}
+                                            >
+                                                <span style={{
+                                                    fontWeight: 700,
+                                                    color: '#64748b',
+                                                    fontSize: '10px',
+                                                    textTransform: 'uppercase',
+                                                    letterSpacing: '0.4px',
+                                                    flex: '0 0 auto',
+                                                    maxWidth: '50%',
+                                                    paddingRight: '8px',
+                                                }}>{col.header}</span>
+                                                <span style={{
+                                                    fontSize: '12px',
+                                                    color: '#334155',
+                                                    textAlign: 'right',
+                                                    wordBreak: 'break-word',
+                                                }}>{col.render(row, idx)}</span>
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
+                                ) : (
+                                    columns.map(col => (
+                                        <div key={col.key} style={{
+                                            padding: '4px 6px',
+                                            fontSize: '11px',
+                                            textAlign: col.align || 'left',
+                                            width: col.width ? `${col.width}px` : `${100 / columns.length}%`,
+                                            flexShrink: 0,
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap',
+                                        }}>
+                                            {col.render(row, idx)}
+                                        </div>
+                                    ))
+                                )}
                             </div>
                         );
                     })}

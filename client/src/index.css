@@ -160,11 +160,12 @@ div[style*="overflowX"] {
     float: none !important;
   }
 
-  /* TABLES → Horizontal Scroll on mobile */
+  /* TABLES → Vertical cards on mobile (see mobile-app.css for card styling) */
+  /* No min-width forcing — tables become vertical labeled cards via MobileViewEnhancer */
   table {
     display: table;
     width: 100%;
-    min-width: max-content;
+    min-width: 0;
   }
   thead {
     display: table-header-group;
@@ -179,10 +180,10 @@ div[style*="overflowX"] {
     display: table-cell;
     padding: 8px 12px;
     font-size: 13px;
-    white-space: nowrap;
+    white-space: normal;
   }
   td::before {
-    display: none; /* remove data-label trick */
+    display: none; /* label shown only for mobile-card-table in mobile-app.css */
   }
   
   /* Make all table containers horizontally scrollable */

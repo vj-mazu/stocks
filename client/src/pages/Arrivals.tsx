@@ -4318,18 +4318,478 @@ const Arrivals: React.FC = () => {
     }
   }, [inventoryQualityType, isQualitySamplingModalOpen, qualitySamplingEntry, activeRecheck]);
 
+  const renderInTransitMobileCards = () => {
+    const pageTrips = inTransitFilteredTrips.slice((inTransitPage - 1) * inTransitPageSize, inTransitPage * inTransitPageSize);
+    return (
+      <div className="mobile-cards-view" style={{ display: 'none', flexDirection: 'column', gap: '14px', padding: '8px' }}>
+        {pageTrips.map((trip, idx) => {
+          const { entry, inspection, isPlaceholder } = trip;
+          const dateVal = isPlaceholder ? entry.entryDate : (inspection.inspectionDate || entry.entryDate);
+          const lorryNum = isPlaceholder ? (entry.lorryNumber || 'Pending Lorry') : (inspection.lorryNumber || 'Pending Lorry');
+          const bagsLoaded = isPlaceholder ? entry.bags : (inspection.bags || inspection.bagsLoaded || '-');
+          const transitDetail = isPlaceholder ? null : inspection?.lorryTransitDetail;
+          const placeStatus = transitDetail?.placeStatus || 'none';
+          const wbStatus = transitDetail?.wbStatus || 'none';
+          const godownName = isPlaceholder ? '-' : (transitDetail?.placeWarehouse?.name || '-');
+          const suteNetWt = isPlaceholder ? '-' : (transitDetail ? stripDecimals(parseFloat(transitDetail.grossWeight || 0) - parseFloat(transitDetail.tareWeight || 0) - (parseFloat(transitDetail.sute || 0) * (inspection?.bags || inspection?.bagsLoaded || 1))) : '-');
 
+          // WB action variables
+          const canActionWB = user && ['admin', 'owner', 'manager', 'ceo', 'inventory_head', 'inventory_staff'].includes(user.role);
+          const showAddWB = canActionWB && !isPlaceholder && wbStatus === 'none';
+          const showEditWB = canActionWB && !isPlaceholder && (wbStatus === 'pending' || wbStatus === 'rejected');
+          const showApproveWB = canApproveWB && !isPlaceholder && wbStatus === 'pending';
 
+          // GD action variables
+          const showAddGD = !isPlaceholder && placeStatus === 'none' && wbStatus === 'approved';
+          const showEditGD = !isPlaceholder && (placeStatus === 'pending' || placeStatus === 'rejected') && wbStatus === 'approved';
+          const showApproveGD = canApproveInventoryQuality && !isPlaceholder && placeStatus === 'pending';
 
+          return (
+            <div key={idx} style={{
+              background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0',
+              padding: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+              fontFamily: 'system-ui, -apple-system, sans-serif'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px', marginBottom: '12px' }}>
+                <div>
+                  <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '500', marginBottom: '2px' }}>
+                    SL No: {isPlaceholder ? entry.slNo : (inspection.slNo || idx + 1)}
+                  </div>
+                  <h3 style={{ margin: 0, fontSize: '15px', color: '#1e293b', fontWeight: '700', lineHeight: '1.2' }}>
+                    {entry.brokerName} / {entry.partyName}
+                  </h3>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                  <span style={{
+                    background: '#eff6ff', color: '#1e40af', padding: '4px 8px', borderRadius: '6px',
+                    fontWeight: '700', fontSize: '11px', border: '1px solid #bfdbfe'
+                  }}>
+                    {lorryNum.toUpperCase()}
+                  </span>
+                  <span style={{ fontSize: '10px', color: '#94a3b8' }}>{safeDateStr(dateVal)}</span>
+                </div>
+              </div>
 
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: '12px', marginBottom: '14px' }}>
+                <div>
+                  <strong style={{ color: '#64748b', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Variety</strong>
+                  <span style={{ color: '#334155', fontWeight: '500' }}>{entry.variety}</span>
+                </div>
+                <div>
+                  <strong style={{ color: '#64748b', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Bags</strong>
+                  <span style={{ color: '#334155', fontWeight: '500' }}>{bagsLoaded}</span>
+                </div>
+                <div>
+                  <strong style={{ color: '#64748b', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Godown</strong>
+                  <span style={{ color: '#334155', fontWeight: '500' }}>{godownName}</span>
+                </div>
+                <div>
+                  <strong style={{ color: '#64748b', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Sute Net Wt</strong>
+                  <span style={{ color: '#15803d', fontWeight: '700' }}>{suteNetWt !== '-' ? `${suteNetWt} Kg` : '-'}</span>
+                </div>
+                <div>
+                  <strong style={{ color: '#64748b', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Moisture</strong>
+                  <span style={{ color: '#334155' }}>{isPlaceholder ? entry.moisture : (inspection.moisture || '-')}</span>
+                </div>
+                <div>
+                  <strong style={{ color: '#64748b', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Cutting / Bend</strong>
+                  <span style={{ color: '#334155' }}>
+                    {isPlaceholder ? `${entry.cutting || '-'} / ${entry.bend || '-'}` : `${inspection.cutting || '-'} / ${inspection.bend || '-'}`}
+                  </span>
+                </div>
+              </div>
 
+              <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '8px 12px', marginBottom: '14px', border: '1px solid #f1f5f9' }}>
+                <strong style={{ color: '#64748b', display: 'block', fontSize: '9px', textTransform: 'uppercase', marginBottom: '6px' }}>Status Checks</strong>
+                {renderUnifiedStatus(trip, isPlaceholder)}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid #f1f5f9', paddingTop: '12px' }}>
+                {(showAddWB || showEditWB || showApproveWB) && (
+                  <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
+                    {showAddWB && (
+                      <button onClick={() => { setSelectedLorryInspection(inspection); setSelectedLorryForWB(lorryNum); setWbDate(new Date().toISOString().split('T')[0]); setWbNumber(''); setMillWbId(''); setWbGrossWeight(''); setWbTareWeight(''); setWbNetWeight(''); setWbSute(''); setPartyWbEnabled('no'); setIsWbEdit(false); }}
+                        style={{ flex: 1, padding: '7px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
+                        ⚖️ Add WB
+                      </button>
+                    )}
+                    {showEditWB && (
+                      <button onClick={() => { setSelectedLorryInspection(inspection); setSelectedLorryForWB(lorryNum); setWbDate(safeDateStr(transitDetail?.wbDate)); setWbNumber(transitDetail?.wbNo || ''); setMillWbId(String(transitDetail?.millWeightBridgeId || '')); setWbGrossWeight(String(transitDetail?.grossWeight || '')); setWbTareWeight(String(transitDetail?.tareWeight || '')); setWbNetWeight(String(transitDetail?.netWeight || '')); setWbSute(String(transitDetail?.sute || '')); setPartyWbEnabled(transitDetail?.partyWbEnabled === 'yes' ? 'yes' : 'no'); setPartyWbDate(safeDateStr(transitDetail?.partyWbDate)); setPartyWbNo(transitDetail?.partyWbNo || ''); setPartyWbName(transitDetail?.partyWbName || ''); setPartyGrossWeight(String(transitDetail?.partyGrossWeight || '')); setPartyTareWeight(String(transitDetail?.partyTareWeight || '')); setPartyNetWeight(String(transitDetail?.partyNetWeight || '')); setPartySute(String(transitDetail?.partySute || '')); setIsWbEdit(true); }}
+                        style={{ flex: 1, padding: '7px', background: '#d97706', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
+                        ✏️ Edit WB
+                      </button>
+                    )}
+                    {showApproveWB && (
+                      <button onClick={() => handleApproveWB(transitDetail)}
+                        style={{ flex: 1, padding: '7px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
+                        ✅ Approve WB
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {(showAddGD || showEditGD || showApproveGD) && (
+                  <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
+                    {showAddGD && (
+                      <button onClick={() => { setSelectedLorryInspection(inspection); setSelectedLorryForPlace(lorryNum); setPlaceType(''); setPlaceWarehouseId(''); setPlaceKunchinittuId(''); setPlaceDate(new Date().toISOString().split('T')[0]); setPlaceOutturnId(''); setIsPlaceEdit(false); }}
+                        style={{ flex: 1, padding: '7px', background: '#6366f1', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
+                        🚚 Add Godown
+                      </button>
+                    )}
+                    {showEditGD && (
+                      <button onClick={() => { setSelectedLorryInspection(inspection); setSelectedLorryForPlace(lorryNum); setPlaceType(transitDetail?.placeWarehouseId ? 'production' : (transitDetail?.placeKunchinittuId ? 'kunchinittu' : '')); setPlaceWarehouseId(String(transitDetail?.placeWarehouseId || '')); setPlaceKunchinittuId(String(transitDetail?.placeKunchinittuId || '')); setPlaceDate(safeDateStr(transitDetail?.placeDate)); setPlaceOutturnId(String(transitDetail?.placeOutturnId || '')); setIsPlaceEdit(true); }}
+                        style={{ flex: 1, padding: '7px', background: '#d97706', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
+                        ✏️ Edit Godown
+                      </button>
+                    )}
+                    {showApproveGD && (
+                      <button onClick={() => handleApprovePlace(transitDetail)}
+                        style={{ flex: 1, padding: '7px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
+                        ✅ Approve Godown
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {(() => {
+                  const params = isPlaceholder ? (entry.inventoryQualityParameters || []) : (inspection.inventoryQualityParameters || []);
+                  const isFullApproved = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
+                  const isLotApproved = params.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
+                  const isFullPending = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'pending');
+                  const isLotPending = params.some((p: any) => p.type === 'lot_avg' && p.status === 'pending');
+
+                  let btnText = '🔬 Mill Quality Sampling';
+                  let btnBg = '#a855f7';
+                  let isBtnDisabled = false;
+                  if (isLotApproved && isFullApproved) {
+                    btnText = '✅ Sampling Complete';
+                    btnBg = '#059669';
+                    isBtnDisabled = true;
+                  } else if (isLotApproved) {
+                    btnText = '🔬 Add Gutti';
+                    btnBg = '#0284c7';
+                  } else if (isLotPending) {
+                    btnText = '⏳ Lot Pending';
+                    btnBg = '#d97706';
+                    isBtnDisabled = true;
+                  } else if (isFullApproved) {
+                    btnText = '🔬 Add Lot Avg';
+                    btnBg = '#a855f7';
+                  } else if (isFullPending) {
+                    btnText = '⏳ Full Lorry Pending';
+                    btnBg = '#b45309';
+                    isBtnDisabled = true;
+                  }
+
+                  return (
+                    <button
+                      disabled={isBtnDisabled}
+                      onClick={() => {
+                        setQualitySamplingEntry(isPlaceholder ? entry : { ...entry, ...(inspection || {}) });
+                        setIsQualitySamplingModalOpen(true);
+                        sessionSubmittedTypes.current = new Set();
+                        setInventoryQualityType(null);
+                        setWbEnabledState(null);
+                        setInventoryQualityForm({
+                          moisture: '', dryMoisture: '', cutting: '', bend: '', grains: '',
+                          mix: '', sMix: '', lMix: '', kandu: '', oil: '', sk: '',
+                          wbR: '', wbBk: '', wbT: '',
+                          smell: '', paddyWb: '', pColor: '', kadiga: '', remarks: ''
+                        });
+                        setInventoryQualityToggle({
+                          dryMoisture: '', sMix: '', lMix: '', paddyWb: '', kadiga: '', smellHas: ''
+                        });
+                      }}
+                      style={{
+                        padding: '8px',
+                        background: isBtnDisabled ? '#94a3b8' : btnBg,
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: isBtnDisabled ? 'not-allowed' : 'pointer',
+                        fontSize: '11px',
+                        fontWeight: '700',
+                        width: '100%',
+                        lineHeight: '1.2'
+                      }}
+                    >
+                      {btnText}
+                    </button>
+                  );
+                })()}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderBmbMobileCards = () => {
+    return (
+      <div className="mobile-cards-view" style={{ display: 'none', flexDirection: 'column', gap: '14px', padding: '8px' }}>
+        {paginatedBmbEntries.map((entry, idx) => {
+          const wbStatus = entry.wbStatus || 'none';
+          const netWeightVal = entry.netWeight || 0;
+          const displayNetWeight = entry.suteNetWeight !== undefined && entry.suteNetWeight !== null ? 
+            `${stripDecimals(entry.suteNetWeight)} Kg` : (netWeightVal ? `${stripDecimals(netWeightVal)} Kg` : '-');
+          const placeStatus = entry.placeStatus || 'none';
+          const bagsCount = entry.bags || '-';
+          const bagsKg = entry.packaging ? `${entry.packaging} Kg` : '';
+          const iqParams = entry.inventoryQualityParameters || [];
+          const approvedFull = iqParams.find((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
+          const approvedLot = iqParams.find((p: any) => p.type === 'lot_avg' && p.status === 'approved');
+          const iqSource = approvedLot || approvedFull;
+          const cuttingDisplay = iqSource ? (iqSource.cutting || '-') : '-';
+          const moistureDisplay = iqSource ? `${iqSource.moisture || '-'}%` : '-';
+          
+          let placeDisplay = '-';
+          if (entry.placeType === 'production' && entry.outturn) {
+            placeDisplay = `🏭 ${entry.outturn.code}`;
+          } else if (entry.placeType === 'kunchinittu') {
+            const wh = entry.placeWarehouse?.name || entry.toWarehouse?.name || '';
+            const kc = entry.placeKunchinittuData?.name || entry.toKunchinittu?.name || '';
+            placeDisplay = wh ? (wh + (kc ? ' (' + kc + ')' : '')) : (kc || '-');
+          }
+
+          const isInvHead = (user as any)?.role === 'inventory_head' || ((user as any)?.role === 'inventory_staff' && (user as any)?.subRole === 'head');
+          const isApprover = (user as any)?.role === 'owner' || 
+                             (user as any)?.role === 'md' || 
+                             (user as any)?.role === 'ceo' || 
+                             (user as any)?.effectiveRole === 'ceo' || 
+                             isInvHead || 
+                             (user as any)?.role === 'admin' || 
+                             (user as any)?.role === 'manager';
+          const isGodownApprover = (user as any)?.role === 'admin' || (user as any)?.role === 'md' || (user as any)?.role === 'owner';
+
+          return (
+            <div key={`bmb-${entry.id}`} style={{
+              background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0',
+              padding: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+              fontFamily: 'system-ui, -apple-system, sans-serif'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px', marginBottom: '12px' }}>
+                <div>
+                  <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '500', marginBottom: '2px' }}>
+                    SL No: {entry.slNo}
+                  </div>
+                  <h3 style={{ margin: 0, fontSize: '15px', color: '#1e293b', fontWeight: '700', lineHeight: '1.2' }}>
+                    {entry.partyName || entry.fromLocation || '-'}
+                  </h3>
+                  <div style={{ fontSize: '11px', color: '#0f766e', background: '#f0fdfa', border: '1px solid #ccfbf1', padding: '1px 6px', borderRadius: '4px', display: 'inline-block', marginTop: '4px' }}>
+                    {entry.broker || '-'}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                  <span style={{
+                    background: '#eff6ff', color: '#1e40af', padding: '4px 8px', borderRadius: '6px',
+                    fontWeight: '700', fontSize: '11px', border: '1px solid #bfdbfe'
+                  }}>
+                    {(entry.lorryNumber || 'N/A').toUpperCase()}
+                  </span>
+                  <span style={{ fontSize: '10px', color: '#94a3b8' }}>
+                    {entry.date ? new Date(entry.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: '12px', marginBottom: '14px' }}>
+                <div>
+                  <strong style={{ color: '#64748b', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Variety</strong>
+                  <span style={{ color: '#1e40af', fontWeight: '700' }}>{entry.variety || '-'}</span>
+                </div>
+                <div>
+                  <strong style={{ color: '#64748b', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Bags</strong>
+                  <span style={{ color: '#334155', fontWeight: '500' }}>{bagsCount} {bagsKg && `(${bagsKg})`}</span>
+                </div>
+                <div>
+                  <strong style={{ color: '#64748b', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Godown</strong>
+                  <span style={{ color: '#7c3aed', fontWeight: '600' }}>{placeDisplay}</span>
+                </div>
+                <div>
+                  <strong style={{ color: '#64748b', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Sute Net Wt</strong>
+                  <span style={{ color: '#d97706', fontWeight: '700' }}>{displayNetWeight}</span>
+                </div>
+                <div>
+                  <strong style={{ color: '#64748b', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Moisture</strong>
+                  <span style={{ color: '#334155' }}>{moistureDisplay}</span>
+                </div>
+                <div>
+                  <strong style={{ color: '#64748b', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Cutting</strong>
+                  <span style={{ color: '#059669', fontWeight: '600' }}>{cuttingDisplay}</span>
+                </div>
+              </div>
+
+              <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '8px 12px', marginBottom: '14px', border: '1px solid #f1f5f9' }}>
+                <strong style={{ color: '#64748b', display: 'block', fontSize: '9px', textTransform: 'uppercase', marginBottom: '6px' }}>Status Checks</strong>
+                {renderUnifiedStatus(entry)}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid #f1f5f9', paddingTop: '12px' }}>
+                {isApprover && (
+                  <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
+                    <button onClick={() => {
+                      setPlaceDate('');
+                      setPlaceType('');
+                      setPlaceWarehouseId('');
+                      setPlaceKunchinittuId('');
+                      setPlaceOutturnId('');
+                      setIsPlaceEdit(true);
+                      setSelectedLorryForPlace(`bmb-${entry.id}`);
+                      setSelectedLorryInspection(entry.physicalInspection || null);
+                      const editPlaceType = entry.placeType || '';
+                      setTimeout(() => {
+                        setPlaceType(editPlaceType);
+                        setPlaceWarehouseId(entry.placeWarehouseId ? String(entry.placeWarehouseId) : (entry.placeWarehouse?.id ? String(entry.placeWarehouse.id) : (entry.toWarehouse?.id ? String(entry.toWarehouse.id) : '')));
+                        setPlaceKunchinittuId(entry.placeKunchinittuId ? String(entry.placeKunchinittuId) : (entry.placeKunchinittuData?.id ? String(entry.placeKunchinittuData.id) : (entry.toKunchinittu?.id ? String(entry.toKunchinittu.id) : '')));
+                        setPlaceOutturnId(entry.outturn?.id ? String(entry.outturn.id) : '');
+                        const dateValue = entry.placeDate ? (typeof entry.placeDate === 'string' ? entry.placeDate.split('T')[0] : safeDateStr(entry.placeDate)) : '';
+                        setPlaceDate(dateValue);
+                      }, 0);
+                      setSelectedLorryEntries([entry]);
+                    }}
+                    style={{ flex: 1, padding: '7px', background: '#6366f1', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
+                      ✏️ Edit Godown
+                    </button>
+                    {entry.placeRejectReason && entry.placeRejectReason.startsWith('EDIT_PENDING:') && isGodownApprover && (
+                      <>
+                        <button onClick={() => handleApprovePlace(entry.transitDetailId || entry.id)}
+                          style={{ flex: 1, padding: '7px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
+                          ✅ Approve Godown
+                        </button>
+                        <button onClick={() => {
+                          const trip = { entry, inspection: entry.physicalInspection || null, isPlaceholder: false };
+                          setPlaceConfirmDialog({ trip, action: 'reject' });
+                        }}
+                          style={{ flex: 1, padding: '7px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
+                          ✖ Reject Godown
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
+                  {entry.wbNo && wbStatus !== 'rejected' ? (
+                    <>
+                      <button onClick={() => openWbEditModal((entry.lorryNumber || 'N/A').toUpperCase(), entry, entry, null)}
+                        style={{ flex: 1, padding: '7px', background: '#d97706', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
+                        ✏️ Edit WB
+                      </button>
+                      {wbStatus === 'pending' && canApproveWB && (
+                        <>
+                          <button onClick={() => handleApproveWb(entry.id, entry)}
+                            style={{ flex: 1, padding: '7px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
+                            ✅ Approve WB
+                          </button>
+                          <button onClick={() => handleRejectWb(entry.id)}
+                            style={{ flex: 1, padding: '7px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
+                            ✖ Reject WB
+                          </button>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <button onClick={() => {
+                      const lorry = (entry.lorryNumber || 'N/A').toUpperCase();
+                      const autoSute = getAutoSuteValue(entry, null);
+                      setSelectedLorryForWB(lorry);
+                      setSelectedLorryInspection(entry);
+                      setIsWbEdit(false);
+                      setWbInputType('mill');
+                      setWbNumber('');
+                      setMillWbId('');
+                      setWbGrossWeight('');
+                      setWbTareWeight('');
+                      setWbNetWeight('');
+                      setWbSute(autoSute);
+                      setPartyWbEnabled('');
+                      setPartyWbNo('');
+                      setPartyWbDate(new Date().toISOString().split('T')[0]);
+                      setPartyWbName('');
+                      setPartyGrossWeight('');
+                      setPartyTareWeight('');
+                      setPartyNetWeight('');
+                      setPartySute(autoSute);
+                      setWbDate(new Date().toISOString().split('T')[0]);
+                    }}
+                    style={{ flex: 1, padding: '7px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
+                      ⚖️ Add fresh WB
+                    </button>
+                  )}
+                </div>
+
+                {canAddInventoryQuality && (() => {
+                  const params = entry.inventoryQualityParameters || [];
+                  const isFullApproved = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
+                  const isLotApproved = params.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
+                  const isFullPending = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'pending');
+                  const isLotPending = params.some((p: any) => p.type === 'lot_avg' && p.status === 'pending');
+
+                  let btnText = '🔬 Mill Quality Sampling';
+                  let btnBg = '#a855f7';
+                  let isBtnDisabled = false;
+
+                  if (isFullApproved) {
+                    btnText = '✅ Sampling Complete';
+                    btnBg = '#059669';
+                    isBtnDisabled = true;
+                  } else if (isFullPending) {
+                    btnText = '⏳ Full Lorry Avg Pending';
+                    btnBg = '#b45309';
+                    isBtnDisabled = true;
+                  } else {
+                    btnText = '🔬 Add Gutti';
+                    btnBg = '#0284c7';
+                  }
+
+                  return (
+                    <button
+                      disabled={isBtnDisabled}
+                      onClick={() => {
+                        setQualitySamplingEntry(entry);
+                        setIsQualitySamplingModalOpen(true);
+                        sessionSubmittedTypes.current = new Set();
+                        setInventoryQualityType(null);
+                        setWbEnabledState(null);
+                        setInventoryQualityForm({
+                          moisture: '', dryMoisture: '', cutting: '', bend: '', grains: '',
+                          mix: '', sMix: '', lMix: '', kandu: '', oil: '', sk: '',
+                          wbR: '', wbBk: '', wbT: '',
+                          smell: '', paddyWb: '', pColor: '', kadiga: '', remarks: ''
+                        });
+                        setInventoryQualityToggle({
+                          dryMoisture: '', sMix: '', lMix: '', paddyWb: '', kadiga: '', smellHas: ''
+                        });
+                      }}
+                      style={{
+                        padding: '8px',
+                        background: expandedInventoryQuality === entry.transitDetailId ? '#9333ea' : btnBg,
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: isBtnDisabled ? 'not-allowed' : 'pointer',
+                        opacity: isBtnDisabled ? 0.8 : 1,
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        width: '100%',
+                        lineHeight: '1.2'
+                      }}
+                    >
+                      {btnText}
+                    </button>
+                  );
+                })()}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   const sanitizeInventoryQualityField = (field: string, value: string) => {
-
-
-
     let clean = String(value || '');
-
     if (field === 'cutting' || field === 'bend') {
       clean = clean.replace(/[^0-9×xX]/g, '').replace(/[xX]/g, '×');
       if (!clean.includes('×') && clean.length > 0) {
@@ -5747,9 +6207,24 @@ const Arrivals: React.FC = () => {
 
 
     <Container>
-
-
-
+      <style>{`
+        @media (max-width: 768px) {
+          .desktop-table-view {
+            display: none !important;
+          }
+          .mobile-cards-view {
+            display: flex !important;
+          }
+        }
+        @media (min-width: 769px) {
+          .desktop-table-view {
+            display: block !important;
+          }
+          .mobile-cards-view {
+            display: none !important;
+          }
+        }
+      `}</style>
       <Title>📝 Arrivals</Title>
 
 
@@ -6215,7 +6690,7 @@ const Arrivals: React.FC = () => {
 
 
 
-              <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid #1565c0', boxShadow: '0 2px 8px rgba(21,101,192,0.12)' }}>
+              <div className="desktop-table-view" style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid #1565c0', boxShadow: '0 2px 8px rgba(21,101,192,0.12)' }}>
 
 
 
@@ -7478,6 +7953,7 @@ const Arrivals: React.FC = () => {
 
 
               </div>
+              {renderInTransitMobileCards()}
 
 
 
@@ -7747,7 +8223,7 @@ const Arrivals: React.FC = () => {
 
 
 
-            <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid #10b981', boxShadow: '0 2px 8px rgba(16,185,129,0.12)' }}>
+            <div className="desktop-table-view" style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid #10b981', boxShadow: '0 2px 8px rgba(16,185,129,0.12)' }}>
 
 
 
@@ -8935,6 +9411,7 @@ const Arrivals: React.FC = () => {
 
 
             </div>
+            {renderBmbMobileCards()}
 
 
 
@@ -14117,7 +14594,7 @@ const Arrivals: React.FC = () => {
                   >
                     <option value="">-- Select Sample Type --</option>
                     <option value="lot_avg" disabled={isLotAlreadyDone}>1. Lot Avg (Before Unloading){isLotAlreadyDone ? ' ✅' : ''}</option>
-                    <option value="full_lorry_avg" disabled={isFullAlreadyDone}>2. Gutti (Full Avg){isFullAlreadyDone ? ' ✅' : ''}</option>
+                    <option value="full_lorry_avg" disabled={isFullAlreadyDone}>2. Gutti (Full Lorry Avg){isFullAlreadyDone ? ' ✅' : ''}</option>
                   </select>
                 </div>
               );
@@ -14129,7 +14606,7 @@ const Arrivals: React.FC = () => {
                     Select Sample Type to Continue
                   </div>
                   <div style={{ fontSize: '11px', color: '#64748b' }}>
-                    Please choose either Lot Avg (Before Unloading) or Gutti (Full Avg) above to enter parameters.
+                    Please choose either Lot Avg (Before Unloading) or Gutti (Full Lorry Avg) above to enter parameters.
                   </div>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #e2e8f0', paddingTop: '8px', marginTop: '8px' }}>

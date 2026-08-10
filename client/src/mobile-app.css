@@ -1,0 +1,387 @@
+/* ============================================================
+   MOBILE APP MODE — Global mobile-only layer
+   Only applies on phones (max-width: 767px). Desktop & tablet
+   are completely untouched.
+
+   Core goals:
+   - NO horizontal scrolling anywhere. All data shown vertically.
+   - Every table becomes a labeled card stack (label: value).
+   - Every modal becomes a bottom sheet.
+   - Grids / forms / buttons stack and are touch friendly.
+   ============================================================ */
+
+@media (max-width: 767px) {
+  /* ---------- Global overflow protection ---------- */
+  html,
+  body {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+  }
+
+  #root {
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+
+  .App {
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+
+  /* ---------- Sticky app bar ---------- */
+  nav {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 1000 !important;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15) !important;
+  }
+
+  nav > div {
+    flex-wrap: nowrap !important;
+  }
+
+  /* ---------- Kill the desktop table forcing rules ---------- */
+  table {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .table {
+    min-width: 0 !important;
+  }
+
+  .table-container {
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  div[style*="min-width: 600px"],
+  div[style*="minWidth: 600px"],
+  div[style*="min-width: 280px"],
+  div[style*="minWidth: 280px"],
+  div[style*="width: 600px"] {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  /* ---------- TABLE → VERTICAL CARDS ---------- */
+  table.mobile-card-table {
+    display: block !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-size: 13px !important;
+  }
+
+  table.mobile-card-table thead {
+    display: none !important;
+  }
+
+  table.mobile-card-table tbody {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  table.mobile-card-table tr {
+    display: block !important;
+    background: #ffffff;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 14px !important;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08) !important;
+    padding: 6px 12px !important;
+    margin: 0 0 12px 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Dark total/summary rows keep their own background — inline styles and
+     .total-row class rules naturally win over the non-important white default. */
+  table.mobile-card-table tr:hover {
+    background: #ffffff;
+  }
+
+  table.mobile-card-table td {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    padding: 8px 2px !important;
+    border: none !important;
+    border-bottom: 1px dashed #eef2f7 !important;
+    text-align: right !important;
+    white-space: normal !important;
+    font-size: 12.5px !important;
+    line-height: 1.4 !important;
+    word-break: break-word !important;
+    background: transparent !important;
+  }
+
+  table.mobile-card-table tr[data-fullwidth-row="true"][style*="background"] td,
+  table.mobile-card-table tr.total-row td {
+    color: #ffffff !important;
+  }
+
+  table.mobile-card-table td:last-child {
+    border-bottom: none !important;
+  }
+
+  table.mobile-card-table td::before {
+    content: attr(data-label);
+    flex: 0 0 auto !important;
+    max-width: 55% !important;
+    font-weight: 700 !important;
+    color: #64748b !important;
+    font-size: 11px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.4px !important;
+    text-align: left !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    padding-right: 8px !important;
+  }
+
+  table.mobile-card-table td[data-label=""]::before {
+    content: none !important;
+  }
+
+  /* Row with a full-width cell (totals, section headers) → centered summary bar */
+  table.mobile-card-table tr[data-fullwidth-row="true"] {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px 12px !important;
+    padding: 8px 12px !important;
+  }
+
+  table.mobile-card-table tr[data-fullwidth-row="true"] td {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: auto !important;
+    flex: 0 0 auto !important;
+    min-width: 0 !important;
+    padding: 4px 2px !important;
+    border-bottom: none !important;
+    font-weight: 600 !important;
+    gap: 6px !important;
+    font-size: 12px !important;
+  }
+
+  table.mobile-card-table tr[data-fullwidth-row="true"] td::before {
+    content: none !important;
+  }
+
+  /* Keep buttons / inputs inside cards usable */
+  table.mobile-card-table td button,
+  table.mobile-card-table td input,
+  table.mobile-card-table td select {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  table.mobile-card-table td input,
+  table.mobile-card-table td select {
+    width: auto !important;
+    flex: 1 1 auto !important;
+  }
+
+  table.mobile-card-table td div {
+    max-width: 100% !important;
+  }
+
+  /* ---------- Sticky first-column overrides from App.css ---------- */
+  .table th:first-child,
+  .table td:first-child {
+    position: static !important;
+    box-shadow: none !important;
+  }
+
+  /* ---------- MODALS → BOTTOM SHEETS ---------- */
+  .mobile-sheet-overlay {
+    align-items: flex-end !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    background: rgba(0, 0, 0, 0.55) !important;
+  }
+
+  .mobile-sheet-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 92vh !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 20px 20px 0 0 !important;
+    margin: 0 !important;
+    animation: mobileSheetUp 0.28s cubic-bezier(0.32, 0.72, 0.24, 1) !important;
+  }
+
+  @keyframes mobileSheetUp {
+    from {
+      transform: translateY(40px) !important;
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0) !important;
+      opacity: 1;
+    }
+  }
+
+  /* ---------- GRIDS → SINGLE COLUMN ---------- */
+  /* Inline-styled grids (present in many pages) */
+  div[style*="grid-template-columns"],
+  div[style*="gridTemplateColumns"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Styled-components grids — tagged at runtime by MobileViewEnhancer */
+  .mobile-grid-1col {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ---------- FILTER / ACTION BARS → WRAP ---------- */
+  div[style*="display: flex"]:not(.no-wrap-flex),
+  div[style*="display:flex"]:not(.no-wrap-flex) {
+    flex-wrap: wrap !important;
+  }
+
+  div[style*="display: flex"] > div,
+  div[style*="display:flex"] > div {
+    min-width: 0 !important;
+  }
+
+  /* ---------- TAB BARS → KEEP HORIZONTAL SCROLL (do NOT wrap) ---------- */
+  div[style*="border-bottom"],
+  div[style*="borderBottom"],
+  .tabs-container,
+  .subtab-bar,
+  [class*="TabBar"],
+  [class*="TabRow"] {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    display: flex !important;
+    flex-direction: row !important;
+  }
+
+  div[style*="border-bottom"]::-webkit-scrollbar,
+  div[style*="borderBottom"]::-webkit-scrollbar,
+  .tabs-container::-webkit-scrollbar,
+  .subtab-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  div[style*="border-bottom"] button,
+  div[style*="borderBottom"] button,
+  .tabs-container button,
+  .subtab-bar button {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+  }
+
+  /* ---------- FORMS → FULL WIDTH TOUCH ---------- */
+  input:not([type="radio"]):not([type="checkbox"]),
+  select,
+  textarea {
+    width: 100% !important;
+    font-size: 16px !important; /* prevent iOS zoom */
+    box-sizing: border-box !important;
+  }
+
+  form {
+    width: 100% !important;
+  }
+
+  /* Buttons: comfortable touch targets in form/filter areas */
+  button {
+    touch-action: manipulation;
+  }
+
+  /* ---------- CARDS / PANELS ---------- */
+  .card,
+  .panel,
+  .box {
+    padding: 14px !important;
+  }
+
+  .card-body {
+    padding: 12px !important;
+  }
+
+  /* ---------- TEXT ---------- */
+  /* Keep gradient Title banners' own padding; only scale font size */
+  h1 {
+    font-size: 1.35rem !important;
+  }
+
+  h2 {
+    font-size: 1.2rem !important;
+  }
+
+  h3 {
+    font-size: 1.05rem !important;
+  }
+
+  /* ---------- SAFE AREA ---------- */
+  body {
+    padding: 0 0 env(safe-area-inset-bottom) 0 !important;
+  }
+
+  .pagination {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+
+  /* ---------- FOOTER BUTTONS IN MODALS: stack nicely ---------- */
+  .mobile-sheet-content [style*="justify-content: flex-end"],
+  .mobile-sheet-content [style*="justifyContent: 'flex-end'"],
+  .mobile-sheet-content [style*="justifyContent: \"flex-end\""] {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  /* Only action-row buttons in sheets stretch — not small icon/close buttons */
+  .mobile-sheet-content [style*="justify-content: flex-end"] button,
+  .mobile-sheet-content [style*="justifyContent: 'flex-end'"] button,
+  .mobile-sheet-content [style*="justifyContent: \"flex-end\""] button {
+    flex: 1 1 45% !important;
+    min-height: 44px !important;
+  }
+
+  /* ---------- FIXED-WIDTH LEDGER/SUMMARY TABLES ---------- */
+  table[style*="width: 600px"],
+  table[style*="width:600px"] {
+    width: 100% !important;
+  }
+}
+
+/* ============================================================
+   SMALL PHONES (max-width: 400px) — extra tightening
+   ============================================================ */
+
+@media (max-width: 400px) {
+  table.mobile-card-table {
+    font-size: 12px !important;
+  }
+
+  table.mobile-card-table td {
+    font-size: 12px !important;
+  }
+
+  table.mobile-card-table td::before {
+    font-size: 10px !important;
+  }
+
+  button,
+  .btn {
+    font-size: 13px !important;
+  }
+}

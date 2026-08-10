@@ -1,6 +1,7 @@
 import React, { ReactNode } from 'react';
 import styled from 'styled-components';
 import Navbar from './Navbar';
+import MobileViewEnhancer from './MobileViewEnhancer';
 
 interface LayoutProps {
   children: ReactNode;
@@ -10,6 +11,7 @@ const LayoutContainer = styled.div`
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
 `;
 
 const MainContent = styled.main`
@@ -17,19 +19,21 @@ const MainContent = styled.main`
   padding: 1rem;
   width: 100%;
   margin: 0 auto;
+  max-width: 100%;
 
   @media (max-width: 768px) {
-    padding: 0.5rem;
+    padding: 0.625rem;
   }
 
   @media (max-width: 480px) {
-    padding: 0.25rem;
+    padding: 0.5rem;
   }
 `;
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <LayoutContainer>
+      <MobileViewEnhancer />
       <Navbar />
       <MainContent>
         {children}

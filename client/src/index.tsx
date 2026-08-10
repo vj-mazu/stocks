@@ -2,6 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
+// Global mobile-app layer (tables→cards, modals→bottom sheets, no horizontal scroll)
+import './mobile-app.css';
 import reportWebVitals from './reportWebVitals';
 
 const root = ReactDOM.createRoot(

@@ -3038,7 +3038,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 content: 'Mill - Avg Quality Sampling'
             });
             paramsList.forEach((param: any) => {
-                const label = param.type === 'lot_avg' ? 'Before Unloading Lot Avg' : 'Full Lorry Avg (Gattu)';
+                const label = param.type === 'lot_avg' ? 'Before Unloading Lot Avg' : 'Gutti (Full Lorry Avg)';
                 const reportedAt = param.createdAt;
                 
                 const formatQ = (val: any) => {
