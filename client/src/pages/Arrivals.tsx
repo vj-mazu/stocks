@@ -14144,17 +14144,17 @@ const Arrivals: React.FC = () => {
                 {/* 3-column grid */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
                   {[
-                    { label: 'Moisture (%)', key: 'moisture', type: 'text', placeholder: '16.5', required: true },
-                    { label: 'Dry Moisture', key: 'dryMoisture', type: 'dryMoisture', placeholder: '14.2', required: true },
-                    { label: 'Grains Count', key: 'grains', type: 'text', placeholder: '85', required: true },
+                    { label: 'Moisture (%)', key: 'moisture', type: 'text', placeholder: '', required: true },
+                    { label: 'Dry Moisture', key: 'dryMoisture', type: 'dryMoisture', placeholder: '', required: true },
+                    { label: 'Grains Count', key: 'grains', type: 'text', placeholder: '', required: true },
                     { label: 'Cutting', key: 'cutting', type: 'text', placeholder: '1x', required: true },
                     { label: 'Bend', key: 'bend', type: 'text', placeholder: '1x', required: true },
-                    { label: 'Mix (%)', key: 'mix', type: 'text', placeholder: '5', required: true },
-                    { label: 'SMix', key: 'sMix', type: 'text', placeholder: '2', required: true },
-                    { label: 'LMix', key: 'lMix', type: 'text', placeholder: '1', required: true },
-                    { label: 'SK (%)', key: 'sk', type: 'text', placeholder: '0.5', required: true },
-                    { label: 'Kandu (%)', key: 'kandu', type: 'text', placeholder: '1', required: true },
-                    { label: 'Oil (%)', key: 'oil', type: 'text', placeholder: '0.5', required: true },
+                    { label: 'Mix (%)', key: 'mix', type: 'text', placeholder: '', required: true },
+                    { label: 'SMix', key: 'sMix', type: 'text', placeholder: '', required: true },
+                    { label: 'LMix', key: 'lMix', type: 'text', placeholder: '', required: true },
+                    { label: 'SK (%)', key: 'sk', type: 'text', placeholder: '', required: true },
+                    { label: 'Kandu (%)', key: 'kandu', type: 'text', placeholder: '', required: true },
+                    { label: 'Oil (%)', key: 'oil', type: 'text', placeholder: '', required: true },
                     { label: 'Paddy Discolor', key: 'pColor', type: 'select', options: ['Normal Color', 'Light Discolor', 'Medium Discolor', 'Dark Discolor'] },
                     { label: 'Kadiga', key: 'kadiga', type: 'kadiga', required: true },
                     { label: 'Smell', key: 'smell', type: 'smell' }
