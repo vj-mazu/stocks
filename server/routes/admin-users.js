@@ -147,7 +147,7 @@ const hasUserCreatedData = async (userId) => {
  * GET /api/admin/users
  * Get all users (admin only)
  */
-router.get('/users', auth, authorize('admin', 'manager', 'staff'), async (req, res) => {
+router.get('/users', auth, authorize('admin', 'manager', 'staff', 'inventory_staff', 'inventory_head', 'owner', 'ceo'), async (req, res) => {
     try {
         const users = await User.findAll({
             attributes: ['id', 'username', 'role', 'isActive', 'staffType', 'subRole', 'fullName', 'customUserId', 'qualityName', 'createdAt', 'updatedAt'],
