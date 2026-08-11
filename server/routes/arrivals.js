@@ -7439,7 +7439,23 @@ router.get('/transit-approvals/pending', auth, async (req, res) => {
 
 
 
-          { wbStatus: 'pending' }
+          { wbStatus: 'pending' },
+
+
+
+
+
+
+
+          { placeStatus: 'pending' },
+
+
+
+
+
+
+
+          { placeStatus: 'placed' }
 
 
 
@@ -7488,6 +7504,54 @@ router.get('/transit-approvals/pending', auth, async (req, res) => {
 
 
           as: 'sampleEntry',
+
+
+
+          required: false
+
+
+
+        },
+
+
+
+        {
+
+
+
+          model: User,
+
+
+
+          as: 'placeAddedByUser',
+
+
+
+          attributes: ['id', 'username', 'fullName'],
+
+
+
+          required: false
+
+
+
+        },
+
+
+
+        {
+
+
+
+          model: User,
+
+
+
+          as: 'placeApprover',
+
+
+
+          attributes: ['id', 'username', 'fullName', 'role'],
 
 
 
@@ -7787,25 +7851,12 @@ router.get('/transit-approvals/pending', auth, async (req, res) => {
 
 
         placeKunchinittuData: placeKunchinittu,
-
-
-
         placeWarehouse: placeWarehouse,
-
-
-
         sampleEntry: sampleEntry,
-
-
-
+        placeAddedByUser: detail.placeAddedByUser ? { id: detail.placeAddedByUser.id, username: detail.placeAddedByUser.username, fullName: detail.placeAddedByUser.fullName } : null,
+        placeApprover: detail.placeApprover ? { id: detail.placeApprover.id, username: detail.placeApprover.username, fullName: detail.placeApprover.fullName } : null,
         isBandMalalBook: false,
-
-
-
         transitDetailId: detail.id
-
-
-
       };
 
 
@@ -8324,6 +8375,13 @@ const { requireInventoryRole } = require('../middleware/roleAuth');
 
 router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
 
+  // Mill staff & location staff can VIEW the transit tab but must NOT add godown.
+  const placeUserRole = String(req.user.role || '').toLowerCase();
+  const placeStaffType = String(req.user.staffType || '').toLowerCase();
+  const isMillOrLocationStaff = placeUserRole === 'staff' && (placeStaffType === 'mill' || placeStaffType === 'location');
+  if (isMillOrLocationStaff) {
+    return res.status(403).json({ error: 'Mill staff and location staff cannot add godown. Only inventory staff/head or approvers can add godown.' });
+  }
 
 
   try {
@@ -8605,7 +8663,9 @@ router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
 
 
 
-        placeApprovedAt
+        placeApprovedAt,
+
+        placeAddedBy: req.user.userId
 
 
 
@@ -8833,13 +8893,13 @@ router.post('/:id/wb', auth, async (req, res) => {
     const isEdit = req.body.isEdit === true;
 
     // Calculate netWeight and suteNetWeight BEFORE branching (needed in both Party and Mill WB sections)
-    const calculatedNetWeight = netWeight || (grossWeight && tareWeight ? Number(grossWeight) - Number(tareWeight) : null);
+    const calculatedNetWeight = grossWeight && tareWeight ? Math.round(Number(grossWeight) - Number(tareWeight)) : (netWeight ? Math.round(Number(netWeight)) : null);
     const bagsCount = Number(bags) || 1;
-    const calculatedSuteNetWeight = calculatedNetWeight && sute ? Number(calculatedNetWeight) - (Number(sute) * bagsCount) : calculatedNetWeight;
+    const calculatedSuteNetWeight = calculatedNetWeight && sute ? Math.round(Number(calculatedNetWeight) - (Number(sute) * bagsCount)) : calculatedNetWeight;
 
     // Calculate Party Net Weight and Sute Net Weight
-    const calculatedPartyNetWeight = partyNetWeight || (partyGrossWeight && partyTareWeight ? Number(partyGrossWeight) - Number(partyTareWeight) : null);
-    const calculatedPartySuteNetWeight = calculatedPartyNetWeight && partySute ? Number(calculatedPartyNetWeight) - (Number(partySute) * bagsCount) : calculatedPartyNetWeight;
+    const calculatedPartyNetWeight = partyGrossWeight && partyTareWeight ? Math.round(Number(partyGrossWeight) - Number(partyTareWeight)) : (partyNetWeight ? Math.round(Number(partyNetWeight)) : null);
+    const calculatedPartySuteNetWeight = calculatedPartyNetWeight && partySute ? Math.round(Number(calculatedPartyNetWeight) - (Number(partySute) * bagsCount)) : calculatedPartyNetWeight;
 
 
 
@@ -8987,15 +9047,15 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-            grossWeight: grossWeight ? Number(grossWeight) : null,
+            grossWeight: grossWeight ? Math.round(Number(grossWeight)) : null,
 
 
 
-            tareWeight: tareWeight ? Number(tareWeight) : null,
+            tareWeight: tareWeight ? Math.round(Number(tareWeight)) : null,
 
 
 
-            netWeight: netWeight ? Number(netWeight) : null,
+            netWeight: calculatedNetWeight,
 
 
 
@@ -9031,15 +9091,15 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-          grossWeight: grossWeight ? Number(grossWeight) : null,
+          grossWeight: grossWeight ? Math.round(Number(grossWeight)) : null,
 
 
 
-          tareWeight: tareWeight ? Number(tareWeight) : null,
+          tareWeight: tareWeight ? Math.round(Number(tareWeight)) : null,
 
 
 
-          netWeight: netWeight ? Number(netWeight) : null,
+          netWeight: calculatedNetWeight,
 
 
 
@@ -9180,15 +9240,15 @@ router.post('/:id/wb', auth, async (req, res) => {
 
 
 
-          grossWeight: grossWeight ? Number(grossWeight) : null,
+          grossWeight: grossWeight ? Math.round(Number(grossWeight)) : null,
 
 
 
-          tareWeight: tareWeight ? Number(tareWeight) : null,
+          tareWeight: tareWeight ? Math.round(Number(tareWeight)) : null,
 
 
 
-          netWeight: netWeight ? Number(netWeight) : null,
+          netWeight: calculatedNetWeight,
 
 
 
@@ -9231,9 +9291,9 @@ router.post('/:id/wb', auth, async (req, res) => {
 
           wbApprovedAt,
           // Save party weights locally on LorryTransitDetail
-          partyGrossWeight: partyWbEnabled === 'yes' && partyGrossWeight ? Number(partyGrossWeight) : null,
-          partyTareWeight: partyWbEnabled === 'yes' && partyTareWeight ? Number(partyTareWeight) : null,
-          partyNetWeight: partyWbEnabled === 'yes' && partyNetWeight ? Number(partyNetWeight) : null,
+          partyGrossWeight: partyWbEnabled === 'yes' && partyGrossWeight ? Math.round(Number(partyGrossWeight)) : null,
+          partyTareWeight: partyWbEnabled === 'yes' && partyTareWeight ? Math.round(Number(partyTareWeight)) : null,
+          partyNetWeight: partyWbEnabled === 'yes' ? calculatedPartyNetWeight : null,
           partySute: partyWbEnabled === 'yes' && partySute ? Number(partySute) : null,
           partySuteNetWeight: partyWbEnabled === 'yes' ? calculatedPartySuteNetWeight : null,
           partyWbNo: partyWbEnabled === 'yes' ? (partyWbNo || null) : null,

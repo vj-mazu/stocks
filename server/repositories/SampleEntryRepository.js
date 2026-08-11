@@ -110,6 +110,18 @@ class SampleEntryRepository {
                     as: 'wbAddedByUser',
                     required: false,
                     attributes: ['id', 'username', 'fullName']
+                  },
+                  {
+                    model: User,
+                    as: 'placeAddedByUser',
+                    required: false,
+                    attributes: ['id', 'username', 'fullName']
+                  },
+                  {
+                    model: User,
+                    as: 'placeApprover',
+                    required: false,
+                    attributes: ['id', 'username', 'fullName', 'role']
                   }
                 ]
               }
@@ -161,7 +173,7 @@ class SampleEntryRepository {
     ]);
     const isAssignedLocationStaffView = 
       role === 'staff' 
-      && String(staffType || '').trim().toLowerCase() === 'location' 
+      && ['location', 'mill'].includes(String(staffType || '').trim().toLowerCase())
       && status 
       && assignedLocationStaffStatuses.has(status);
 
@@ -249,6 +261,8 @@ class SampleEntryRepository {
           { model: WeightBridge, as: 'millWeightBridge', attributes: ['id', 'name', 'location'] },
           { model: User, as: 'wbApprover', attributes: ['id', 'username', 'fullName', 'role'] },
           { model: User, as: 'wbAddedByUser', attributes: ['id', 'username', 'fullName'] },
+          { model: User, as: 'placeAddedByUser', attributes: ['id', 'username', 'fullName'] },
+          { model: User, as: 'placeApprover', attributes: ['id', 'username', 'fullName', 'role'] },
           { 
             model: require('../models/InventoryQualityParameter'), 
             as: 'inventoryQualityParameters', 

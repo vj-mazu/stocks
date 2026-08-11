@@ -12,6 +12,9 @@ const LayoutContainer = styled.div`
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
+  /* clip (modern browsers) doesn't create a scroll container, so the sticky
+     navbar + mobile card header strip keep working while scrolling */
+  overflow-x: clip;
 `;
 
 const MainContent = styled.main`

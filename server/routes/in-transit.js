@@ -205,7 +205,12 @@ router.get('/in-transit', auth, async (req, res) => {
           model: SampleEntry,
           as: 'sampleEntry',
           required: false,
-          attributes: ['id', 'serialNo', 'variety', 'brokerName', 'location', 'partyName', 'lorryNumber', 'entryDate', 'packaging', 'grossWeight', 'tareWeight', 'netWeight', 'wbNo', 'partyWbName']
+          include: [
+            {
+              association: 'offering',
+              required: false
+            }
+          ]
         }
       ],
       order: [['createdAt', 'DESC']],
@@ -241,6 +246,11 @@ router.get('/in-transit', auth, async (req, res) => {
         // Resolve wbAddedBy user name
         const wbAddedByUser = detail.wbAddedBy
           ? await User.findByPk(detail.wbAddedBy, { attributes: ['id', 'username', 'fullName'] })
+          : null;
+
+        // Resolve placeAddedBy user name
+        const placeAddedByUser = detail.placeAddedBy
+          ? await User.findByPk(detail.placeAddedBy, { attributes: ['id', 'username', 'fullName'] })
           : null;
 
         // Resolve placeApprover user name
@@ -318,6 +328,7 @@ router.get('/in-transit', auth, async (req, res) => {
           placeType: detail.placeType,
           placeKunchinittuData: placeKunchinittu,
           placeWarehouse: placeWarehouse,
+          placeAddedByUser: placeAddedByUser ? { id: placeAddedByUser.id, username: placeAddedByUser.username, fullName: placeAddedByUser.fullName } : null,
           placeApprover: placeApproverUser ? { id: placeApproverUser.id, username: placeApproverUser.username, fullName: placeApproverUser.fullName } : null,
           sampleEntry: sampleEntry,
           isInTransit: true,

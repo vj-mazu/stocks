@@ -11,21 +11,27 @@
    ============================================================ */
 
 @media (max-width: 767px) {
-  /* ---------- Global overflow protection ---------- */
+  /* ---------- Global overflow protection ----------
+     `overflow-x: clip` (modern browsers) prevents horizontal scrolling WITHOUT
+     creating a scroll container, so position: sticky keeps working (nav bar).
+     Old browsers fall back to `hidden`. */
   html,
   body {
     overflow-x: hidden !important;
+    overflow-x: clip !important;
     max-width: 100vw !important;
   }
 
   #root {
     max-width: 100vw !important;
     overflow-x: hidden !important;
+    overflow-x: clip !important;
   }
 
   .App {
     max-width: 100vw !important;
     overflow-x: hidden !important;
+    overflow-x: clip !important;
   }
 
   /* ---------- Sticky app bar ---------- */
@@ -66,7 +72,7 @@
     width: 100% !important;
   }
 
-  /* ---------- TABLE → VERTICAL CARDS ---------- */
+  /* ---------- TABLE → VERTICAL CARDS (professional app style) ---------- */
   table.mobile-card-table {
     display: block !important;
     border-collapse: separate !important;
@@ -76,7 +82,74 @@
     font-size: 13px !important;
   }
 
+  /* Table HEADERS stay visible on mobile as an aligned "header card" that
+     mirrors the card grid below it — every column name sits directly above its
+     values, so headers & data stay in sync. The enhancer builds it from the
+     readable labels; the raw <th> row is hidden. */
   table.mobile-card-table thead {
+    display: block !important;
+    margin: 0 0 8px 0 !important;
+  }
+
+  table.mobile-card-table thead tr:not(.mobile-card-header-row) {
+    display: none !important;
+  }
+
+  table.mobile-card-table thead tr.mobile-card-header-row {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 4px 10px !important;
+    background: #eef2ff !important;
+    border: 1px solid #c7d2fe !important;
+    border-radius: 12px !important;
+    box-shadow: 0 1px 3px rgba(49, 46, 129, 0.12) !important;
+    padding: 7px 11px !important;
+    margin: 0 0 6px 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  table.mobile-card-table thead tr.mobile-card-header-row:hover {
+    background: #eef2ff !important;
+  }
+
+  table.mobile-card-table thead tr.mobile-card-header-row:empty {
+    display: none !important;
+  }
+
+  table.mobile-card-table thead tr.mobile-card-header-row th {
+    font-weight: 800 !important;
+    color: #4338ca !important;
+    font-size: 9.5px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    text-align: left !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    padding: 2px 0 !important;
+    line-height: 1.3 !important;
+    border: none !important;
+    background: transparent !important;
+  }
+
+  table.mobile-card-table thead tr.mobile-card-header-row th[data-header-title] {
+    grid-column: 1 / -1 !important;
+    font-size: 10.5px !important;
+    color: #1e1b4b !important;
+    padding: 2px 0 6px 0 !important;
+    border-bottom: 1px solid #c7d2fe !important;
+    margin-bottom: 3px !important;
+  }
+
+  /* Cells that merely contain a link render full-width in the card — mirror
+     that here so the header stays in sync. */
+  table.mobile-card-table thead tr.mobile-card-header-row th[data-header-full] {
+    grid-column: 1 / -1 !important;
+  }
+
+  /* Header row that lives inside tbody (as <th> cells): hidden — the aligned
+     header card above replaces it. */
+  table.mobile-card-table tr.mobile-header-row {
     display: none !important;
   }
 
@@ -85,69 +158,188 @@
     width: 100% !important;
   }
 
+  /* Each table row becomes a card:
+     - content flows vertically (phones are narrow, space is vertical)
+     - fields sit in a 2-column grid so cards stay short & scannable
+     - title field spans the top, action buttons span the bottom */
   table.mobile-card-table tr {
-    display: block !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 4px 10px !important;
     background: #ffffff;
     border: 1px solid #e2e8f0 !important;
     border-radius: 14px !important;
     box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08) !important;
-    padding: 6px 12px !important;
-    margin: 0 0 12px 0 !important;
+    padding: 8px 11px !important;
+    margin: 0 0 9px 0 !important;
     width: 100% !important;
     box-sizing: border-box !important;
   }
 
-  /* Dark total/summary rows keep their own background — inline styles and
-     .total-row class rules naturally win over the non-important white default. */
   table.mobile-card-table tr:hover {
     background: #ffffff;
   }
 
+  /* Each field: tiny uppercase label on top, value below */
   table.mobile-card-table td {
     display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    gap: 12px !important;
-    width: 100% !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    gap: 1px !important;
+    width: auto !important;
     min-width: 0 !important;
     max-width: 100% !important;
-    padding: 8px 2px !important;
+    padding: 1px 0 !important;
     border: none !important;
-    border-bottom: 1px dashed #eef2f7 !important;
-    text-align: right !important;
+    text-align: left !important;
     white-space: normal !important;
-    font-size: 12.5px !important;
-    line-height: 1.4 !important;
+    font-size: 12px !important;
+    line-height: 1.3 !important;
     word-break: break-word !important;
     background: transparent !important;
   }
 
+  /* Dense mode for wide tables (10+ columns): label:value on one line */
+  table.mobile-card-table.mobile-card-dense td {
+    flex-direction: row !important;
+    align-items: baseline !important;
+    justify-content: space-between !important;
+    gap: 6px !important;
+    padding: 3px 0 !important;
+  }
+
+  table.mobile-card-table.mobile-card-dense td::before {
+    padding-right: 6px !important;
+    flex: 0 0 auto !important;
+    max-width: 55% !important;
+  }
+
+  table.mobile-card-table.mobile-card-dense td[data-card-title],
+  table.mobile-card-table.mobile-card-dense td[data-action] {
+    flex-direction: row !important;
+  }
+
+  /* Collapsible cards: low-priority fields hide behind a "Show all" toggle so
+     wide tables (Sample Book, Arrivals) stay compact on the list view. */
+  table.mobile-card-table td[data-collapsed] {
+    display: none !important;
+  }
+
+  table.mobile-card-table tr.mobile-card-expanded td[data-collapsed] {
+    display: flex !important;
+  }
+
+  table.mobile-card-table .mobile-card-toggle {
+    grid-column: 1 / -1 !important;
+    margin-top: 5px !important;
+    padding: 8px 0 !important;
+    border: 1px dashed #cbd5e1 !important;
+    border-radius: 8px !important;
+    background: #f8fafc !important;
+    color: #4f46e5 !important;
+    font-weight: 700 !important;
+    font-size: 11px !important;
+    text-align: center !important;
+    cursor: pointer !important;
+  }
+
+  table.mobile-card-table td::before {
+    content: attr(data-label);
+    font-weight: 700 !important;
+    color: #94a3b8 !important;
+    font-size: 9.5px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    text-align: left !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    padding: 0 !important;
+  }
+
+  table.mobile-card-table td[data-label=""]::before {
+    content: none !important;
+  }
+
+  /* Card title: the main identifier — bold, spans both columns */
+  table.mobile-card-table td[data-card-title] {
+    grid-column: 1 / -1 !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    font-size: 13.5px !important;
+    font-weight: 800 !important;
+    color: #0f172a !important;
+    padding: 2px 0 6px 0 !important;
+    border-bottom: 1px solid #eef2f7 !important;
+    margin-bottom: 2px !important;
+  }
+
+  table.mobile-card-table td[data-card-title]::before {
+    display: none !important;
+  }
+
+  /* Action cells (buttons / links): full-width action row at card bottom */
+  table.mobile-card-table td[data-action] {
+    grid-column: 1 / -1 !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 8px !important;
+    flex-wrap: wrap !important;
+    padding: 7px 0 1px 0 !important;
+    border-top: 1px solid #eef2f7 !important;
+    margin-top: 4px !important;
+  }
+
+  table.mobile-card-table td[data-action]::before {
+    display: none !important;
+  }
+
+  table.mobile-card-table td[data-action] button,
+  table.mobile-card-table td[data-action] a {
+    flex: 1 1 auto !important;
+    min-height: 38px !important;
+    white-space: nowrap !important;
+    font-size: 12px !important;
+  }
+
+  /* Dark total/summary rows keep their own background — inline styles and
+     .total-row class rules naturally win over the non-important white default. */
   table.mobile-card-table tr[data-fullwidth-row="true"][style*="background"] td,
   table.mobile-card-table tr.total-row td {
     color: #ffffff !important;
   }
 
-  table.mobile-card-table td:last-child {
-    border-bottom: none !important;
-  }
-
-  table.mobile-card-table td::before {
-    content: attr(data-label);
-    flex: 0 0 auto !important;
-    max-width: 55% !important;
+  /* Status-like values are colour coded so the list can be scanned fast */
+  table.mobile-card-table td[data-status-pill="good"] {
+    color: #047857 !important;
     font-weight: 700 !important;
-    color: #64748b !important;
-    font-size: 11px !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.4px !important;
-    text-align: left !important;
-    white-space: normal !important;
-    word-break: break-word !important;
-    padding-right: 8px !important;
   }
-
-  table.mobile-card-table td[data-label=""]::before {
-    content: none !important;
+  table.mobile-card-table td[data-status-pill="good"]::before {
+    color: #10b981 !important;
+  }
+  table.mobile-card-table td[data-status-pill="warn"] {
+    color: #b45309 !important;
+    font-weight: 700 !important;
+  }
+  table.mobile-card-table td[data-status-pill="warn"]::before {
+    color: #f59e0b !important;
+  }
+  table.mobile-card-table td[data-status-pill="bad"] {
+    color: #b91c1c !important;
+    font-weight: 700 !important;
+  }
+  table.mobile-card-table td[data-status-pill="bad"]::before {
+    color: #ef4444 !important;
+  }
+  table.mobile-card-table td[data-status-pill="info"] {
+    color: #1d4ed8 !important;
+    font-weight: 700 !important;
+  }
+  table.mobile-card-table td[data-status-pill="info"]::before {
+    color: #3b82f6 !important;
   }
 
   /* Row with a full-width cell (totals, section headers) → centered summary bar */
@@ -257,7 +449,18 @@
     min-width: 0 !important;
   }
 
-  /* ---------- TAB BARS → KEEP HORIZONTAL SCROLL (do NOT wrap) ---------- */
+  /* ---------- TAB BARS → KEEP HORIZONTAL SCROLL (do NOT wrap) ----------
+     The generic `div[style*="display: flex"]` wrap rule (specificity 0,2,1)
+     wins over the border-bottom rule below, so tab bars end up wrapping into a
+     tall block. Re-assert nowrap with equal specificity but LATER source order
+     (later !important wins ties) — tab bars stay a single scrollable row. */
+  div[style*="display: flex"][style*="border-bottom"],
+  div[style*="display:flex"][style*="border-bottom"],
+  div[style*="display: flex"][style*="borderBottom"],
+  div[style*="display:flex"][style*="borderBottom"] {
+    flex-wrap: nowrap !important;
+  }
+
   div[style*="border-bottom"],
   div[style*="borderBottom"],
   .tabs-container,

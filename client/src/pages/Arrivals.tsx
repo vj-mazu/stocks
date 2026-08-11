@@ -3949,6 +3949,11 @@ const Arrivals: React.FC = () => {
 
   const [partyWbEnabled, setPartyWbEnabled] = useState<'yes' | 'no' | ''>('');
   const [wbConfirmDialog, setWbConfirmDialog] = useState<any>(null);
+  const [placeConfirmDialog, setPlaceConfirmDialog] = useState<{
+    trip: any;
+    action: 'move' | 'reject';
+    warnings?: string[];
+  } | null>(null);
   const [partyWbNo, setPartyWbNo] = useState('');
   const [partyWbDate, setPartyWbDate] = useState(new Date().toISOString().split('T')[0]);
   const [partyGrossWeight, setPartyGrossWeight] = useState('');
@@ -3996,7 +4001,9 @@ const Arrivals: React.FC = () => {
 
 
 
-  const [arrivalsActiveSubTab, setArrivalsActiveSubTab] = useState<'entry' | 'transit' | 'bandmalal' | 'approvals'>('transit');
+  const [arrivalsActiveSubTab, setArrivalsActiveSubTab] = useState<'entry' | 'transit' | 'bandmalal'>('transit');
+  const [revealWbRowKey, setRevealWbRowKey] = useState<string | null>(null);
+  const [revealPlaceRowKey, setRevealPlaceRowKey] = useState<string | null>(null);
 
 
 
@@ -4085,6 +4092,14 @@ const Arrivals: React.FC = () => {
     if (!isFinite(n)) return String(value);
     return String(parseFloat(n.toFixed(2)));
   }
+
+  // Display helper: round off decimals and add comma thousands separator (35000.00 -> 35,000)
+  const fmtWt = (v: any): string => {
+    if (v === null || v === undefined || v === '') return '-';
+    const n = Number(v);
+    if (!isFinite(n)) return String(v).trim() || '-';
+    return Math.round(n).toLocaleString('en-US');
+  };
 
   const filteredBmbEntries = useMemo(() => {
     return bandMalalEntries.filter((entry) => {
@@ -4331,17 +4346,23 @@ const Arrivals: React.FC = () => {
           const placeStatus = transitDetail?.placeStatus || 'none';
           const wbStatus = transitDetail?.wbStatus || 'none';
           const godownName = isPlaceholder ? '-' : (transitDetail?.placeWarehouse?.name || '-');
-          const suteNetWt = isPlaceholder ? '-' : (transitDetail ? stripDecimals(parseFloat(transitDetail.grossWeight || 0) - parseFloat(transitDetail.tareWeight || 0) - (parseFloat(transitDetail.sute || 0) * (inspection?.bags || inspection?.bagsLoaded || 1))) : '-');
+          const suteNetWt = isPlaceholder ? '-' : (transitDetail ? fmtWt(parseFloat(transitDetail.grossWeight || 0) - parseFloat(transitDetail.tareWeight || 0) - (parseFloat(transitDetail.sute || 0) * (inspection?.bags || inspection?.bagsLoaded || 1))) : '-');
 
           // WB action variables
-          const canActionWB = user && ['admin', 'owner', 'manager', 'ceo', 'inventory_head', 'inventory_staff'].includes(user.role);
+          // Mill staff & location staff can add/edit WB data in the In Transit tab (server allows it),
+          // but they must NOT add godown. This mirrors the desktop table + server authorization.
+          const isStaffMillOrLoc = (user as any)?.role === 'staff' && ((user as any)?.staffType === 'mill' || (user as any)?.staffType === 'location');
+          const canActionWB = user && (['admin', 'owner', 'manager', 'ceo', 'inventory_head', 'inventory_staff'].includes(user.role) || isStaffMillOrLoc);
           const showAddWB = canActionWB && !isPlaceholder && wbStatus === 'none';
           const showEditWB = canActionWB && !isPlaceholder && (wbStatus === 'pending' || wbStatus === 'rejected');
           const showApproveWB = canApproveWB && !isPlaceholder && wbStatus === 'pending';
 
+          // Godown (place) editing: full roles only — mill/location staff can do WB but NOT godown
+          const canEditPlace = canActionWB && !isStaffMillOrLoc;
+
           // GD action variables
-          const showAddGD = !isPlaceholder && placeStatus === 'none' && wbStatus === 'approved';
-          const showEditGD = !isPlaceholder && (placeStatus === 'pending' || placeStatus === 'rejected') && wbStatus === 'approved';
+          const showAddGD = !isPlaceholder && placeStatus === 'none' && wbStatus === 'approved' && !isStaffMillOrLoc;
+          const showEditGD = !isPlaceholder && (placeStatus === 'pending' || placeStatus === 'rejected') && wbStatus === 'approved' && !isStaffMillOrLoc;
           const showApproveGD = canApproveInventoryQuality && !isPlaceholder && placeStatus === 'pending';
 
           return (
@@ -4381,7 +4402,21 @@ const Arrivals: React.FC = () => {
                 </div>
                 <div>
                   <strong style={{ color: '#64748b', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Godown</strong>
-                  <span style={{ color: '#334155', fontWeight: '500' }}>{godownName}</span>
+                  <span
+                    onClick={() => {
+                      if (!canEditPlace || isPlaceholder) return;
+                      setSelectedLorryInspection(inspection);
+                      setSelectedLorryForPlace(lorryNum);
+                      setSelectedLorryForWB(null);
+                      setPlaceType(transitDetail?.placeType || '');
+                      setPlaceWarehouseId(transitDetail?.placeWarehouseId ? String(transitDetail.placeWarehouseId) : '');
+                      setPlaceKunchinittuId(transitDetail?.placeKunchinittuId ? String(transitDetail.placeKunchinittuId) : '');
+                      setPlaceDate(safeDateStr(transitDetail?.placeDate));
+                      setPlaceOutturnId(transitDetail?.placeOutturnId ? String(transitDetail.placeOutturnId) : '');
+                      setIsPlaceEdit(!!transitDetail?.placeStatus && transitDetail.placeStatus !== 'none');
+                    }}
+                    style={{ color: '#334155', fontWeight: '500', cursor: canEditPlace && !isPlaceholder ? 'pointer' : 'default', textDecoration: canEditPlace && !isPlaceholder ? 'underline' : 'none' }}
+                  >{godownName}</span>
                 </div>
                 <div>
                   <strong style={{ color: '#64748b', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Sute Net Wt</strong>
@@ -4408,13 +4443,13 @@ const Arrivals: React.FC = () => {
                 {(showAddWB || showEditWB || showApproveWB) && (
                   <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
                     {showAddWB && (
-                      <button onClick={() => { setSelectedLorryInspection(inspection); setSelectedLorryForWB(lorryNum); setWbDate(new Date().toISOString().split('T')[0]); setWbNumber(''); setMillWbId(''); setWbGrossWeight(''); setWbTareWeight(''); setWbNetWeight(''); setWbSute(''); setPartyWbEnabled('no'); setIsWbEdit(false); }}
+                      <button onClick={() => { setSelectedLorryInspection(inspection); setSelectedLorryForWB(lorryNum); setWbDate(new Date().toISOString().split('T')[0]); setWbNumber(''); setMillWbId(''); setWbGrossWeight(''); setWbTareWeight(''); setWbNetWeight(''); setWbSute(''); setPartyWbEnabled(''); setIsWbEdit(false); }}
                         style={{ flex: 1, padding: '7px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
                         ⚖️ Add WB
                       </button>
                     )}
                     {showEditWB && (
-                      <button onClick={() => { setSelectedLorryInspection(inspection); setSelectedLorryForWB(lorryNum); setWbDate(safeDateStr(transitDetail?.wbDate)); setWbNumber(transitDetail?.wbNo || ''); setMillWbId(String(transitDetail?.millWeightBridgeId || '')); setWbGrossWeight(String(transitDetail?.grossWeight || '')); setWbTareWeight(String(transitDetail?.tareWeight || '')); setWbNetWeight(String(transitDetail?.netWeight || '')); setWbSute(String(transitDetail?.sute || '')); setPartyWbEnabled(transitDetail?.partyWbEnabled === 'yes' ? 'yes' : 'no'); setPartyWbDate(safeDateStr(transitDetail?.partyWbDate)); setPartyWbNo(transitDetail?.partyWbNo || ''); setPartyWbName(transitDetail?.partyWbName || ''); setPartyGrossWeight(String(transitDetail?.partyGrossWeight || '')); setPartyTareWeight(String(transitDetail?.partyTareWeight || '')); setPartyNetWeight(String(transitDetail?.partyNetWeight || '')); setPartySute(String(transitDetail?.partySute || '')); setIsWbEdit(true); }}
+                      <button onClick={() => { setSelectedLorryInspection(inspection); setSelectedLorryForWB(lorryNum); setWbDate(safeDateStr(transitDetail?.wbDate)); setWbNumber(transitDetail?.wbNo || ''); setMillWbId(String(transitDetail?.millWeightBridgeId || '')); setWbGrossWeight(transitDetail?.grossWeight ? String(Math.round(Number(transitDetail.grossWeight))) : ''); setWbTareWeight(transitDetail?.tareWeight ? String(Math.round(Number(transitDetail.tareWeight))) : ''); setWbNetWeight(transitDetail?.netWeight ? String(Math.round(Number(transitDetail.netWeight))) : ''); setWbSute(String(transitDetail?.sute || '')); setPartyWbEnabled(transitDetail?.partyWbEnabled === 'yes' ? 'yes' : 'no'); setPartyWbDate(safeDateStr(transitDetail?.partyWbDate)); setPartyWbNo(transitDetail?.partyWbNo || ''); setPartyWbName(transitDetail?.partyWbName || ''); setPartyGrossWeight(transitDetail?.partyGrossWeight ? String(Math.round(Number(transitDetail.partyGrossWeight))) : ''); setPartyTareWeight(transitDetail?.partyTareWeight ? String(Math.round(Number(transitDetail.partyTareWeight))) : ''); setPartyNetWeight(transitDetail?.partyNetWeight ? String(Math.round(Number(transitDetail.partyNetWeight))) : ''); setPartySute(String(transitDetail?.partySute || '')); setIsWbEdit(true); }}
                         style={{ flex: 1, padding: '7px', background: '#d97706', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
                         ✏️ Edit WB
                       </button>
@@ -4451,7 +4486,8 @@ const Arrivals: React.FC = () => {
                   </div>
                 )}
 
-                {(() => {
+                
+{(() => {
                   const params = isPlaceholder ? (entry.inventoryQualityParameters || []) : (inspection.inventoryQualityParameters || []);
                   const isFullApproved = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
                   const isLotApproved = params.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
@@ -4532,7 +4568,7 @@ const Arrivals: React.FC = () => {
           const wbStatus = entry.wbStatus || 'none';
           const netWeightVal = entry.netWeight || 0;
           const displayNetWeight = entry.suteNetWeight !== undefined && entry.suteNetWeight !== null ? 
-            `${stripDecimals(entry.suteNetWeight)} Kg` : (netWeightVal ? `${stripDecimals(netWeightVal)} Kg` : '-');
+            `${fmtWt(entry.suteNetWeight)} Kg` : (netWeightVal ? `${fmtWt(netWeightVal)} Kg` : '-');
           const placeStatus = entry.placeStatus || 'none';
           const bagsCount = entry.bags || '-';
           const bagsKg = entry.packaging ? `${entry.packaging} Kg` : '';
@@ -4719,7 +4755,8 @@ const Arrivals: React.FC = () => {
                   )}
                 </div>
 
-                {canAddInventoryQuality && (() => {
+                
+{canAddInventoryQuality && (() => {
                   const params = entry.inventoryQualityParameters || [];
                   const isFullApproved = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
                   const isLotApproved = params.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
@@ -4881,13 +4918,6 @@ const Arrivals: React.FC = () => {
 
 
   const [rejectInventoryQualityReason, setRejectInventoryQualityReason] = useState('');
-
-  const [placeConfirmDialog, setPlaceConfirmDialog] = useState<{
-    trip: any;
-    action: 'move' | 'reject';
-    warnings?: string[];
-  } | null>(null);
-
   const [placeRejectReason, setPlaceRejectReason] = useState('');
   const [wbRejectReason, setWbRejectReason] = useState('');
   const [qualityConfirmDialog, setQualityConfirmDialog] = useState<{
@@ -5341,22 +5371,36 @@ const Arrivals: React.FC = () => {
     setSelectedLorryInspection({ ...(inspection || entry), millWeightBridge: d.millWeightBridge });
     setWbInputType(d.wbInputType || 'mill');
     setWbNumber(d.wbNo || '');
-    const millWbIdStr = d.millWbId ? String(d.millWbId) : '';
+    
+    // Robust fallbacks for pre-selecting the weightbridge:
+    const millWbIdStr = d.millWbId ? String(d.millWbId) : (d.millWeightBridgeId ? String(d.millWeightBridgeId) : (d.millWeightBridge?.id ? String(d.millWeightBridge.id) : ''));
     console.log('Setting millWbId to:', millWbIdStr);
     setMillWbId(millWbIdStr);
-    setWbGrossWeight(d.grossWeight || '');
-    setWbTareWeight(d.tareWeight || '');
-    setWbNetWeight(d.netWeight || '');
+    
+    // Pre-fill weight values as rounded integers:
+    setWbGrossWeight(d.grossWeight ? String(Math.round(Number(d.grossWeight))) : '');
+    setWbTareWeight(d.tareWeight ? String(Math.round(Number(d.tareWeight))) : '');
+    setWbNetWeight(d.netWeight ? String(Math.round(Number(d.netWeight))) : '');
+    
+    // Sute: Exact decimal value from db if present, otherwise autoSute
     const autoSute = getAutoSuteValue(entry, inspection);
-    setWbSute(d.sute || autoSute);
+    const savedSute = (d.sute !== undefined && d.sute !== null && d.sute !== '') ? String(d.sute) : autoSute;
+    setWbSute(savedSute);
+    
     setPartyWbEnabled(d.partyWbEnabled || '');
     setPartyWbNo(d.partyWbNo || '');
     setPartyWbDate(d.partyWbDate || new Date().toISOString().split('T')[0]);
     setPartyWbName(d.partyWbName || '');
-    setPartyGrossWeight(d.partyGrossWeight || '');
-    setPartyTareWeight(d.partyTareWeight || '');
-    setPartyNetWeight(d.partyNetWeight || '');
-    setPartySute(d.partySute || autoSute);
+    
+    // Party weights as rounded integers:
+    setPartyGrossWeight(d.partyGrossWeight ? String(Math.round(Number(d.partyGrossWeight))) : '');
+    setPartyTareWeight(d.partyTareWeight ? String(Math.round(Number(d.partyTareWeight))) : '');
+    setPartyNetWeight(d.partyNetWeight ? String(Math.round(Number(d.partyNetWeight))) : '');
+    
+    // Party Sute: Exact decimal value from db if present, otherwise autoSute
+    const savedPartySute = (d.partySute !== undefined && d.partySute !== null && d.partySute !== '') ? String(d.partySute) : autoSute;
+    setPartySute(savedPartySute);
+    
     setWbDate(d.wbDate || new Date().toISOString().split('T')[0]);
   };
 
@@ -6321,59 +6365,62 @@ const Arrivals: React.FC = () => {
 
 
 
-        <button
+        {/* Band Mall Book tab hidden for Mill/Location staff — they can access ONLY In Transit */}
+        {!(user && (user as any).role === 'staff' && (user as any).staffType === 'location') && (
+          <button
 
 
 
-          onClick={() => setArrivalsActiveSubTab('bandmalal')}
+            onClick={() => setArrivalsActiveSubTab('bandmalal')}
 
 
 
-          style={{
+            style={{
 
 
 
-            padding: '8px 16px',
+              padding: '8px 16px',
 
 
 
-            border: 'none',
+              border: 'none',
 
 
 
-            borderRadius: '4px',
+              borderRadius: '4px',
 
 
 
-            background: arrivalsActiveSubTab === 'bandmalal' ? '#10b981' : '#f1f5f9',
+              background: arrivalsActiveSubTab === 'bandmalal' ? '#10b981' : '#f1f5f9',
 
 
 
-            color: arrivalsActiveSubTab === 'bandmalal' ? '#fff' : '#475569',
+              color: arrivalsActiveSubTab === 'bandmalal' ? '#fff' : '#475569',
 
 
 
-            fontWeight: 'bold',
+              fontWeight: 'bold',
 
 
 
-            cursor: 'pointer'
+              cursor: 'pointer'
 
 
 
-          }}
+            }}
 
 
 
-        >
+          >
 
 
 
-          Band Mall Book
+            Band Mall Book
 
 
 
-        </button>
+          </button>
+        )}
 
 
 
@@ -6666,7 +6713,7 @@ const Arrivals: React.FC = () => {
 
 
 
-          ) : inTransitEntries.length === 0 ? (
+          ) : inTransitFilteredTrips.length === 0 ? (
 
 
 
@@ -6774,7 +6821,7 @@ const Arrivals: React.FC = () => {
 
 
                         const displayNetWeight = transitDetail?.suteNetWeight !== undefined && transitDetail?.suteNetWeight !== null ? 
-                          `${stripDecimals(transitDetail.suteNetWeight)} Kg` : (netWeightVal !== '-' && netWeightVal !== null ? `${stripDecimals(netWeightVal)} Kg` : '-');
+                          `${fmtWt(transitDetail.suteNetWeight)} Kg` : (netWeightVal !== '-' && netWeightVal !== null ? `${fmtWt(netWeightVal)} Kg` : '-');
 
 
 
@@ -6985,33 +7032,21 @@ const Arrivals: React.FC = () => {
                               {/* Godown - after Party Name */}
                               <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontSize: '11px', verticalAlign: 'middle' }}>
                                 {transitDetail && (placeStatus === 'approved' || placeStatus === 'pending' || placeStatus === 'placed') ? (
-                                  <button
-                                    type="button"
+                                  <>
+                                  <span
+                                    title={isApprover ? "Click to show Edit button" : "Godown / Place"}
                                     onClick={() => {
                                       if (!isApprover) return;
                                       const rowKey = isPlaceholder ? `p-${entry.id}` : `i-${inspection.id}`;
-                                      setIsPlaceEdit(true);
-                                      setSelectedLorryForPlace(rowKey);
-                                      setSelectedLorryForWB(null);
-                                      setSelectedLorryEntries([entry]);
-                                      setSelectedLorryInspection(inspection);
-                                      setPlaceDate(transitDetail.placeDate ? String(transitDetail.placeDate).slice(0, 10) : new Date().toISOString().split('T')[0]);
-                                      // Pre-fill with existing godown/place data
-                                      setPlaceType(transitDetail.placeType || '');
-                                      setPlaceWarehouseId(transitDetail.placeWarehouseId ? String(transitDetail.placeWarehouseId) : '');
-                                      setPlaceKunchinittuId(transitDetail.placeKunchinittuId ? String(transitDetail.placeKunchinittuId) : '');
-                                      setPlaceOutturnId(transitDetail.outturnId ? String(transitDetail.outturnId) : '');
+                                      setRevealPlaceRowKey(revealPlaceRowKey === rowKey ? null : rowKey);
                                     }}
-                                    title={isApprover ? 'Click to edit godown' : ''}
-                                    disabled={!isApprover}
-                                    style={{ 
+                                    style={{
                                       padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold',
                                       background: placeStatus === 'approved' ? '#dcfce7' : '#fef3c7',
                                       color: placeStatus === 'approved' ? '#166534' : '#92400e',
-                                      border: 'none',
                                       fontSize: '11px',
-                                      cursor: isApprover ? 'pointer' : 'default',
-                                      opacity: isApprover ? 1 : 0.55
+                                      display: 'inline-block',
+                                      cursor: isApprover ? 'pointer' : 'default'
                                     }}
                                   >
                                     {(() => {
@@ -7022,7 +7057,29 @@ const Arrivals: React.FC = () => {
                                       }
                                       return transitDetail.placeWarehouse?.name || transitDetail.warehouse?.name || (transitDetail.outturn ? `${transitDetail.outturn.code} (${transitDetail.outturn.allottedVariety})` : '-') || '-';
                                     })()}
-                                  </button>
+                                  </span>
+                                  {revealPlaceRowKey === (isPlaceholder ? `p-${entry.id}` : `i-${inspection.id}`) && isApprover && (
+                                    <div style={{ marginTop: '3px' }}>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const rowKey = isPlaceholder ? `p-${entry.id}` : `i-${inspection.id}`;
+                                          setIsPlaceEdit(true);
+                                          setSelectedLorryForPlace(rowKey);
+                                          setSelectedLorryForWB(null);
+                                          setSelectedLorryEntries([entry]);
+                                          setSelectedLorryInspection(inspection);
+                                          setPlaceDate(transitDetail.placeDate ? String(transitDetail.placeDate).slice(0, 10) : new Date().toISOString().split('T')[0]);
+                                          setPlaceType(transitDetail.placeType || '');
+                                          setPlaceWarehouseId(transitDetail.placeWarehouseId ? String(transitDetail.placeWarehouseId) : '');
+                                          setPlaceKunchinittuId(transitDetail.placeKunchinittuId ? String(transitDetail.placeKunchinittuId) : '');
+                                          setPlaceOutturnId(transitDetail.outturnId ? String(transitDetail.outturnId) : '');
+                                        }}
+                                        style={{ padding: '2px 5px', border: 'none', borderRadius: '3px', background: '#2563eb', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}
+                                      >✏️ Edit</button>
+                                    </div>
+                                  )}
+                                  </>
                                 ) : null}
                                 <div style={{ marginTop: transitDetail && (placeStatus === 'approved' || placeStatus === 'pending' || placeStatus === 'placed') ? '4px' : '0px' }}>
                                   {placeStatus === 'placed' ? (
@@ -7048,7 +7105,7 @@ const Arrivals: React.FC = () => {
                                          </button>
                                        </div>
                                      ) : null
-                                  ) : (user?.role === 'staff' && (user?.staffType === 'location' || user?.staffType === 'mill')) ? null : (
+                                  ) : (user?.role === 'staff' && (user?.staffType === 'mill' || user?.staffType === 'location')) ? null : (
                                     <button
                                       onClick={() => {
                                         const rowKey = isPlaceholder ? `p-${entry.id}` : `i-${inspection.id}`;
@@ -7127,9 +7184,13 @@ const Arrivals: React.FC = () => {
                               {/* 1. WB Number */}
                               <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', verticalAlign: 'middle' }}>
                                 {transitDetail && (wbStatus === 'approved' || wbStatus === 'pending') ? (
+                                  <div style={{ textAlign: 'center' }}>
                                   <span
-                                    onClick={() => openWbEditModal(isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id), transitDetail, entry, inspection)}
-                                    title="Click to edit WB"
+                                    title="Click to show Edit button"
+                                    onClick={() => {
+                                      const rowKey = isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id);
+                                      setRevealWbRowKey(revealWbRowKey === rowKey ? null : rowKey);
+                                    }}
                                     style={{ 
                                       padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold',
                                       background: wbStatus === 'approved' ? '#dcfce7' : '#fef3c7',
@@ -7139,6 +7200,16 @@ const Arrivals: React.FC = () => {
                                   >
                                     {wbNoVal}
                                   </span>
+                                  {revealWbRowKey === (isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id)) && (
+                                    <div style={{ marginTop: '3px' }}>
+                                      <button
+                                        onClick={() => openWbEditModal(isPlaceholder ? 'p-' + entry.id : 'i-' + (inspection?.id || entry?.id), transitDetail, entry, inspection)}
+                                        title="Edit WB"
+                                        style={{ padding: '1px 5px', border: 'none', borderRadius: '3px', background: '#f59e0b', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}
+                                      >✏️ Edit WB</button>
+                                    </div>
+                                  )}
+                                  </div>
                                 ) : wbStatus === 'rejected' ? (
                                   <div>
                                     <span style={{ 
@@ -7190,17 +7261,17 @@ const Arrivals: React.FC = () => {
                                             setWbInputType(isRejected ? 'mill' : (tDetail?.wbInputType || 'mill'));
                                             setWbNumber(isRejected ? '' : (tDetail?.wbNo || ''));
                                             setMillWbId(isRejected ? '' : (tDetail?.millWbId ? String(tDetail.millWbId) : ''));
-                                            setWbGrossWeight(isRejected ? '' : (tDetail?.grossWeight || ''));
-                                            setWbTareWeight(isRejected ? '' : (tDetail?.tareWeight || ''));
-                                            setWbNetWeight(isRejected ? '' : (tDetail?.netWeight || ''));
+                                            setWbGrossWeight(isRejected ? '' : (tDetail?.grossWeight ? String(Math.round(Number(tDetail.grossWeight))) : ''));
+                                            setWbTareWeight(isRejected ? '' : (tDetail?.tareWeight ? String(Math.round(Number(tDetail.tareWeight))) : ''));
+                                            setWbNetWeight(isRejected ? '' : (tDetail?.netWeight ? String(Math.round(Number(tDetail.netWeight))) : ''));
                                             setWbSute((!isRejected && tDetail?.sute) || autoSute);
                                             setPartyWbEnabled(isRejected ? '' : (tDetail?.partyWbEnabled || ''));
                                             setPartyWbNo(isRejected ? '' : (tDetail?.partyWbNo || ''));
                                             setPartyWbDate(new Date().toISOString().split('T')[0]);
                                             setPartyWbName(isRejected ? '' : (tDetail?.partyWbName || ''));
-                                            setPartyGrossWeight(isRejected ? '' : (tDetail?.partyGrossWeight || ''));
-                                            setPartyTareWeight(isRejected ? '' : (tDetail?.partyTareWeight || ''));
-                                            setPartyNetWeight(isRejected ? '' : (tDetail?.partyNetWeight || ''));
+                                            setPartyGrossWeight(isRejected ? '' : (tDetail?.partyGrossWeight ? String(Math.round(Number(tDetail.partyGrossWeight))) : ''));
+                                            setPartyTareWeight(isRejected ? '' : (tDetail?.partyTareWeight ? String(Math.round(Number(tDetail.partyTareWeight))) : ''));
+                                            setPartyNetWeight(isRejected ? '' : (tDetail?.partyNetWeight ? String(Math.round(Number(tDetail.partyNetWeight))) : ''));
                                             setPartySute((!isRejected && tDetail?.partySute) || autoSute);
                                             setWbDate(new Date().toISOString().split('T')[0]);
                                           }
@@ -7232,7 +7303,7 @@ const Arrivals: React.FC = () => {
 
                               {/* 4. Sute Net Wt */}
                               <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700' }}>
-                                {transitDetail?.suteNetWeight ? `${stripDecimals(transitDetail.suteNetWeight)} Kg` : '-'}
+                                {transitDetail?.suteNetWeight ? `${fmtWt(transitDetail.suteNetWeight)} Kg` : '-'}
                               </td>
 
 
@@ -7246,7 +7317,8 @@ const Arrivals: React.FC = () => {
 
                               {/* 7. Actions */}
                               <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontSize: '11px', verticalAlign: 'middle' }}>
-                                {(() => {
+                                
+{(() => {
                                   const params = (inspection?.inventoryQualityParameters) || (entry?.inventoryQualityParameters) || (inspection?.lorryTransitDetail?.inventoryQualityParameters) || [];
                                   const isFullApproved = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
                                   const isLotApproved = params.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
@@ -7764,7 +7836,11 @@ const Arrivals: React.FC = () => {
 
                                         onClick={async () => {
 
-
+                                          // Mill staff & location staff can VIEW transit but must NOT add godown
+                                          if ((user as any)?.role === 'staff' && ((user as any)?.staffType === 'mill' || (user as any)?.staffType === 'location')) {
+                                            toast.error('Mill staff and location staff cannot add godown.');
+                                            return;
+                                          }
 
                                           if (placeType === 'production') {
 
@@ -8284,7 +8360,7 @@ const Arrivals: React.FC = () => {
 
 
                     const displayNetWeight = entry.suteNetWeight !== undefined && entry.suteNetWeight !== null ? 
-                      `${stripDecimals(entry.suteNetWeight)} Kg` : (netWeightVal ? `${stripDecimals(netWeightVal)} Kg` : '-');
+                      `${fmtWt(entry.suteNetWeight)} Kg` : (netWeightVal ? `${fmtWt(netWeightVal)} Kg` : '-');
 
 
 
@@ -8376,14 +8452,13 @@ const Arrivals: React.FC = () => {
 
 
 
-                      const wh = entry.placeWarehouse?.name || entry.toWarehouse?.name || '';
-
-
-
-                      const kc = entry.placeKunchinittuData?.name || entry.toKunchinittu?.name || '';
-
-
-
+                      const kunchinittuId = entry.placeKunchinittuId || entry.placeKunchinittuData?.id || entry.toKunchinittu?.id;
+                      const kcObj = kunchinittus.find(k => String(k.id) === String(kunchinittuId));
+                      const warehouseId = entry.placeWarehouseId || entry.placeWarehouse?.id || entry.toWarehouse?.id || kcObj?.warehouseId;
+                      const whObj = warehouses.find(w => String(w.id) === String(warehouseId));
+                      
+                      const wh = whObj?.name || entry.placeWarehouse?.name || entry.toWarehouse?.name || '';
+                      const kc = kcObj?.name || entry.placeKunchinittuData?.name || entry.toKunchinittu?.name || '';
                       placeDisplay = wh ? (wh + (kc ? ' (' + kc + ')' : '')) : (kc || '-');
 
 
@@ -8421,6 +8496,7 @@ const Arrivals: React.FC = () => {
 
 
                         <tr style={{
+                          fontSize: '12px',
                           borderBottom: '1px solid #e2e8f0',
                           background: (() => {
                             const qParams = entry.inventoryQualityParameters || [];
@@ -8976,8 +9052,11 @@ const Arrivals: React.FC = () => {
                             {entry.wbNo && wbStatus !== 'rejected' ? (
                               <div>
                                 <span
-                                  onClick={() => openWbEditModal((entry.lorryNumber || 'N/A').toUpperCase(), entry, entry, null)}
-                                  title="Click to edit WB"
+                                  title="Click to show Edit button"
+                                  onClick={() => {
+                                    const rowKey = `bmb-${entry.id}`;
+                                    setRevealWbRowKey(revealWbRowKey === rowKey ? null : rowKey);
+                                  }}
                                   style={{
                                     padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold',
                                     background: wbStatus === 'approved' ? '#dcfce7' : wbStatus === 'pending' ? '#fef3c7' : '#f1f5f9',
@@ -8987,6 +9066,15 @@ const Arrivals: React.FC = () => {
                                 >
                                   {entry.wbNo}
                                 </span>
+                                {revealWbRowKey === `bmb-${entry.id}` && isApprover && (
+                                  <div style={{ marginTop: '3px' }}>
+                                    <button
+                                      onClick={() => openWbEditModal((entry.lorryNumber || 'N/A').toUpperCase(), entry, entry, null)}
+                                      title="Edit WB"
+                                      style={{ padding: '1px 5px', border: 'none', borderRadius: '3px', background: '#f59e0b', color: '#fff', fontWeight: 'bold', fontSize: '9px', cursor: 'pointer' }}
+                                    >✏️ Edit WB</button>
+                                  </div>
+                                )}
                                 <div style={{ marginTop: '4px' }}>
                                   {wbStatus === 'pending' && canApproveWB ? (
                                     <div style={{ display: 'flex', gap: '3px', justifyContent: 'center' }}>
@@ -9061,7 +9149,7 @@ const Arrivals: React.FC = () => {
 
                            {/* Column 11: Sute Net Wt */}
                            <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: '#d97706' }}>
-                             {entry.suteNetWeight ? `${stripDecimals(entry.suteNetWeight)} Kg` : '-'}
+                             {entry.suteNetWeight ? `${fmtWt(entry.suteNetWeight)} Kg` : '-'}
                            </td>
 
 
@@ -9094,7 +9182,8 @@ const Arrivals: React.FC = () => {
 
 
 
-                                 {canAddInventoryQuality && (() => {
+                                 
+{canAddInventoryQuality && (() => {
 
 
 
@@ -9306,29 +9395,45 @@ const Arrivals: React.FC = () => {
                                   {placeType === 'kunchinittu' && (
                                     <>
                                       <div>
-                                        <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Kunchinittu</label>
-                                        <select
-                                          value={placeKunchinittuId}
-                                          onChange={(e) => setPlaceKunchinittuId(e.target.value)}
-                                          style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
-                                        >
-                                          <option value="">-- Select Kunchinittu --</option>
-                                          {activeKunchinittus.map(k => (
-                                            <option key={k.id} value={k.id}>{k.name}</option>
-                                          ))}
-                                        </select>
-                                      </div>
-                                      <div>
                                         <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Warehouse</label>
                                         <select
                                           value={placeWarehouseId}
-                                          onChange={(e) => setPlaceWarehouseId(e.target.value)}
+                                          onChange={(e) => {
+                                            const wid = e.target.value;
+                                            setPlaceWarehouseId(wid);
+                                            const currentK = kunchinittus.find(k => String(k.id) === String(placeKunchinittuId));
+                                            if (currentK && String(currentK.warehouseId) !== String(wid)) {
+                                              setPlaceKunchinittuId('');
+                                            }
+                                          }}
                                           style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
                                         >
                                           <option value="">-- Select Warehouse --</option>
                                           {warehouses.map(w => (
                                             <option key={w.id} value={w.id}>{w.name}</option>
                                           ))}
+                                        </select>
+                                      </div>
+                                      <div>
+                                        <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>Kunchinittu</label>
+                                        <select
+                                          value={placeKunchinittuId}
+                                          onChange={(e) => {
+                                            const kid = e.target.value;
+                                            setPlaceKunchinittuId(kid);
+                                            const match = kunchinittus.find(k => String(k.id) === String(kid));
+                                            if (match && match.warehouseId) {
+                                              setPlaceWarehouseId(String(match.warehouseId));
+                                            }
+                                          }}
+                                          style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '6px' }}
+                                        >
+                                          <option value="">-- Select Kunchinittu --</option>
+                                          {activeKunchinittus
+                                            .filter(k => !placeWarehouseId || String(k.warehouseId) === String(placeWarehouseId))
+                                            .map(k => (
+                                              <option key={k.id} value={k.id}>{k.name}</option>
+                                            ))}
                                         </select>
                                       </div>
                                     </>
@@ -13960,9 +14065,9 @@ const Arrivals: React.FC = () => {
                   <div style={{ padding: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '11px' }}>
                     <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>WB Number</span><strong>{transitDetail?.wbNo || '-'}</strong></div>
                     <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>Mill Weight Bridge</span>{transitDetail?.millWeightBridge?.name || transitDetail?.partyWbName || '-'}</div>
-                    <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>Gross Weight</span>{transitDetail?.grossWeight ? `${stripDecimals(transitDetail.grossWeight)} Kg` : '-'}</div>
-                    <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>Tare Weight</span>{transitDetail?.tareWeight ? `${stripDecimals(transitDetail.tareWeight)} Kg` : '-'}</div>
-                    <div style={{ gridColumn: 'span 2' }}><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>Net Weight</span><strong style={{ color: '#10b981', fontSize: '13px' }}>{transitDetail?.netWeight ? `${stripDecimals(transitDetail.netWeight)} Kg` : '-'}</strong></div>
+                    <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>Gross Weight</span>{transitDetail?.grossWeight ? `${fmtWt(transitDetail.grossWeight)} Kg` : '-'}</div>
+                    <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>Tare Weight</span>{transitDetail?.tareWeight ? `${fmtWt(transitDetail.tareWeight)} Kg` : '-'}</div>
+                    <div style={{ gridColumn: 'span 2' }}><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>Net Weight</span><strong style={{ color: '#10b981', fontSize: '13px' }}>{transitDetail?.netWeight ? `${fmtWt(transitDetail.netWeight)} Kg` : '-'}</strong></div>
                     <div style={{ gridColumn: 'span 2' }}>
                       <span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold', marginBottom: '2px' }}>WB Status</span>
                       <span style={{
@@ -14047,16 +14152,16 @@ const Arrivals: React.FC = () => {
 
                   {/* Row 2 */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '8px', borderBottom: '1px dashed #cbd5e1', paddingBottom: '6px' }}>
-                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Gross Weight</span><strong>{stripDecimals(wbConfirmDialog.detail?.grossWeight) || '-'} Kg</strong></div>
-                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Tare Weight</span><strong>{stripDecimals(wbConfirmDialog.detail?.tareWeight) || '-'} Kg</strong></div>
-                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Net Weight</span><strong style={{ color: '#10b981' }}>{stripDecimals(wbConfirmDialog.detail?.netWeight) || '-'} Kg</strong></div>
+                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Gross Weight</span><strong>{fmtWt(wbConfirmDialog.detail?.grossWeight) || '-'} Kg</strong></div>
+                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Tare Weight</span><strong>{fmtWt(wbConfirmDialog.detail?.tareWeight) || '-'} Kg</strong></div>
+                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Net Weight</span><strong style={{ color: '#10b981' }}>{fmtWt(wbConfirmDialog.detail?.netWeight) || '-'} Kg</strong></div>
                   </div>
 
                   {/* Row 3 */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Sute</span><strong>{wbConfirmDialog.detail?.sute || '0'} Kg</strong></div>
+                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Sute</span><strong>{fmtWt(wbConfirmDialog.detail?.sute) || '0'} Kg</strong></div>
                     <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Bags</span><strong>{wbConfirmDialog.detail?.bags || wbConfirmDialog.detail?.bagsLoaded || '-'}</strong></div>
-                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Sute Net Weight</span><strong style={{ color: '#16a34a' }}>{wbConfirmDialog.detail?.suteNetWeight || '-'} Kg</strong></div>
+                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Sute Net Weight</span><strong style={{ color: '#16a34a' }}>{fmtWt(wbConfirmDialog.detail?.suteNetWeight) || '-'} Kg</strong></div>
                   </div>
                 </div>
 
@@ -14074,16 +14179,16 @@ const Arrivals: React.FC = () => {
 
                     {/* Row 2 */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '8px', borderBottom: '1px dashed #fde047', paddingBottom: '6px' }}>
-                      <div><span style={{ color: '#854d0e', fontSize: '10px', display: 'block' }}>Gross Weight</span><strong>{wbConfirmDialog.detail?.partyGrossWeight || '-'} Kg</strong></div>
-                      <div><span style={{ color: '#854d0e', fontSize: '10px', display: 'block' }}>Tare Weight</span><strong>{wbConfirmDialog.detail?.partyTareWeight || '-'} Kg</strong></div>
-                      <div><span style={{ color: '#854d0e', fontSize: '10px', display: 'block' }}>Net Weight</span><strong style={{ color: '#7c3aed' }}>{wbConfirmDialog.detail?.partyNetWeight || '-'} Kg</strong></div>
+                      <div><span style={{ color: '#854d0e', fontSize: '10px', display: 'block' }}>Gross Weight</span><strong>{fmtWt(wbConfirmDialog.detail?.partyGrossWeight) || '-'} Kg</strong></div>
+                      <div><span style={{ color: '#854d0e', fontSize: '10px', display: 'block' }}>Tare Weight</span><strong>{fmtWt(wbConfirmDialog.detail?.partyTareWeight) || '-'} Kg</strong></div>
+                      <div><span style={{ color: '#854d0e', fontSize: '10px', display: 'block' }}>Net Weight</span><strong style={{ color: '#7c3aed' }}>{fmtWt(wbConfirmDialog.detail?.partyNetWeight) || '-'} Kg</strong></div>
                     </div>
 
                     {/* Row 3 */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-                      <div><span style={{ color: '#854d0e', fontSize: '10px', display: 'block' }}>Sute</span><strong>{wbConfirmDialog.detail?.partySute || '0'} Kg</strong></div>
+                      <div><span style={{ color: '#854d0e', fontSize: '10px', display: 'block' }}>Sute</span><strong>{fmtWt(wbConfirmDialog.detail?.partySute) || '0'} Kg</strong></div>
                       <div><span style={{ color: '#854d0e', fontSize: '10px', display: 'block' }}>Bags</span><strong>{wbConfirmDialog.detail?.bags || wbConfirmDialog.detail?.bagsLoaded || '-'}</strong></div>
-                      <div><span style={{ color: '#854d0e', fontSize: '10px', display: 'block' }}>Sute Net Weight</span><strong style={{ color: '#9333ea' }}>{stripDecimals(((parseFloat(wbConfirmDialog.detail?.partyGrossWeight || 0) - parseFloat(wbConfirmDialog.detail?.partyTareWeight || 0) - (parseFloat(wbConfirmDialog.detail?.partySute || 0) * (Number(wbConfirmDialog.detail?.bags || wbConfirmDialog.detail?.bagsLoaded || 1)))) || 0))} Kg</strong></div>
+                      <div><span style={{ color: '#854d0e', fontSize: '10px', display: 'block' }}>Sute Net Weight</span><strong style={{ color: '#9333ea' }}>{fmtWt(((parseFloat(wbConfirmDialog.detail?.partyGrossWeight || 0) - parseFloat(wbConfirmDialog.detail?.partyTareWeight || 0) - (parseFloat(wbConfirmDialog.detail?.partySute || 0) * (Number(wbConfirmDialog.detail?.bags || wbConfirmDialog.detail?.bagsLoaded || 1)))) || 0))} Kg</strong></div>
                     </div>
                   </div>
                 )}
@@ -14327,15 +14432,11 @@ const Arrivals: React.FC = () => {
               <h4 style={{ margin: '0 0 16px 0', color: '#0f172a', fontSize: '13px', fontWeight: 'bold', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
                 🏢 Mill Weighbridge Parameters
               </h4>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '14px' }}>
+              {/* Row 1: Date | Mill WB Name | WB Number */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px', marginBottom: '14px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '6px' }}>Date</label>
                   <input type="date" value={wbDate} onChange={(e) => setWbDate(e.target.value)}
-                    style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box' }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '6px' }}>WB Number <span style={{ color: '#ef4444' }}>*</span></label>
-                  <input type="text" value={wbNumber} onChange={(e) => setWbNumber(e.target.value.toUpperCase())} placeholder="WB number"
                     style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box' }} />
                 </div>
                 <div>
@@ -14354,15 +14455,24 @@ const Arrivals: React.FC = () => {
                   </select>
                 </div>
                 <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '6px' }}>WB Number <span style={{ color: '#ef4444' }}>*</span></label>
+                  <input type="text" value={wbNumber} onChange={(e) => setWbNumber(e.target.value.toUpperCase())} placeholder="WB number"
+                    style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box' }} />
+                </div>
+              </div>
+
+              {/* Row 2: Gross Weight | Tare Weight | Net Weight */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px', marginBottom: '14px' }}>
+                <div>
                   <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '6px' }}>Gross Weight (Kg) <span style={{ color: '#ef4444' }}>*</span></label>
                   <input type="number" value={wbGrossWeight}
-                    onChange={(e) => { const val = e.target.value; setWbGrossWeight(val); if (val && wbTareWeight) setWbNetWeight(String(Number(val) - Number(wbTareWeight))); }}
+                    onChange={(e) => { const val = e.target.value; setWbGrossWeight(val); if (val && wbTareWeight) setWbNetWeight(String(Math.round(Number(val) - Number(wbTareWeight)))); }}
                     placeholder="Gross Weight" style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box' }} />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '6px' }}>Tare Weight (Kg) <span style={{ color: '#ef4444' }}>*</span></label>
                   <input type="number" value={wbTareWeight}
-                    onChange={(e) => { const val = e.target.value; setWbTareWeight(val); if (wbGrossWeight && val) setWbNetWeight(String(Number(wbGrossWeight) - Number(val))); }}
+                    onChange={(e) => { const val = e.target.value; setWbTareWeight(val); if (wbGrossWeight && val) setWbNetWeight(String(Math.round(Number(wbGrossWeight) - Number(val)))); }}
                     placeholder="Tare Weight" style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box' }} />
                 </div>
                 <div>
@@ -14370,27 +14480,44 @@ const Arrivals: React.FC = () => {
                   <input type="text" value={wbNetWeight} disabled
                     style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box', background: '#e2e8f0' }} />
                 </div>
+              </div>
+
+              {/* Row 3: Sute | Shoot Kg | Sute Net Weight */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '6px' }}>Sute (Deduction)</label>
                   <input type="number" value={wbSute} onChange={(e) => setWbSute(e.target.value)} placeholder="Sute"
                     style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '6px' }}>Sute Net Weight</label>
-                  <div style={{ padding: '8px 10px', background: '#dcfce7', border: '1.5px solid #22c55e', borderRadius: '8px', fontWeight: '700', color: '#15803d', fontSize: '12px', textAlign: 'center', height: '34px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {stripDecimals(((parseFloat(wbGrossWeight || 0) - parseFloat(wbTareWeight || 0) - (parseFloat(wbSute || 0) * suteBags(selectedLorryInspection, selectedLorryEntries?.[0]))) || 0))} Kg
+                  <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '6px' }}>Shoot Kg (Sute × Bags)</label>
+                  <div style={{ padding: '8px 10px', background: '#eff6ff', border: '1.5px solid #3b82f6', borderRadius: '8px', fontWeight: '700', color: '#1d4ed8', fontSize: '12px', textAlign: 'center', height: '34px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {Math.round(((parseFloat(wbSute || 0) * suteBags(selectedLorryInspection, selectedLorryEntries?.[0])) || 0))} Kg
                   </div>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '6px' }}>Enable Party WB?</label>
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', height: '34px' }}>
-                    <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', color: '#334155', fontWeight: '600' }}>
-                      <input type="radio" name="partyWbEnabled" value="yes" checked={partyWbEnabled === 'yes'} onChange={() => setPartyWbEnabled('yes')} /> Yes
-                    </label>
-                    <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', color: '#334155', fontWeight: '600' }}>
-                      <input type="radio" name="partyWbEnabled" value="no" checked={partyWbEnabled === 'no'} onChange={() => setPartyWbEnabled('no')} /> No
-                    </label>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '6px' }}>Sute Net Weight</label>
+                  <div style={{ padding: '8px 10px', background: '#dcfce7', border: '1.5px solid #22c55e', borderRadius: '8px', fontWeight: '700', color: '#15803d', fontSize: '12px', textAlign: 'center', height: '34px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {(() => {
+                      // Match server formula: Math.round(net - sute * bags) — single rounding, no intermediate round on sute*bags
+                      const suteKg = (parseFloat(wbSute || 0) * suteBags(selectedLorryInspection, selectedLorryEntries?.[0])) || 0;
+                      const netWt = parseFloat(wbNetWeight || (parseFloat(wbGrossWeight || 0) - parseFloat(wbTareWeight || 0))) || 0;
+                      return `${Math.round((netWt - suteKg) || 0)} Kg`;
+                    })()}
                   </div>
+                </div>
+              </div>
+
+              {/* Row 4: Paddy WB Yes/No (default nothing, user selects when adding) */}
+              <div style={{ marginTop: '14px', borderTop: '1px dashed #e2e8f0', paddingTop: '12px' }}>
+                <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '6px' }}>Paddy WB (Party WB)?</label>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', color: '#334155', fontWeight: '600' }}>
+                    <input type="radio" name="partyWbEnabled" value="yes" checked={partyWbEnabled === 'yes'} onChange={() => setPartyWbEnabled('yes')} /> Yes
+                  </label>
+                  <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', color: '#334155', fontWeight: '600' }}>
+                    <input type="radio" name="partyWbEnabled" value="no" checked={partyWbEnabled === 'no'} onChange={() => setPartyWbEnabled('no')} /> No
+                  </label>
                 </div>
               </div>
             </div>
@@ -14401,7 +14528,8 @@ const Arrivals: React.FC = () => {
                 <h4 style={{ margin: '0 0 16px 0', color: '#854d0e', fontSize: '13px', fontWeight: 'bold', borderBottom: '1px solid #fef08a', paddingBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   ⚡ Party Weighbridge Details
                 </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '14px' }}>
+                {/* Row 1: Party WB Date | Party WB Number | Party WB Name */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px', marginBottom: '14px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '11px', color: '#854d0e', fontWeight: 'bold', marginBottom: '6px' }}>Party WB Date</label>
                     <input type="date" value={partyWbDate} onChange={(e) => setPartyWbDate(e.target.value)}
@@ -14417,16 +14545,20 @@ const Arrivals: React.FC = () => {
                     <input type="text" value={partyWbName} onChange={(e) => setPartyWbName(e.target.value)} placeholder="Party WB Name"
                       style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #fde047', borderRadius: '8px', boxSizing: 'border-box' }} />
                   </div>
+                </div>
+
+                {/* Row 2: Gross | Tare | Net */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px', marginBottom: '14px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '11px', color: '#854d0e', fontWeight: 'bold', marginBottom: '6px' }}>Gross Weight (Kg)</label>
                     <input type="number" value={partyGrossWeight}
-                      onChange={(e) => { const v = e.target.value; setPartyGrossWeight(v); if (v && partyTareWeight) setPartyNetWeight(String(Number(v) - Number(partyTareWeight))); }}
+                      onChange={(e) => { const v = e.target.value; setPartyGrossWeight(v); if (v && partyTareWeight) setPartyNetWeight(String(Math.round(Number(v) - Number(partyTareWeight)))); }}
                       placeholder="Gross Weight" style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #fde047', borderRadius: '8px', boxSizing: 'border-box' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '11px', color: '#854d0e', fontWeight: 'bold', marginBottom: '6px' }}>Tare Weight (Kg)</label>
                     <input type="number" value={partyTareWeight}
-                      onChange={(e) => { const v = e.target.value; setPartyTareWeight(v); if (partyGrossWeight && v) setPartyNetWeight(String(Number(partyGrossWeight) - Number(v))); }}
+                      onChange={(e) => { const v = e.target.value; setPartyTareWeight(v); if (partyGrossWeight && v) setPartyNetWeight(String(Math.round(Number(partyGrossWeight) - Number(v)))); }}
                       placeholder="Tare Weight" style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #fde047', borderRadius: '8px', boxSizing: 'border-box' }} />
                   </div>
                   <div>
@@ -14434,15 +14566,30 @@ const Arrivals: React.FC = () => {
                     <input type="text" value={partyNetWeight} disabled
                       style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #fde047', borderRadius: '8px', boxSizing: 'border-box', background: '#fef9c3' }} />
                   </div>
+                </div>
+
+                {/* Row 3: Sute | Shoot Kg | Sute Net Weight */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '11px', color: '#854d0e', fontWeight: 'bold', marginBottom: '6px' }}>Sute (Deduction)</label>
                     <input type="number" value={partySute} onChange={(e) => setPartySute(e.target.value)} placeholder="Sute"
                       style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #fde047', borderRadius: '8px', boxSizing: 'border-box' }} />
                   </div>
                   <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: '#854d0e', fontWeight: 'bold', marginBottom: '6px' }}>Shoot Kg (Sute × Bags)</label>
+                    <div style={{ padding: '8px 10px', background: '#fffbeb', border: '1.5px solid #f59e0b', borderRadius: '8px', fontWeight: '700', color: '#b45309', fontSize: '12px', textAlign: 'center', height: '34px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {Math.round(((parseFloat(partySute || 0) * suteBags(selectedLorryInspection, selectedLorryEntries?.[0])) || 0))} Kg
+                    </div>
+                  </div>
+                  <div>
                     <label style={{ display: 'block', fontSize: '11px', color: '#854d0e', fontWeight: 'bold', marginBottom: '6px' }}>Sute Net Weight</label>
                     <div style={{ padding: '8px 10px', background: '#fef9c3', border: '1.5px solid #fde047', borderRadius: '8px', fontWeight: '700', color: '#854d0e', fontSize: '12px', textAlign: 'center', height: '34px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {stripDecimals(((parseFloat(partyGrossWeight || 0) - parseFloat(partyTareWeight || 0) - (parseFloat(partySute || 0) * suteBags(selectedLorryInspection, selectedLorryEntries?.[0]))) || 0))} Kg
+                      {(() => {
+                        // Match server formula: Math.round(net - sute * bags) — single rounding, no intermediate round on sute*bags
+                        const suteKg = (parseFloat(partySute || 0) * suteBags(selectedLorryInspection, selectedLorryEntries?.[0])) || 0;
+                        const netWt = parseFloat(partyNetWeight || (parseFloat(partyGrossWeight || 0) - parseFloat(partyTareWeight || 0))) || 0;
+                        return `${Math.round((netWt - suteKg) || 0)} Kg`;
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -14479,17 +14626,17 @@ const Arrivals: React.FC = () => {
                       millWbId: millWbId ? Number(millWbId) : null,
                       partyWbName: partyWbEnabled === 'yes' ? partyWbName : null,
                       wbNo: wbNumber,                                               
-                      grossWeight: Number(wbGrossWeight),
-                      tareWeight: Number(wbTareWeight),
-                      netWeight: wbNetWeight,
+                      grossWeight: Math.round(Number(wbGrossWeight)),
+                      tareWeight: Math.round(Number(wbTareWeight)),
+                      netWeight: Math.round(Number(wbNetWeight || (Number(wbGrossWeight) - Number(wbTareWeight)))),
                       sute: wbSute || null,
                       bags: Number(selectedLorryInspection?.bags || selectedLorryEntries?.[0]?.bags || 1),
                       partyWbEnabled: partyWbEnabled || null,
                       wbDate: wbDate || null,
-                      partyGrossWeight: partyWbEnabled === 'yes' && partyGrossWeight ? Number(partyGrossWeight) : null,
-                      partyTareWeight: partyWbEnabled === 'yes' && partyTareWeight ? Number(partyTareWeight) : null,
-                      partyNetWeight: partyWbEnabled === 'yes' && partyNetWeight ? Number(partyNetWeight) : null,
-                      partySute: partyWbEnabled === 'yes' && partySute ? Number(partySute) : null,
+                      partyGrossWeight: partyWbEnabled === 'yes' && partyGrossWeight ? Math.round(Number(partyGrossWeight)) : null,
+                      partyTareWeight: partyWbEnabled === 'yes' && partyTareWeight ? Math.round(Number(partyTareWeight)) : null,
+                      partyNetWeight: partyWbEnabled === 'yes' && partyNetWeight ? Math.round(Number(partyNetWeight || (Number(partyGrossWeight) - Number(partyTareWeight)))) : null,
+                      partySute: partyWbEnabled === 'yes' && partySute ? partySute : null,
                       partyWbNo: partyWbEnabled === 'yes' ? partyWbNo : null,
                       partyWbDate: partyWbEnabled === 'yes' ? partyWbDate : null
                     }, {
@@ -14505,12 +14652,12 @@ const Arrivals: React.FC = () => {
                       setInTransitEntries(prev => applyWbSaveToEntries(prev, selectedLorryInspection?.id, {
                         wbStatus: savedStatus,
                         wbNo: savedWbNo,
-                        netWeight: savedNetWeight,
+                        netWeight: Math.round(Number(savedNetWeight)),
                         partyWbName: wbInputType === 'party' ? partyWbName : (responseDetail?.partyWbName || undefined),
                         wbInputType: 'mill',
                         millWbId: wbInputType === 'mill' ? Number(millWbId) : undefined,
-                        grossWeight: Number(wbGrossWeight),
-                        tareWeight: Number(wbTareWeight)
+                        grossWeight: Math.round(Number(wbGrossWeight)),
+                        tareWeight: Math.round(Number(wbTareWeight))
                       }));
                     } catch (reactErr) {
                       console.error('In-Transit state update error:', reactErr);

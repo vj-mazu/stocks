@@ -268,6 +268,13 @@ const formatToggleUnitLabel = (value?: string) => value === 'per_quintal'
             : value === 'per_kg'
                 ? 'Per Kg'
                 : 'Per Bag';
+const fmtNum = (v: any) => {
+    if (v === null || v === undefined || v === '') return '-';
+    const n = Number(v);
+    if (!isFinite(n)) return String(v).trim() || '-';
+    // Rates/sute/moisture keep meaningful decimals (1.2 -> 1.2), trailing zeros stripped (15.00 -> 15)
+    return n.toLocaleString('en-US', { maximumFractionDigits: 2 });
+};
 const formatShortDateTime = (value?: string | null) => {
     if (!value) return '';
     try {
@@ -3092,7 +3099,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     if (isApproved) {
                         const roleStr = param.approver?.role || param.approvedByUser?.role || 'MANAGER';
                         const nameStr = param.approver?.fullName || param.approver?.username || param.approvedByUser?.fullName || param.approvedByUser?.username || param.approvedBy || '';
-                        const approverName = nameStr ? `${roleStr.toUpperCase()} (${nameStr.toUpperCase()})` : roleStr.toUpperCase();
+                        const approverName = (nameStr && nameStr.toLowerCase() !== roleStr.toLowerCase()) ? `${roleStr.toUpperCase()} (${nameStr.toUpperCase()})` : roleStr.toUpperCase();
                         return (
                             <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.1', border: '1px solid rgba(39, 174, 96, 0.3)', backgroundColor: '#e8f5e9', padding: '3px 8px', borderRadius: '4px', textAlign: 'center' }}>
                                 <span style={{ color: '#2e7d32', fontWeight: '700', fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>✅ Approved</span>
@@ -4473,8 +4480,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         );
                                     })()}
 
-                                    {/* 3. Mill Quality Parameters (Inventory Quality) */}
-                                    {!isArrivalsView && ((detailEntry as any).isBandMalalBook || progressiveMode || (detailEntry as any).isTransit || detailEntry.workflowStatus === 'IN_TRANSIT' || detailEntry.workflowStatus === 'BAND_MALAL_BOOK' || isAdminSampleBook2) && (() => {
+                                    {/* 3. Mill Quality Parameters (Inventory Quality) — Approve/Reject/Recheck live inside this modal */}
+                                    {((detailEntry as any).isBandMalalBook || progressiveMode || (detailEntry as any).isTransit || detailEntry.workflowStatus === 'IN_TRANSIT' || detailEntry.workflowStatus === 'BAND_MALAL_BOOK' || isAdminSampleBook2) && (!isArrivalsView || getAllMillQualityParameters().some((p: any) => p.status !== 'approved')) && (() => {
                                          const paramsList = getAllMillQualityParameters();
                                          if (paramsList.length === 0) return null;
                                          return (
@@ -4528,7 +4535,10 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             
                                         inspsForDetails.forEach((insp: any) => {
                                             if (insp && insp.lorryTransitDetail) {
-                                                const exists = transitDetailsList.some(item => String(item.id || item.transitDetailId) === String(insp.lorryTransitDetail.id));
+                                                const exists = transitDetailsList.some(item => 
+                                                    String(item.transitDetailId || item.id) === String(insp.lorryTransitDetail.transitDetailId || insp.lorryTransitDetail.id) ||
+                                                    (item.sampleEntryId && String(item.sampleEntryId) === String(insp.lorryTransitDetail.sampleEntryId) && String(item.lorryNumber || '').toLowerCase() === String(insp.lorryNumber || deBase.lorryNumber || '').toLowerCase())
+                                                );
                                                 if (!exists) {
                                                     transitDetailsList.push({
                                                         ...insp.lorryTransitDetail,
@@ -4539,6 +4549,23 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                 }
                                             }
                                         });
+
+                                        // 3. Fallback: single-inspection payloads may carry transit detail on physicalInspection/lotAllotment
+                                        const singleLtd = deBase.physicalInspection?.lorryTransitDetail || deBase.lotAllotment?.physicalInspections?.[0]?.lorryTransitDetail;
+                                        if (singleLtd) {
+                                            const exists = transitDetailsList.some(item => 
+                                                String(item.transitDetailId || item.id) === String(singleLtd.transitDetailId || singleLtd.id) ||
+                                                (item.sampleEntryId && String(item.sampleEntryId) === String(singleLtd.sampleEntryId) && String(item.lorryNumber || '').toLowerCase() === String(deBase.physicalInspection?.lorryNumber || deBase.lorryNumber || '').toLowerCase())
+                                            );
+                                            if (!exists) {
+                                                transitDetailsList.push({
+                                                    ...singleLtd,
+                                                    lorryNumber: deBase.physicalInspection?.lorryNumber || deBase.lorryNumber,
+                                                    sampleEntry: deBase,
+                                                    physicalInspection: deBase.physicalInspection
+                                                });
+                                            }
+                                        }
 
                                         if (transitDetailsList.length === 0) return null;
 
@@ -4556,9 +4583,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         const stripWt = (v: any) => {
                                             if (v === null || v === undefined || v === '') return '';
                                             const n = Number(v);
-                                            return isFinite(n) ? String(parseFloat(n.toFixed(3))) : String(v);
+                                            return isFinite(n) ? Math.round(n).toLocaleString('en-US') : String(v);
                                         };
-
                                         const thS: React.CSSProperties = { padding: isCompact ? '3px 4px' : '6px 8px', fontWeight: 800, fontSize: isCompact ? '9px' : '10.5px', textTransform: 'uppercase', letterSpacing: '0.3px', textAlign: 'center', border: '1px solid #000', whiteSpace: 'nowrap', color: '#fff' };
                                         const tdS: React.CSSProperties = { padding: isCompact ? '3px 4px' : '6px 8px', fontSize: isCompact ? '10px' : '12px', fontWeight: '600', textAlign: 'center', border: '1px solid #000', whiteSpace: 'nowrap' };
                                         const labelS: React.CSSProperties = { padding: isCompact ? '3px 4px' : '6px 8px', fontSize: isCompact ? '9.5px' : '11.5px', fontWeight: '700', textAlign: 'left', border: '1px solid #000', whiteSpace: 'nowrap' };
@@ -4585,12 +4611,14 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                         ? wbApproverNameVal.toUpperCase()
                                                         : (wbApproverRole ? wbApproverRole.toUpperCase() : (de.wbStatus === 'approved' ? 'Auto Approved' : '-'));
 
-                                                    const hasPartyWb = !!(de.partyWbName && (de.partyWbEnabled === 'yes' || de.partyGrossWeight || de.partyNetWeight || (de.sampleEntry?.partyWbName && de.sampleEntry?.grossWeight)));
+                                                    // Always show BOTH Mill WB and Party WB rows
+                                                    const hasPartyWb = true;
+                                                    const isLorryTransitDetailObj = !!de.sampleEntryId && index > 0;
                                                     const partyWbName = de.partyWbName || de.sampleEntry?.partyWbName || '-';
                                                     const partyWbNo = de.partyWbNo || de.sampleEntry?.partyWbNo || '-';
-                                                    const partyGross = de.partyGrossWeight ? `${stripWt(de.partyGrossWeight)} Kg` : (de.sampleEntry?.grossWeight ? `${stripWt(de.sampleEntry.grossWeight)} Kg` : '-');
-                                                    const partyTare = de.partyTareWeight ? `${stripWt(de.partyTareWeight)} Kg` : (de.sampleEntry?.tareWeight ? `${stripWt(de.sampleEntry.tareWeight)} Kg` : '-');
-                                                    const partyNet = de.partyNetWeight ? `${stripWt(de.partyNetWeight)} Kg` : (de.sampleEntry?.netWeight ? `${stripWt(de.sampleEntry.netWeight)} Kg` : '-');
+                                                    const partyGross = de.partyGrossWeight ? `${stripWt(de.partyGrossWeight)} Kg` : (isLorryTransitDetailObj ? '-' : (de.sampleEntry?.grossWeight ? `${stripWt(de.sampleEntry.grossWeight)} Kg` : '-'));
+                                                    const partyTare = de.partyTareWeight ? `${stripWt(de.partyTareWeight)} Kg` : (isLorryTransitDetailObj ? '-' : (de.sampleEntry?.tareWeight ? `${stripWt(de.sampleEntry.tareWeight)} Kg` : '-'));
+                                                    const partyNet = de.partyNetWeight ? `${stripWt(de.partyNetWeight)} Kg` : (isLorryTransitDetailObj ? '-' : (de.sampleEntry?.netWeight ? `${stripWt(de.sampleEntry.netWeight)} Kg` : '-'));
                                                     const partySute = (de.partySute != null && de.partySute !== '') ? stripWt(de.partySute) : '-';
                                                     const partySuteNet = de.partySuteNetWeight ? `${stripWt(de.partySuteNetWeight)} Kg` : '-';
                                                     const partyStatus = de.wbStatus && de.wbStatus !== 'none' ? toTitleCase(de.wbStatus) : '-';
@@ -4608,7 +4636,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                         return de.godown || '-';
                                                     })();
                                                     const placeStatus = de.placeStatus && de.placeStatus !== 'none' ? toTitleCase(de.placeStatus) : '-';
-                                                    const placeAddedBy = de.physicalInspection?.reportedBy?.fullName || de.physicalInspection?.reportedBy?.username || de.sampleEntry?.reportedBy?.fullName || de.sampleEntry?.reportedBy?.username || '-';
+                                                    const placeAddedBy = de.placeAddedByUser?.fullName || de.placeAddedByUser?.username || de.placeAddedBy?.fullName || de.placeAddedBy?.username || de.sampleEntry?.placeAddedByUser?.fullName || de.sampleEntry?.placeAddedByUser?.username || de.sampleEntry?.placeAddedBy?.fullName || de.sampleEntry?.placeAddedBy?.username || de.physicalInspection?.reportedBy?.fullName || de.physicalInspection?.reportedBy?.username || de.sampleEntry?.reportedBy?.fullName || de.sampleEntry?.reportedBy?.username || '-';
                                                     const placeApprover = de.placeApprover?.fullName || de.placeApprover?.username || de.placeApproverUser?.fullName || de.placeApproverUser?.username || '-';
                                                     const placeAddedAt = de.physicalInspection?.createdAt || de.createdAt || null;
                                                     const placeApprovedAt = de.placeApprovedAt || null;
@@ -4654,6 +4682,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                                 <td style={{ ...tdS, color: '#7c3aed' }}>{millAddedBy}</td>
                                                                                 <td style={{ ...tdS, color: '#7c3aed' }}>{wbApproverName}</td>
                                                                                 <td style={{ ...tdS, fontSize: '9.5px', color: '#64748b' }}>
+                                                                                    {de.wbDate ? <div>Date: {fmtDt(de.wbDate)}</div> : null}
                                                                                     {millAddedAt ? (
                                                                                         <>
                                                                                             <div>Added: {fmtDt(millAddedAt)}</div>
@@ -4676,6 +4705,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                                     <td style={{ ...tdS, color: '#7c3aed' }}>{partyAddedBy}</td>
                                                                                     <td style={{ ...tdS, color: '#7c3aed' }}>{wbApproverName}</td>
                                                                                     <td style={{ ...tdS, fontSize: '9.5px', color: '#64748b' }}>
+                                                                                        {de.partyWbDate || de.wbDate ? <div>Date: {fmtDt(de.partyWbDate || de.wbDate)}</div> : null}
                                                                                         {partyAddedAt ? (
                                                                                             <>
                                                                                                 <div>Added: {fmtDt(partyAddedAt)}</div>
@@ -4716,6 +4746,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                                     <td style={{ ...tdS, color: '#7c3aed' }}>{placeAddedBy}</td>
                                                                                     <td style={{ ...tdS, color: '#7c3aed' }}>{placeApprover}</td>
                                                                                     <td style={{ ...tdS, fontSize: '9.5px', color: '#64748b' }}>
+                                                                                        <div>Date: {fmtDt(de.placeDate)}</div>
                                                                                         <div>Added: {fmtDt(placeAddedAt)}</div>
                                                                                         {placeApprovedAt && <div>Approved: {fmtDt(placeApprovedAt)}</div>}
                                                                                     </td>
@@ -4797,16 +4828,16 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                         <td style={{ padding: '8px', textAlign: 'center', fontWeight: '700', border: '1px solid #cbd5e1' }}>{idx + 1}</td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1', whiteSpace: 'nowrap' }}>{insp.inspectionDate ? new Date(insp.inspectionDate).toLocaleDateString('en-GB') : '-'}</td>
                                                                         <td style={{ padding: '8px', fontWeight: '700', border: '1px solid #cbd5e1' }}>{insp.lorryNumber?.toUpperCase() || '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', fontWeight: '700', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `Rs ${rRate} / ${(rRateType || 'PD/WB').replace(/_/g, '/')}` : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `${rSute || 0} / ${rSuteUnit}` : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `${rMoisture}%` : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `Rs ${rHamali} / ${rHamaliUnit}` : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.brokerage ? `Rs ${patti.brokerage} / ${patti.brokerageUnit}` : '-') : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `Rs ${rLf} / ${rLfUnit}` : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.egbValue ? `${patti.egbValue} / ${patti.egbType}` : '-') : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.cdEnabled && patti.cdValue ? `${patti.cdValue} / ${patti.cdUnit}` : '-') : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.bankLoanEnabled && patti.bankLoanValue ? `Rs ${patti.bankLoanValue} / ${patti.bankLoanUnit}` : '-') : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{patti.paymentConditionValue ? `${patti.paymentConditionValue} ${patti.paymentConditionUnit}` : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', fontWeight: '700', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `Rs ${fmtNum(rRate)} / ${(rRateType || 'PD/WB').replace(/_/g, '/')}` : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `${fmtNum(rSute || 0)} / ${formatRateUnitLabel(rSuteUnit || 'per_ton')}` : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `${fmtNum(rMoisture)}%` : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `Rs ${fmtNum(rHamali)} / ${formatToggleUnitLabel(rHamaliUnit || 'per_bag')}` : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (Number(patti.brokerage) ? `Rs ${fmtNum(patti.brokerage)} / ${formatToggleUnitLabel(patti.brokerageUnit || 'per_bag')}` : '-') : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `Rs ${fmtNum(rLf)} / ${formatToggleUnitLabel(rLfUnit || 'per_bag')}` : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (Number(patti.egbValue) ? `${fmtNum(patti.egbValue)} / ${toTitleCase(patti.egbType || 'Mill')}` : '-') : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.cdEnabled && Number(patti.cdValue) ? `${fmtNum(patti.cdValue)} / ${formatToggleUnitLabel(patti.cdUnit || 'percentage')}` : '-') : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.bankLoanEnabled && Number(patti.bankLoanValue) ? `Rs ${fmtNum(patti.bankLoanValue)} / ${formatToggleUnitLabel(patti.bankLoanUnit || 'per_bag')}` : '-') : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{patti.paymentConditionValue ? `${fmtNum(patti.paymentConditionValue)} ${patti.paymentConditionUnit === 'month' ? 'Month' : 'Days'}` : '-'}</td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1', fontWeight: '700' }}>
                                                                             {isPendingRate ? <span style={{ color: '#d97706', background: '#fffbeb', padding: '2px 8px', borderRadius: '4px', border: '1px solid #fef3c7' }}>Pending</span> : tripRate ? <span style={{ color: '#16a34a', background: '#f0fdf4', padding: '2px 8px', borderRadius: '4px', border: '1px solid #bbf7d0' }}>Completed</span> : '-'}
                                                                         </td>
@@ -4835,7 +4866,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                     })()}
 
                                     {/* Patti Rate Linking Details - for Completed Lots Pending Patti */}
-                                    {!isStaff && completedLotsOrder && (() => {
+                                    {!isStaff && completedLotsOrder && !(detailEntry as any).isBandMalalBook && (() => {
                                         const rawInspections = inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections)
                                             ? inspectionsProgress.previousInspections
                                             : (Array.isArray((detailEntry as any).physicalInspections) ? (detailEntry as any).physicalInspections : []);
@@ -4959,7 +4990,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                             {activeRateInfo ? (patti.bankLoanEnabled && patti.bankLoanValue ? `Rs ${formatIndianCurrencyFlexible(patti.bankLoanValue)} / ${formatToggleUnitLabel(patti.bankLoanUnit || 'per_bag')}` : '-') : '-'}
                                                                         </td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
-                                                                            {patti.paymentConditionValue ? `${patti.paymentConditionValue} ${patti.paymentConditionUnit === 'month' ? 'Month' : 'Days'}` : '-'}
+                                                                            {patti.paymentConditionValue ? `${fmtNum(patti.paymentConditionValue)} ${patti.paymentConditionUnit === 'month' ? 'Month' : 'Days'}` : '-'}
                                                                         </td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1', fontWeight: '700' }}>
                                                                             {isPendingRate ? (
@@ -5029,16 +5060,16 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                         <td style={{ padding: '8px', textAlign: 'center', fontWeight: '700', border: '1px solid #cbd5e1' }}>{idx + 1}</td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1', whiteSpace: 'nowrap' }}>{insp.inspectionDate ? new Date(insp.inspectionDate).toLocaleDateString('en-GB') : '-'}</td>
                                                                         <td style={{ padding: '8px', fontWeight: '700', border: '1px solid #cbd5e1' }}>{insp.lorryNumber?.toUpperCase() || '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', fontWeight: '700', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `Rs ${rRate} / ${(rRateType || 'PD/WB').replace(/_/g, '/')}` : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `${rSute || 0} / ${rSuteUnit}` : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `${rMoisture}%` : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `Rs ${rHamali} / ${rHamaliUnit}` : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.brokerage ? `Rs ${patti.brokerage} / ${patti.brokerageUnit}` : '-') : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `Rs ${rLf} / ${rLfUnit}` : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.egbValue ? `${patti.egbValue} / ${patti.egbType}` : '-') : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.cdEnabled && patti.cdValue ? `${patti.cdValue} / ${patti.cdUnit}` : '-') : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.bankLoanEnabled && patti.bankLoanValue ? `Rs ${patti.bankLoanValue} / ${patti.bankLoanUnit}` : '-') : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{patti.paymentConditionValue ? `${patti.paymentConditionValue} ${patti.paymentConditionUnit}` : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', fontWeight: '700', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `Rs ${fmtNum(rRate)} / ${(rRateType || 'PD/WB').replace(/_/g, '/')}` : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `${fmtNum(rSute || 0)} / ${formatRateUnitLabel(rSuteUnit || 'per_ton')}` : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `${fmtNum(rMoisture)}%` : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `Rs ${fmtNum(rHamali)} / ${formatToggleUnitLabel(rHamaliUnit || 'per_bag')}` : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (Number(patti.brokerage) ? `Rs ${fmtNum(patti.brokerage)} / ${formatToggleUnitLabel(patti.brokerageUnit || 'per_bag')}` : '-') : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `Rs ${fmtNum(rLf)} / ${formatToggleUnitLabel(rLfUnit || 'per_bag')}` : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (Number(patti.egbValue) ? `${fmtNum(patti.egbValue)} / ${toTitleCase(patti.egbType || 'Mill')}` : '-') : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.cdEnabled && Number(patti.cdValue) ? `${fmtNum(patti.cdValue)} / ${formatToggleUnitLabel(patti.cdUnit || 'percentage')}` : '-') : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.bankLoanEnabled && Number(patti.bankLoanValue) ? `Rs ${fmtNum(patti.bankLoanValue)} / ${formatToggleUnitLabel(patti.bankLoanUnit || 'per_bag')}` : '-') : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{patti.paymentConditionValue ? `${fmtNum(patti.paymentConditionValue)} ${patti.paymentConditionUnit === 'month' ? 'Month' : 'Days'}` : '-'}</td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1', fontWeight: '700' }}>
                                                                             {isPendingRate ? <span style={{ color: '#d97706', background: '#fffbeb', padding: '2px 8px', borderRadius: '4px', border: '1px solid #fef3c7' }}>Pending</span> : tripRate ? <span style={{ color: '#16a34a', background: '#f0fdf4', padding: '2px 8px', borderRadius: '4px', border: '1px solid #bbf7d0' }}>Completed</span> : '-'}
                                                                         </td>
@@ -5421,7 +5452,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                             )}
                                                                         </td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
-                                                                            {patti.paymentConditionValue ? `${patti.paymentConditionValue} ${patti.paymentConditionUnit === 'month' ? 'Month' : 'Days'}` : '-'}
+                                                                            {patti.paymentConditionValue ? `${fmtNum(patti.paymentConditionValue)} ${patti.paymentConditionUnit === 'month' ? 'Month' : 'Days'}` : '-'}
                                                                         </td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1', fontWeight: '700' }}>
                                                                             {isPendingRate ? (

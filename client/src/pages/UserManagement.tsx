@@ -499,14 +499,14 @@ const EditModal: React.FC<EditModalProps> = ({ user, mode, onClose, onSave }) =>
                         <FormGroup>
                             <Label>Role *</Label>
                             <Select value={role} onChange={e => setRole(e.target.value)} disabled={isSupervisorEdit}>
-                                <option value="staff">Paddy Supervisor</option>
-                                <option value="manager">Manager</option>
+                                <option value="md">MD</option>
                                 <option value="ceo">CEO</option>
                                 <option value="admin">Admin</option>
-                                <option value="md">MD</option>
-                                <option value="inventory_staff">Inventory</option>
+                                <option value="manager">Manager</option>
                                 <option value="financial_account">Finance</option>
+                                <option value="inventory_staff">Inventory</option>
                                 <option value="inventory_head">Inventory Head</option>
+                                <option value="staff">Paddy Supervisor</option>
                             </Select>
                         </FormGroup>
                     )}

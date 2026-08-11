@@ -101,6 +101,11 @@ app.use(cors({
       return callback(null, true);
     }
 
+    // Always allow localhost/127.0.0.1 on any port for development ease
+    if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+      return callback(null, true);
+    }
+
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
@@ -1899,6 +1904,15 @@ const startServer = async () => {
         console.log('✅ Migration 151: MD role added to users enum');
       } catch (error) {
         console.log('⚠️ Migration 151 warning:', error.message);
+      }
+
+      // Migration 152: Add place_added_by to lorry_transit_details
+      try {
+        const addPlaceAddedBy = require('./migrations/152_add_place_added_by_to_lorry_transit_details');
+        await addPlaceAddedBy.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('✅ Migration 152: place_added_by column added to lorry_transit_details');
+      } catch (error) {
+        console.log('⚠️ Migration 152 warning:', error.message);
       }
 
     // Default warehouses removed - users should create their own warehouses

@@ -164,6 +164,11 @@ const LorryTransitDetail = sequelize.define('LorryTransitDetail', {
     allowNull: true,
     field: 'place_approved_at'
   },
+  placeAddedBy: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'place_added_by'
+  },
   placeRejectReason: {
     type: DataTypes.TEXT,
     allowNull: true,
@@ -217,6 +222,10 @@ LorryTransitDetail.associate = (models) => {
   LorryTransitDetail.belongsTo(models.User, {
     foreignKey: 'placeApprovedBy',
     as: 'placeApprover'
+  });
+  LorryTransitDetail.belongsTo(models.User, {
+    foreignKey: 'placeAddedBy',
+    as: 'placeAddedByUser'
   });
   LorryTransitDetail.belongsTo(models.User, {
     foreignKey: 'wbApprovedBy',

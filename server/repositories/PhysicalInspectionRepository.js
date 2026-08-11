@@ -92,9 +92,7 @@ class PhysicalInspectionRepository {
     const User = require('../models/User');
     const LotAllotment = require('../models/LotAllotment');
     
-    const inspections = await PhysicalInspection.findAll({
-      where: { sampleEntryId },
-      include: [
+    const include = [
         {
           model: User,
           as: 'reportedBy',
@@ -116,8 +114,41 @@ class PhysicalInspectionRepository {
               attributes: ['id', 'username', 'fullName']
             }
           ]
-        }
-      ],
+        },
+      ];
+
+    // Include WB + Godown details (with user names) so the sample-entry detail modal
+    // can show who added/approved weighbridge and godown for each trip.
+    // Only included when requested (inspection-progress) to keep the create-path query light.
+    if (options.includeLorryTransitDetail) {
+      include.push({
+        model: require('../models/LorryTransitDetail'),
+        as: 'lorryTransitDetail',
+        required: false,
+        include: [
+          { model: require('../models/WeightBridge'), as: 'millWeightBridge', required: false, attributes: ['id', 'name', 'location'] },
+          { model: require('../models/Warehouse'), as: 'placeWarehouse', required: false, attributes: ['id', 'name', 'code'] },
+          { model: require('../models/Kunchinittu'), as: 'placeKunchinittuData', required: false, attributes: ['id', 'name', 'code'] },
+          { model: User, as: 'wbAddedByUser', required: false, attributes: ['id', 'username', 'fullName'] },
+          { model: User, as: 'wbApprover', required: false, attributes: ['id', 'username', 'fullName', 'role'] },
+          { model: User, as: 'placeAddedByUser', required: false, attributes: ['id', 'username', 'fullName'] },
+          { model: User, as: 'placeApprover', required: false, attributes: ['id', 'username', 'fullName', 'role'] },
+          {
+            model: require('../models/InventoryQualityParameter'),
+            as: 'inventoryQualityParameters',
+            required: false,
+            include: [
+              { model: User, as: 'approver', attributes: ['id', 'username', 'fullName', 'role'] },
+              { model: User, as: 'reporter', attributes: ['id', 'username', 'fullName', 'role'] }
+            ]
+          }
+        ]
+      });
+    }
+
+    const inspections = await PhysicalInspection.findAll({
+      where: { sampleEntryId },
+      include,
       order: [
         ['inspectionDate', 'ASC'],
         ['id', 'ASC']
