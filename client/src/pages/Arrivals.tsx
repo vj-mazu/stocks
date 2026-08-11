@@ -4345,7 +4345,7 @@ const Arrivals: React.FC = () => {
           const transitDetail = isPlaceholder ? null : inspection?.lorryTransitDetail;
           const placeStatus = transitDetail?.placeStatus || 'none';
           const wbStatus = transitDetail?.wbStatus || 'none';
-          const godownName = isPlaceholder ? '-' : (transitDetail?.placeWarehouse?.name || '-');
+          const godownName = isPlaceholder ? '-' : (transitDetail?.placeKunchinittuData?.name || transitDetail?.placeWarehouse?.name || '-');
           const suteNetWt = isPlaceholder ? '-' : (transitDetail ? fmtWt(parseFloat(transitDetail.grossWeight || 0) - parseFloat(transitDetail.tareWeight || 0) - (parseFloat(transitDetail.sute || 0) * (inspection?.bags || inspection?.bagsLoaded || 1))) : '-');
 
           // WB action variables
@@ -4585,7 +4585,7 @@ const Arrivals: React.FC = () => {
           } else if (entry.placeType === 'kunchinittu') {
             const wh = entry.placeWarehouse?.name || entry.toWarehouse?.name || '';
             const kc = entry.placeKunchinittuData?.name || entry.toKunchinittu?.name || '';
-            placeDisplay = wh ? (wh + (kc ? ' (' + kc + ')' : '')) : (kc || '-');
+            placeDisplay = kc || wh || '-';
           }
 
           const isInvHead = (user as any)?.role === 'inventory_head' || ((user as any)?.role === 'inventory_staff' && (user as any)?.subRole === 'head');
@@ -7052,8 +7052,7 @@ const Arrivals: React.FC = () => {
                                     {(() => {
                                       if (transitDetail.placeType === 'kunchinittu') {
                                         const kc = transitDetail.placeKunchinittuData?.name || '';
-                                        const wh = transitDetail.placeWarehouse?.name || '';
-                                        return wh ? `${wh} (${kc})` : (kc || '-');
+                                        return kc || '-';
                                       }
                                       return transitDetail.placeWarehouse?.name || transitDetail.warehouse?.name || (transitDetail.outturn ? `${transitDetail.outturn.code} (${transitDetail.outturn.allottedVariety})` : '-') || '-';
                                     })()}
@@ -8449,20 +8448,10 @@ const Arrivals: React.FC = () => {
 
 
                     } else if (entry.placeType === 'kunchinittu') {
-
-
-
                       const kunchinittuId = entry.placeKunchinittuId || entry.placeKunchinittuData?.id || entry.toKunchinittu?.id;
                       const kcObj = kunchinittus.find(k => String(k.id) === String(kunchinittuId));
-                      const warehouseId = entry.placeWarehouseId || entry.placeWarehouse?.id || entry.toWarehouse?.id || kcObj?.warehouseId;
-                      const whObj = warehouses.find(w => String(w.id) === String(warehouseId));
-                      
-                      const wh = whObj?.name || entry.placeWarehouse?.name || entry.toWarehouse?.name || '';
                       const kc = kcObj?.name || entry.placeKunchinittuData?.name || entry.toKunchinittu?.name || '';
-                      placeDisplay = wh ? (wh + (kc ? ' (' + kc + ')' : '')) : (kc || '-');
-
-
-
+                      placeDisplay = kc || '-';
                     }
 
 
@@ -14042,7 +14031,7 @@ const Arrivals: React.FC = () => {
                   </div>
                   <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px' }}>
                     <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>Godown Type</span><strong>{transitDetail?.placeType ? transitDetail.placeType.toUpperCase() : '-'}</strong></div>
-                    <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>Allotted Location / Outturn</span><strong>{transitDetail?.placeWarehouse?.name || transitDetail?.placeKunchinittuData?.name || (transitDetail?.outturn ? `${transitDetail.outturn.code} (${transitDetail.outturn.allottedVariety})` : null) || '-'}</strong></div>
+                    <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>Allotted Location / Outturn</span><strong>{transitDetail?.placeKunchinittuData?.name || transitDetail?.placeWarehouse?.name || (transitDetail?.outturn ? `${transitDetail.outturn.code} (${transitDetail.outturn.allottedVariety})` : null) || '-'}</strong></div>
                     <div><span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold' }}>Godown Date</span>{transitDetail?.placeDate ? new Date(transitDetail.placeDate).toLocaleDateString('en-GB') : '-'}</div>
                     <div>
                       <span style={{ color: '#64748b', display: 'block', fontSize: '9px', fontWeight: 'bold', marginBottom: '2px' }}>Godown Status</span>
