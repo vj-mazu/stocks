@@ -4612,7 +4612,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                         : (wbApproverRole ? wbApproverRole.toUpperCase() : (de.wbStatus === 'approved' ? 'Auto Approved' : '-'));
 
                                                     // Always show BOTH Mill WB and Party WB rows
-                                                    const hasPartyWb = true;
+                                                    const hasPartyWb = de.partyWbEnabled === 'Y' || de.sampleEntry?.partyWbEnabled === 'Y';
                                                     const partyWbName = de.partyWbName || de.sampleEntry?.partyWbName || '-';
                                                     // Party WB gate weights live on the SampleEntry record (the WB save route writes them
                                                     // there). For transit-detail rows (index > 0) the sample entry is nested one level
