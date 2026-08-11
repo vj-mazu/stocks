@@ -4537,7 +4537,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             if (insp && insp.lorryTransitDetail) {
                                                 const exists = transitDetailsList.some(item => 
                                                     String(item.transitDetailId || item.id) === String(insp.lorryTransitDetail.transitDetailId || insp.lorryTransitDetail.id) ||
-                                                    (item.sampleEntryId && String(item.sampleEntryId) === String(insp.lorryTransitDetail.sampleEntryId) && String(item.lorryNumber || '').toLowerCase() === String(insp.lorryNumber || deBase.lorryNumber || '').toLowerCase())
+                                                    String(item.sampleEntryId || item.id) === String(insp.lorryTransitDetail.sampleEntryId || insp.lorryTransitDetail.id)
                                                 );
                                                 if (!exists) {
                                                     transitDetailsList.push({
@@ -4555,7 +4555,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         if (singleLtd) {
                                             const exists = transitDetailsList.some(item => 
                                                 String(item.transitDetailId || item.id) === String(singleLtd.transitDetailId || singleLtd.id) ||
-                                                (item.sampleEntryId && String(item.sampleEntryId) === String(singleLtd.sampleEntryId) && String(item.lorryNumber || '').toLowerCase() === String(deBase.physicalInspection?.lorryNumber || deBase.lorryNumber || '').toLowerCase())
+                                                String(item.sampleEntryId || item.id) === String(singleLtd.sampleEntryId || singleLtd.id)
                                             );
                                             if (!exists) {
                                                 transitDetailsList.push({
@@ -4613,12 +4613,15 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
 
                                                     // Always show BOTH Mill WB and Party WB rows
                                                     const hasPartyWb = true;
-                                                    const isLorryTransitDetailObj = !!de.sampleEntryId && index > 0;
                                                     const partyWbName = de.partyWbName || de.sampleEntry?.partyWbName || '-';
+                                                    // Party WB gate weights live on the SampleEntry record (the WB save route writes them
+                                                    // there). For transit-detail rows (index > 0) the sample entry is nested one level
+                                                    // deeper, so resolve it before falling back — otherwise Party WB weights show '-'.
+                                                    const partySe = de.sampleEntry?.sampleEntry || de.sampleEntry;
                                                     const partyWbNo = de.partyWbNo || de.sampleEntry?.partyWbNo || '-';
-                                                    const partyGross = de.partyGrossWeight ? `${stripWt(de.partyGrossWeight)} Kg` : (isLorryTransitDetailObj ? '-' : (de.sampleEntry?.grossWeight ? `${stripWt(de.sampleEntry.grossWeight)} Kg` : '-'));
-                                                    const partyTare = de.partyTareWeight ? `${stripWt(de.partyTareWeight)} Kg` : (isLorryTransitDetailObj ? '-' : (de.sampleEntry?.tareWeight ? `${stripWt(de.sampleEntry.tareWeight)} Kg` : '-'));
-                                                    const partyNet = de.partyNetWeight ? `${stripWt(de.partyNetWeight)} Kg` : (isLorryTransitDetailObj ? '-' : (de.sampleEntry?.netWeight ? `${stripWt(de.sampleEntry.netWeight)} Kg` : '-'));
+                                                    const partyGross = de.partyGrossWeight ? `${stripWt(de.partyGrossWeight)} Kg` : (partySe?.grossWeight ? `${stripWt(partySe.grossWeight)} Kg` : '-');
+                                                    const partyTare = de.partyTareWeight ? `${stripWt(de.partyTareWeight)} Kg` : (partySe?.tareWeight ? `${stripWt(partySe.tareWeight)} Kg` : '-');
+                                                    const partyNet = de.partyNetWeight ? `${stripWt(de.partyNetWeight)} Kg` : (partySe?.netWeight ? `${stripWt(partySe.netWeight)} Kg` : '-');
                                                     const partySute = (de.partySute != null && de.partySute !== '') ? stripWt(de.partySute) : '-';
                                                     const partySuteNet = de.partySuteNetWeight ? `${stripWt(de.partySuteNetWeight)} Kg` : '-';
                                                     const partyStatus = de.wbStatus && de.wbStatus !== 'none' ? toTitleCase(de.wbStatus) : '-';
