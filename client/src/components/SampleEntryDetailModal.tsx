@@ -301,7 +301,11 @@ const formatMeasurementText = (value: any, suffix = '', digits = 2) => {
 };
 const formatUnitValueText = (value: any, unit?: string, digits = 2, prefix = '') => {
     const formatted = formatFlexibleValue(value, digits);
-    return formatted === '-' ? '-' : `${prefix}${formatted}${unit ? ` / ${unit}` : ''}`;
+    if (formatted === '-') return '-';
+    if (formatted === '0' || Number(value) === 0) {
+        return unit || 'Mill';
+    }
+    return `${prefix}${formatted}${unit ? ` / ${unit}` : ''}`;
 };
 const formatPaymentText = (value: any, unit?: string) => {
     const formatted = formatFlexibleValue(value, 2);
@@ -4837,7 +4841,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `Rs ${fmtNum(rHamali)} / ${formatToggleUnitLabel(rHamaliUnit || 'per_bag')}` : '-'}</td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (Number(patti.brokerage) ? `Rs ${fmtNum(patti.brokerage)} / ${formatToggleUnitLabel(patti.brokerageUnit || 'per_bag')}` : '-') : '-'}</td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `Rs ${fmtNum(rLf)} / ${formatToggleUnitLabel(rLfUnit || 'per_bag')}` : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (Number(patti.egbValue) ? `${fmtNum(patti.egbValue)} / ${toTitleCase(patti.egbType || 'Mill')}` : '-') : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? formatUnitValueText(activeRateInfo.egbValue ?? patti.egbValue ?? 0, toTitleCase(activeRateInfo.egbType || patti.egbType || 'Mill')) : '-'}</td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.cdEnabled && Number(patti.cdValue) ? `${fmtNum(patti.cdValue)} / ${formatToggleUnitLabel(patti.cdUnit || 'percentage')}` : '-') : '-'}</td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.bankLoanEnabled && Number(patti.bankLoanValue) ? `Rs ${fmtNum(patti.bankLoanValue)} / ${formatToggleUnitLabel(patti.bankLoanUnit || 'per_bag')}` : '-') : '-'}</td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{patti.paymentConditionValue ? `${fmtNum(patti.paymentConditionValue)} ${patti.paymentConditionUnit === 'month' ? 'Month' : 'Days'}` : '-'}</td>
@@ -4984,7 +4988,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                             {activeRateInfo ? `Rs ${formatFlexibleValue(rLf)} / ${formatToggleUnitLabel(rLfUnit || 'per_bag')}` : '-'}
                                                                         </td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
-                                                                            {activeRateInfo ? (patti.egbValue ? `${formatFlexibleValue(patti.egbValue)} / ${toTitleCase(patti.egbType || 'Mill')}` : '-') : '-'}
+                                                                            {activeRateInfo ? formatUnitValueText(activeRateInfo.egbValue ?? patti.egbValue ?? 0, toTitleCase(activeRateInfo.egbType || patti.egbType || 'Mill')) : '-'}
                                                                         </td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
                                                                             {activeRateInfo ? (patti.cdEnabled && patti.cdValue ? `${formatFlexibleValue(patti.cdValue)} / ${formatToggleUnitLabel(patti.cdUnit || 'percentage')}` : '-') : '-'}
@@ -5069,7 +5073,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `Rs ${fmtNum(rHamali)} / ${formatToggleUnitLabel(rHamaliUnit || 'per_bag')}` : '-'}</td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (Number(patti.brokerage) ? `Rs ${fmtNum(patti.brokerage)} / ${formatToggleUnitLabel(patti.brokerageUnit || 'per_bag')}` : '-') : '-'}</td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? `Rs ${fmtNum(rLf)} / ${formatToggleUnitLabel(rLfUnit || 'per_bag')}` : '-'}</td>
-                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (Number(patti.egbValue) ? `${fmtNum(patti.egbValue)} / ${toTitleCase(patti.egbType || 'Mill')}` : '-') : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? formatUnitValueText(activeRateInfo.egbValue ?? patti.egbValue ?? 0, toTitleCase(activeRateInfo.egbType || patti.egbType || 'Mill')) : '-'}</td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.cdEnabled && Number(patti.cdValue) ? `${fmtNum(patti.cdValue)} / ${formatToggleUnitLabel(patti.cdUnit || 'percentage')}` : '-') : '-'}</td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.bankLoanEnabled && Number(patti.bankLoanValue) ? `Rs ${fmtNum(patti.bankLoanValue)} / ${formatToggleUnitLabel(patti.bankLoanUnit || 'per_bag')}` : '-') : '-'}</td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{patti.paymentConditionValue ? `${fmtNum(patti.paymentConditionValue)} ${patti.paymentConditionUnit === 'month' ? 'Month' : 'Days'}` : '-'}</td>
