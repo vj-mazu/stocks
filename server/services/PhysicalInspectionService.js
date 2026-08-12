@@ -110,8 +110,12 @@ class PhysicalInspectionService {
       // MULTI-STAGE FLOW
       const stage = inspectionData.stage.toLowerCase();
       const isReadyLorry = entry.entryType === 'DIRECT_LOADED_VEHICLE';
+      // Ready Lorry (DIRECT_LOADED_VEHICLE) may use the standard sampling flow
+      // (lot_avg → half_lorry → nit_avg → full_avg → balanced_lot) as well as
+      // the ready-lorry-specific stages. This lets the Physical Inspection page
+      // save the first step (lot_avg) without 'Invalid sampling stage specified'.
       const validStages = isReadyLorry
-        ? ['bag_wise_report', 'full_avg', 'return_bags_report']
+        ? ['bag_wise_report', 'return_bags_report', 'lot_avg', 'half_lorry', 'nit_avg', 'full_avg', 'balanced_lot']
         : ['lot_avg', 'half_lorry', 'nit_avg', 'full_avg', 'balanced_lot'];
       if (!validStages.includes(stage)) {
         throw new Error('Invalid sampling stage specified');
