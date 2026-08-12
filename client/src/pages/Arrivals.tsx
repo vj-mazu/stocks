@@ -6366,9 +6366,8 @@ const Arrivals: React.FC = () => {
 
 
 
-        {/* Band Mall Book tab hidden for Mill/Location staff — they can access ONLY In Transit */}
-        {!(user && (user as any).role === 'staff' && (user as any).staffType === 'location') && (
-          <button
+        {/* Band Mall Book tab — visible to all roles including Location staff */}
+        <button
 
 
 
@@ -6421,7 +6420,6 @@ const Arrivals: React.FC = () => {
 
 
           </button>
-        )}
 
 
 
