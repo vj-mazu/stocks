@@ -2201,7 +2201,15 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
 
         Object.keys(groups).forEach((lorry) => {
             const groupParams = groups[lorry];
-            const firstParam = groupParams[0];
+            // Sort within each lorry so the "Lot Avg (before unloading)" row appears
+            // before the "Full Lorry Avg" row.
+            const sortedGroupParams = [...groupParams].sort((a, b) => {
+                const rankA = a?.type === 'lot_avg' ? 0 : 1;
+                const rankB = b?.type === 'lot_avg' ? 0 : 1;
+                if (rankA !== rankB) return rankA - rankB;
+                return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+            });
+            const firstParam = sortedGroupParams[0];
             const bags = firstParam.bags || detailEntry.bags || 0;
 
             // Prepend a load header row similar to the first table
@@ -2211,7 +2219,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             });
             loadIdx++;
 
-            groupParams.forEach((param: any) => {
+            sortedGroupParams.forEach((param: any) => {
                 const label = param.type === 'lot_avg' ? 'Before Unloading Lot Avg' : 'Full Lorry Avg (Gattu)';
                 const reportedAt = param.createdAt;
                 
@@ -3048,7 +3056,13 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 type: 'header',
                 content: 'Mill - Avg Quality Sampling'
             });
-            paramsList.forEach((param: any) => {
+            // Sort so the "Lot Avg (before unloading)" row appears before the Full Lorry Avg row
+            [...paramsList].sort((a, b) => {
+                const rankA = a?.type === 'lot_avg' ? 0 : 1;
+                const rankB = b?.type === 'lot_avg' ? 0 : 1;
+                if (rankA !== rankB) return rankA - rankB;
+                return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+            }).forEach((param: any) => {
                 const label = param.type === 'lot_avg' ? 'Before Unloading Lot Avg' : 'Gutti (Full Lorry Avg)';
                 const reportedAt = param.createdAt;
                 

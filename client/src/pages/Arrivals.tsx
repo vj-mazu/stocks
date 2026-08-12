@@ -5348,9 +5348,10 @@ const Arrivals: React.FC = () => {
     const primary = validSute(insp.linkedPattiRate)
       ?? validSute(entry?.physicalInspection?.linkedPattiRate)
       ?? validSute(entry?.linkedPattiRate);
-    const offering = entry?.offering || entry?.sampleEntry?.offering || {};
-    const finalRate = offering.finalSute ?? offering.finalSute2 ?? offering.sute;
-    return toStr(primary ?? finalRate);
+    // Only auto-fill Sute when THIS lorry is patti-linked (has a linkedPattiRate).
+    // If the lorry is not patti-linked, leave Sute empty so the user can type it
+    // manually - do NOT fall back to the lot-level offering sute.
+    return toStr(primary ?? '');
   };
 
   // Number of bags used to compute Sute Net Weight = Net Weight - (Sute x Bags). Defaults to 1 when unknown.
@@ -14476,7 +14477,8 @@ const Arrivals: React.FC = () => {
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '6px' }}>Sute (Deduction)</label>
                   <input type="number" value={wbSute} onChange={(e) => setWbSute(e.target.value)} placeholder="Sute"
-                    style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box' }} />
+                    readOnly={!!getAutoSuteValue(selectedLorryEntries?.[0], selectedLorryInspection)}
+                    style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box', background: getAutoSuteValue(selectedLorryEntries?.[0], selectedLorryInspection) ? '#e2e8f0' : 'white' }} />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '6px' }}>Shoot Kg (Sute × Bags)</label>
@@ -14562,7 +14564,8 @@ const Arrivals: React.FC = () => {
                   <div>
                     <label style={{ display: 'block', fontSize: '11px', color: '#854d0e', fontWeight: 'bold', marginBottom: '6px' }}>Sute (Deduction)</label>
                     <input type="number" value={partySute} onChange={(e) => setPartySute(e.target.value)} placeholder="Sute"
-                      style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #fde047', borderRadius: '8px', boxSizing: 'border-box' }} />
+                      readOnly={!!getAutoSuteValue(selectedLorryEntries?.[0], selectedLorryInspection)}
+                      style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #fde047', borderRadius: '8px', boxSizing: 'border-box', background: getAutoSuteValue(selectedLorryEntries?.[0], selectedLorryInspection) ? '#fef9c3' : 'white' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '11px', color: '#854d0e', fontWeight: 'bold', marginBottom: '6px' }}>Shoot Kg (Sute × Bags)</label>
