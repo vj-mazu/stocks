@@ -87,7 +87,7 @@ const NavLinks = styled.div<{ $mobileOpen?: boolean }>`
   align-items: center;
   flex: 1;
   /* Links flow right after the logo (no big empty middle gap on tablets/desktop).
-     UserInfo keeps `margin-left: auto`, so user + logout stay pinned to the right. */
+     UserInfo keeps 'margin-left: auto', so user + logout stay pinned to the right. */
   justify-content: flex-start;
   flex-wrap: wrap;
   row-gap: 0.35rem;
