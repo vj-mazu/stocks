@@ -6269,6 +6269,14 @@ const Arrivals: React.FC = () => {
             display: none !important;
           }
         }
+        /* Tablet only: stretch the Arrivals sub-tabs evenly so staff (who see 2 tabs) have no gaps */
+        @media (min-width: 768px) and (max-width: 1024px) {
+          .arrivals-tab-btn {
+            flex: 1 1 0%;
+            text-align: center;
+            white-space: nowrap;
+          }
+        }
       `}</style>
       <Title>📝 Arrivals</Title>
 
@@ -6294,10 +6302,6 @@ const Arrivals: React.FC = () => {
 
 
 
-        flexWrap: 'wrap',
-
-
-
         marginBottom: '20px',
 
 
@@ -6318,6 +6322,10 @@ const Arrivals: React.FC = () => {
 
 
 
+          className="arrivals-tab-btn"
+
+
+
           onClick={() => setArrivalsActiveSubTab('transit')}
 
 
@@ -6335,18 +6343,6 @@ const Arrivals: React.FC = () => {
 
 
             borderRadius: '4px',
-
-
-
-            flex: '1 1 150px',
-
-
-
-            textAlign: 'center',
-
-
-
-            whiteSpace: 'nowrap',
 
 
 
@@ -6387,6 +6383,10 @@ const Arrivals: React.FC = () => {
 
 
 
+            className="arrivals-tab-btn"
+
+
+
             onClick={() => setArrivalsActiveSubTab('bandmalal')}
 
 
@@ -6404,18 +6404,6 @@ const Arrivals: React.FC = () => {
 
 
               borderRadius: '4px',
-
-
-
-              flex: '1 1 150px',
-
-
-
-              textAlign: 'center',
-
-
-
-              whiteSpace: 'nowrap',
 
 
 
@@ -6459,6 +6447,10 @@ const Arrivals: React.FC = () => {
 
 
 
+            className="arrivals-tab-btn"
+
+
+
             onClick={() => setArrivalsActiveSubTab('entry')}
 
 
@@ -6476,18 +6468,6 @@ const Arrivals: React.FC = () => {
 
 
               borderRadius: '4px',
-
-
-
-              flex: '1 1 150px',
-
-
-
-              textAlign: 'center',
-
-
-
-              whiteSpace: 'nowrap',
 
 
 
