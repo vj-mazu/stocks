@@ -6294,6 +6294,10 @@ const Arrivals: React.FC = () => {
 
 
 
+        flexWrap: 'wrap',
+
+
+
         marginBottom: '20px',
 
 
@@ -6331,6 +6335,18 @@ const Arrivals: React.FC = () => {
 
 
             borderRadius: '4px',
+
+
+
+            flex: '1 1 150px',
+
+
+
+            textAlign: 'center',
+
+
+
+            whiteSpace: 'nowrap',
 
 
 
@@ -6391,6 +6407,18 @@ const Arrivals: React.FC = () => {
 
 
 
+              flex: '1 1 150px',
+
+
+
+              textAlign: 'center',
+
+
+
+              whiteSpace: 'nowrap',
+
+
+
               background: arrivalsActiveSubTab === 'bandmalal' ? '#10b981' : '#f1f5f9',
 
 
@@ -6448,6 +6476,18 @@ const Arrivals: React.FC = () => {
 
 
               borderRadius: '4px',
+
+
+
+              flex: '1 1 150px',
+
+
+
+              textAlign: 'center',
+
+
+
+              whiteSpace: 'nowrap',
 
 
 
