@@ -114,6 +114,11 @@ interface FinalPriceFormData {
   paymentConditionEnabled: boolean;
   paymentConditionValue: string;
   paymentConditionUnit: 'days' | 'month';
+  marketPrice: boolean;
+  marketPriceValue: string;
+  marketPriceUnit: 'per_quintal' | 'per_kg' | 'lumps';
+  checkPost: boolean;
+  checkPostValue: string;
   finalPrice: string;
   remarks: string;
 }
@@ -361,6 +366,13 @@ const formatChargeUnitLabel = (value?: string) => value === 'per_quintal'
       : value === 'per_bag'
         ? 'Per Bag'
         : 'Per Bag';
+const marketPriceUnitLabel = (value?: string) => value === 'per_kg'
+  ? ' /Kg'
+  : value === 'per_quintal'
+    ? ' /Qtl'
+    : value === 'lumps'
+      ? ' (Lumps)'
+      : '';
 const sanitizeMoistureInput = (value: string) => {
   const cleaned = value.replace(/[^0-9.]/g, '');
   const [integerPartRaw, ...rest] = cleaned.split('.');
@@ -400,7 +412,16 @@ const toOptionalInputValue = (value: any) => {
   if (value === null || value === undefined || value === '') return '';
   const num = Number(value);
   if (Number.isFinite(num) && num === 0) return '';
+  if (Number.isFinite(num)) return num.toString();
   return String(value);
+};
+const cleanPrefillNumber = (value: any) => {
+  // Convert DECIMAL values (may arrive as strings like "250.00") into plain numbers,
+  // stripping trailing zeros so edit inputs show 250 instead of 250.00
+  if (value === null || value === undefined || value === '') return '';
+  const num = Number(value);
+  if (!Number.isFinite(num)) return String(value).trim();
+  return num.toString();
 };
 const parseOptionalNumber = (value: string) => value === '' ? null : parseFloat(value);
 const cookingStatusLabel = (status?: string) => {
@@ -486,6 +507,11 @@ const DEFAULT_FINAL_DATA: FinalPriceFormData = {
   paymentConditionEnabled: true,
   paymentConditionValue: '15',
   paymentConditionUnit: 'days',
+  marketPrice: false,
+  marketPriceValue: '',
+  marketPriceUnit: 'lumps',
+  checkPost: false,
+  checkPostValue: '',
   finalPrice: '',
   remarks: ''
 };
@@ -770,7 +796,7 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
   };
   const isManager = user?.role === 'manager';
   const isRiceMode = entryType === 'RICE_SAMPLE';
-  const tableMinWidth = isRiceMode ? '100%' : '1800px';
+  const tableMinWidth = isRiceMode ? '100%' : '2000px';
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [offerVersions, setOfferVersions] = useState<OfferVersionData[]>([]);
   const [currentOfferKey, setCurrentOfferKey] = useState<OfferSlotKey>('offer1');
@@ -1157,26 +1183,26 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
         const selectedOffer = latestOffer || activeOffer;
         setActiveOfferKey(selectedOffer?.key || activeOffer?.key || 'offer1');
         setFinalData({
-          finalSute: d.finalSute?.toString() || selectedOffer.sute?.toString() || d.sute?.toString() || '',
+          finalSute: cleanPrefillNumber(d.finalSute) || cleanPrefillNumber(selectedOffer.sute) || cleanPrefillNumber(d.sute) || '',
           finalSuteUnit: d.finalSuteUnit || selectedOffer.suteUnit || d.suteUnit || 'per_ton',
-          finalBaseRate: d.finalBaseRate?.toString() || selectedOffer.offerBaseRateValue?.toString() || d.offerBaseRateValue?.toString() || '',
+          finalBaseRate: cleanPrefillNumber(d.finalBaseRate) || cleanPrefillNumber(selectedOffer.offerBaseRateValue) || cleanPrefillNumber(d.offerBaseRateValue) || '',
           baseRateType: selectedOffer.baseRateType || d.baseRateType || 'PD_WB',
-          baseRateUnit: selectedOffer.baseRateUnit || d.baseRateUnit || 'per_bag',
+          baseRateUnit: d.baseRateUnit || selectedOffer.baseRateUnit || 'per_bag',
           suteEnabled: selectedOffer.suteEnabled !== false,
           moistureEnabled: selectedOffer.moistureEnabled !== false,
           hamaliEnabled: selectedOffer.hamaliEnabled || false,
           brokerageEnabled: selectedOffer.brokerageEnabled || false,
           lfEnabled: selectedOffer.lfEnabled || false,
-          moistureValue: selectedOffer.moistureValue?.toString() || '',
+          moistureValue: cleanPrefillNumber(selectedOffer.moistureValue) || '',
           hamali: toOptionalInputValue(d.hamali ?? selectedOffer.hamali ?? selectedOffer.hamaliValue),
           hamaliUnit: selectedOffer.hamaliUnit || selectedOffer.baseRateUnit || 'per_bag',
           brokerage: toOptionalInputValue(d.brokerage ?? selectedOffer.brokerage ?? selectedOffer.brokerageValue),
           brokerageUnit: selectedOffer.brokerageUnit || 'per_quintal',
           lf: toOptionalInputValue(d.lf ?? selectedOffer.lf ?? selectedOffer.lfValue),
           lfUnit: selectedOffer.lfUnit || selectedOffer.baseRateUnit || 'per_bag',
-          egbValue: selectedOffer.egbValue?.toString() || d.egbValue?.toString() || '',
+          egbValue: cleanPrefillNumber(selectedOffer.egbValue) || cleanPrefillNumber(d.egbValue) || '',
           egbType: (selectedOffer.egbType as 'mill' | 'purchase') || ((selectedOffer.egbValue && parseFloat(selectedOffer.egbValue.toString()) > 0) ? 'purchase' : 'mill'),
-          customDivisor: selectedOffer.customDivisor?.toString() || d.customDivisor?.toString() || '',
+          customDivisor: cleanPrefillNumber(selectedOffer.customDivisor) || cleanPrefillNumber(d.customDivisor) || '',
           cdEnabled: selectedOffer.cdEnabled || false,
           cdValue: toOptionalInputValue(selectedOffer.cdValue),
           cdUnit: selectedOffer.cdUnit || 'percentage',
@@ -1188,7 +1214,12 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
             : true,
           paymentConditionValue: selectedOffer.paymentConditionValue?.toString() || d.paymentConditionValue?.toString() || '15',
           paymentConditionUnit: selectedOffer.paymentConditionUnit || d.paymentConditionUnit || 'days',
-          finalPrice: d.finalPrice?.toString() || entry.finalPrice?.toString() || '',
+          marketPrice: !!d.marketPrice,
+          marketPriceValue: d.marketPriceValue != null ? cleanPrefillNumber(d.marketPriceValue) : '',
+          marketPriceUnit: (d.marketPriceUnit as 'per_quintal' | 'per_kg' | 'lumps') || 'lumps',
+          checkPost: !!d.checkPost,
+          checkPostValue: d.checkPostValue || '',
+          finalPrice: cleanPrefillNumber(d.finalPrice) || cleanPrefillNumber(entry.finalPrice) || '',
           remarks: d.finalRemarks || ''
         });
       }
@@ -1225,9 +1256,9 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
     setActiveOfferKey(slotKey);
     setFinalData({
       ...finalData,
-      finalSute: (slotOffer.sute ?? '').toString(),
+      finalSute: cleanPrefillNumber(slotOffer.sute) || '',
       finalSuteUnit: slotOffer.suteUnit || 'per_ton',
-      finalBaseRate: (slotOffer.offerBaseRateValue ?? '').toString(),
+      finalBaseRate: cleanPrefillNumber(slotOffer.offerBaseRateValue) || '',
       baseRateType: slotOffer.baseRateType || 'PD_WB',
       baseRateUnit: slotOffer.baseRateUnit || 'per_bag',
       suteEnabled: slotOffer.sute != null && Number(slotOffer.sute) !== 0,
@@ -1235,16 +1266,16 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
       hamaliEnabled: !!slotOffer.hamaliEnabled,
       brokerageEnabled: !!slotOffer.brokerageEnabled,
       lfEnabled: !!slotOffer.lfEnabled,
-      moistureValue: (slotOffer.moistureValue ?? '').toString(),
+      moistureValue: cleanPrefillNumber(slotOffer.moistureValue) || '',
       hamali: toOptionalInputValue(slotOffer.hamali),
       hamaliUnit: slotOffer.hamaliUnit || 'per_bag',
       brokerage: toOptionalInputValue(slotOffer.brokerage),
       brokerageUnit: slotOffer.brokerageUnit || 'per_quintal',
       lf: toOptionalInputValue(slotOffer.lf),
       lfUnit: slotOffer.lfUnit || 'per_bag',
-      egbValue: slotOffer.egbValue?.toString() || '0',
+      egbValue: cleanPrefillNumber(slotOffer.egbValue) || '0',
       egbType: (slotOffer.egbType as 'mill' | 'purchase') || 'mill',
-      customDivisor: (slotOffer.customDivisor ?? '').toString(),
+      customDivisor: cleanPrefillNumber(slotOffer.customDivisor) || '',
       cdEnabled: !!slotOffer.cdEnabled,
       cdValue: toOptionalInputValue(slotOffer.cdValue),
       cdUnit: slotOffer.cdUnit || 'percentage',
@@ -1304,6 +1335,11 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
           bankLoanUnit: finalData.bankLoanUnit,
           paymentConditionValue: finalData.paymentConditionEnabled && finalData.paymentConditionValue ? parseFloat(finalData.paymentConditionValue) : null,
           paymentConditionUnit: finalData.paymentConditionUnit,
+          marketPrice: finalData.marketPrice,
+          marketPriceValue: finalData.marketPriceValue ? parseFloat(finalData.marketPriceValue) : null,
+          marketPriceUnit: finalData.marketPriceUnit,
+          checkPost: finalData.checkPost,
+          checkPostValue: finalData.checkPostValue || null,
           finalPrice: finalData.finalPrice ? parseFloat(finalData.finalPrice) : null,
           remarks: finalData.remarks,
           isFinalized: true,
@@ -1680,6 +1716,8 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                                 <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'left', whiteSpace: 'nowrap', width: '9%' }}>Variety</th>
                                 <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'left', whiteSpace: 'nowrap', width: '22%' }}>Offering Details</th>
                                 <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'left', whiteSpace: 'nowrap', width: '22%' }}>Final Price</th>
+                                <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', whiteSpace: 'nowrap', width: '6%' }}>Market Price</th>
+                                <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', whiteSpace: 'nowrap', width: '6%' }}>Check Post</th>
                                 <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', whiteSpace: 'nowrap', width: '8%' }}>Action</th>
                               </>
                             ) : (
@@ -1705,6 +1743,8 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                                 <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'center', whiteSpace: 'normal', wordBreak: 'break-word', width: '5%' }}>Cooking</th>
                                 <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'center', whiteSpace: 'normal', wordBreak: 'break-word', width: '6.5%', minWidth: '90px' }}>Offer Rate</th>
                                 <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'center', whiteSpace: 'normal', wordBreak: 'break-word', width: '5%' }}>Final Rate</th>
+                                <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'center', whiteSpace: 'normal', wordBreak: 'break-word', width: '5%' }}>Market Price</th>
+                                <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'center', whiteSpace: 'normal', wordBreak: 'break-word', width: '5%' }}>Check Post</th>
                                 <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'center', whiteSpace: 'normal', wordBreak: 'break-word', width: '5%' }}>Action</th>
                               </>
                             )}
@@ -1760,7 +1800,18 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                                     <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '13px', whiteSpace: 'nowrap' }}>{toTitleCase(entry.location) || '-'}</td>
                                     <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '13px', whiteSpace: 'nowrap' }}>{toTitleCase(entry.variety) || '-'}</td>
                                     <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap' }}>{o?.offerBaseRateValue ? `Rs ${toNumberText(o.offerBaseRateValue)}` : '-'}</td>
-                                    <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap' }}>{o?.finalPrice || entry.finalPrice ? `Rs ${toNumberText(o?.finalPrice || entry.finalPrice)}` : '-'}</td>
+                                    <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                                      {o?.finalPrice || entry.finalPrice ? `Rs ${toNumberText(o?.finalPrice || entry.finalPrice)}` : '-'}
+                                      {(entry.finalPrice || o?.finalPrice) && o?.baseRateUnit ? (
+                                        <div style={{ fontSize: '9px', fontWeight: 700, color: '#64748b' }}>{formatRateUnitLabel(o.baseRateUnit)}</div>
+                                      ) : null}
+                                    </td>
+                                    <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                                      {o?.marketPrice && o?.marketPriceValue ? `₹ ${toNumberText(o.marketPriceValue)}${marketPriceUnitLabel(o.marketPriceUnit)}` : '-'}
+                                    </td>
+                                    <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                                      {o?.checkPost && o?.checkPostValue ? o.checkPostValue : '-'}
+                                    </td>
                                     <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                                       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'center' }}>
                                         {o?.offerBaseRateValue && offerActorMeta.label === 'Manager Added' ? (
@@ -2018,6 +2069,15 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                                           {entry.finalPrice || o?.finalPrice ? `Rs ${toNumberText(o?.finalPrice || entry.finalPrice)}` : 'Add Final'}
                                         </button>
                                       ) : <span>{o?.finalPrice || entry.finalPrice ? `Rs ${toNumberText(o?.finalPrice || entry.finalPrice)}` : '-'}</span>}
+                                      {(entry.finalPrice || o?.finalPrice) && o?.baseRateUnit ? (
+                                        <div style={{ fontSize: '9px', fontWeight: 700, color: '#64748b', marginTop: '2px' }}>{formatRateUnitLabel(o.baseRateUnit)}</div>
+                                      ) : null}
+                                    </td>
+                                    <td style={{ border: '1px solid #000', padding: '3px', textAlign: 'center' }}>
+                                      {o?.marketPrice && o?.marketPriceValue ? `₹ ${toNumberText(o.marketPriceValue)}${marketPriceUnitLabel(o.marketPriceUnit)}` : '-'}
+                                    </td>
+                                    <td style={{ border: '1px solid #000', padding: '3px', textAlign: 'center' }}>
+                                      {o?.checkPost && o?.checkPostValue ? o.checkPostValue : '-'}
                                     </td>
                                     <td style={{ border: '1px solid #000', padding: '3px', textAlign: 'center' }}>
                                       {(isAdmin || isManager) && entry.lotSelectionDecision !== 'FAIL' && !isResampleActive && (
@@ -2808,6 +2868,46 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                           </select>
                         </div>
                       )}
+                    </div>
+                    <div style={compactNarrowFieldStyle}>
+                      <label style={labelStyle}>Market Price</label>
+                      <div style={{ display: 'flex', gap: '6px', marginBottom: '4px', fontSize: '11px' }}>
+                        <label style={radioLabelStyle}><input type="radio" name="finalMarketPrice" checked={finalData.marketPrice}
+                          onChange={() => setFinalData({ ...finalData, marketPrice: true })} /> <span style={{ color: '#27ae60', fontWeight: '600' }}>Yes</span></label>
+                        <label style={radioLabelStyle}><input type="radio" name="finalMarketPrice" checked={!finalData.marketPrice}
+                          onChange={() => setFinalData({ ...finalData, marketPrice: false, marketPriceValue: '' })} /> <span style={{ color: '#e74c3c', fontWeight: '600' }}>No</span></label>
+                      </div>
+                      {finalData.marketPrice && (
+                        <div style={compactSplitInputStyle}>
+                          <input type="text" inputMode="decimal" value={finalData.marketPriceValue}
+                            onChange={e => setFinalData({ ...finalData, marketPriceValue: sanitizeAmountInput(e.target.value, 8) })}
+                            style={compactBottomAmountInputStyle} placeholder="Market price" />
+                          <select value={finalData.marketPriceUnit} onChange={e => setFinalData({ ...finalData, marketPriceUnit: e.target.value as 'per_quintal' | 'per_kg' | 'lumps' })}
+                            style={compactBottomUnitSelectStyle}>
+                            <option value="per_quintal">₹ / Qtl</option>
+                            <option value="per_kg">₹ / Kg</option>
+                            <option value="lumps">Lumps</option>
+                          </select>
+                        </div>
+                      )}
+                      <div style={{ marginTop: '4px', fontSize: '10px', color: '#94a3b8' }}>Reference only — no effect on calculation</div>
+                    </div>
+                    <div style={compactNarrowFieldStyle}>
+                      <label style={labelStyle}>Check Post</label>
+                      <div style={{ display: 'flex', gap: '6px', marginBottom: '4px', fontSize: '11px' }}>
+                        <label style={radioLabelStyle}><input type="radio" name="finalCheckPost" checked={finalData.checkPost}
+                          onChange={() => setFinalData({ ...finalData, checkPost: true })} /> <span style={{ color: '#27ae60', fontWeight: '600' }}>Yes</span></label>
+                        <label style={radioLabelStyle}><input type="radio" name="finalCheckPost" checked={!finalData.checkPost}
+                          onChange={() => setFinalData({ ...finalData, checkPost: false, checkPostValue: '' })} /> <span style={{ color: '#e74c3c', fontWeight: '600' }}>No</span></label>
+                      </div>
+                      {finalData.checkPost && (
+                        <div style={compactSplitInputStyle}>
+                          <input type="text" inputMode="decimal" value={finalData.checkPostValue}
+                            onChange={e => setFinalData({ ...finalData, checkPostValue: sanitizeAmountInput(e.target.value, 8) })}
+                            style={compactBottomAmountInputStyle} placeholder="Check post" />
+                        </div>
+                      )}
+                      <div style={{ marginTop: '4px', fontSize: '10px', color: '#94a3b8' }}>Reference only — no effect on calculation</div>
                     </div>
                   </div>
                 )}

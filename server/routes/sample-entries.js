@@ -1883,7 +1883,8 @@ router.get('/tabs/final-pass-lots', authenticateToken, cacheMiddleware(15), asyn
           'offerVersions', 'activeOfferKey', 'cdEnabled', 'cdValue', 'cdUnit',
           'bankLoanEnabled', 'bankLoanValue', 'bankLoanUnit',
           'paymentConditionValue', 'paymentConditionUnit',
-          'finalBaseRate', 'finalSute', 'finalSuteUnit', 'finalPrice', 'isFinalized'
+          'finalBaseRate', 'finalSute', 'finalSuteUnit', 'finalPrice', 'isFinalized',
+          'marketPrice', 'marketPriceValue', 'marketPriceUnit', 'checkPost', 'checkPostValue'
         ],
         required: false
       },
@@ -3663,6 +3664,29 @@ router.post('/:id/final-price', authenticateToken, async (req, res) => {
 
       await trip.save();
       await AuditService.logUpdate(req.user.userId, 'physical_inspections', trip.id, oldTrip, trip);
+
+      // If a WB was already saved/approved WITHOUT a sute (before the patti was linked),
+      // auto-apply the linked patti's sute and recalculate the sute net weight so the
+      // stored data (In-Transit, Band Malal Book, reports) is correct.
+      try {
+        const LorryTransitDetail = require('../models/LorryTransitDetail');
+        const ltd = await LorryTransitDetail.findOne({ where: { physicalInspectionId: trip.id } });
+        const hasSavedSute = ltd && ltd.sute !== null && ltd.sute !== undefined && String(ltd.sute).trim() !== '';
+        const pattiSute = rateInfo.sute;
+        const hasPattiSute = pattiSute !== null && pattiSute !== undefined && String(pattiSute).trim() !== '' && Number(pattiSute) > 0;
+        if (ltd && !hasSavedSute && hasPattiSute) {
+          const bags = Number(trip.bags) > 0 ? Number(trip.bags) : 1;
+          const netWt = ltd.netWeight !== null && ltd.netWeight !== undefined && String(ltd.netWeight).trim() !== '' ? Number(ltd.netWeight) : null;
+          const updates = { sute: String(pattiSute) };
+          if (netWt !== null && !isNaN(netWt)) {
+            updates.suteNetWeight = String(Math.round(netWt - Number(pattiSute) * bags));
+          }
+          await ltd.update(updates);
+        }
+      } catch (ltdError) {
+        console.warn('⚠️ Unable to auto-apply patti sute to transit detail:', ltdError.message);
+      }
+
       invalidateSampleEntryTabCaches();
       return res.json({ success: true, message: 'Rate linked to lorry trip successfully', linkedPattiRate: rateInfo });
     }

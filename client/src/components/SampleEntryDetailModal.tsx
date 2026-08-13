@@ -268,6 +268,23 @@ const formatToggleUnitLabel = (value?: string) => value === 'per_quintal'
             : value === 'per_kg'
                 ? 'Per Kg'
                 : 'Per Bag';
+const formatMarketPriceUnitLabel = (value?: string) => value === 'per_kg'
+    ? 'Per Kg'
+    : value === 'per_quintal'
+        ? 'Per Qtl'
+        : value === 'lumps'
+            ? 'Lumps'
+            : 'Per Bag';
+const formatMarketPriceCell = (src: any) => {
+    if (!src || !src.marketPrice || src.marketPriceValue === null || src.marketPriceValue === undefined || src.marketPriceValue === '' || Number(src.marketPriceValue) === 0) return '-';
+    const unit = src.marketPriceUnit;
+    const suffix = unit === 'per_kg' ? ' /Kg' : unit === 'per_quintal' ? ' /Qtl' : unit === 'lumps' ? ' (Lumps)' : unit === 'per_bag' ? ' /Bag' : '';
+    return `Rs ${toNumberText(src.marketPriceValue)}${suffix}`;
+};
+const formatCheckPostCell = (src: any) => {
+    if (!src || !src.checkPost || src.checkPostValue === null || src.checkPostValue === undefined || String(src.checkPostValue).trim() === '') return '-';
+    return String(src.checkPostValue);
+};
 const fmtNum = (v: any) => {
     if (v === null || v === undefined || v === '') return '-';
     const n = Number(v);
@@ -1276,6 +1293,12 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                     } else if (name === 'CD') {
                                         thStyle.width = '55px';
                                         thStyle.textAlign = 'center';
+                                    } else if (name === 'MARKET PRICE') {
+                                        thStyle.width = '85px';
+                                        thStyle.textAlign = 'center';
+                                    } else if (name === 'CHECK POST') {
+                                        thStyle.width = '75px';
+                                        thStyle.textAlign = 'center';
                                     } else if (name === 'PAYMENT') {
                                         thStyle.width = '85px';
                                         thStyle.textAlign = 'center';
@@ -1396,6 +1419,14 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             } else if (upperCol === 'CD') {
                                                 cellStyle.width = '55px';
                                                 cellStyle.maxWidth = '55px';
+                                                cellStyle.textAlign = 'center';
+                                            } else if (upperCol === 'MARKET PRICE') {
+                                                cellStyle.width = '85px';
+                                                cellStyle.maxWidth = '85px';
+                                                cellStyle.textAlign = 'center';
+                                            } else if (upperCol === 'CHECK POST') {
+                                                cellStyle.width = '75px';
+                                                cellStyle.maxWidth = '75px';
                                                 cellStyle.textAlign = 'center';
                                             } else if (upperCol === 'PAYMENT') {
                                                 cellStyle.width = '85px';
@@ -3290,6 +3321,15 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     formatUnitValueText(v.egbValue ?? o.egbValue ?? 0, toTitleCase(egbTypeVal || 'Mill')),
                     v.cdValue ? formatFlexibleValue(v.cdValue) : '-',
                     v.bankLoanValue ? `Rs ${formatIndianCurrencyFlexible(v.bankLoanValue)}` : '-',
+                    formatMarketPriceCell({
+                        marketPrice: v.marketPrice !== undefined ? v.marketPrice : o.marketPrice,
+                        marketPriceValue: v.marketPriceValue ?? o.marketPriceValue,
+                        marketPriceUnit: v.marketPriceUnit ?? o.marketPriceUnit
+                    }),
+                    formatCheckPostCell({
+                        checkPost: v.checkPost !== undefined ? v.checkPost : o.checkPost,
+                        checkPostValue: v.checkPostValue ?? o.checkPostValue
+                    }),
                     formatPaymentText(v.paymentConditionValue || o.paymentConditionValue || 15, v.paymentConditionUnit || o.paymentConditionUnit || 'Days'),
                     actionBtn
                 ];
@@ -3348,6 +3388,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 formatUnitValueText(o.egbValue ?? 0, toTitleCase(o.egbType || 'Mill')),
                 o.cdValue ? formatFlexibleValue(o.cdValue) : '-',
                 o.bankLoanValue ? `Rs ${formatIndianCurrencyFlexible(o.bankLoanValue)}` : '-',
+                formatMarketPriceCell(o),
+                formatCheckPostCell(o),
                 <span style={{ fontWeight: 600 }}>{formatPaymentText(o.paymentConditionValue || 15, o.paymentConditionUnit || 'Days')}</span>,
                 finalActionBtn
             ];
@@ -3408,6 +3450,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 formatUnitValueText(o.egbValue2 ?? 0, toTitleCase(o.egbType2 || 'Mill')),
                 o.cdValue2 ? formatFlexibleValue(o.cdValue2) : '-',
                 o.bankLoanValue2 ? `Rs ${formatIndianCurrencyFlexible(o.bankLoanValue2)}` : '-',
+                formatMarketPriceCell(o),
+                formatCheckPostCell(o),
                 <span style={{ fontWeight: 600 }}>{formatPaymentText(o.paymentConditionValue2 || o.paymentConditionValue || 15, o.paymentConditionUnit2 || o.paymentConditionUnit || 'Days')}</span>,
                 finalActionBtn2
             ];
@@ -3609,6 +3653,10 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     o.cdValue ? formatFlexibleValue(o.cdValue) : '-',
                     // BANK LOAN
                     o.bankLoanValue ? `Rs ${formatIndianCurrencyFlexible(o.bankLoanValue)}` : '-',
+                    // MARKET PRICE
+                    formatMarketPriceCell(o),
+                    // CHECK POST
+                    formatCheckPostCell(o),
                     // PAYMENT
                     <span style={{ fontWeight: 600 }}>{formatPaymentText(o.paymentConditionValue || 15, o.paymentConditionUnit || 'Days')}</span>,
                     pendingData.disputeReason || '-'
@@ -3890,6 +3938,17 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     v.cdValue || o.cdValue ? formatFlexibleValue(v.cdValue || o.cdValue) : '-',
                     // BANK LOAN
                     v.bankLoanValue || o.bankLoanValue ? `Rs ${formatIndianCurrencyFlexible(v.bankLoanValue || o.bankLoanValue)}` : '-',
+                    // MARKET PRICE
+                    formatMarketPriceCell({
+                        marketPrice: v.marketPrice !== undefined ? v.marketPrice : o.marketPrice,
+                        marketPriceValue: v.marketPriceValue ?? o.marketPriceValue,
+                        marketPriceUnit: v.marketPriceUnit ?? o.marketPriceUnit
+                    }),
+                    // CHECK POST
+                    formatCheckPostCell({
+                        checkPost: v.checkPost !== undefined ? v.checkPost : o.checkPost,
+                        checkPostValue: v.checkPostValue ?? o.checkPostValue
+                    }),
                     // PAYMENT
                     <span style={{ fontWeight: 600 }}>{formatPaymentText(v.paymentConditionValue || o.paymentConditionValue || 15, v.paymentConditionUnit || o.paymentConditionUnit || 'Days')}</span>,
                     disputeActionBtn
@@ -3945,6 +4004,10 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     o.cdValue ? formatFlexibleValue(o.cdValue) : '-',
                     // BANK LOAN
                     o.bankLoanValue ? `Rs ${formatIndianCurrencyFlexible(o.bankLoanValue)}` : '-',
+                    // MARKET PRICE
+                    formatMarketPriceCell(o),
+                    // CHECK POST
+                    formatCheckPostCell(o),
                     // PAYMENT
                     <span style={{ fontWeight: 600 }}>{formatPaymentText(o.paymentConditionValue || 15, o.paymentConditionUnit || 'Days')}</span>,
                     latestApprovedDispute?.disputeReason || o.disputeReason || '-'
@@ -4000,6 +4063,10 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     o.cdValue ? formatFlexibleValue(o.cdValue) : '-',
                     // BANK LOAN
                     o.bankLoanValue ? `Rs ${formatIndianCurrencyFlexible(o.bankLoanValue)}` : '-',
+                    // MARKET PRICE
+                    formatMarketPriceCell(o),
+                    // CHECK POST
+                    formatCheckPostCell(o),
                     // PAYMENT
                     <span style={{ fontWeight: 600 }}>{formatPaymentText(o.paymentConditionValue || 15, o.paymentConditionUnit || 'Days')}</span>,
                     latestApprovedVersion?.disputeReason || o.disputeReason || '-'
@@ -4617,8 +4684,49 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                     const millGross = de.grossWeight ? `${stripWt(de.grossWeight)} Kg` : '-';
                                                     const millTare = de.tareWeight ? `${stripWt(de.tareWeight)} Kg` : '-';
                                                     const millNet = de.netWeight ? `${stripWt(de.netWeight)} Kg` : '-';
-                                                    const millSute = (de.sute != null && de.sute !== '') ? stripWt(de.sute) : '-';
-                                                    const millSuteNet = de.suteNetWeight ? `${stripWt(de.suteNetWeight)} Kg` : '-';
+                                                    // Patti-derived sute fallback — mirrors the Mill WB logic in Arrivals:
+                                                    // a saved sute wins; otherwise use the linked patti sute and recompute
+                                                    // sute net weight = netWeight - (sute x bags) when no saved sute net exists.
+                                                    const validSute = (lpr: any) => (lpr && !lpr.isDispute && !lpr.isRevision && lpr.sute !== null && lpr.sute !== undefined && lpr.sute !== '' ? Number(lpr.sute) : undefined);
+                                                    // Locate this lorry's patti link across every data source the modal can carry
+                                                    // (top-level transit spread, lotAllotment inspections, inspection-progress).
+                                                    const lorryUpper = String(de.lorryNumber || '').toUpperCase().trim();
+                                                    const inspCandidates: any[] = [
+                                                        de.physicalInspection,
+                                                        de.inspection,
+                                                        ...(Array.isArray(deBase.lotAllotment?.physicalInspections) ? deBase.lotAllotment.physicalInspections : []),
+                                                        ...(Array.isArray(inspectionsProgress?.previousInspections) ? inspectionsProgress.previousInspections : [])
+                                                    ].filter(Boolean);
+                                                    const matchedInsp = lorryUpper
+                                                        ? inspCandidates.find((i: any) => String(i.lorryNumber || '').toUpperCase().trim() === lorryUpper)
+                                                        : inspCandidates[0];
+                                                    const pattiRate = (matchedInsp?.linkedPattiRate)
+                                                        || deBase.linkedPattiRate
+                                                        || de.linkedPattiRate
+                                                        || null;
+                                                    const pattiSute = validSute(pattiRate);
+                                                    const bagsForSute = Number(matchedInsp?.bags ?? de.physicalInspection?.bags ?? deBase.bags ?? de.sampleEntry?.bags ?? 1) || 1;
+                                                    // A party-only WB (wbInputType === 'party') stores its values in the
+                                                    // mill-named columns, so those become the fallback for the party row.
+                                                    const isPartyOnlyWb = de.wbInputType === 'party';
+                                                    const resolveSute = (savedSute: any, savedSuteNet: any, netWt: any, fallbackSute: any = null): { sute: string; suteNet: string } => {
+                                                        const suteNum = (savedSute != null && savedSute !== '') ? Number(savedSute)
+                                                            : (fallbackSute != null && fallbackSute !== '') ? Number(fallbackSute)
+                                                            : pattiSute;
+                                                        let suteStr = '';
+                                                        if (suteNum !== undefined && isFinite(suteNum)) suteStr = stripWt(suteNum);
+                                                        let suteNetStr = '';
+                                                        if (savedSuteNet != null && savedSuteNet !== '') {
+                                                            suteNetStr = stripWt(savedSuteNet);
+                                                        } else if (suteStr !== '' && netWt != null && netWt !== '') {
+                                                            const nw = Number(netWt);
+                                                            if (isFinite(nw)) suteNetStr = String(Math.round(nw - suteNum * bagsForSute));
+                                                        }
+                                                        return { sute: suteStr, suteNet: suteNetStr };
+                                                    };
+                                                    const millSuteInfo = resolveSute(de.sute, de.suteNetWeight, de.netWeight);
+                                                    const millSute = millSuteInfo.sute ? millSuteInfo.sute : '-';
+                                                    const millSuteNet = millSuteInfo.suteNet ? `${millSuteInfo.suteNet} Kg` : '-';
                                                     const millStatus = de.wbStatus && de.wbStatus !== 'none' ? toTitleCase(de.wbStatus) : '-';
                                                     const millAddedBy = de.wbAddedByUser?.fullName || de.wbAddedByUser?.username || de.wbAddedBy?.fullName || de.wbAddedBy?.username || '-';
                                                     const millAddedAt = de.wbAddedAt || null;
@@ -4629,19 +4737,23 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                         ? wbApproverNameVal.toUpperCase()
                                                         : (wbApproverRole ? wbApproverRole.toUpperCase() : (de.wbStatus === 'approved' ? 'Auto Approved' : '-'));
 
-                                                    // Always show BOTH Mill WB and Party WB rows
-                                                    const hasPartyWb = de.partyWbEnabled === 'Y' || de.sampleEntry?.partyWbEnabled === 'Y';
+                                                    // Always show BOTH Mill WB and Party WB rows.
+                                                    // partyWbEnabled is stored as 'yes'/'no' by the WB form (also accept legacy 'Y').
+                                                    const partyEnabledRaw = String(de.partyWbEnabled ?? de.sampleEntry?.partyWbEnabled ?? '').toLowerCase();
+                                                    const hasPartyWb = ['yes', 'y', 'true', '1'].includes(partyEnabledRaw) || !!de.partyWbName || !!de.sampleEntry?.partyWbName;
                                                     const partyWbName = de.partyWbName || de.sampleEntry?.partyWbName || '-';
                                                     // Party WB gate weights live on the SampleEntry record (the WB save route writes them
                                                     // there). For transit-detail rows (index > 0) the sample entry is nested one level
                                                     // deeper, so resolve it before falling back — otherwise Party WB weights show '-'.
                                                     const partySe = de.sampleEntry?.sampleEntry || de.sampleEntry;
-                                                    const partyWbNo = de.partyWbNo || de.sampleEntry?.partyWbNo || '-';
-                                                    const partyGross = de.partyGrossWeight ? `${stripWt(de.partyGrossWeight)} Kg` : (partySe?.grossWeight ? `${stripWt(partySe.grossWeight)} Kg` : '-');
-                                                    const partyTare = de.partyTareWeight ? `${stripWt(de.partyTareWeight)} Kg` : (partySe?.tareWeight ? `${stripWt(partySe.tareWeight)} Kg` : '-');
-                                                    const partyNet = de.partyNetWeight ? `${stripWt(de.partyNetWeight)} Kg` : (partySe?.netWeight ? `${stripWt(partySe.netWeight)} Kg` : '-');
-                                                    const partySute = (de.partySute != null && de.partySute !== '') ? stripWt(de.partySute) : '-';
-                                                    const partySuteNet = de.partySuteNetWeight ? `${stripWt(de.partySuteNetWeight)} Kg` : '-';
+                                                    const partyWbNo = de.partyWbNo || de.sampleEntry?.partyWbNo || (isPartyOnlyWb ? de.wbNo : null) || '-';
+                                                    const partyGross = de.partyGrossWeight ? `${stripWt(de.partyGrossWeight)} Kg` : (partySe?.grossWeight ? `${stripWt(partySe.grossWeight)} Kg` : (isPartyOnlyWb && de.grossWeight ? `${stripWt(de.grossWeight)} Kg` : '-'));
+                                                    const partyTare = de.partyTareWeight ? `${stripWt(de.partyTareWeight)} Kg` : (partySe?.tareWeight ? `${stripWt(partySe.tareWeight)} Kg` : (isPartyOnlyWb && de.tareWeight ? `${stripWt(de.tareWeight)} Kg` : '-'));
+                                                    const partyNet = de.partyNetWeight ? `${stripWt(de.partyNetWeight)} Kg` : (partySe?.netWeight ? `${stripWt(partySe.netWeight)} Kg` : (isPartyOnlyWb && de.netWeight ? `${stripWt(de.netWeight)} Kg` : '-'));
+                                                    const partyNetVal = de.partyNetWeight ?? (partySe?.netWeight ?? (isPartyOnlyWb ? de.netWeight : null));
+                                                    const partySuteInfo = resolveSute(de.partySute, de.partySuteNetWeight, partyNetVal, isPartyOnlyWb ? de.sute : null);
+                                                    const partySute = partySuteInfo.sute ? partySuteInfo.sute : '-';
+                                                    const partySuteNet = partySuteInfo.suteNet ? `${partySuteInfo.suteNet} Kg` : '-';
                                                     const partyStatus = de.wbStatus && de.wbStatus !== 'none' ? toTitleCase(de.wbStatus) : '-';
                                                     const partyAddedBy = de.wbAddedByUser?.fullName || de.wbAddedByUser?.username || de.wbAddedBy?.fullName || de.wbAddedBy?.username || de.sampleEntry?.creator?.fullName || de.sampleEntry?.creator?.username || detailEntry?.creator?.fullName || detailEntry?.creator?.username || '-';
                                                     const partyAddedAt = de.partyWbDate || de.wbAddedAt || null;
@@ -4814,20 +4926,22 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #cbd5e1' }}>
                                                         <thead>
                                                             <tr style={{ background: '#f1f5f9', color: '#334155', borderBottom: '2px solid #cbd5e1' }}>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>SL NO</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>DATE</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'left', border: '1px solid #cbd5e1' }}>LORRY NUMBER</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BASE RATE</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>SUTE</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>MOISTURE</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>HAMALI</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BROKERAGE</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>LF</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>EGB</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>CD</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BANK LOAN</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PAYMENT</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '75px' }}>STATUS</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '40px', whiteSpace: 'nowrap' }}>SL NO</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '85px', whiteSpace: 'nowrap' }}>DATE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'left', border: '1px solid #cbd5e1', width: '130px', whiteSpace: 'nowrap' }}>LORRY NUMBER</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '90px', whiteSpace: 'nowrap' }}>BASE RATE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '95px', whiteSpace: 'nowrap' }}>SUTE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '70px', whiteSpace: 'nowrap' }}>MOISTURE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '110px', whiteSpace: 'nowrap' }}>HAMALI</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '110px', whiteSpace: 'nowrap' }}>BROKERAGE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '110px', whiteSpace: 'nowrap' }}>LF</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '75px', whiteSpace: 'nowrap' }}>EGB</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '55px', whiteSpace: 'nowrap' }}>CD</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '100px', whiteSpace: 'nowrap' }}>BANK LOAN</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '85px', whiteSpace: 'nowrap' }}>MARKET PRICE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '75px', whiteSpace: 'nowrap' }}>CHECK POST</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '85px', whiteSpace: 'nowrap' }}>PAYMENT</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '90px', whiteSpace: 'nowrap' }}>STATUS</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
@@ -4858,6 +4972,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? formatUnitValueText(activeRateInfo.egbValue ?? patti.egbValue ?? 0, toTitleCase(activeRateInfo.egbType || patti.egbType || 'Mill')) : '-'}</td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.cdEnabled && Number(patti.cdValue) ? `${fmtNum(patti.cdValue)} / ${formatToggleUnitLabel(patti.cdUnit || 'percentage')}` : '-') : '-'}</td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.bankLoanEnabled && Number(patti.bankLoanValue) ? `Rs ${fmtNum(patti.bankLoanValue)} / ${formatToggleUnitLabel(patti.bankLoanUnit || 'per_bag')}` : '-') : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{formatMarketPriceCell({ marketPrice: activeRateInfo?.marketPrice !== undefined ? activeRateInfo.marketPrice : patti.marketPrice, marketPriceValue: activeRateInfo?.marketPriceValue ?? patti.marketPriceValue, marketPriceUnit: activeRateInfo?.marketPriceUnit ?? patti.marketPriceUnit })}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{formatCheckPostCell({ checkPost: activeRateInfo?.checkPost !== undefined ? activeRateInfo.checkPost : patti.checkPost, checkPostValue: activeRateInfo?.checkPostValue ?? patti.checkPostValue })}</td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{patti.paymentConditionValue ? `${fmtNum(patti.paymentConditionValue)} ${patti.paymentConditionUnit === 'month' ? 'Month' : 'Days'}` : '-'}</td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1', fontWeight: '700' }}>
                                                                             {isPendingRate ? <span style={{ color: '#d97706', background: '#fffbeb', padding: '2px 8px', borderRadius: '4px', border: '1px solid #fef3c7' }}>Pending</span> : tripRate ? <span style={{ color: '#16a34a', background: '#f0fdf4', padding: '2px 8px', borderRadius: '4px', border: '1px solid #bbf7d0' }}>Completed</span> : '-'}
@@ -4881,7 +4997,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             'Price Details',
                                             '💰',
                                             '#2563eb',
-                                            ['TYPE', 'REPORTED BY', 'REPORTED AT', 'RATE', 'RATE TYPE', 'SUTE', 'MOISTURE', 'HAMALI', 'BROKERAGE', 'LF', 'EGB', 'CD', 'BANK LOAN', 'PAYMENT', 'REMARKS'],
+                                            ['TYPE', 'REPORTED BY', 'REPORTED AT', 'RATE', 'RATE TYPE', 'SUTE', 'MOISTURE', 'HAMALI', 'BROKERAGE', 'LF', 'EGB', 'CD', 'BANK LOAN', 'MARKET PRICE', 'CHECK POST', 'PAYMENT', 'REMARKS'],
                                             buildPriceComparisonRows(callback)
                                         );
                                     })()}
@@ -4923,20 +5039,22 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #cbd5e1' }}>
                                                         <thead>
                                                             <tr style={{ background: '#f1f5f9', color: '#334155', borderBottom: '2px solid #cbd5e1' }}>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>SL NO</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>DATE</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'left', border: '1px solid #cbd5e1' }}>LORRY NUMBER</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BASE RATE</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>SUTE</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>MOISTURE</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>HAMALI</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BROKERAGE</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>LF</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>EGB</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>CD</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BANK LOAN</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PAYMENT</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '75px' }}>STATUS</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '40px', whiteSpace: 'nowrap' }}>SL NO</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '85px', whiteSpace: 'nowrap' }}>DATE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'left', border: '1px solid #cbd5e1', width: '130px', whiteSpace: 'nowrap' }}>LORRY NUMBER</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '90px', whiteSpace: 'nowrap' }}>BASE RATE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '95px', whiteSpace: 'nowrap' }}>SUTE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '70px', whiteSpace: 'nowrap' }}>MOISTURE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '110px', whiteSpace: 'nowrap' }}>HAMALI</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '110px', whiteSpace: 'nowrap' }}>BROKERAGE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '110px', whiteSpace: 'nowrap' }}>LF</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '75px', whiteSpace: 'nowrap' }}>EGB</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '55px', whiteSpace: 'nowrap' }}>CD</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '100px', whiteSpace: 'nowrap' }}>BANK LOAN</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '85px', whiteSpace: 'nowrap' }}>MARKET PRICE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '75px', whiteSpace: 'nowrap' }}>CHECK POST</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '85px', whiteSpace: 'nowrap' }}>PAYMENT</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '90px', whiteSpace: 'nowrap' }}>STATUS</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
@@ -5011,6 +5129,12 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                             {activeRateInfo ? (patti.bankLoanEnabled && patti.bankLoanValue ? `Rs ${formatIndianCurrencyFlexible(patti.bankLoanValue)} / ${formatToggleUnitLabel(patti.bankLoanUnit || 'per_bag')}` : '-') : '-'}
                                                                         </td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
+                                                                            {formatMarketPriceCell({ marketPrice: activeRateInfo?.marketPrice !== undefined ? activeRateInfo.marketPrice : patti.marketPrice, marketPriceValue: activeRateInfo?.marketPriceValue ?? patti.marketPriceValue, marketPriceUnit: activeRateInfo?.marketPriceUnit ?? patti.marketPriceUnit })}
+                                                                        </td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
+                                                                            {formatCheckPostCell({ checkPost: activeRateInfo?.checkPost !== undefined ? activeRateInfo.checkPost : patti.checkPost, checkPostValue: activeRateInfo?.checkPostValue ?? patti.checkPostValue })}
+                                                                        </td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
                                                                             {patti.paymentConditionValue ? `${fmtNum(patti.paymentConditionValue)} ${patti.paymentConditionUnit === 'month' ? 'Month' : 'Days'}` : '-'}
                                                                         </td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1', fontWeight: '700' }}>
@@ -5046,20 +5170,22 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #cbd5e1' }}>
                                                         <thead>
                                                             <tr style={{ background: '#f1f5f9', color: '#334155', borderBottom: '2px solid #cbd5e1' }}>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>SL NO</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>DATE</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'left', border: '1px solid #cbd5e1' }}>LORRY NUMBER</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BASE RATE</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>SUTE</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>MOISTURE</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>HAMALI</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BROKERAGE</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>LF</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>EGB</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>CD</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BANK LOAN</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PAYMENT</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '75px' }}>STATUS</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '40px', whiteSpace: 'nowrap' }}>SL NO</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '85px', whiteSpace: 'nowrap' }}>DATE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'left', border: '1px solid #cbd5e1', width: '130px', whiteSpace: 'nowrap' }}>LORRY NUMBER</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '90px', whiteSpace: 'nowrap' }}>BASE RATE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '95px', whiteSpace: 'nowrap' }}>SUTE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '70px', whiteSpace: 'nowrap' }}>MOISTURE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '110px', whiteSpace: 'nowrap' }}>HAMALI</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '110px', whiteSpace: 'nowrap' }}>BROKERAGE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '110px', whiteSpace: 'nowrap' }}>LF</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '75px', whiteSpace: 'nowrap' }}>EGB</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '55px', whiteSpace: 'nowrap' }}>CD</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '100px', whiteSpace: 'nowrap' }}>BANK LOAN</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '85px', whiteSpace: 'nowrap' }}>MARKET PRICE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '75px', whiteSpace: 'nowrap' }}>CHECK POST</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '85px', whiteSpace: 'nowrap' }}>PAYMENT</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '90px', whiteSpace: 'nowrap' }}>STATUS</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
@@ -5090,6 +5216,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? formatUnitValueText(activeRateInfo.egbValue ?? patti.egbValue ?? 0, toTitleCase(activeRateInfo.egbType || patti.egbType || 'Mill')) : '-'}</td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.cdEnabled && Number(patti.cdValue) ? `${fmtNum(patti.cdValue)} / ${formatToggleUnitLabel(patti.cdUnit || 'percentage')}` : '-') : '-'}</td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{activeRateInfo ? (patti.bankLoanEnabled && Number(patti.bankLoanValue) ? `Rs ${fmtNum(patti.bankLoanValue)} / ${formatToggleUnitLabel(patti.bankLoanUnit || 'per_bag')}` : '-') : '-'}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{formatMarketPriceCell({ marketPrice: activeRateInfo?.marketPrice !== undefined ? activeRateInfo.marketPrice : patti.marketPrice, marketPriceValue: activeRateInfo?.marketPriceValue ?? patti.marketPriceValue, marketPriceUnit: activeRateInfo?.marketPriceUnit ?? patti.marketPriceUnit })}</td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{formatCheckPostCell({ checkPost: activeRateInfo?.checkPost !== undefined ? activeRateInfo.checkPost : patti.checkPost, checkPostValue: activeRateInfo?.checkPostValue ?? patti.checkPostValue })}</td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{patti.paymentConditionValue ? `${fmtNum(patti.paymentConditionValue)} ${patti.paymentConditionUnit === 'month' ? 'Month' : 'Days'}` : '-'}</td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1', fontWeight: '700' }}>
                                                                             {isPendingRate ? <span style={{ color: '#d97706', background: '#fffbeb', padding: '2px 8px', borderRadius: '4px', border: '1px solid #fef3c7' }}>Pending</span> : tripRate ? <span style={{ color: '#16a34a', background: '#f0fdf4', padding: '2px 8px', borderRadius: '4px', border: '1px solid #bbf7d0' }}>Completed</span> : '-'}
@@ -5235,7 +5363,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             'Price Details',
                                             '💰',
                                             '#2563eb',
-                                            ['TYPE', 'REPORTED BY', 'REPORTED AT', 'RATE', 'RATE TYPE', 'SUTE', 'MOISTURE', 'HAMALI', 'BROKERAGE', 'LF', 'EGB', 'CD', 'BANK LOAN', 'PAYMENT', 'REMARKS'],
+                                            ['TYPE', 'REPORTED BY', 'REPORTED AT', 'RATE', 'RATE TYPE', 'SUTE', 'MOISTURE', 'HAMALI', 'BROKERAGE', 'LF', 'EGB', 'CD', 'BANK LOAN', 'MARKET PRICE', 'CHECK POST', 'PAYMENT', 'REMARKS'],
                                             buildPriceComparisonRows(callback)
                                         );
                                     })()}
@@ -5342,20 +5470,22 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #cbd5e1' }}>
                                                     <thead>
                                                         <tr style={{ background: '#f1f5f9', color: '#334155', borderBottom: '2px solid #cbd5e1' }}>
-                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>SL NO</th>
-                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>DATE</th>
-                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'left', border: '1px solid #cbd5e1' }}>LORRY NUMBER</th>
-                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BASE RATE</th>
-                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>SUTE</th>
-                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>MOISTURE</th>
-                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>HAMALI</th>
-                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BROKERAGE</th>
-                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>LF</th>
-                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>EGB</th>
-                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>CD</th>
-                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>BANK LOAN</th>
-                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1' }}>PAYMENT</th>
-                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '75px' }}>STATUS</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '40px', whiteSpace: 'nowrap' }}>SL NO</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '85px', whiteSpace: 'nowrap' }}>DATE</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'left', border: '1px solid #cbd5e1', width: '130px', whiteSpace: 'nowrap' }}>LORRY NUMBER</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '90px', whiteSpace: 'nowrap' }}>BASE RATE</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '95px', whiteSpace: 'nowrap' }}>SUTE</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '70px', whiteSpace: 'nowrap' }}>MOISTURE</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '110px', whiteSpace: 'nowrap' }}>HAMALI</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '110px', whiteSpace: 'nowrap' }}>BROKERAGE</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '110px', whiteSpace: 'nowrap' }}>LF</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '75px', whiteSpace: 'nowrap' }}>EGB</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '55px', whiteSpace: 'nowrap' }}>CD</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '100px', whiteSpace: 'nowrap' }}>BANK LOAN</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '85px', whiteSpace: 'nowrap' }}>MARKET PRICE</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '75px', whiteSpace: 'nowrap' }}>CHECK POST</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '85px', whiteSpace: 'nowrap' }}>PAYMENT</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '90px', whiteSpace: 'nowrap' }}>STATUS</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
@@ -5471,6 +5601,12 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                             ) : (
                                                                                 '-'
                                                                             )}
+                                                                        </td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
+                                                                            {formatMarketPriceCell({ marketPrice: activeRateInfo?.marketPrice !== undefined ? activeRateInfo.marketPrice : patti.marketPrice, marketPriceValue: activeRateInfo?.marketPriceValue ?? patti.marketPriceValue, marketPriceUnit: activeRateInfo?.marketPriceUnit ?? patti.marketPriceUnit })}
+                                                                        </td>
+                                                                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
+                                                                            {formatCheckPostCell({ checkPost: activeRateInfo?.checkPost !== undefined ? activeRateInfo.checkPost : patti.checkPost, checkPostValue: activeRateInfo?.checkPostValue ?? patti.checkPostValue })}
                                                                         </td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
                                                                             {patti.paymentConditionValue ? `${fmtNum(patti.paymentConditionValue)} ${patti.paymentConditionUnit === 'month' ? 'Month' : 'Days'}` : '-'}

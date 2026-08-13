@@ -697,16 +697,18 @@ const Navbar: React.FC = () => {
             </DropdownWrapper>
           )}
 
-          {/* Show Arrivals/Records for staff too (NOT inventory_staff) */}
+          {/* Show Arrivals/Records for staff too (NOT inventory_staff, and NOT mill/location staff for Records) */}
           {user?.role === 'staff' && (
             <>
               <NavLink to="/arrivals" $active={isActive('/arrivals')}>Arrivals</NavLink>
-              <NavLink to="/records" $active={isActive('/records')}>Records Management</NavLink>
+              {user.staffType !== 'mill' && user.staffType !== 'location' && (
+                <NavLink to="/records" $active={isActive('/records')}>Records Management</NavLink>
+              )}
             </>
           )}
           
-          {/* Hamali link - hide from inventory_staff and inventory_head */}
-          {user?.role !== 'inventory_staff' && user?.role !== 'inventory_head' && (
+          {/* Hamali link - hide from inventory_staff, inventory_head, and mill/location staff */}
+          {user?.role !== 'inventory_staff' && user?.role !== 'inventory_head' && !(user?.role === 'staff' && (user.staffType === 'mill' || user.staffType === 'location')) && (
             <NavLink to="/hamali" $active={isActive('/hamali')}>Hamali</NavLink>
           )}
 

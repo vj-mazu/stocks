@@ -4101,6 +4101,26 @@ const Arrivals: React.FC = () => {
     return Math.round(n).toLocaleString('en-US');
   };
 
+  // Mill / location staff only handle Mill Quality Sampling + WB. Once a lorry is fully
+  // complete (sampling approved + godown placed/approved + WB approved), there is nothing
+  // left for them to do, so those entries are hidden from them in In-Transit & Band Mall Book.
+  const isStaffMillOrLoc = (user as any)?.role === 'staff' && ((user as any)?.staffType === 'mill' || (user as any)?.staffType === 'location');
+
+  const isFullyCompleteLorry = (item: any): boolean => {
+    const params =
+      item?.inventoryQualityParameters ||
+      item?.lorryTransitDetail?.inventoryQualityParameters ||
+      item?.physicalInspection?.lorryTransitDetail?.inventoryQualityParameters ||
+      [];
+    const lotApproved = params.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
+    const fullApproved = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
+    if (!(lotApproved && fullApproved)) return false;
+    const wbStatus = item?.wbStatus || item?.lorryTransitDetail?.wbStatus || 'none';
+    if (wbStatus !== 'approved') return false;
+    const placeStatus = item?.placeStatus || item?.lorryTransitDetail?.placeStatus || 'none';
+    return placeStatus === 'approved' || placeStatus === 'placed';
+  };
+
   const filteredBmbEntries = useMemo(() => {
     return bandMalalEntries.filter((entry) => {
       // 1. Date filter
@@ -4149,9 +4169,11 @@ const Arrivals: React.FC = () => {
         const isWbPending = entry.wbStatus === 'pending';
         if (!hasPendingQuality && !isPlacePending && !isWbPending) return false;
       }
+      // 6. Mill/location staff: hide fully-complete entries (sampling + godown + WB all done)
+      if (isStaffMillOrLoc && isFullyCompleteLorry(entry)) return false;
       return true;
     });
-  }, [bandMalalEntries, bmbDateFilter, bmbDateFromFilter, bmbDateToFilter, bmbBrokerFilter, bmbVarietyFilter, bmbSearchQuery, bmbStatusFilter]);
+  }, [bandMalalEntries, bmbDateFilter, bmbDateFromFilter, bmbDateToFilter, bmbBrokerFilter, bmbVarietyFilter, bmbSearchQuery, bmbStatusFilter, isStaffMillOrLoc]);
 
   const paginatedBmbEntries = useMemo(() => {
     const start = (bmbPage - 1) * bmbPageSize;
@@ -4216,6 +4238,10 @@ const Arrivals: React.FC = () => {
           return;
         }
         if (!ltd || ltd.placeStatus !== 'approved') {
+          // Mill/location staff: hide fully-complete trips (sampling + godown + WB all done)
+          if (isStaffMillOrLoc && isFullyCompleteLorry(insp)) {
+            return;
+          }
           flatTrips.push({
             entry: e,
             inspection: insp,
@@ -4260,7 +4286,7 @@ const Arrivals: React.FC = () => {
       }
       return true;
     });
-  }, [inTransitEntries, inTransitDateFilter, inTransitDateFromFilter, inTransitDateToFilter, inTransitBrokerFilter, inTransitVarietyFilter, inTransitStatusFilter]);
+  }, [inTransitEntries, inTransitDateFilter, inTransitDateFromFilter, inTransitDateToFilter, inTransitBrokerFilter, inTransitVarietyFilter, inTransitStatusFilter, isStaffMillOrLoc]);
 
   // Auto-pagination: Switch to the last page when a new entry is added
   const prevBmbLengthRef = useRef(0);
@@ -4346,7 +4372,7 @@ const Arrivals: React.FC = () => {
           const placeStatus = transitDetail?.placeStatus || 'none';
           const wbStatus = transitDetail?.wbStatus || 'none';
           const godownName = isPlaceholder ? '-' : (transitDetail?.placeKunchinittuData?.name || transitDetail?.placeWarehouse?.name || '-');
-          const suteNetWt = isPlaceholder ? '-' : (transitDetail ? fmtWt(parseFloat(transitDetail.grossWeight || 0) - parseFloat(transitDetail.tareWeight || 0) - (parseFloat(transitDetail.sute || 0) * (inspection?.bags || inspection?.bagsLoaded || 1))) : '-');
+          const suteNetWt = isPlaceholder ? '-' : (transitDetail ? (getLorrySuteInfo(entry, inspection, transitDetail).suteNetWeight || fmtWt(parseFloat(transitDetail.grossWeight || 0) - parseFloat(transitDetail.tareWeight || 0) - (parseFloat(transitDetail.sute || 0) * (inspection?.bags || inspection?.bagsLoaded || 1)))) : '-');
 
           // WB action variables
           // Mill staff & location staff can add/edit WB data in the In Transit tab (server allows it),
@@ -4567,8 +4593,9 @@ const Arrivals: React.FC = () => {
         {paginatedBmbEntries.map((entry, idx) => {
           const wbStatus = entry.wbStatus || 'none';
           const netWeightVal = entry.netWeight || 0;
-          const displayNetWeight = entry.suteNetWeight !== undefined && entry.suteNetWeight !== null ? 
-            `${fmtWt(entry.suteNetWeight)} Kg` : (netWeightVal ? `${fmtWt(netWeightVal)} Kg` : '-');
+          const suteInfoCard = getLorrySuteInfo(entry, entry?.physicalInspection, entry);
+          const displayNetWeight = suteInfoCard.suteNetWeight ? 
+            `${fmtWt(suteInfoCard.suteNetWeight)} Kg` : (netWeightVal ? `${fmtWt(netWeightVal)} Kg` : '-');
           const placeStatus = entry.placeStatus || 'none';
           const bagsCount = entry.bags || '-';
           const bagsKg = entry.packaging ? `${entry.packaging} Kg` : '';
@@ -5360,6 +5387,42 @@ const Arrivals: React.FC = () => {
     return n > 0 ? n : 1;
   };
 
+  // Effective Sute + Sute Net Weight for a lorry.
+  // Sute is fetched ONLY from the lorry's patti link (linkedPattiRate.sute).
+  // If a WB was already saved with a sute, that saved value wins; otherwise fall back to the patti sute.
+  // Sute Net Weight = saved value, else auto-calc netWeight - sute*bags from the patti sute.
+  const getLorrySuteInfo = (entry: any, inspection: any, transitDetail: any): { sute: string; suteNetWeight: string; isPattiLinked: boolean } => {
+    const toStr = (v: any): string => (v === null || v === undefined || v === '' ? '' : String(v));
+    const validSute = (lpr: any) => (lpr && !lpr.isDispute && !lpr.isRevision && lpr.sute !== null && lpr.sute !== undefined && lpr.sute !== '' ? lpr.sute : undefined);
+    const insp = inspection || {};
+    const lpr = insp.linkedPattiRate || entry?.physicalInspection?.linkedPattiRate || entry?.linkedPattiRate;
+    const pattiSute = validSute(lpr);
+    const isPattiLinked = pattiSute !== undefined;
+    const d = transitDetail || insp.lorryTransitDetail || entry?.lorryTransitDetail || entry || {};
+    const savedSute = d.sute !== null && d.sute !== undefined && d.sute !== '' ? d.sute : undefined;
+    const sute = savedSute !== undefined ? String(savedSute) : (pattiSute !== undefined ? String(pattiSute) : '');
+    let suteNetWeight = '';
+    const savedSuteNetWeight = d.suteNetWeight !== null && d.suteNetWeight !== undefined && d.suteNetWeight !== '' ? String(d.suteNetWeight) : '';
+    if (pattiSute !== undefined && savedSute === undefined) {
+      // Patti-linked lorry whose WB was saved before the patti was linked (no sute stored):
+      // recompute the sute net weight from the linked patti's sute instead of the stale saved value.
+      const netWt = d.netWeight != null && d.netWeight !== '' ? Number(d.netWeight) : null;
+      if (netWt !== null && !isNaN(netWt)) {
+        const bags = suteBags(insp, entry);
+        suteNetWeight = String(Math.round(netWt - Number(pattiSute) * bags));
+      }
+    } else if (savedSuteNetWeight !== '') {
+      suteNetWeight = savedSuteNetWeight;
+    } else if (sute !== '') {
+      const netWt = d.netWeight != null && d.netWeight !== '' ? Number(d.netWeight) : null;
+      if (netWt !== null && !isNaN(netWt)) {
+        const bags = suteBags(insp, entry);
+        suteNetWeight = String(Math.round(netWt - Number(sute) * bags));
+      }
+    }
+    return { sute: toStr(sute), suteNetWeight: toStr(suteNetWeight), isPattiLinked };
+  };
+
   // Open the Weighbridge modal pre-filled with existing WB data (used for Edit WB)
   const openWbEditModal = (rk: string, detail: any, entry: any, inspection: any) => {
     const d = detail || {};
@@ -6000,7 +6063,17 @@ const Arrivals: React.FC = () => {
         const response = await axios.get(`${API_URL}/sample-entries/${selectedDetailEntry.id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        setSelectedDetailEntry(response.data);
+        // Preserve the specific lorry context so the modal doesn't expand into
+        // a full page of ALL lorry loads after approving.
+        setSelectedDetailEntry({
+          ...response.data,
+          lorryNumber: selectedDetailEntry.lorryNumber,
+          isBandMalalBook: selectedDetailEntry.isBandMalalBook,
+          isTransit: selectedDetailEntry.isTransit,
+          isInTransit: selectedDetailEntry.isInTransit,
+          transitDetailId: selectedDetailEntry.transitDetailId,
+          partyWbName: selectedDetailEntry.partyWbName || null,
+        });
       }
       fetchBandMalalEntries();
       fetchInTransitEntries();
@@ -6022,7 +6095,17 @@ const Arrivals: React.FC = () => {
         const response = await axios.get(`${API_URL}/sample-entries/${selectedDetailEntry.id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        setSelectedDetailEntry(response.data);
+        // Preserve the specific lorry context so the modal doesn't expand into
+        // a full page of ALL lorry loads after rejecting.
+        setSelectedDetailEntry({
+          ...response.data,
+          lorryNumber: selectedDetailEntry.lorryNumber,
+          isBandMalalBook: selectedDetailEntry.isBandMalalBook,
+          isTransit: selectedDetailEntry.isTransit,
+          isInTransit: selectedDetailEntry.isInTransit,
+          transitDetailId: selectedDetailEntry.transitDetailId,
+          partyWbName: selectedDetailEntry.partyWbName || null,
+        });
       }
       fetchBandMalalEntries();
       fetchInTransitEntries();
@@ -6044,7 +6127,17 @@ const Arrivals: React.FC = () => {
         const response = await axios.get(`${API_URL}/sample-entries/${selectedDetailEntry.id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        setSelectedDetailEntry(response.data);
+        // Preserve the specific lorry context so the modal doesn't expand into
+        // a full page of ALL lorry loads after recheck.
+        setSelectedDetailEntry({
+          ...response.data,
+          lorryNumber: selectedDetailEntry.lorryNumber,
+          isBandMalalBook: selectedDetailEntry.isBandMalalBook,
+          isTransit: selectedDetailEntry.isTransit,
+          isInTransit: selectedDetailEntry.isInTransit,
+          transitDetailId: selectedDetailEntry.transitDetailId,
+          partyWbName: selectedDetailEntry.partyWbName || null,
+        });
       }
       fetchBandMalalEntries();
       fetchInTransitEntries();
@@ -6823,24 +6916,11 @@ const Arrivals: React.FC = () => {
 
 
 
-                        const wbStatus = transitDetail?.wbStatus || 'none';
-
-
-
-                        const wbNoVal = (transitDetail?.wbInputType === 'mill') ? (transitDetail?.wbNo || '-') : '-';
-
-
-
+                        const wbStatus = transitDetail?.wbStatus || 'none';                        const wbNoVal = (transitDetail?.wbInputType === 'mill') ? (transitDetail?.wbNo || '-') : '-';
                         const netWeightVal = transitDetail?.netWeight || '-';
-
-
-
-                        const suteVal = transitDetail?.sute || null;
-
-
-
-                        const displayNetWeight = transitDetail?.suteNetWeight !== undefined && transitDetail?.suteNetWeight !== null ? 
-                          `${fmtWt(transitDetail.suteNetWeight)} Kg` : (netWeightVal !== '-' && netWeightVal !== null ? `${fmtWt(netWeightVal)} Kg` : '-');
+                        const suteInfoTbl = getLorrySuteInfo(entry, inspection, transitDetail);
+                        const displayNetWeight = suteInfoTbl.suteNetWeight ? 
+                          `${fmtWt(suteInfoTbl.suteNetWeight)} Kg` : (netWeightVal !== '-' && netWeightVal !== null ? `${fmtWt(netWeightVal)} Kg` : '-');
 
 
 
@@ -7321,7 +7401,12 @@ const Arrivals: React.FC = () => {
 
                               {/* 4. Sute Net Wt */}
                               <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700' }}>
-                                {transitDetail?.suteNetWeight ? `${fmtWt(transitDetail.suteNetWeight)} Kg` : '-'}
+                                {(() => {
+                                  const si = getLorrySuteInfo(entry, inspection, transitDetail);
+                                  if (si.suteNetWeight) return `${fmtWt(si.suteNetWeight)} Kg`;
+                                  if (si.sute) return `${fmtWt(si.sute)} Kg`;
+                                  return si.isPattiLinked ? '-' : <span style={{ color: '#b45309', fontSize: '10px' }}>Patti Not Linked</span>;
+                                })()}
                               </td>
 
 
@@ -8361,24 +8446,11 @@ const Arrivals: React.FC = () => {
 
 
 
-                    const wbStatus = entry.wbStatus || 'none';
-
-
-
-                    const wbNoVal = entry.wbNo || (wbStatus === 'none' ? '⚠️ Required' : '-');
-
-
-
+                    const wbStatus = entry.wbStatus || 'none';                    const wbNoVal = entry.wbNo || (wbStatus === 'none' ? '⚠️ Required' : '-');
                     const netWeightVal = entry.netWeight || 0;
-
-
-
-                    const suteVal = entry.sute || null;
-
-
-
-                    const displayNetWeight = entry.suteNetWeight !== undefined && entry.suteNetWeight !== null ? 
-                      `${fmtWt(entry.suteNetWeight)} Kg` : (netWeightVal ? `${fmtWt(netWeightVal)} Kg` : '-');
+                    const suteInfoBmb = getLorrySuteInfo(entry, entry?.physicalInspection, entry);
+                    const displayNetWeight = suteInfoBmb.suteNetWeight ? 
+                      `${fmtWt(suteInfoBmb.suteNetWeight)} Kg` : (netWeightVal ? `${fmtWt(netWeightVal)} Kg` : '-');
 
 
 
@@ -9074,7 +9146,7 @@ const Arrivals: React.FC = () => {
                                 >
                                   {entry.wbNo}
                                 </span>
-                                {revealWbRowKey === `bmb-${entry.id}` && isApprover && (
+                                {revealWbRowKey === `bmb-${entry.id}` && (isApprover || isStaffMillOrLoc) && (
                                   <div style={{ marginTop: '3px' }}>
                                     <button
                                       onClick={() => openWbEditModal((entry.lorryNumber || 'N/A').toUpperCase(), entry, entry, null)}
@@ -9157,7 +9229,12 @@ const Arrivals: React.FC = () => {
 
                            {/* Column 11: Sute Net Wt */}
                            <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: '#d97706' }}>
-                             {entry.suteNetWeight ? `${fmtWt(entry.suteNetWeight)} Kg` : '-'}
+                             {(() => {
+                               const si = getLorrySuteInfo(entry, entry?.physicalInspection, entry);
+                               if (si.suteNetWeight) return `${fmtWt(si.suteNetWeight)} Kg`;
+                               if (si.sute) return `${fmtWt(si.sute)} Kg`;
+                               return si.isPattiLinked ? '-' : <span style={{ color: '#b45309', fontSize: '10px' }}>Patti Not Linked</span>;
+                             })()}
                            </td>
 
 
@@ -14167,9 +14244,9 @@ const Arrivals: React.FC = () => {
 
                   {/* Row 3 */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Sute</span><strong>{fmtWt(wbConfirmDialog.detail?.sute) || '0'} Kg</strong></div>
+                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Sute</span><strong>{fmtWt(getLorrySuteInfo(wbConfirmDialog.detail, wbConfirmDialog.detail, wbConfirmDialog.detail).sute) || '0'} Kg</strong></div>
                     <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Bags</span><strong>{wbConfirmDialog.detail?.bags || wbConfirmDialog.detail?.bagsLoaded || '-'}</strong></div>
-                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Sute Net Weight</span><strong style={{ color: '#16a34a' }}>{fmtWt(wbConfirmDialog.detail?.suteNetWeight) || '-'} Kg</strong></div>
+                    <div><span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>Sute Net Weight</span><strong style={{ color: '#16a34a' }}>{fmtWt(getLorrySuteInfo(wbConfirmDialog.detail, wbConfirmDialog.detail, wbConfirmDialog.detail).suteNetWeight) || '-'} Kg</strong></div>
                   </div>
                 </div>
 
@@ -14493,10 +14570,9 @@ const Arrivals: React.FC = () => {
               {/* Row 3: Sute | Shoot Kg | Sute Net Weight */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '6px' }}>Sute (Deduction)</label>
-                  <input type="number" value={wbSute} onChange={(e) => setWbSute(e.target.value)} placeholder="Sute"
-                    readOnly={!!getAutoSuteValue(selectedLorryEntries?.[0], selectedLorryInspection)}
-                    style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box', background: getAutoSuteValue(selectedLorryEntries?.[0], selectedLorryInspection) ? '#e2e8f0' : 'white' }} />
+                  <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '6px' }}>Sute (Deduction) {!getAutoSuteValue(selectedLorryEntries?.[0], selectedLorryInspection) && <span style={{ color: '#ef4444', fontSize: '10px', fontWeight: '600' }}>— Patti Not Linked</span>}</label>
+                  <input type="number" value={wbSute} readOnly placeholder={getAutoSuteValue(selectedLorryEntries?.[0], selectedLorryInspection) ? 'Auto from Patti' : 'Patti Not Linked'}
+                    style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box', background: '#e2e8f0' }} />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'bold', marginBottom: '6px' }}>Shoot Kg (Sute × Bags)</label>
@@ -14580,10 +14656,9 @@ const Arrivals: React.FC = () => {
                 {/* Row 3: Sute | Shoot Kg | Sute Net Weight */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '11px', color: '#854d0e', fontWeight: 'bold', marginBottom: '6px' }}>Sute (Deduction)</label>
-                    <input type="number" value={partySute} onChange={(e) => setPartySute(e.target.value)} placeholder="Sute"
-                      readOnly={!!getAutoSuteValue(selectedLorryEntries?.[0], selectedLorryInspection)}
-                      style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #fde047', borderRadius: '8px', boxSizing: 'border-box', background: getAutoSuteValue(selectedLorryEntries?.[0], selectedLorryInspection) ? '#fef9c3' : 'white' }} />
+                    <label style={{ display: 'block', fontSize: '11px', color: '#854d0e', fontWeight: 'bold', marginBottom: '6px' }}>Sute (Deduction) {!getAutoSuteValue(selectedLorryEntries?.[0], selectedLorryInspection) && <span style={{ color: '#ef4444', fontSize: '10px', fontWeight: '600' }}>— Patti Not Linked</span>}</label>
+                    <input type="number" value={partySute} readOnly placeholder={getAutoSuteValue(selectedLorryEntries?.[0], selectedLorryInspection) ? 'Auto from Patti' : 'Patti Not Linked'}
+                      style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1.5px solid #fde047', borderRadius: '8px', boxSizing: 'border-box', background: '#fef9c3' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '11px', color: '#854d0e', fontWeight: 'bold', marginBottom: '6px' }}>Shoot Kg (Sute × Bags)</label>
@@ -14945,7 +15020,11 @@ const Arrivals: React.FC = () => {
                   <select value={inventoryQualityForm.reportedByUserId || user?.id || ''} onChange={(e) => setInventoryQualityForm(p => ({ ...p, reportedByUserId: e.target.value }))}
                     style={{ padding: '3px', border: '1px solid #ccc', borderRadius: '3px', fontSize: '10px', background: '#fff', height: '26px', maxWidth: '180px' }}>
                     <option value="">Choose</option>
-                    {usersList.map(u => <option key={u.id} value={u.id}>{u.fullName || u.username}</option>)}
+                    {usersList.filter(u => (
+                      u.role === 'manager' ||
+                      u.role === 'inventory_head' ||
+                      (u.role === 'staff' && u.staffType === 'location' && !!u.qualityName)
+                    )).map(u => <option key={u.id} value={u.id}>{u.fullName || u.username}</option>)}
                   </select>
                 </div>
 

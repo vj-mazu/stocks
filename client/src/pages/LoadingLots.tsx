@@ -614,6 +614,11 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     paymentConditionEnabled: true,
     paymentConditionValue: '15',
     paymentConditionUnit: 'days',
+    marketPrice: false,
+    marketPriceValue: '',
+    marketPriceUnit: 'lumps',
+    checkPost: false,
+    checkPostValue: '',
     finalPrice: '',
     baseRateType: 'PD_LOOSE',
     remarks: ''
@@ -972,6 +977,11 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
       paymentConditionEnabled: o.paymentConditionEnabled != null ? !!o.paymentConditionEnabled : true,
       paymentConditionValue: cleanPrefillNumber(o.paymentConditionValue) || '15',
       paymentConditionUnit: o.paymentConditionUnit || 'days',
+      marketPrice: !!o.marketPrice,
+      marketPriceValue: o.marketPriceValue != null ? String(o.marketPriceValue) : '',
+      marketPriceUnit: (o.marketPriceUnit as 'per_quintal' | 'per_kg' | 'lumps') || 'lumps',
+      checkPost: !!o.checkPost,
+      checkPostValue: o.checkPostValue || '',
       finalPrice: cleanPrefillNumber(o.finalPrice ?? entry.finalPrice),
       baseRateType: o.baseRateType || entry.offering?.baseRateType || 'PD_LOOSE',
       remarks: o.finalRemarks || ''
@@ -1078,6 +1088,11 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
           bankLoanUnit: finalEditData.bankLoanUnit,
           paymentConditionValue: finalEditData.paymentConditionEnabled && finalEditData.paymentConditionValue ? parseFloat(finalEditData.paymentConditionValue) : null,
           paymentConditionUnit: finalEditData.paymentConditionUnit,
+          marketPrice: finalEditData.marketPrice,
+          marketPriceValue: finalEditData.marketPriceValue ? parseFloat(finalEditData.marketPriceValue) : null,
+          marketPriceUnit: finalEditData.marketPriceUnit,
+          checkPost: finalEditData.checkPost,
+          checkPostValue: finalEditData.checkPostValue || null,
           finalPrice: finalEditData.finalPrice ? parseFloat(finalEditData.finalPrice) : rateValue,
           remarks: finalEditData.remarks,
           isFinalized: true
@@ -3553,6 +3568,19 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                     <label><input type="radio" name="finalEditBaseRateUnit" checked={finalEditData.baseRateUnit === 'per_kg'} onChange={() => setFinalEditData({ ...finalEditData, baseRateUnit: 'per_kg' })} /> Per Kg</label>
                   )}
                 </div>
+                {finalEditData.baseRateUnit === 'per_kg' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: '700', color: '#475569' }}>Divisor</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={finalEditData.customDivisor}
+                      onChange={(e) => setFinalEditData({ ...finalEditData, customDivisor: sanitizeAmountInput(e.target.value) })}
+                      style={{ ...editRateInputStyle, width: '92px', padding: '6px 8px', fontSize: '11px', border: '1px solid #27ae60' }}
+                      placeholder="Divisor"
+                    />
+                  </div>
+                )}
               </div>
               <div style={{ minWidth: 0 }}>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#1f2937', marginBottom: '4px', display: 'block' }}>Final Sute</label>
@@ -3682,6 +3710,37 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                       </select>
                     </div>
                   )}
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#1f2937', marginBottom: '4px', display: 'block' }}>Market Price</label>
+                  <div style={{ display: 'flex', gap: '6px', fontSize: '11px', marginBottom: '4px' }}>
+                    <label><input type="radio" name="finalEditMarketPrice" checked={finalEditData.marketPrice} onChange={() => setFinalEditData({ ...finalEditData, marketPrice: true })} /> Yes</label>
+                    <label><input type="radio" name="finalEditMarketPrice" checked={!finalEditData.marketPrice} onChange={() => setFinalEditData({ ...finalEditData, marketPrice: false, marketPriceValue: '' })} /> No</label>
+                  </div>
+                  {finalEditData.marketPrice && (
+                    <div style={editBottomSplitInputStyle}>
+                      <input type="text" inputMode="decimal" value={finalEditData.marketPriceValue} onChange={(e) => setFinalEditData({ ...finalEditData, marketPriceValue: sanitizeAmountInput(e.target.value, 8) })} style={editBottomAmountInputStyle} placeholder="Market price" />
+                      <select value={finalEditData.marketPriceUnit} onChange={(e) => setFinalEditData({ ...finalEditData, marketPriceUnit: e.target.value })} style={editBottomUnitSelectStyle}>
+                        <option value="per_quintal">₹ / Qtl</option>
+                        <option value="per_kg">₹ / Kg</option>
+                        <option value="lumps">Lumps</option>
+                      </select>
+                    </div>
+                  )}
+                  <div style={{ marginTop: '4px', fontSize: '10px', color: '#94a3b8' }}>Reference only — no effect on calculation</div>
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#1f2937', marginBottom: '4px', display: 'block' }}>Check Post</label>
+                  <div style={{ display: 'flex', gap: '6px', fontSize: '11px', marginBottom: '4px' }}>
+                    <label><input type="radio" name="finalEditCheckPost" checked={finalEditData.checkPost} onChange={() => setFinalEditData({ ...finalEditData, checkPost: true })} /> Yes</label>
+                    <label><input type="radio" name="finalEditCheckPost" checked={!finalEditData.checkPost} onChange={() => setFinalEditData({ ...finalEditData, checkPost: false, checkPostValue: '' })} /> No</label>
+                  </div>
+                  {finalEditData.checkPost && (
+                    <div style={editBottomSplitInputStyle}>
+                      <input type="text" inputMode="decimal" value={finalEditData.checkPostValue} onChange={(e) => setFinalEditData({ ...finalEditData, checkPostValue: sanitizeAmountInput(e.target.value, 8) })} style={editBottomAmountInputStyle} placeholder="Check post" />
+                    </div>
+                  )}
+                  <div style={{ marginTop: '4px', fontSize: '10px', color: '#94a3b8' }}>Reference only — no effect on calculation</div>
                 </div>
               </div>
             )}

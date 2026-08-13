@@ -1915,6 +1915,33 @@ const startServer = async () => {
         console.log('⚠️ Migration 152 warning:', error.message);
       }
 
+      // Migration 153: Add market_price & check_post informational columns to sample_entry_offerings
+      try {
+        const addMarketPriceCheckPost = require('./migrations/153_add_market_price_check_post');
+        await addMarketPriceCheckPost.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('✅ Migration 153: market_price & check_post columns ensured');
+      } catch (error) {
+        console.log('⚠️ Migration 153 warning:', error.message);
+      }
+
+      // Migration 154: Add market_price_value & check_post_value value columns to sample_entry_offerings
+      try {
+        const addMarketPriceCheckPostValues = require('./migrations/154_add_market_price_check_post_values');
+        await addMarketPriceCheckPostValues.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('✅ Migration 154: market_price_value & check_post_value columns ensured');
+      } catch (error) {
+        console.log('⚠️ Migration 154 warning:', error.message);
+      }
+
+      // Migration 155: Add market_price_unit to sample_entry_offerings
+      try {
+        const addMarketPriceUnit = require('./migrations/155_add_market_price_unit');
+        await addMarketPriceUnit.up(sequelize.getQueryInterface(), sequelize.Sequelize);
+        console.log('✅ Migration 155: market_price_unit column ensured');
+      } catch (error) {
+        console.log('⚠️ Migration 155 warning:', error.message);
+      }
+
     // Default warehouses removed - users should create their own warehouses
 
     // Create default users if they don't exist

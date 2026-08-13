@@ -340,9 +340,12 @@ const EditModal: React.FC<EditModalProps> = ({ user, mode, onClose, onSave }) =>
     const [fullName, setFullName] = useState(user?.fullName || '');
     const [username, setUsername] = useState(user?.username || '');
     const [password, setPassword] = useState('');
-    const [role, setRole] = useState<string>(user?.role || 'staff');
+    // Inventory is a single role with two sub-roles (Head / Staff) chosen via the
+    // "Inventory Type" selector below. Legacy users stored with role 'inventory_head'
+    // are normalized to inventory_staff + subRole 'head' so the form stays consistent.
+    const [role, setRole] = useState<string>(user?.role === 'inventory_head' ? 'inventory_staff' : (user?.role || 'staff'));
     const [staffType, setStaffType] = useState<'mill' | 'location'>((user?.staffType as any) || 'mill');
-    const [subRole, setSubRole] = useState<string>(user?.subRole || 'staff');
+    const [subRole, setSubRole] = useState<string>(user?.subRole || (user?.role === 'inventory_head' ? 'head' : 'staff'));
     const [qualityEnabled, setQualityEnabled] = useState(!!user?.qualityName);
     const [loading, setLoading] = useState(false);
     
@@ -505,7 +508,6 @@ const EditModal: React.FC<EditModalProps> = ({ user, mode, onClose, onSave }) =>
                                 <option value="manager">Manager</option>
                                 <option value="financial_account">Finance</option>
                                 <option value="inventory_staff">Inventory</option>
-                                <option value="inventory_head">Inventory Head</option>
                                 <option value="staff">Paddy Supervisor</option>
                             </Select>
                         </FormGroup>

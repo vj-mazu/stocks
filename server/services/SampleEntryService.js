@@ -1079,6 +1079,7 @@ class SampleEntryService {
         ['cdEnabled', 'cdValue', 'cdUnit'],
         ['bankLoanEnabled', 'bankLoanValue', 'bankLoanUnit'],
         ['paymentConditionValue', 'paymentConditionUnit'],
+        ['marketPrice', 'checkPost', 'marketPriceValue', 'checkPostValue', 'marketPriceUnit'],
         ['isFinalized'],
         ['disputeBaseRate', 'disputeBaseRateType'],
         ['revisedHamali', 'hamaliUnit'],
@@ -1255,6 +1256,12 @@ class SampleEntryService {
       if (finalData.cdUnit !== undefined) updates.cdUnit = finalData.cdUnit;
       if (finalData.paymentConditionValue !== undefined) updates.paymentConditionValue = finalData.paymentConditionValue;
       if (finalData.paymentConditionUnit !== undefined) updates.paymentConditionUnit = finalData.paymentConditionUnit;
+      // Informational only — stored but never used in calculations
+      if (finalData.marketPrice !== undefined) updates.marketPrice = Boolean(finalData.marketPrice);
+      if (finalData.marketPriceValue !== undefined) updates.marketPriceValue = finalData.marketPriceValue;
+      if (finalData.marketPriceUnit !== undefined) updates.marketPriceUnit = finalData.marketPriceUnit;
+      if (finalData.checkPost !== undefined) updates.checkPost = Boolean(finalData.checkPost);
+      if (finalData.checkPostValue !== undefined) updates.checkPostValue = finalData.checkPostValue;
       if (finalData.remarks !== undefined) updates.finalRemarks = finalData.remarks || null;
       if (finalData.isFinalized !== undefined) updates.isFinalized = finalData.isFinalized;
       if (finalData.disputeBaseRate !== undefined) updates.disputeBaseRate = finalData.disputeBaseRate;
@@ -1404,6 +1411,12 @@ class SampleEntryService {
       if (finalData.cdUnit !== undefined) updates.cdUnit = finalData.cdUnit;
       if (finalData.paymentConditionValue !== undefined) updates.paymentConditionValue = finalData.paymentConditionValue;
       if (finalData.paymentConditionUnit !== undefined) updates.paymentConditionUnit = finalData.paymentConditionUnit;
+      // Informational only — stored but never used in calculations
+      if (finalData.marketPrice !== undefined) updates.marketPrice = Boolean(finalData.marketPrice);
+      if (finalData.marketPriceValue !== undefined) updates.marketPriceValue = finalData.marketPriceValue;
+      if (finalData.marketPriceUnit !== undefined) updates.marketPriceUnit = finalData.marketPriceUnit;
+      if (finalData.checkPost !== undefined) updates.checkPost = Boolean(finalData.checkPost);
+      if (finalData.checkPostValue !== undefined) updates.checkPostValue = finalData.checkPostValue;
       if (finalData.remarks !== undefined) updates.finalRemarks = finalData.remarks || null;
       if (finalData.isFinalized !== undefined) updates.isFinalized = finalData.isFinalized;
       if (finalData.disputeBaseRate !== undefined) updates.disputeBaseRate = finalData.disputeBaseRate;

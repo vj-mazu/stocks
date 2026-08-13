@@ -256,6 +256,37 @@ const SampleEntryOffering = sequelize.define('SampleEntryOffering', {
         defaultValue: 'days',
         field: 'payment_condition_unit'
     },
+    // Informational fields only — saved but NEVER used in any calculation
+    marketPrice: {
+        type: DataTypes.BOOLEAN,
+        allowNull: true,
+        defaultValue: false,
+        field: 'market_price'
+    },
+    checkPost: {
+        type: DataTypes.BOOLEAN,
+        allowNull: true,
+        defaultValue: false,
+        field: 'check_post'
+    },
+    marketPriceValue: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true,
+        defaultValue: null,
+        field: 'market_price_value'
+    },
+    checkPostValue: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        defaultValue: null,
+        field: 'check_post_value'
+    },
+    marketPriceUnit: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+        defaultValue: 'lumps',
+        field: 'market_price_unit'
+    },
     // === FINAL PRICE FIELDS ===
     finalBaseRate: {
         type: DataTypes.DECIMAL(10, 2),
