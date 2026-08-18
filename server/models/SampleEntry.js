@@ -450,6 +450,11 @@ SampleEntry.associate = (models) => {
     as: 'offering'
   });
 
+  SampleEntry.hasOne(models.PattiRecord, {
+    foreignKey: 'sampleEntryId',
+    as: 'pattiRecord'
+  });
+
   SampleEntry.belongsTo(models.Warehouse, {
     foreignKey: 'placeWarehouseId',
     as: 'placeWarehouse'

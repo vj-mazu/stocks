@@ -132,6 +132,8 @@ interface CompletedLotsProps {
     excludeEntryType?: string;
 }
 
+
+
 const CompletedLots: React.FC<CompletedLotsProps> = ({ excludeEntryType }) => {
     const { user } = useAuth();
     const [entries, setEntries] = useState<SampleEntry[]>([]);
@@ -146,6 +148,13 @@ const CompletedLots: React.FC<CompletedLotsProps> = ({ excludeEntryType }) => {
     const [inspectionProgress, setInspectionProgress] = useState<{ [key: string]: InspectionProgress }>({});
     const pageSize = 50;
 
+    // Sub-tab state
+    const [currentPattiTab, setCurrentPattiTab] = useState<'pending' | 'completed'>('pending');
+
+    // States for patti calculation modal
+    const [selectedEntryForPatti, setSelectedEntryForPatti] = useState<any | null>(null);
+    const [isPattiReadOnly, setIsPattiReadOnly] = useState<boolean>(false);
+
     // State for opening the detail patti modal
     const [selectedEntryForDetail, setSelectedEntryForDetail] = useState<any | null>(null);
     const [targetLorryTripId, setTargetLorryTripId] = useState<string | null>(null);
@@ -154,7 +163,10 @@ const CompletedLots: React.FC<CompletedLotsProps> = ({ excludeEntryType }) => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const params: Record<string, string> = { pageSize: String(pageSize) };
+            const params: Record<string, string> = { 
+                pageSize: String(pageSize),
+                pattiStatus: currentPattiTab
+            };
             if (activeCursor) {
                 params.cursor = activeCursor;
             }
@@ -200,11 +212,17 @@ const CompletedLots: React.FC<CompletedLotsProps> = ({ excludeEntryType }) => {
             console.error('Error fetching completed lots:', err);
         }
         setLoading(false);
-    }, [activeCursor, filters, excludeEntryType]);
+    }, [activeCursor, filters, excludeEntryType, currentPattiTab]);
 
     useEffect(() => {
         fetchEntries();
     }, [fetchEntries]);
+
+    // Reset pagination when tab changes
+    useEffect(() => {
+        setActiveCursor(null);
+        setCursorStack([null]);
+    }, [currentPattiTab]);
 
     const toggleExpand = (entryId: string) => {
         setExpandedEntries(prev => ({
@@ -242,23 +260,42 @@ const CompletedLots: React.FC<CompletedLotsProps> = ({ excludeEntryType }) => {
     return (
         <div>
             {/* Sub-tab view mimicking screenshot */}
-            <div style={{ display: 'flex', borderBottom: '2px solid #ddd', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', borderBottom: '2px solid #ddd', marginBottom: '16px', gap: '8px' }}>
                 <button
+                    onClick={() => setCurrentPattiTab('pending')}
                     style={{
                         padding: '10px 24px',
                         fontSize: '13px',
                         fontWeight: '700',
-                        backgroundColor: '#f8f9fa',
-                        color: '#495057',
+                        backgroundColor: currentPattiTab === 'pending' ? '#3498db' : '#f8f9fa',
+                        color: currentPattiTab === 'pending' ? 'white' : '#495057',
                         border: '1px solid #ddd',
                         borderBottom: 'none',
-                        borderRight: '3px solid #3498db',
-                        cursor: 'default',
+                        cursor: 'pointer',
                         display: 'flex',
-                        alignItems: 'center'
+                        alignItems: 'center',
+                        borderRadius: '4px 4px 0 0'
                     }}
                 >
                     Pending Patti
+                </button>
+                <button
+                    onClick={() => setCurrentPattiTab('completed')}
+                    style={{
+                        padding: '10px 24px',
+                        fontSize: '13px',
+                        fontWeight: '700',
+                        backgroundColor: currentPattiTab === 'completed' ? '#3498db' : '#f8f9fa',
+                        color: currentPattiTab === 'completed' ? 'white' : '#495057',
+                        border: '1px solid #ddd',
+                        borderBottom: 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        borderRadius: '4px 4px 0 0'
+                    }}
+                >
+                    Completed Patti
                 </button>
             </div>
 
@@ -302,7 +339,11 @@ const CompletedLots: React.FC<CompletedLotsProps> = ({ excludeEntryType }) => {
                     return <div style={{ textAlign: 'center', padding: '30px', color: '#888', fontWeight: '600' }}>Loading...</div>;
                 }
                 if (entries.length === 0) {
-                    return <div style={{ textAlign: 'center', padding: '30px', color: '#888', fontWeight: '600' }}>No completed lots with pending patti found</div>;
+                    return (
+                        <div style={{ textAlign: 'center', padding: '30px', color: '#888', fontWeight: '600' }}>
+                            {currentPattiTab === 'completed' ? 'No completed patti lots found' : 'No completed lots with pending patti found'}
+                        </div>
+                    );
                 }
 
                 return Object.entries(groupedEntries).map(([dateKey, brokerGroups]) => (
@@ -439,13 +480,16 @@ const CompletedLots: React.FC<CompletedLotsProps> = ({ excludeEntryType }) => {
                                                                 <td style={{ border: '1px solid #000', padding: '4px 3px', textAlign: 'center' }}>
                                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: '100%' }}>
                                                                         <button
-                                                                            onClick={handleActionClick}
+                                                                            onClick={() => {
+                                                                                setSelectedEntryForPatti(entry);
+                                                                                setIsPattiReadOnly(currentPattiTab === 'completed');
+                                                                            }}
                                                                             style={{
                                                                                 width: '100%',
                                                                                 padding: '3px 4px',
                                                                                 fontSize: '10px',
                                                                                 fontWeight: '700',
-                                                                                backgroundColor: '#27ae60',
+                                                                                backgroundColor: currentPattiTab === 'completed' ? '#3b82f6' : '#27ae60',
                                                                                 color: 'white',
                                                                                 border: 'none',
                                                                                 borderRadius: '3px',
@@ -453,7 +497,7 @@ const CompletedLots: React.FC<CompletedLotsProps> = ({ excludeEntryType }) => {
                                                                                 textAlign: 'center'
                                                                             }}
                                                                         >
-                                                                            Patti
+                                                                            {currentPattiTab === 'completed' ? 'View Patti' : 'Patti'}
                                                                         </button>
                                                                         <button
                                                                             onClick={handleActionClick}
@@ -755,8 +799,394 @@ const CompletedLots: React.FC<CompletedLotsProps> = ({ excludeEntryType }) => {
                     targetLorryTripId={targetLorryTripId || undefined}
                 />
             )}
+
+            {/* Render Patti Calculation Modal */}
+            {selectedEntryForPatti && (
+                <PattiCalculationModal
+                    entry={selectedEntryForPatti}
+                    isReadOnly={isPattiReadOnly}
+                    onClose={() => setSelectedEntryForPatti(null)}
+                    onSaved={() => {
+                        setSelectedEntryForPatti(null);
+                        fetchEntries();
+                    }}
+                />
+            )}
         </div>
     );
 };
- 
+
+// Patti Calculation Modal Component
+interface PattiCalculationModalProps {
+    entry: any;
+    isReadOnly: boolean;
+    onClose: () => void;
+    onSaved: () => void;
+}
+
+const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, isReadOnly, onClose, onSaved }) => {
+    const inspections = entry.lotAllotment?.physicalInspections || [];
+    const pattiTrips = inspections.filter((insp: any) => insp.linkedPattiRate != null)
+        .sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+    const getApprovedFullAvgBags = (stages: any, defaultBags: number) => {
+        if (stages.balanced_lot?.approvalStatus === 'approved') return stages.balanced_lot.actualBags || defaultBags;
+        if (stages.full_avg?.approvalStatus === 'approved') return stages.full_avg.actualBags || defaultBags;
+        if (stages.half_lorry?.approvalStatus === 'approved') return stages.half_lorry.actualBags || defaultBags;
+        const keys = Object.keys(stages).filter(k => k.startsWith('nit_avg'));
+        for (const k of keys) {
+            if (stages[k]?.approvalStatus === 'approved') return stages[k].actualBags || defaultBags;
+        }
+        if (stages.lot_avg?.approvalStatus === 'approved') return stages.lot_avg.actualBags || defaultBags;
+        return defaultBags;
+    };
+
+    // Additions & Deductions & Per-Lorry Packaging State
+    const savedPatti = entry.pattiRecord || {};
+    const initialLorryPackagings = savedPatti.lorryPackagings || {};
+    const [lorryPackagings, setLorryPackagings] = useState<{ [key: string]: number }>(() => {
+        const initial: { [key: string]: number } = {};
+        pattiTrips.forEach((insp: any) => {
+            if (initialLorryPackagings[insp.id] !== undefined) {
+                initial[insp.id] = Number(initialLorryPackagings[insp.id]);
+            } else {
+                const lorryPkg = insp.sampleEntry?.packaging || entry.packaging || '75';
+                initial[insp.id] = Number(String(lorryPkg).replace(/[^0-9.]/g, '')) || 75;
+            }
+        });
+        return initial;
+    });
+
+    const [hamaliRate, setHamaliRate] = useState<number>(savedPatti.hamaliRate !== undefined ? Number(savedPatti.hamaliRate) : 12);
+    const [brokerageRate, setBrokerageRate] = useState<number>(savedPatti.brokerageRate !== undefined ? Number(savedPatti.brokerageRate) : 11);
+    const [lessDf, setLessDf] = useState<number>(savedPatti.lessDf !== undefined ? Number(savedPatti.lessDf) : 0);
+    const [lessWb, setLessWb] = useState<number>(savedPatti.lessWb !== undefined ? Number(savedPatti.lessWb) : 0);
+
+    // Calculate totals of patti-linked trips dynamically based on current lorry packaging state
+    const calculatedTrips = pattiTrips.map((insp: any) => {
+        const bags = Number(getApprovedFullAvgBags(insp.samplingStages || {}, insp.bags) || 0);
+        const netWt = Number(insp.lorryTransitDetail?.netWeight || 0);
+        const sute = Number(insp.linkedPattiRate?.sute || 0);
+        const shoot = Number((sute * bags).toFixed(2));
+        const suteNetWt = Math.max(0, netWt - shoot);
+        const rate = Number(insp.linkedPattiRate?.rate || 0);
+        
+        // Fetch customized or default packaging size for this lorry
+        const lorryPkgDefault = insp.sampleEntry?.packaging || entry.packaging || '75';
+        const kg = lorryPackagings[insp.id] || Number(String(lorryPkgDefault).replace(/[^0-9.]/g, '')) || 75;
+        const amount = Math.round((suteNetWt * rate) / kg);
+        const unloadingDate = insp.lorryTransitDetail?.placeDate || insp.inspectionDate;
+
+        return {
+            id: insp.id,
+            unloadingDate,
+            bags,
+            kg,
+            variety: entry.variety,
+            netWt,
+            shoot,
+            suteNetWt,
+            rate,
+            amount,
+            lorryNo: insp.lorryNumber?.toUpperCase() || '-'
+        };
+    });
+
+    const totalBags = calculatedTrips.reduce((sum, t) => sum + t.bags, 0);
+    const totalNetWt = calculatedTrips.reduce((sum, t) => sum + t.netWt, 0);
+    const totalShoot = calculatedTrips.reduce((sum, t) => sum + t.shoot, 0);
+    const totalSuteNetWt = calculatedTrips.reduce((sum, t) => sum + t.suteNetWt, 0);
+    const totalLorryAmount = calculatedTrips.reduce((sum, t) => sum + t.amount, 0);
+
+    const hamaliAmount = Number((hamaliRate * totalBags).toFixed(2));
+    const brokerageAmount = Number((brokerageRate * (totalSuteNetWt / 100)).toFixed(2));
+    const totalAdditions = Number((hamaliAmount + brokerageAmount).toFixed(2));
+    const totalDeductions = Number((Number(lessDf) + Number(lessWb)).toFixed(2));
+    const grandTotal = Math.round(totalLorryAmount + totalAdditions - totalDeductions);
+
+    const handleSave = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            await axios.post(`${API_URL}/sample-entries/${entry.id}/patti`, {
+                hamaliRate,
+                hamaliAmount,
+                brokerageRate,
+                brokerageAmount,
+                lessDf,
+                lessWb,
+                totalAmount: totalLorryAmount,
+                grandTotal,
+                lorryPackagings
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            toast.success('Patti Record saved successfully!');
+            onSaved();
+        } catch (err: any) {
+            console.error('Error saving patti:', err);
+            toast.error(err.response?.data?.error || 'Failed to save Patti Record');
+        }
+    };
+
+    const handlePrint = () => {
+        window.print();
+    };
+
+    return (
+        <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1050
+        }}>
+            <style dangerouslySetInnerHTML={{ __html: `
+                @media print {
+                    body * {
+                        visibility: hidden;
+                    }
+                    .patti-print-area, .patti-print-area * {
+                        visibility: visible;
+                    }
+                    .patti-print-area {
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        width: 100% !important;
+                        max-width: 100% !important;
+                        box-shadow: none !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                    }
+                    .no-print {
+                        display: none !important;
+                    }
+                }
+            `}} />
+            
+            <div className="patti-print-area" style={{
+                backgroundColor: 'white',
+                padding: '24px',
+                borderRadius: '8px',
+                width: '90%',
+                maxWidth: '900px',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
+            }}>
+                {/* Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px dashed #333', paddingBottom: '12px', marginBottom: '16px' }}>
+                    <div>
+                        <h2 style={{ margin: 0, fontSize: '20px', color: '#111827', fontWeight: '800' }}>PATTI CALCULATION SHEET (KBD)</h2>
+                        <div style={{ fontSize: '13px', color: '#4b5563', marginTop: '4px', fontWeight: '600' }}>
+                            Party: <span style={{ color: '#111827' }}>{entry.partyName}</span> | Location: <span style={{ color: '#111827' }}>{entry.location}</span>
+                        </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                        <span style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#374151' }}>Date: {new Date().toLocaleDateString('en-GB')}</span>
+                        <span style={{ fontSize: '12px', fontWeight: '700', backgroundColor: '#e5e7eb', padding: '2px 6px', borderRadius: '4px', display: 'inline-block', marginTop: '4px' }}>
+                            Pkg: {entry.packaging || 75} Kg
+                        </span>
+                    </div>
+                </div>
+
+                {/* Table */}
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', marginBottom: '20px', border: '1px solid #000' }}>
+                    <thead>
+                        <tr style={{ backgroundColor: '#f3f4f6', borderBottom: '1px solid #000' }}>
+                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700' }}>un.date</th>
+                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700' }}>Bags</th>
+                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700' }}>Kg</th>
+                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>Verity</th>
+                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '700' }}>Net.wt</th>
+                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '700' }}>Shoot</th>
+                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '700' }}>Net.wt</th>
+                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700' }}>Rate</th>
+                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '700' }}>Amount</th>
+                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>Lorry</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {calculatedTrips.map((trip, idx) => (
+                            <tr key={idx} style={{ borderBottom: '1px solid #ddd' }}>
+                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
+                                    {trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-GB') : '-'}
+                                </td>
+                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{trip.bags}</td>
+                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
+                                    {isReadOnly ? (
+                                        `${trip.kg} Kg`
+                                    ) : (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', justifyContent: 'center' }}>
+                                            <input
+                                                type="number"
+                                                value={lorryPackagings[trip.id] || trip.kg}
+                                                onChange={(e) => {
+                                                    const val = Number(e.target.value);
+                                                    setLorryPackagings(prev => ({ ...prev, [trip.id]: val }));
+                                                }}
+                                                style={{ width: '45px', padding: '2px', textAlign: 'center', fontWeight: '700' }}
+                                            />
+                                            <span style={{ fontSize: '11px', fontWeight: '600' }}>Kg</span>
+                                        </div>
+                                    )}
+                                </td>
+                                <td style={{ border: '1px solid #000', padding: '6px' }}>{trip.variety}</td>
+                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right' }}>{trip.netWt}</td>
+                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', color: '#dc2626' }}>{trip.shoot}</td>
+                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '600' }}>{trip.suteNetWt}</td>
+                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', color: '#16a34a', fontWeight: '700' }}>{trip.rate}</td>
+                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '600' }}>{trip.amount.toLocaleString('en-IN')}</td>
+                                <td style={{ border: '1px solid #000', padding: '6px', fontWeight: '700' }}>{trip.lorryNo}</td>
+                            </tr>
+                        ))}
+                        {/* Totals Row */}
+                        <tr style={{ backgroundColor: '#f9fafb', borderTop: '2px solid #000', borderBottom: '2px solid #000', fontWeight: '800' }}>
+                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>Total</td>
+                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>{totalBags}</td>
+                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>{(() => { const kgs = calculatedTrips.map(t => t.kg); return kgs.length > 0 && kgs.every(k => k === kgs[0]) ? kgs[0] : '-'; })()}</td>
+                            <td style={{ border: '1px solid #000', padding: '8px' }}>-</td>
+                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>{totalNetWt}</td>
+                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right', color: '#dc2626' }}>{totalShoot}</td>
+                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>{totalSuteNetWt}</td>
+                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>-</td>
+                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>{totalLorryAmount.toLocaleString('en-IN')}</td>
+                            <td style={{ border: '1px solid #000', padding: '8px' }}>-</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                {/* Bottom Calculations */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+                    <div style={{ width: '100%', maxWidth: '350px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #eee' }}>
+                            <span style={{ fontWeight: '600' }}>Lorry Total Amount:</span>
+                            <span style={{ fontWeight: '700' }}>Rs {totalLorryAmount.toLocaleString('en-IN')}</span>
+                        </div>
+                        {/* Hamali */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
+                            <span>Add: Hamali @</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <input
+                                    type="number"
+                                    disabled={isReadOnly}
+                                    value={hamaliRate}
+                                    onChange={(e) => setHamaliRate(Number(e.target.value))}
+                                    style={{ width: '50px', padding: '2px', textAlign: 'center', fontSize: '12px' }}
+                                />
+                                <span>/ bag</span>
+                            </div>
+                            <span style={{ fontWeight: '600' }}>Rs {hamaliAmount.toLocaleString('en-IN')}</span>
+                        </div>
+                        {/* Brokerage */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
+                            <span>Add: Brokerage @</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <input
+                                    type="number"
+                                    disabled={isReadOnly}
+                                    value={brokerageRate}
+                                    onChange={(e) => setBrokerageRate(Number(e.target.value))}
+                                    style={{ width: '50px', padding: '2px', textAlign: 'center', fontSize: '12px' }}
+                                />
+                                <span>/ qtl</span>
+                            </div>
+                            <span style={{ fontWeight: '600' }}>Rs {brokerageAmount.toLocaleString('en-IN')}</span>
+                        </div>
+                        {/* Sub Total (Additions) */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #eee', color: '#16a34a', fontWeight: '700' }}>
+                            <span>Total Additions:</span>
+                            <span>Rs {totalAdditions.toLocaleString('en-IN')}</span>
+                        </div>
+                        {/* Less DF */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
+                            <span>Less: DF (Discount):</span>
+                            <input
+                                type="number"
+                                disabled={isReadOnly}
+                                value={lessDf}
+                                onChange={(e) => setLessDf(Number(e.target.value))}
+                                style={{ width: '80px', padding: '2px', textAlign: 'right', fontSize: '12px' }}
+                            />
+                            <span style={{ fontWeight: '600', color: '#dc2626' }}>- Rs {Number(lessDf).toLocaleString('en-IN')}</span>
+                        </div>
+                        {/* Less WB */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
+                            <span>Less: WB (Weighbridge):</span>
+                            <input
+                                type="number"
+                                disabled={isReadOnly}
+                                value={lessWb}
+                                onChange={(e) => setLessWb(Number(e.target.value))}
+                                style={{ width: '80px', padding: '2px', textAlign: 'right', fontSize: '12px' }}
+                            />
+                            <span style={{ fontWeight: '600', color: '#dc2626' }}>- Rs {Number(lessWb).toLocaleString('en-IN')}</span>
+                        </div>
+                        {/* Grand Total */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '2px solid #000', borderBottom: '2px double #000', marginTop: '8px', fontSize: '15px', fontWeight: '800', color: '#1e3a8a' }}>
+                            <span>Grand Total:</span>
+                            <span>Rs {grandTotal.toLocaleString('en-IN')}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer Buttons */}
+                <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px', borderTop: '1px solid #eee', paddingTop: '16px' }}>
+                    <button
+                        onClick={onClose}
+                        style={{
+                            padding: '8px 16px',
+                            border: '1px solid #ccc',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '13px',
+                            fontWeight: '600',
+                            backgroundColor: '#f9fafb'
+                        }}
+                    >
+                        Close
+                    </button>
+                    <button
+                        onClick={handlePrint}
+                        style={{
+                            padding: '8px 16px',
+                            backgroundColor: '#3b82f6',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '13px',
+                            fontWeight: '700'
+                        }}
+                    >
+                        🖨️ Print Patti
+                    </button>
+                    {!isReadOnly && (
+                        <button
+                            onClick={handleSave}
+                            style={{
+                                padding: '8px 16px',
+                                backgroundColor: '#10b981',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '13px',
+                                fontWeight: '700'
+                            }}
+                        >
+                            💾 Save & Complete Patti
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export default CompletedLots;

@@ -1942,6 +1942,16 @@ const startServer = async () => {
         console.log('⚠️ Migration 155 warning:', error.message);
       }
 
+      // Migration 156: Create patti records table (for Completed Lots → Patti feature)
+      try {
+        const createPattiRecords = require('./migrations/156_create_patti_records');
+        const queryInterface = sequelize.getQueryInterface();
+        await createPattiRecords.up(queryInterface, sequelize.Sequelize);
+        console.log('✅ Migration 156: patti_records table created');
+      } catch (error) {
+        console.log('⚠️ Migration 156 warning:', error.message);
+      }
+
     // Default warehouses removed - users should create their own warehouses
 
     // Create default users if they don't exist

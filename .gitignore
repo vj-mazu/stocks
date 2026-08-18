@@ -1,14 +1,82 @@
 node_modules/
-server/logs.txt
+build/
+dist/
+
+# Logs
+*.log
 logs.txt
+server/logs.txt
+
+# Debug scripts (root)
+dbg_*.py
+*.ps1
+diff.txt
+trigger.md
+DEPLOY_TRIGGER.txt
+vercel-trigger.txt
+
+# Test files (root)
+test-*.js
+test-results/
+playwright-report/
+
+# Debug markdown docs
+BUG_FIX_SUMMARY.md
+RENDER_DATABASE_FIX.md
+RESAMPLE_FIX_SUMMARY.md
+RESAMPLE_WORKFLOW_TEST.md
+RESAMPLE_WORKFLOW_VISUAL_GUIDE.md
+TESTER_REPORT.md
+TESTING_REPORT.md
+
+# Server debug files
+server/check_*.js
+server/find_*.js
+server/search_*.js
+server/dump*.js
+server/dump*.json
+server/debug_*.js
+server/fix-*.js
+server/verify-*.js
+server/test_*.js
+server/print-vars.js
+server/entries-latest.json
+server/*_report.txt
+server/server-dev.log
+
+# Server scripts (debug)
+server/scripts/
+
+# Client debug files
+client/ts-errors.txt
+client/tsc_errors.txt
+client/typescript-errors.txt
+
+# Scratch folder
+scratch/
+
+# IDE / tooling
+.vscode/
 *.swp
 *~
 .DS_Store
+
+# Data files
 uploads/
 remote-compare/
+
+# AI tool output
 .agent/
 .agents/
 graphify-out/
 client/src/graphify-out/
 server/graphify-out/
-server/scratch/
+.kiro/
+.claude/
+.cline/
+.codeium/
+.copilot/
+.cursor/
+.mcp.json
+skills-lock.json
+.graphify_*.json

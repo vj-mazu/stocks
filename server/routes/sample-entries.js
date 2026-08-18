@@ -1988,14 +1988,16 @@ router.get('/tabs/final-pass-lots', authenticateToken, cacheMiddleware(15), asyn
   }
 });
 
-// ─── Completed Lots (patti not yet added) ───
+// ─── Completed Lots (patti not yet added / completed patti) ───
 router.get('/tabs/completed-lots', authenticateToken, cacheMiddleware(30), async (req, res) => {
   try {
-    const { page = 1, pageSize = 50, broker, variety, party, location, startDate, endDate, entryType, excludeEntryType } = req.query;
+    const { page = 1, pageSize = 50, broker, variety, party, location, startDate, endDate, entryType, excludeEntryType, pattiStatus = 'pending' } = req.query;
 
     const LotAllotment = require('../models/LotAllotment');
     const PhysicalInspection = require('../models/PhysicalInspection');
     const User = require('../models/User');
+    const PattiRecord = require('../models/PattiRecord');
+    const LorryTransitDetail = require('../models/LorryTransitDetail');
 
     const where = {
       workflowStatus: {
@@ -2009,6 +2011,21 @@ router.get('/tabs/completed-lots', authenticateToken, cacheMiddleware(30), async
     if (startDate && endDate) where.entryDate = { [Op.between]: [startDate, endDate] };
     if (entryType) where.entryType = entryType;
     if (excludeEntryType) where.entryType = { [Op.ne]: excludeEntryType };
+
+    // Filter by pattiStatus.
+    // NOTE: do NOT use a nested association reference like '$pattiRecord.id$' in the
+    // top-level where — the pagination pre-query in fetchHydratedSampleEntryPage runs
+    // without includes/JOINs, so that would throw "missing FROM-clause entry for table
+    // pattiRecord". Instead, fetch the sample entry ids that already have a patti record
+    // (patti_records is a small table) and filter with plain IN / NOT IN.
+    const pattiRows = await PattiRecord.findAll({ attributes: ['sampleEntryId'] });
+    const pattiEntryIds = pattiRows.map((r) => r.sampleEntryId);
+
+    if (pattiStatus === 'completed') {
+      where.id = pattiEntryIds.length > 0 ? { [Op.in]: pattiEntryIds } : null;
+    } else if (pattiEntryIds.length > 0) {
+      where.id = { [Op.notIn]: pattiEntryIds };
+    }
 
     const paginationQuery = buildCursorQuery(req.query, 'DESC', {
       fields: SAMPLE_ENTRY_CURSOR_FIELDS
@@ -2024,13 +2041,25 @@ router.get('/tabs/completed-lots', authenticateToken, cacheMiddleware(30), async
           { model: QualityParameters, as: 'qualityParameters' },
           { model: SampleEntryOffering, as: 'offering' },
           { model: User, as: 'creator', attributes: ['id', 'username'] },
+          { model: PattiRecord, as: 'pattiRecord', required: pattiStatus === 'completed' },
           {
             model: LotAllotment,
             as: 'lotAllotment',
             include: [
               {
                 model: PhysicalInspection,
-                as: 'physicalInspections'
+                as: 'physicalInspections',
+                include: [
+                  {
+                    model: LorryTransitDetail,
+                    as: 'lorryTransitDetail'
+                  },
+                  {
+                    model: SampleEntry,
+                    as: 'sampleEntry',
+                    attributes: ['id', 'packaging']
+                  }
+                ]
               },
               {
                 model: User,
@@ -2067,6 +2096,56 @@ router.get('/tabs/completed-lots', authenticateToken, cacheMiddleware(30), async
     }
   } catch (error) {
     console.error('Error getting completed lots:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ─── Save Patti Record for a Completed Lot ───
+router.post('/:id/patti', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { hamaliRate, hamaliAmount, brokerageRate, brokerageAmount, lessDf, lessWb, totalAmount, grandTotal, lorryPackagings } = req.body;
+
+    const PattiRecord = require('../models/PattiRecord');
+    
+    // Check if SampleEntry exists
+    const entry = await SampleEntry.findByPk(id);
+    if (!entry) {
+      return res.status(404).json({ error: 'Sample entry not found' });
+    }
+
+    // Save or update PattiRecord
+    let patti = await PattiRecord.findOne({ where: { sampleEntryId: id } });
+    if (patti) {
+      await patti.update({
+        hamaliRate: Number(hamaliRate),
+        hamaliAmount: Number(hamaliAmount),
+        brokerageRate: Number(brokerageRate),
+        brokerageAmount: Number(brokerageAmount),
+        lessDf: Number(lessDf),
+        lessWb: Number(lessWb),
+        totalAmount: Number(totalAmount),
+        grandTotal: Number(grandTotal),
+        lorryPackagings: lorryPackagings || {}
+      });
+    } else {
+      patti = await PattiRecord.create({
+        sampleEntryId: id,
+        hamaliRate: Number(hamaliRate),
+        hamaliAmount: Number(hamaliAmount),
+        brokerageRate: Number(brokerageRate),
+        brokerageAmount: Number(brokerageAmount),
+        lessDf: Number(lessDf),
+        lessWb: Number(lessWb),
+        totalAmount: Number(totalAmount),
+        grandTotal: Number(grandTotal),
+        lorryPackagings: lorryPackagings || {}
+      });
+    }
+
+    res.json({ success: true, patti });
+  } catch (error) {
+    console.error('Error saving patti record:', error);
     res.status(500).json({ error: error.message });
   }
 });

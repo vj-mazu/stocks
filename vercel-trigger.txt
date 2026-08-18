@@ -1,2 +1,0 @@
-Trigger Render Redeploy - 2026-07-20 16:19
-Force clear cache and sync database migrations.
