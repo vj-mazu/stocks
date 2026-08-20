@@ -4395,7 +4395,8 @@ const Arrivals: React.FC = () => {
           const placeStatus = transitDetail?.placeStatus || 'none';
           const wbStatus = transitDetail?.wbStatus || 'none';
           const godownName = isPlaceholder ? '-' : (transitDetail?.placeKunchinittuData?.name || transitDetail?.placeWarehouse?.name || '-');
-          const suteNetWt = isPlaceholder ? '-' : (transitDetail ? (getLorrySuteInfo(entry, inspection, transitDetail).suteNetWeight || fmtWt(parseFloat(transitDetail.grossWeight || 0) - parseFloat(transitDetail.tareWeight || 0) - (parseFloat(transitDetail.sute || 0) * (inspection?.bags || inspection?.bagsLoaded || 1)))) : '-');
+          const suteInfoMob = transitDetail ? getLorrySuteInfo(entry, inspection, transitDetail) : { isPattiLinked: false, suteNetWeight: '' };
+          const suteNetWt = isPlaceholder ? '-' : (suteInfoMob.isPattiLinked ? (suteInfoMob.suteNetWeight && Number(suteInfoMob.suteNetWeight) > 0 ? `${fmtWt(suteInfoMob.suteNetWeight)} Kg` : '-') : 'Patti Not Linked');
 
           // WB action variables
           // Mill staff & location staff can add/edit WB data in the In Transit tab (server allows it),
@@ -4619,8 +4620,7 @@ const Arrivals: React.FC = () => {
           const wbStatus = entry.wbStatus || 'none';
           const netWeightVal = entry.netWeight || 0;
           const suteInfoCard = getLorrySuteInfo(entry, entry?.physicalInspection, entry);
-          const displayNetWeight = suteInfoCard.suteNetWeight ? 
-            `${fmtWt(suteInfoCard.suteNetWeight)} Kg` : (netWeightVal ? `${fmtWt(netWeightVal)} Kg` : '-');
+          const displayNetWeight = suteInfoCard.isPattiLinked ? (suteInfoCard.suteNetWeight && Number(suteInfoCard.suteNetWeight) > 0 ? `${fmtWt(suteInfoCard.suteNetWeight)} Kg` : '-') : 'Patti Not Linked';
           const placeStatus = entry.placeStatus || 'none';
           const bagsCount = entry.bags || '-';
           const bagsKg = entry.packaging ? `${entry.packaging} Kg` : '';
@@ -5432,15 +5432,15 @@ const Arrivals: React.FC = () => {
       // Patti-linked lorry whose WB was saved before the patti was linked (no sute stored):
       // recompute the sute net weight from the linked patti's sute instead of the stale saved value.
       const netWt = d.netWeight != null && d.netWeight !== '' ? Number(d.netWeight) : null;
-      if (netWt !== null && !isNaN(netWt)) {
+      if (netWt !== null && !isNaN(netWt) && netWt > 0) {
         const bags = suteBags(insp, entry);
         suteNetWeight = String(Math.round(netWt - Number(pattiSute) * bags));
       }
-    } else if (savedSuteNetWeight !== '') {
+    } else if (savedSuteNetWeight !== '' && Number(savedSuteNetWeight) > 0) {
       suteNetWeight = savedSuteNetWeight;
     } else if (sute !== '') {
       const netWt = d.netWeight != null && d.netWeight !== '' ? Number(d.netWeight) : null;
-      if (netWt !== null && !isNaN(netWt)) {
+      if (netWt !== null && !isNaN(netWt) && netWt > 0) {
         const bags = suteBags(insp, entry);
         suteNetWeight = String(Math.round(netWt - Number(sute) * bags));
       }
@@ -7428,9 +7428,13 @@ const Arrivals: React.FC = () => {
                               <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '700' }}>
                                 {(() => {
                                   const si = getLorrySuteInfo(entry, inspection, transitDetail);
-                                  if (si.suteNetWeight) return `${fmtWt(si.suteNetWeight)} Kg`;
-                                  if (si.sute) return `${fmtWt(si.sute)} Kg`;
-                                  return si.isPattiLinked ? '-' : <span style={{ color: '#b45309', fontSize: '10px' }}>Patti Not Linked</span>;
+                                  if (!si.isPattiLinked) {
+                                    return <span style={{ color: '#b45309', fontSize: '10px' }}>Patti Not Linked</span>;
+                                  }
+                                  if (si.suteNetWeight && Number(si.suteNetWeight) > 0) {
+                                    return `${fmtWt(si.suteNetWeight)} Kg`;
+                                  }
+                                  return '-';
                                 })()}
                               </td>
 
@@ -9256,9 +9260,13 @@ const Arrivals: React.FC = () => {
                            <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontWeight: '600', color: '#d97706' }}>
                              {(() => {
                                const si = getLorrySuteInfo(entry, entry?.physicalInspection, entry);
-                               if (si.suteNetWeight) return `${fmtWt(si.suteNetWeight)} Kg`;
-                               if (si.sute) return `${fmtWt(si.sute)} Kg`;
-                               return si.isPattiLinked ? '-' : <span style={{ color: '#b45309', fontSize: '10px' }}>Patti Not Linked</span>;
+                               if (!si.isPattiLinked) {
+                                 return <span style={{ color: '#b45309', fontSize: '10px' }}>Patti Not Linked</span>;
+                               }
+                               if (si.suteNetWeight && Number(si.suteNetWeight) > 0) {
+                                 return `${fmtWt(si.suteNetWeight)} Kg`;
+                               }
+                               return '-';
                              })()}
                            </td>
 
