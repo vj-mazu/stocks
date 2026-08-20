@@ -3902,3 +3902,78 @@ Migration 155: Done
 ⚠️ Could not check data for user 9: column RiceStockLocation.createdBy does not exist
 ⚠️ Could not check data for user 8: column RiceStockLocation.createdBy does not exist
 [35m🌐 [07:41:23] HTTP: GET /api/admin/users {"status":304,"duration":"81ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+[35m🌐 [08:01:53] HTTP: GET /api/locations/rice-varieties?t=1786608112974 {"status":200,"duration":"23ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+[35m🌐 [08:01:53] HTTP: GET /api/locations/rice-varieties?t=1786608112977 {"status":200,"duration":"24ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+[35m🌐 [08:01:53] HTTP: GET /api/locations/varieties?t=1786608112973 {"status":200,"duration":"40ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+[35m🌐 [08:01:53] HTTP: GET /api/locations/varieties?t=1786608112977 {"status":200,"duration":"41ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+[35m🌐 [08:01:53] HTTP: GET /api/locations/kunchinittus {"status":200,"duration":"49ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+[35m🌐 [08:01:53] HTTP: GET /api/locations/warehouses {"status":200,"duration":"53ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+[35m🌐 [08:01:53] HTTP: GET /api/locations/warehouses {"status":200,"duration":"11ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+[35m🌐 [08:01:53] HTTP: GET /api/locations/kunchinittus {"status":200,"duration":"34ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+[35m🌐 [08:01:53] HTTP: GET /api/locations/brokers?type=paddy {"status":200,"duration":"25ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+[35m🌐 [08:01:53] HTTP: GET /api/locations/warehouses {"status":200,"duration":"75ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+[35m🌐 [08:01:53] HTTP: GET /api/locations/kunchinittus {"status":200,"duration":"116ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+[PRIVACY] BYPASSED for admin/manager: { role: 'admin', userId: 1 }
+⚠️ Could not check data for user 9: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 10: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 4: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 8: column RiceStockLocation.createdBy does not exist
+[35m🌐 [08:01:53] HTTP: GET /api/arrivals/next-sl-no {"status":304,"duration":"232ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+[35m🌐 [08:01:53] HTTP: GET /api/weight-bridges {"status":304,"duration":"280ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+[35m🌐 [08:01:53] HTTP: GET /api/locations/varieties?t=1786608113311 {"status":200,"duration":"265ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+[35m🌐 [08:01:53] HTTP: GET /api/locations/warehouses {"status":200,"duration":"4ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+[35m🌐 [08:01:53] HTTP: GET /api/locations/brokers?type=paddy {"status":200,"duration":"31ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+[35m🌐 [08:01:53] HTTP: GET /api/outturns {"status":304,"duration":"327ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+[35m🌐 [08:01:53] HTTP: GET /api/locations/kunchinittus {"status":200,"duration":"71ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+[35m🌐 [08:01:53] HTTP: GET /api/locations/varieties?t=1786608113316 {"status":200,"duration":"263ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+[35m🌐 [08:01:53] HTTP: GET /api/arrivals/next-sl-no {"status":304,"duration":"200ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+[35m🌐 [08:01:53] HTTP: GET /api/sample-entries/by-role?status=PHYSICAL_INSPECTION&pageSize=1000&includeInventory=true {"status":304,"duration":"405ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+[PRIVACY] BYPASSED for admin/manager: { role: 'admin', userId: 1 }
+[35m🌐 [08:01:53] HTTP: GET /api/weight-bridges {"status":304,"duration":"183ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+⚠️ Could not check data for user 5: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 7: column RiceStockLocation.createdBy does not exist
+⚠️  SLOW: GET /api/admin/users - 587ms
+[35m🌐 [08:01:54] HTTP: GET /api/admin/users {"status":304,"duration":"587ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+⚠️ Could not check data for user 5: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 10: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 9: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 7: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 4: column RiceStockLocation.createdBy does not exist
+[35m🌐 [08:01:54] HTTP: GET /api/sample-entries/by-role?status=PHYSICAL_INSPECTION&pageSize=1000&includeInventory=true {"status":304,"duration":"377ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+⚠️ Could not check data for user 8: column RiceStockLocation.createdBy does not exist
+[35m🌐 [08:01:54] HTTP: GET /api/admin/users {"status":304,"duration":"288ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+[35m🌐 [08:02:54] HTTP: GET /api/sample-entries/361b2c64-934c-4a0a-a60a-47fc3243e599 {"status":304,"duration":"90ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+[35m🌐 [08:02:54] HTTP: GET /api/sample-entries/361b2c64-934c-4a0a-a60a-47fc3243e599/inspection-progress {"status":304,"duration":"57ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+⚠️ Could not check data for user 4: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 9: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 7: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 8: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 10: column RiceStockLocation.createdBy does not exist
+[35m🌐 [08:02:54] HTTP: GET /api/sample-entries/361b2c64-934c-4a0a-a60a-47fc3243e599/inspection-progress {"status":304,"duration":"39ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+⚠️ Could not check data for user 5: column RiceStockLocation.createdBy does not exist
+[35m🌐 [08:02:54] HTTP: GET /api/admin/users {"status":304,"duration":"122ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+⚠️ Could not check data for user 7: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 4: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 5: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 8: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 10: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 9: column RiceStockLocation.createdBy does not exist
+[35m🌐 [08:02:54] HTTP: GET /api/admin/users {"status":304,"duration":"229ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+⚠️  SLOW: GET /api/sample-entries/361b2c64-934c-4a0a-a60a-47fc3243e599 - 515ms
+[35m🌐 [08:12:48] HTTP: GET /api/sample-entries/361b2c64-934c-4a0a-a60a-47fc3243e599 {"status":304,"duration":"515ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+[35m🌐 [08:12:48] HTTP: GET /api/sample-entries/361b2c64-934c-4a0a-a60a-47fc3243e599/inspection-progress {"status":304,"duration":"24ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+[35m🌐 [08:12:48] HTTP: GET /api/sample-entries/361b2c64-934c-4a0a-a60a-47fc3243e599/inspection-progress {"status":304,"duration":"68ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+⚠️ Could not check data for user 4: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 9: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 10: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 8: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 7: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 5: column RiceStockLocation.createdBy does not exist
+[35m🌐 [08:12:48] HTTP: GET /api/admin/users {"status":304,"duration":"137ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m
+⚠️ Could not check data for user 5: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 8: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 10: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 7: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 4: column RiceStockLocation.createdBy does not exist
+⚠️ Could not check data for user 9: column RiceStockLocation.createdBy does not exist
+[35m🌐 [08:12:49] HTTP: GET /api/admin/users {"status":304,"duration":"220ms","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb"}[0m

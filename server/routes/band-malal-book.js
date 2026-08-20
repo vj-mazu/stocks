@@ -197,7 +197,8 @@ router.get('/band-malal-book', auth, async (req, res) => {
           as: 'inventoryQualityParameters',
           required: false,
           include: [
-            { model: User, as: 'approver', attributes: ['id', 'username', 'fullName', 'role'] }
+            { model: User, as: 'approver', attributes: ['id', 'username', 'fullName', 'role'] },
+            { model: User, as: 'reporter', attributes: ['id', 'username', 'fullName', 'role'] }
           ]
         }
       ],

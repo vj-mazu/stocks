@@ -2402,7 +2402,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
 
                 const rowData = [
                     <span style={{ color: '#7c3aed', fontWeight: 'bold' }}>{label}</span>,
-                    <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#1e293b' }}>{param.reporter?.username || 'admin'}</span>,
+                    <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#1e293b' }}>{param.reporter?.fullName || param.reporter?.username || 'admin'}</span>,
                     renderStackedDateTime(reportedAt),
                     <span style={{ fontSize: '9.5px', fontWeight: '700' }}>{moisture}</span>,
                     cutting,
@@ -3197,7 +3197,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
 
                 const rowData = [
                     <span style={{ color: '#7c3aed', fontWeight: 'bold' }}>{label}</span>,
-                    <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#1e293b' }}>{param.reporter?.username || 'admin'}</span>,
+                    <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#1e293b' }}>{param.reporter?.fullName || param.reporter?.username || 'admin'}</span>,
                     renderStackedDateTime(reportedAt),
                     <span style={{ fontSize: '9.5px', fontWeight: '700' }}>{moisture}</span>,
                     cutting,

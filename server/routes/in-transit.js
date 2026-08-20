@@ -12,7 +12,8 @@ const {
   Outturn,
   WeightBridge,
   Warehouse,
-  Kunchinittu
+  Kunchinittu,
+  InventoryQualityParameter
 } = require('../models');
 const cacheService = require('../services/cacheService');
 
@@ -210,6 +211,15 @@ router.get('/in-transit', auth, async (req, res) => {
               association: 'offering',
               required: false
             }
+          ]
+        },
+        {
+          model: InventoryQualityParameter,
+          as: 'inventoryQualityParameters',
+          required: false,
+          include: [
+            { model: User, as: 'approver', attributes: ['id', 'username', 'fullName', 'role'] },
+            { model: User, as: 'reporter', attributes: ['id', 'username', 'fullName', 'role'] }
           ]
         }
       ],

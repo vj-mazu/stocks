@@ -122,6 +122,15 @@ class SampleEntryRepository {
                     as: 'placeApprover',
                     required: false,
                     attributes: ['id', 'username', 'fullName', 'role']
+                  },
+                  {
+                    model: require('../models/InventoryQualityParameter'),
+                    as: 'inventoryQualityParameters',
+                    required: false,
+                    include: [
+                      { model: User, as: 'approver', attributes: ['id', 'username', 'fullName', 'role'] },
+                      { model: User, as: 'reporter', attributes: ['id', 'username', 'fullName', 'role'] }
+                    ]
                   }
                 ]
               }

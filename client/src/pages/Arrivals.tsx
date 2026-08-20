@@ -4101,10 +4101,10 @@ const Arrivals: React.FC = () => {
     return Math.round(n).toLocaleString('en-US');
   };
 
-  // Mill / location staff only handle Mill Quality Sampling + WB. Once a lorry is fully
-  // complete (sampling approved + godown placed/approved + WB approved), there is nothing
-  // left for them to do, so those entries are hidden from them in In-Transit & Band Mall Book.
-  const isStaffMillOrLoc = (user as any)?.role === 'staff' && ((user as any)?.staffType === 'mill' || (user as any)?.staffType === 'location');
+  // Mill / location staff only handle Mill Quality Sampling + WB.
+  const isMillStaff = (user as any)?.role === 'quality_supervisor' || ((user as any)?.role === 'staff' && (user as any)?.staffType === 'mill');
+  const isLocStaff = (user as any)?.role === 'paddy_supervisor' || (user as any)?.role === 'physical_supervisor' || ((user as any)?.role === 'staff' && (user as any)?.staffType === 'location');
+  const isStaffMillOrLoc = isMillStaff || isLocStaff;
 
   const isFullyCompleteLorry = (item: any): boolean => {
     const params =
@@ -4169,11 +4169,22 @@ const Arrivals: React.FC = () => {
         const isWbPending = entry.wbStatus === 'pending';
         if (!hasPendingQuality && !isPlacePending && !isWbPending) return false;
       }
-      // 6. Mill/location staff: hide fully-complete entries (sampling + godown + WB all done)
+      // 6. Mill/location staff specific hides
+      if (isMillStaff) {
+        const qParams = entry.inventoryQualityParameters || [];
+        const lotApproved = qParams.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
+        const fullApproved = qParams.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
+        const samplingDone = lotApproved && fullApproved;
+        if (samplingDone) return false;
+      }
+      if (isLocStaff) {
+        const placeStatus = entry.placeStatus || 'none';
+        if (placeStatus === 'approved' || placeStatus === 'placed') return false;
+      }
       if (isStaffMillOrLoc && isFullyCompleteLorry(entry)) return false;
       return true;
     });
-  }, [bandMalalEntries, bmbDateFilter, bmbDateFromFilter, bmbDateToFilter, bmbBrokerFilter, bmbVarietyFilter, bmbSearchQuery, bmbStatusFilter, isStaffMillOrLoc]);
+  }, [bandMalalEntries, bmbDateFilter, bmbDateFromFilter, bmbDateToFilter, bmbBrokerFilter, bmbVarietyFilter, bmbSearchQuery, bmbStatusFilter, isStaffMillOrLoc, isMillStaff, isLocStaff]);
 
   const paginatedBmbEntries = useMemo(() => {
     const start = (bmbPage - 1) * bmbPageSize;
@@ -4238,7 +4249,20 @@ const Arrivals: React.FC = () => {
           return;
         }
         if (!ltd || ltd.placeStatus !== 'approved') {
-          // Mill/location staff: hide fully-complete trips (sampling + godown + WB all done)
+          // Mill/location staff specific hides
+          if (isMillStaff) {
+            const qParams = insp?.inventoryQualityParameters || insp?.lorryTransitDetail?.inventoryQualityParameters || [];
+            const lotApproved = qParams.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
+            const fullApproved = qParams.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
+            const samplingDone = lotApproved && fullApproved;
+            if (samplingDone) return;
+          }
+          if (isLocStaff) {
+            const placeStatus = ltd?.placeStatus || 'none';
+            if (placeStatus === 'approved' || placeStatus === 'placed') return;
+          }
+
+          // Fallback: hide fully-complete trips
           if (isStaffMillOrLoc && isFullyCompleteLorry(insp)) {
             return;
           }
@@ -4286,7 +4310,7 @@ const Arrivals: React.FC = () => {
       }
       return true;
     });
-  }, [inTransitEntries, inTransitDateFilter, inTransitDateFromFilter, inTransitDateToFilter, inTransitBrokerFilter, inTransitVarietyFilter, inTransitStatusFilter, isStaffMillOrLoc]);
+  }, [inTransitEntries, inTransitDateFilter, inTransitDateFromFilter, inTransitDateToFilter, inTransitBrokerFilter, inTransitVarietyFilter, inTransitStatusFilter, isStaffMillOrLoc, isMillStaff, isLocStaff]);
 
   // Auto-pagination: Switch to the last page when a new entry is added
   const prevBmbLengthRef = useRef(0);
@@ -4377,7 +4401,9 @@ const Arrivals: React.FC = () => {
           // WB action variables
           // Mill staff & location staff can add/edit WB data in the In Transit tab (server allows it),
           // but they must NOT add godown. This mirrors the desktop table + server authorization.
-          const isStaffMillOrLoc = (user as any)?.role === 'staff' && ((user as any)?.staffType === 'mill' || (user as any)?.staffType === 'location');
+          const isMillStaffMob = (user as any)?.role === 'quality_supervisor' || ((user as any)?.role === 'staff' && (user as any)?.staffType === 'mill');
+          const isLocStaffMob = (user as any)?.role === 'paddy_supervisor' || (user as any)?.role === 'physical_supervisor' || ((user as any)?.role === 'staff' && (user as any)?.staffType === 'location');
+          const isStaffMillOrLoc = isMillStaffMob || isLocStaffMob;
           const canActionWB = user && (['admin', 'owner', 'manager', 'ceo', 'inventory_head', 'inventory_staff'].includes(user.role) || isStaffMillOrLoc);
           const showAddWB = canActionWB && !isPlaceholder && wbStatus === 'none';
           const showEditWB = canActionWB && !isPlaceholder && (wbStatus === 'pending' || wbStatus === 'rejected');
