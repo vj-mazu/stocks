@@ -4687,9 +4687,26 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                     // Patti-derived sute fallback — mirrors the Mill WB logic in Arrivals:
                                                     // a saved sute wins; otherwise use the linked patti sute and recompute
                                                     // sute net weight = netWeight - (sute x bags) when no saved sute net exists.
-                                                    const validSute = (lpr: any) => (lpr && !lpr.isDispute && !lpr.isRevision && lpr.sute !== null && lpr.sute !== undefined && lpr.sute !== '' ? Number(lpr.sute) : undefined);
+                                                    const extractSuteNum = (obj: any): number | undefined => {
+                                                        if (!obj) return undefined;
+                                                        let target = obj;
+                                                        if (typeof target === 'string') {
+                                                            try { target = JSON.parse(target); } catch {
+                                                                const num = Number(target);
+                                                                if (!isNaN(num)) return num;
+                                                            }
+                                                        }
+                                                        if (typeof target === 'number') return target;
+                                                        if (typeof target === 'object' && target !== null) {
+                                                            const val = target.sute ?? target.finalSute ?? target.suteValue ?? target.rateInfo?.sute ?? target.rateInfo?.finalSute;
+                                                            if (val !== null && val !== undefined && val !== '') {
+                                                                const n = Number(val);
+                                                                if (!isNaN(n)) return n;
+                                                            }
+                                                        }
+                                                        return undefined;
+                                                    };
                                                     // Locate this lorry's patti link across every data source the modal can carry
-                                                    // (top-level transit spread, lotAllotment inspections, inspection-progress).
                                                     const lorryUpper = String(de.lorryNumber || '').toUpperCase().trim();
                                                     const inspCandidates: any[] = [
                                                         de.physicalInspection,
@@ -4700,33 +4717,42 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                     const matchedInsp = lorryUpper
                                                         ? inspCandidates.find((i: any) => String(i.lorryNumber || '').toUpperCase().trim() === lorryUpper)
                                                         : inspCandidates[0];
-                                                    const pattiRate = (matchedInsp?.linkedPattiRate)
-                                                        || deBase.linkedPattiRate
-                                                        || de.linkedPattiRate
-                                                        || null;
-                                                    const pattiSute = validSute(pattiRate);
+                                                    
+                                                    const pattiSute = extractSuteNum(matchedInsp?.linkedPattiRate)
+                                                        ?? extractSuteNum(matchedInsp?.finalSute)
+                                                        ?? extractSuteNum(deBase.linkedPattiRate)
+                                                        ?? extractSuteNum(deBase.finalSute)
+                                                        ?? extractSuteNum(de.linkedPattiRate)
+                                                        ?? extractSuteNum(de.finalSute);
+                                                        
                                                     const bagsForSute = Number(matchedInsp?.bags ?? de.physicalInspection?.bags ?? deBase.bags ?? de.sampleEntry?.bags ?? 1) || 1;
                                                     // A party-only WB (wbInputType === 'party') stores its values in the
                                                     // mill-named columns, so those become the fallback for the party row.
                                                     const isPartyOnlyWb = de.wbInputType === 'party';
-                                                    const resolveSute = (savedSute: any, savedSuteNet: any, netWt: any, fallbackSute: any = null): { sute: string; suteNet: string } => {
-                                                        const suteNum = (savedSute != null && savedSute !== '') ? Number(savedSute)
+                                                    const resolveSute = (savedSute: any, savedSuteNet: any, netWt: any, fallbackSute: any = null): { sute: string; suteNet: string; isLinked: boolean } => {
+                                                        const customSute = (savedSute != null && savedSute !== '') ? Number(savedSute)
                                                             : (fallbackSute != null && fallbackSute !== '') ? Number(fallbackSute)
-                                                            : pattiSute;
+                                                            : undefined;
+                                                        const isLinked = (pattiSute !== undefined) || (customSute !== undefined);
+                                                        const suteNum = customSute !== undefined ? customSute : pattiSute;
                                                         let suteStr = '';
                                                         if (suteNum !== undefined && isFinite(suteNum)) suteStr = stripWt(suteNum);
                                                         let suteNetStr = '';
-                                                        if (savedSuteNet != null && savedSuteNet !== '') {
-                                                            suteNetStr = stripWt(savedSuteNet);
-                                                        } else if (suteStr !== '' && netWt != null && netWt !== '') {
-                                                            const nw = Number(netWt);
-                                                            if (isFinite(nw)) suteNetStr = String(Math.round(nw - suteNum * bagsForSute));
+                                                        const nw = (netWt != null && netWt !== '') ? Number(netWt) : null;
+                                                        if (isLinked && suteStr !== '') {
+                                                            if (nw !== null && isFinite(nw) && nw > 0) {
+                                                                suteNetStr = String(Math.round(nw - suteNum * bagsForSute));
+                                                            } else if (savedSuteNet != null && savedSuteNet !== '' && Number(savedSuteNet) > 0) {
+                                                                suteNetStr = stripWt(savedSuteNet);
+                                                            }
                                                         }
-                                                        return { sute: suteStr, suteNet: suteNetStr };
+                                                        return { sute: suteStr, suteNet: suteNetStr, isLinked };
                                                     };
                                                     const millSuteInfo = resolveSute(de.sute, de.suteNetWeight, de.netWeight);
-                                                    const millSute = millSuteInfo.sute ? millSuteInfo.sute : '-';
-                                                    const millSuteNet = millSuteInfo.suteNet ? `${millSuteInfo.suteNet} Kg` : '-';
+                                                    const millSute = millSuteInfo.sute ? `${millSuteInfo.sute} Kg` : '-';
+                                                    const millSuteNet = millSuteInfo.isLinked
+                                                        ? (millSuteInfo.suteNet && Number(millSuteInfo.suteNet) > 0 ? `${millSuteInfo.suteNet} Kg` : '-')
+                                                        : <span style={{ color: '#b45309', fontSize: '9.5px', fontWeight: 'bold' }}>Patti Not Linked</span>;
                                                     const millStatus = de.wbStatus && de.wbStatus !== 'none' ? toTitleCase(de.wbStatus) : '-';
                                                     const millAddedBy = de.wbAddedByUser?.fullName || de.wbAddedByUser?.username || de.wbAddedBy?.fullName || de.wbAddedBy?.username || '-';
                                                     const millAddedAt = de.wbAddedAt || null;
@@ -4752,8 +4778,10 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                     const partyNet = de.partyNetWeight ? `${stripWt(de.partyNetWeight)} Kg` : (partySe?.netWeight ? `${stripWt(partySe.netWeight)} Kg` : (isPartyOnlyWb && de.netWeight ? `${stripWt(de.netWeight)} Kg` : '-'));
                                                     const partyNetVal = de.partyNetWeight ?? (partySe?.netWeight ?? (isPartyOnlyWb ? de.netWeight : null));
                                                     const partySuteInfo = resolveSute(de.partySute, de.partySuteNetWeight, partyNetVal, isPartyOnlyWb ? de.sute : null);
-                                                    const partySute = partySuteInfo.sute ? partySuteInfo.sute : '-';
-                                                    const partySuteNet = partySuteInfo.suteNet ? `${partySuteInfo.suteNet} Kg` : '-';
+                                                    const partySute = partySuteInfo.sute ? `${partySuteInfo.sute} Kg` : '-';
+                                                    const partySuteNet = partySuteInfo.isLinked
+                                                        ? (partySuteInfo.suteNet && Number(partySuteInfo.suteNet) > 0 ? `${partySuteInfo.suteNet} Kg` : '-')
+                                                        : <span style={{ color: '#b45309', fontSize: '9.5px', fontWeight: 'bold' }}>Patti Not Linked</span>;
                                                     const partyStatus = de.wbStatus && de.wbStatus !== 'none' ? toTitleCase(de.wbStatus) : '-';
                                                     const partyAddedBy = de.wbAddedByUser?.fullName || de.wbAddedByUser?.username || de.wbAddedBy?.fullName || de.wbAddedBy?.username || de.sampleEntry?.creator?.fullName || de.sampleEntry?.creator?.username || detailEntry?.creator?.fullName || detailEntry?.creator?.username || '-';
                                                     const partyAddedAt = de.partyWbDate || de.wbAddedAt || null;
