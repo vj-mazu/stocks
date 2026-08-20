@@ -400,6 +400,7 @@ router.get('/band-malal-book', auth, async (req, res) => {
           placeWarehouse: placeWarehouse,
           sampleEntry: sampleEntry,
           physicalInspection: inspection,
+          linkedPattiRate: inspection?.linkedPattiRate || null,
           isBandMalal: true,
           transitDetailId: detail.id,
           inventoryQualityParameters: detail.inventoryQualityParameters || []

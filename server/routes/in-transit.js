@@ -341,6 +341,9 @@ router.get('/in-transit', auth, async (req, res) => {
           placeAddedByUser: placeAddedByUser ? { id: placeAddedByUser.id, username: placeAddedByUser.username, fullName: placeAddedByUser.fullName } : null,
           placeApprover: placeApproverUser ? { id: placeApproverUser.id, username: placeApproverUser.username, fullName: placeApproverUser.fullName } : null,
           sampleEntry: sampleEntry,
+          physicalInspection: inspection,
+          linkedPattiRate: inspection?.linkedPattiRate || null,
+          inventoryQualityParameters: detail.inventoryQualityParameters || [],
           isInTransit: true,
           isFullLorryApproved: isFullLorryApprovedInspection(inspection),
           transitDetailId: detail.id

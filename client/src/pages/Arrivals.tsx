@@ -5413,38 +5413,68 @@ const Arrivals: React.FC = () => {
   };
 
   // Effective Sute + Sute Net Weight for a lorry.
-  // Sute is fetched ONLY from the lorry's patti link (linkedPattiRate.sute).
-  // If a WB was already saved with a sute, that saved value wins; otherwise fall back to the patti sute.
-  // Sute Net Weight = saved value, else auto-calc netWeight - sute*bags from the patti sute.
+  // Sute is fetched from the lorry's patti link (linkedPattiRate, finalSute), lot inspections, or saved WB sute.
   const getLorrySuteInfo = (entry: any, inspection: any, transitDetail: any): { sute: string; suteNetWeight: string; isPattiLinked: boolean } => {
     const toStr = (v: any): string => (v === null || v === undefined || v === '' ? '' : String(v));
-    const validSute = (lpr: any) => (lpr && !lpr.isDispute && !lpr.isRevision && lpr.sute !== null && lpr.sute !== undefined && lpr.sute !== '' ? lpr.sute : undefined);
-    const insp = inspection || {};
-    const lpr = insp.linkedPattiRate || entry?.physicalInspection?.linkedPattiRate || entry?.linkedPattiRate;
-    const pattiSute = validSute(lpr);
-    const isPattiLinked = pattiSute !== undefined;
-    const d = transitDetail || insp.lorryTransitDetail || entry?.lorryTransitDetail || entry || {};
-    const savedSute = d.sute !== null && d.sute !== undefined && d.sute !== '' ? d.sute : undefined;
-    const sute = savedSute !== undefined ? String(savedSute) : (pattiSute !== undefined ? String(pattiSute) : '');
-    let suteNetWeight = '';
-    const savedSuteNetWeight = d.suteNetWeight !== null && d.suteNetWeight !== undefined && d.suteNetWeight !== '' ? String(d.suteNetWeight) : '';
-    if (pattiSute !== undefined && savedSute === undefined) {
-      // Patti-linked lorry whose WB was saved before the patti was linked (no sute stored):
-      // recompute the sute net weight from the linked patti's sute instead of the stale saved value.
-      const netWt = d.netWeight != null && d.netWeight !== '' ? Number(d.netWeight) : null;
-      if (netWt !== null && !isNaN(netWt) && netWt > 0) {
-        const bags = suteBags(insp, entry);
-        suteNetWeight = String(Math.round(netWt - Number(pattiSute) * bags));
+    
+    const extractSuteFromObject = (obj: any): string | undefined => {
+      if (!obj) return undefined;
+      let target = obj;
+      if (typeof target === 'string') {
+        try {
+          target = JSON.parse(target);
+        } catch (e) {
+          const num = Number(target);
+          if (!isNaN(num)) return String(num);
+        }
       }
-    } else if (savedSuteNetWeight !== '' && Number(savedSuteNetWeight) > 0) {
-      suteNetWeight = savedSuteNetWeight;
-    } else if (sute !== '') {
-      const netWt = d.netWeight != null && d.netWeight !== '' ? Number(d.netWeight) : null;
+      if (typeof target === 'number') return String(target);
+      if (typeof target === 'object' && target !== null) {
+        const val = target.sute ?? target.finalSute ?? target.suteValue ?? target.rateInfo?.sute ?? target.rateInfo?.finalSute;
+        if (val !== null && val !== undefined && val !== '') return String(val);
+      }
+      return undefined;
+    };
+
+    const insp = inspection || {};
+    const d = transitDetail || insp.lorryTransitDetail || entry?.lorryTransitDetail || entry || {};
+
+    // 1. Check direct inspection linkedPattiRate, finalSute, or pattiRate
+    let pattiSute = extractSuteFromObject(insp.linkedPattiRate)
+      ?? extractSuteFromObject(insp.finalSute)
+      ?? extractSuteFromObject(entry?.physicalInspection?.linkedPattiRate)
+      ?? extractSuteFromObject(entry?.physicalInspection?.finalSute)
+      ?? extractSuteFromObject(entry?.linkedPattiRate)
+      ?? extractSuteFromObject(entry?.finalSute);
+
+    // 2. If not found, check inside entry.lotAllotment.physicalInspections
+    if (pattiSute === undefined && entry?.lotAllotment?.physicalInspections) {
+      const list = Array.isArray(entry.lotAllotment.physicalInspections) ? entry.lotAllotment.physicalInspections : [];
+      const match = list.find((p: any) => (insp.id && p.id === insp.id) || (insp.lorryNumber && p.lorryNumber?.trim()?.toUpperCase() === insp.lorryNumber?.trim()?.toUpperCase()));
+      if (match) {
+        pattiSute = extractSuteFromObject(match.linkedPattiRate) ?? extractSuteFromObject(match.finalSute);
+      }
+    }
+
+    // 3. Check savedSute on transit detail (e.g. entered via WB or saved in DB)
+    const savedSute = (d.sute !== null && d.sute !== undefined && d.sute !== '') ? String(d.sute) : undefined;
+
+    const isPattiLinked = (pattiSute !== undefined) || (savedSute !== undefined);
+    const sute = (pattiSute !== undefined) ? pattiSute : (savedSute !== undefined ? savedSute : '');
+
+    let suteNetWeight = '';
+    const savedSuteNetWeight = (d.suteNetWeight !== null && d.suteNetWeight !== undefined && d.suteNetWeight !== '') ? String(d.suteNetWeight) : '';
+    const netWt = (d.netWeight != null && d.netWeight !== '') ? Number(d.netWeight) : null;
+
+    if (isPattiLinked && sute !== '') {
       if (netWt !== null && !isNaN(netWt) && netWt > 0) {
         const bags = suteBags(insp, entry);
         suteNetWeight = String(Math.round(netWt - Number(sute) * bags));
+      } else if (savedSuteNetWeight !== '' && Number(savedSuteNetWeight) > 0) {
+        suteNetWeight = savedSuteNetWeight;
       }
     }
+
     return { sute: toStr(sute), suteNetWeight: toStr(suteNetWeight), isPattiLinked };
   };
 
