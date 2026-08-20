@@ -4169,22 +4169,11 @@ const Arrivals: React.FC = () => {
         const isWbPending = entry.wbStatus === 'pending';
         if (!hasPendingQuality && !isPlacePending && !isWbPending) return false;
       }
-      // 6. Mill/location staff specific hides
-      if (isMillStaff) {
-        const qParams = entry.inventoryQualityParameters || [];
-        const lotApproved = qParams.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
-        const fullApproved = qParams.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
-        const samplingDone = lotApproved && fullApproved;
-        if (samplingDone) return false;
-      }
-      if (isLocStaff) {
-        const placeStatus = entry.placeStatus || 'none';
-        if (placeStatus === 'approved' || placeStatus === 'placed') return false;
-      }
+      // 6. Mill/location staff: hide fully-complete entries (sampling + godown + WB all done)
       if (isStaffMillOrLoc && isFullyCompleteLorry(entry)) return false;
       return true;
     });
-  }, [bandMalalEntries, bmbDateFilter, bmbDateFromFilter, bmbDateToFilter, bmbBrokerFilter, bmbVarietyFilter, bmbSearchQuery, bmbStatusFilter, isStaffMillOrLoc, isMillStaff, isLocStaff]);
+  }, [bandMalalEntries, bmbDateFilter, bmbDateFromFilter, bmbDateToFilter, bmbBrokerFilter, bmbVarietyFilter, bmbSearchQuery, bmbStatusFilter, isStaffMillOrLoc]);
 
   const paginatedBmbEntries = useMemo(() => {
     const start = (bmbPage - 1) * bmbPageSize;
@@ -4249,20 +4238,7 @@ const Arrivals: React.FC = () => {
           return;
         }
         if (!ltd || ltd.placeStatus !== 'approved') {
-          // Mill/location staff specific hides
-          if (isMillStaff) {
-            const qParams = insp?.inventoryQualityParameters || insp?.lorryTransitDetail?.inventoryQualityParameters || [];
-            const lotApproved = qParams.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
-            const fullApproved = qParams.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
-            const samplingDone = lotApproved && fullApproved;
-            if (samplingDone) return;
-          }
-          if (isLocStaff) {
-            const placeStatus = ltd?.placeStatus || 'none';
-            if (placeStatus === 'approved' || placeStatus === 'placed') return;
-          }
-
-          // Fallback: hide fully-complete trips
+          // Mill/location staff: hide fully-complete trips (sampling + godown + WB all done)
           if (isStaffMillOrLoc && isFullyCompleteLorry(insp)) {
             return;
           }
@@ -4310,7 +4286,7 @@ const Arrivals: React.FC = () => {
       }
       return true;
     });
-  }, [inTransitEntries, inTransitDateFilter, inTransitDateFromFilter, inTransitDateToFilter, inTransitBrokerFilter, inTransitVarietyFilter, inTransitStatusFilter, isStaffMillOrLoc, isMillStaff, isLocStaff]);
+  }, [inTransitEntries, inTransitDateFilter, inTransitDateFromFilter, inTransitDateToFilter, inTransitBrokerFilter, inTransitVarietyFilter, inTransitStatusFilter, isStaffMillOrLoc]);
 
   // Auto-pagination: Switch to the last page when a new entry is added
   const prevBmbLengthRef = useRef(0);
