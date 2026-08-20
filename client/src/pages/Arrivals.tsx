@@ -1864,14 +1864,16 @@ const Arrivals: React.FC = () => {
     const hasFullRecheck = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'rejected' && p.rejectReason && p.rejectReason.startsWith('RECHECK:'));
 
     let qsBadge = null;
-    if (lotApproved && fullApproved) {
-      qsBadge = <span style={{ background: '#dcfce7', color: '#166534', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Approved</span>;
+    const isQsApproved = fullApproved || (lotApproved && !params.some((p: any) => p.type === 'full_lorry_avg' && p.status !== 'approved'));
+
+    if (lotPending || fullPending) {
+      qsBadge = <span style={{ background: '#fef3c7', color: '#92400e', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Pending</span>;
     } else if (hasLotRecheck || hasFullRecheck) {
       qsBadge = <span style={{ background: '#eff6ff', color: '#1d4ed8', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Recheck</span>;
     } else if (lotRejected || fullRejected) {
       qsBadge = <span style={{ background: '#fee2e2', color: '#991b1b', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Rejected</span>;
-    } else if (lotPending || fullPending) {
-      qsBadge = <span style={{ background: '#fef3c7', color: '#92400e', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Pending</span>;
+    } else if (isQsApproved) {
+      qsBadge = <span style={{ background: '#dcfce7', color: '#166534', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Approved</span>;
     } else {
       qsBadge = <span style={{ background: '#f1f5f9', color: '#64748b', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Pending</span>;
     }
@@ -4114,7 +4116,8 @@ const Arrivals: React.FC = () => {
       [];
     const lotApproved = params.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
     const fullApproved = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
-    if (!(lotApproved && fullApproved)) return false;
+    const isQsApproved = fullApproved || (lotApproved && !params.some((p: any) => p.type === 'full_lorry_avg' && p.status !== 'approved'));
+    if (!isQsApproved) return false;
     const wbStatus = item?.wbStatus || item?.lorryTransitDetail?.wbStatus || 'none';
     if (wbStatus !== 'approved') return false;
     const placeStatus = item?.placeStatus || item?.lorryTransitDetail?.placeStatus || 'none';
@@ -4169,11 +4172,19 @@ const Arrivals: React.FC = () => {
         const isWbPending = entry.wbStatus === 'pending';
         if (!hasPendingQuality && !isPlacePending && !isWbPending) return false;
       }
-      // 6. Mill/location staff: hide fully-complete entries (sampling + godown + WB all done)
+      // 6. Mill staff: hide if sampling is complete
+      if (isMillStaff) {
+        const qParams = entry.inventoryQualityParameters || [];
+        const lotApproved = qParams.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
+        const fullApproved = qParams.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
+        const isQsApproved = fullApproved || (lotApproved && !qParams.some((p: any) => p.type === 'full_lorry_avg' && p.status !== 'approved'));
+        if (isQsApproved) return false;
+      }
+      // 7. Mill/location staff: hide fully-complete entries (sampling + godown + WB all done)
       if (isStaffMillOrLoc && isFullyCompleteLorry(entry)) return false;
       return true;
     });
-  }, [bandMalalEntries, bmbDateFilter, bmbDateFromFilter, bmbDateToFilter, bmbBrokerFilter, bmbVarietyFilter, bmbSearchQuery, bmbStatusFilter, isStaffMillOrLoc]);
+  }, [bandMalalEntries, bmbDateFilter, bmbDateFromFilter, bmbDateToFilter, bmbBrokerFilter, bmbVarietyFilter, bmbSearchQuery, bmbStatusFilter, isStaffMillOrLoc, isMillStaff]);
 
   const paginatedBmbEntries = useMemo(() => {
     const start = (bmbPage - 1) * bmbPageSize;
@@ -4238,6 +4249,18 @@ const Arrivals: React.FC = () => {
           return;
         }
         if (!ltd || ltd.placeStatus !== 'approved') {
+          // Mill staff: hide if sampling is complete in In-Transit
+          if (isMillStaff) {
+            const qParams = insp?.inventoryQualityParameters || insp?.lorryTransitDetail?.inventoryQualityParameters || [];
+            const lotApproved = qParams.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
+            const fullApproved = qParams.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
+            const isQsApproved = fullApproved || (lotApproved && !qParams.some((p: any) => p.type === 'full_lorry_avg' && p.status !== 'approved'));
+            if (isQsApproved) return;
+          }
+          // Location staff: hide if godown is already placed/approved
+          if (isLocStaff && ltd && (ltd.placeStatus === 'approved' || ltd.placeStatus === 'placed')) {
+            return;
+          }
           // Mill/location staff: hide fully-complete trips (sampling + godown + WB all done)
           if (isStaffMillOrLoc && isFullyCompleteLorry(insp)) {
             return;
@@ -4286,7 +4309,7 @@ const Arrivals: React.FC = () => {
       }
       return true;
     });
-  }, [inTransitEntries, inTransitDateFilter, inTransitDateFromFilter, inTransitDateToFilter, inTransitBrokerFilter, inTransitVarietyFilter, inTransitStatusFilter, isStaffMillOrLoc]);
+  }, [inTransitEntries, inTransitDateFilter, inTransitDateFromFilter, inTransitDateToFilter, inTransitBrokerFilter, inTransitVarietyFilter, inTransitStatusFilter, isStaffMillOrLoc, isMillStaff, isLocStaff]);
 
   // Auto-pagination: Switch to the last page when a new entry is added
   const prevBmbLengthRef = useRef(0);
