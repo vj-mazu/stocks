@@ -7059,8 +7059,8 @@ const Arrivals: React.FC = () => {
 
 
 
-                              <td style={{ border: '1px solid #000', padding: '6px', wordBreak: 'break-word', fontWeight: 'bold' }}>
-                                <span style={{ background: '#f0fdfa', color: '#0f766e', border: '1px solid #99f6e4', padding: '3px 8px', borderRadius: '5px', display: 'inline-block', fontSize: '13px', fontWeight: '700', letterSpacing: '0.2px' }}>
+                              <td style={{ border: '1px solid #000', padding: '6px', wordBreak: 'break-word' }}>
+                                <span style={{ color: '#000000', fontSize: '13px', fontWeight: '800', display: 'inline-block' }}>
                                   {entry.brokerName || '-'}
                                 </span>
                               </td>
@@ -8694,8 +8694,8 @@ const Arrivals: React.FC = () => {
 
 
                           {/* Column 3: Broker */}
-                          <td style={{ border: '1px solid #000', padding: '6px', fontWeight: 'bold' }}>
-                            <span style={{ background: '#f0fdfa', color: '#0f766e', border: '1px solid #99f6e4', padding: '3px 8px', borderRadius: '5px', display: 'inline-block', fontSize: '13px', fontWeight: '700', letterSpacing: '0.2px' }}>
+                          <td style={{ border: '1px solid #000', padding: '6px' }}>
+                            <span style={{ color: '#000000', fontSize: '13px', fontWeight: '800', display: 'inline-block' }}>
                               {entry.broker || entry.brokerName || '-'}
                             </span>
                           </td>
