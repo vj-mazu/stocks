@@ -4172,16 +4172,15 @@ const Arrivals: React.FC = () => {
         const isWbPending = entry.wbStatus === 'pending';
         if (!hasPendingQuality && !isPlacePending && !isWbPending) return false;
       }
-      // 6. Mill staff: hide if sampling is complete
-      if (isMillStaff) {
+      // 6. Mill/Location staff: hide when BOTH sampling (Lot Avg + Gutti) and WB are completed
+      if (isStaffMillOrLoc) {
         const qParams = entry.inventoryQualityParameters || [];
         const lotApproved = qParams.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
         const fullApproved = qParams.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
         const isQsApproved = fullApproved || (lotApproved && !qParams.some((p: any) => p.type === 'full_lorry_avg' && p.status !== 'approved'));
-        if (isQsApproved) return false;
+        const isWbDone = entry.wbStatus === 'approved' || entry.wbStatus === 'pending';
+        if (isQsApproved && isWbDone) return false;
       }
-      // 7. Mill/location staff: hide fully-complete entries (sampling + godown + WB all done)
-      if (isStaffMillOrLoc && isFullyCompleteLorry(entry)) return false;
       return true;
     });
   }, [bandMalalEntries, bmbDateFilter, bmbDateFromFilter, bmbDateToFilter, bmbBrokerFilter, bmbVarietyFilter, bmbSearchQuery, bmbStatusFilter, isStaffMillOrLoc, isMillStaff]);
@@ -4249,21 +4248,14 @@ const Arrivals: React.FC = () => {
           return;
         }
         if (!ltd || ltd.placeStatus !== 'approved') {
-          // Mill staff: hide if sampling is complete in In-Transit
-          if (isMillStaff) {
+          // Mill/Location staff: hide when BOTH sampling (Lot Avg + Gutti) and WB are completed
+          if (isStaffMillOrLoc) {
             const qParams = insp?.inventoryQualityParameters || insp?.lorryTransitDetail?.inventoryQualityParameters || [];
             const lotApproved = qParams.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
             const fullApproved = qParams.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
             const isQsApproved = fullApproved || (lotApproved && !qParams.some((p: any) => p.type === 'full_lorry_avg' && p.status !== 'approved'));
-            if (isQsApproved) return;
-          }
-          // Location staff: hide if godown is already placed/approved
-          if (isLocStaff && ltd && (ltd.placeStatus === 'approved' || ltd.placeStatus === 'placed')) {
-            return;
-          }
-          // Mill/location staff: hide fully-complete trips (sampling + godown + WB all done)
-          if (isStaffMillOrLoc && isFullyCompleteLorry(insp)) {
-            return;
+            const isWbDone = ltd && (ltd.wbStatus === 'approved' || ltd.wbStatus === 'pending');
+            if (isQsApproved && isWbDone) return;
           }
           flatTrips.push({
             entry: e,
@@ -7067,8 +7059,8 @@ const Arrivals: React.FC = () => {
 
 
 
-                              <td style={{ border: '1px solid #000', padding: '5px', wordBreak: 'break-word', fontWeight: 'bold' }}>
-                                <span style={{ background: '#f0fdfa', color: '#0f766e', border: '1px solid #ccfbf1', padding: '2px 6px', borderRadius: '4px', display: 'inline-block' }}>
+                              <td style={{ border: '1px solid #000', padding: '6px', wordBreak: 'break-word', fontWeight: 'bold' }}>
+                                <span style={{ background: '#f0fdfa', color: '#0f766e', border: '1px solid #99f6e4', padding: '3px 8px', borderRadius: '5px', display: 'inline-block', fontSize: '13px', fontWeight: '700', letterSpacing: '0.2px' }}>
                                   {entry.brokerName || '-'}
                                 </span>
                               </td>
@@ -8702,9 +8694,9 @@ const Arrivals: React.FC = () => {
 
 
                           {/* Column 3: Broker */}
-                          <td style={{ border: '1px solid #000', padding: '5px', fontWeight: 'bold' }}>
-                            <span style={{ background: '#f0fdfa', color: '#0f766e', border: '1px solid #ccfbf1', padding: '2px 6px', borderRadius: '4px', display: 'inline-block' }}>
-                              {entry.broker || '-'}
+                          <td style={{ border: '1px solid #000', padding: '6px', fontWeight: 'bold' }}>
+                            <span style={{ background: '#f0fdfa', color: '#0f766e', border: '1px solid #99f6e4', padding: '3px 8px', borderRadius: '5px', display: 'inline-block', fontSize: '13px', fontWeight: '700', letterSpacing: '0.2px' }}>
+                              {entry.broker || entry.brokerName || '-'}
                             </span>
                           </td>
 
@@ -14921,7 +14913,7 @@ const Arrivals: React.FC = () => {
                     { label: 'Grains Count', key: 'grains', type: 'text', placeholder: '', required: true },
                     { label: 'Cutting', key: 'cutting', type: 'text', placeholder: '1x', required: true },
                     { label: 'Bend', key: 'bend', type: 'text', placeholder: '1x', required: true },
-                    { label: 'Mix (%)', key: 'mix', type: 'text', placeholder: '', required: true },
+                    { label: 'Mix (%)', key: 'mix', type: 'text', placeholder: '1x', required: true },
                     { label: 'SMix', key: 'sMix', type: 'text', placeholder: '', required: true },
                     { label: 'LMix', key: 'lMix', type: 'text', placeholder: '', required: true },
                     { label: 'SK (%)', key: 'sk', type: 'text', placeholder: '', required: true },
@@ -14998,8 +14990,8 @@ const Arrivals: React.FC = () => {
                         <input type="text" value={inventoryQualityForm[field.key as keyof typeof inventoryQualityForm]}
                           onChange={(e) => setInventoryQualityForm(p => ({ ...p, [field.key]: sanitizeInventoryQualityField(field.key, e.target.value) }))}
                           onFocus={() => {
-                            if (['cutting', 'bend'].includes(field.key) && !inventoryQualityForm[field.key as keyof typeof inventoryQualityForm]) {
-                              setInventoryQualityForm(p => ({ ...p, [field.key]: '1×' }));
+                            if (['cutting', 'bend', 'mix'].includes(field.key) && !inventoryQualityForm[field.key as keyof typeof inventoryQualityForm]) {
+                              setInventoryQualityForm(p => ({ ...p, [field.key]: '1x' }));
                             }
                           }}
                           style={{ width: '100%', padding: '4px', border: activeRecheck ? '1.5px solid #ef4444' : '1px solid #ccc', borderRadius: '3px', fontSize: '11px', boxSizing: 'border-box', backgroundColor: activeRecheck ? '#fef2f2' : '#fff' }}

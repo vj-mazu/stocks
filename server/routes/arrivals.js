@@ -8530,7 +8530,7 @@ router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
       let placeApprovedAt = new Date();
       if (isPlaceEdit) {
         if (isEditAutoApprove) {
-          targetPlaceStatus = isBmbEntry ? 'approved' : 'placed';
+          targetPlaceStatus = 'approved';
           placeApprovedBy = req.user.userId;
           placeApprovedAt = new Date();
         } else {
@@ -8736,7 +8736,7 @@ router.post('/:id/place', auth, requireInventoryRole, async (req, res) => {
     let placeApprovedAt = new Date();
     if (isPlaceEdit) {
       if (isEditAutoApprove) {
-        targetPlaceStatus = isBmbEntry ? 'approved' : 'placed';
+        targetPlaceStatus = 'approved';
         placeApprovedBy = req.user.userId;
         placeApprovedAt = new Date();
       } else {

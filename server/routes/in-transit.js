@@ -399,7 +399,7 @@ router.post('/:id/approve-place', auth, async (req, res) => {
         }
         // Godown EDIT approval - apply the edit
         const isBmbEdit = detail.placeRejectReason && detail.placeRejectReason.startsWith('EDIT_PENDING:approved');
-        const restoreStatus = isBmbEdit ? 'approved' : 'placed';
+        const restoreStatus = 'approved';
         await detail.update({
           placeStatus: restoreStatus,
           placeRejectReason: null,
@@ -410,9 +410,9 @@ router.post('/:id/approve-place', auth, async (req, res) => {
           cacheService.delPattern(pattern).catch(() => {});
         });
         return res.json({
-          message: isBmbEdit ? 'Godown edit approved - entry restored to Band Malal Book' : 'Godown edit approved',
+          message: 'Godown approved - entry moved to Band Malal Book',
           detail,
-          note: isBmbEdit ? 'Entry is back in Band Malal Book.' : 'Entry stays in In-Transit. Move to Band Malal Book when ready.'
+          note: 'Entry is now in Band Malal Book.'
         });
       }
       if (detail.placeStatus !== 'placed') {
@@ -445,8 +445,7 @@ router.post('/:id/approve-place', auth, async (req, res) => {
       if (arrival) {
         if (arrival.placeStatus === 'pending') {
           // Godown EDIT approval - apply the edit
-          const isBmbEdit = arrival.placeRejectReason && arrival.placeRejectReason.startsWith('EDIT_PENDING:approved');
-          const restoreStatus = isBmbEdit ? 'approved' : 'placed';
+          const restoreStatus = 'approved';
           await arrival.update({
             placeStatus: restoreStatus,
             placeRejectReason: null,
@@ -454,9 +453,9 @@ router.post('/:id/approve-place', auth, async (req, res) => {
             placeApprovedAt: new Date()
           });
           return res.json({
-            message: isBmbEdit ? 'Godown edit approved - entry restored to Band Malal Book' : 'Godown edit approved',
+            message: 'Godown approved - entry moved to Band Malal Book',
             arrival,
-            note: isBmbEdit ? 'Entry is back in Band Malal Book.' : 'Entry stays in current state. Move to Band Malal Book when ready.'
+            note: 'Entry is now in Band Malal Book.'
           });
         }
         if (arrival.placeStatus !== 'placed') {

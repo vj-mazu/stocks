@@ -4729,19 +4729,25 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                     // A party-only WB (wbInputType === 'party') stores its values in the
                                                     // mill-named columns, so those become the fallback for the party row.
                                                     const isPartyOnlyWb = de.wbInputType === 'party';
+                                                    const fmtSuteDec = (v: any) => {
+                                                        if (v === null || v === undefined || v === '') return '';
+                                                        const n = Number(v);
+                                                        if (!isFinite(n)) return String(v);
+                                                        return (n % 1 === 0) ? String(n) : String(parseFloat(n.toFixed(2)));
+                                                    };
                                                     const resolveSute = (savedSute: any, savedSuteNet: any, netWt: any, fallbackSute: any = null): { sute: string; suteNet: string; isLinked: boolean } => {
                                                         const customSute = (savedSute != null && savedSute !== '') ? Number(savedSute)
                                                             : (fallbackSute != null && fallbackSute !== '') ? Number(fallbackSute)
                                                             : undefined;
                                                         const isLinked = (pattiSute !== undefined) || (customSute !== undefined);
-                                                        const suteNum = customSute !== undefined ? customSute : pattiSute;
+                                                        const suteNum = pattiSute !== undefined ? pattiSute : customSute;
                                                         let suteStr = '';
-                                                        if (suteNum !== undefined && isFinite(suteNum)) suteStr = stripWt(suteNum);
+                                                        if (suteNum !== undefined && isFinite(suteNum)) suteStr = fmtSuteDec(suteNum);
                                                         let suteNetStr = '';
                                                         const nw = (netWt != null && netWt !== '') ? Number(netWt) : null;
-                                                        if (isLinked && suteStr !== '') {
+                                                        if (isLinked && suteStr !== '' && suteNum !== undefined) {
                                                             if (nw !== null && isFinite(nw) && nw > 0) {
-                                                                suteNetStr = String(Math.round(nw - suteNum * bagsForSute));
+                                                                suteNetStr = stripWt(Math.round(nw - (suteNum * bagsForSute)));
                                                             } else if (savedSuteNet != null && savedSuteNet !== '' && Number(savedSuteNet) > 0) {
                                                                 suteNetStr = stripWt(savedSuteNet);
                                                             }
@@ -4966,7 +4972,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                 <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '75px', whiteSpace: 'nowrap' }}>EGB</th>
                                                                 <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '55px', whiteSpace: 'nowrap' }}>CD</th>
                                                                 <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '100px', whiteSpace: 'nowrap' }}>BANK LOAN</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '85px', whiteSpace: 'nowrap' }}>MARKET PRICE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '85px', whiteSpace: 'nowrap' }}>MARKET FEES</th>
                                                                 <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '75px', whiteSpace: 'nowrap' }}>CHECK POST</th>
                                                                 <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '85px', whiteSpace: 'nowrap' }}>PAYMENT</th>
                                                                 <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '90px', whiteSpace: 'nowrap' }}>STATUS</th>
@@ -5025,7 +5031,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             'Price Details',
                                             '💰',
                                             '#2563eb',
-                                            ['TYPE', 'REPORTED BY', 'REPORTED AT', 'RATE', 'RATE TYPE', 'SUTE', 'MOISTURE', 'HAMALI', 'BROKERAGE', 'LF', 'EGB', 'CD', 'BANK LOAN', 'MARKET PRICE', 'CHECK POST', 'PAYMENT', 'REMARKS'],
+                                            ['TYPE', 'REPORTED BY', 'REPORTED AT', 'RATE', 'RATE TYPE', 'SUTE', 'MOISTURE', 'HAMALI', 'BROKERAGE', 'LF', 'EGB', 'CD', 'BANK LOAN', 'MARKET FEES', 'CHECK POST', 'PAYMENT', 'REMARKS'],
                                             buildPriceComparisonRows(callback)
                                         );
                                     })()}
@@ -5079,7 +5085,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                 <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '75px', whiteSpace: 'nowrap' }}>EGB</th>
                                                                 <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '55px', whiteSpace: 'nowrap' }}>CD</th>
                                                                 <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '100px', whiteSpace: 'nowrap' }}>BANK LOAN</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '85px', whiteSpace: 'nowrap' }}>MARKET PRICE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '85px', whiteSpace: 'nowrap' }}>MARKET FEES</th>
                                                                 <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '75px', whiteSpace: 'nowrap' }}>CHECK POST</th>
                                                                 <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '85px', whiteSpace: 'nowrap' }}>PAYMENT</th>
                                                                 <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '90px', whiteSpace: 'nowrap' }}>STATUS</th>
@@ -5210,7 +5216,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                 <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '75px', whiteSpace: 'nowrap' }}>EGB</th>
                                                                 <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '55px', whiteSpace: 'nowrap' }}>CD</th>
                                                                 <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '100px', whiteSpace: 'nowrap' }}>BANK LOAN</th>
-                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '85px', whiteSpace: 'nowrap' }}>MARKET PRICE</th>
+                                                                <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '85px', whiteSpace: 'nowrap' }}>MARKET FEES</th>
                                                                 <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '75px', whiteSpace: 'nowrap' }}>CHECK POST</th>
                                                                 <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '85px', whiteSpace: 'nowrap' }}>PAYMENT</th>
                                                                 <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '90px', whiteSpace: 'nowrap' }}>STATUS</th>
@@ -5391,7 +5397,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             'Price Details',
                                             '💰',
                                             '#2563eb',
-                                            ['TYPE', 'REPORTED BY', 'REPORTED AT', 'RATE', 'RATE TYPE', 'SUTE', 'MOISTURE', 'HAMALI', 'BROKERAGE', 'LF', 'EGB', 'CD', 'BANK LOAN', 'MARKET PRICE', 'CHECK POST', 'PAYMENT', 'REMARKS'],
+                                            ['TYPE', 'REPORTED BY', 'REPORTED AT', 'RATE', 'RATE TYPE', 'SUTE', 'MOISTURE', 'HAMALI', 'BROKERAGE', 'LF', 'EGB', 'CD', 'BANK LOAN', 'MARKET FEES', 'CHECK POST', 'PAYMENT', 'REMARKS'],
                                             buildPriceComparisonRows(callback)
                                         );
                                     })()}
