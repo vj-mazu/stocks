@@ -4247,7 +4247,7 @@ const Arrivals: React.FC = () => {
         if (ltd && ltd.placeStatus === 'pending' && ltd.placeRejectReason && String(ltd.placeRejectReason).startsWith('EDIT_PENDING:approved')) {
           return;
         }
-        if (!ltd || ltd.placeStatus !== 'approved') {
+        if (!ltd || (ltd.placeStatus !== 'approved' && ltd.placeStatus !== 'placed')) {
           // Mill/Location staff: hide when BOTH sampling (Lot Avg + Gutti) and WB are completed
           if (isStaffMillOrLoc) {
             const qParams = insp?.inventoryQualityParameters || insp?.lorryTransitDetail?.inventoryQualityParameters || [];
@@ -14914,11 +14914,11 @@ const Arrivals: React.FC = () => {
                     { label: 'Cutting', key: 'cutting', type: 'text', placeholder: '1x', required: true },
                     { label: 'Bend', key: 'bend', type: 'text', placeholder: '1x', required: true },
                     { label: 'Mix (%)', key: 'mix', type: 'text', placeholder: '1x', required: true },
-                    { label: 'SMix', key: 'sMix', type: 'text', placeholder: '', required: true },
-                    { label: 'LMix', key: 'lMix', type: 'text', placeholder: '', required: true },
-                    { label: 'SK (%)', key: 'sk', type: 'text', placeholder: '', required: true },
-                    { label: 'Kandu (%)', key: 'kandu', type: 'text', placeholder: '', required: true },
-                    { label: 'Oil (%)', key: 'oil', type: 'text', placeholder: '', required: true },
+                    { label: 'SMix', key: 'sMix', type: 'text', placeholder: '1x', required: true },
+                    { label: 'LMix', key: 'lMix', type: 'text', placeholder: '1x', required: true },
+                    { label: 'SK (%)', key: 'sk', type: 'text', placeholder: '1x', required: true },
+                    { label: 'Kandu (%)', key: 'kandu', type: 'text', placeholder: '1x', required: true },
+                    { label: 'Oil (%)', key: 'oil', type: 'text', placeholder: '1x', required: true },
                     { label: 'Paddy Discolor', key: 'pColor', type: 'select', options: ['Normal Color', 'Light Discolor', 'Medium Discolor', 'Dark Discolor'] },
                     { label: 'Kadiga', key: 'kadiga', type: 'kadiga', required: true },
                     { label: 'Smell', key: 'smell', type: 'smell' }
@@ -14990,7 +14990,7 @@ const Arrivals: React.FC = () => {
                         <input type="text" value={inventoryQualityForm[field.key as keyof typeof inventoryQualityForm]}
                           onChange={(e) => setInventoryQualityForm(p => ({ ...p, [field.key]: sanitizeInventoryQualityField(field.key, e.target.value) }))}
                           onFocus={() => {
-                            if (['cutting', 'bend', 'mix'].includes(field.key) && !inventoryQualityForm[field.key as keyof typeof inventoryQualityForm]) {
+                            if (['cutting', 'bend', 'mix', 'sMix', 'lMix', 'sk', 'kandu', 'oil'].includes(field.key) && !inventoryQualityForm[field.key as keyof typeof inventoryQualityForm]) {
                               setInventoryQualityForm(p => ({ ...p, [field.key]: '1x' }));
                             }
                           }}

@@ -4736,20 +4736,26 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                         return (n % 1 === 0) ? String(n) : String(parseFloat(n.toFixed(2)));
                                                     };
                                                     const resolveSute = (savedSute: any, savedSuteNet: any, netWt: any, fallbackSute: any = null): { sute: string; suteNet: string; isLinked: boolean } => {
-                                                        const customSute = (savedSute != null && savedSute !== '') ? Number(savedSute)
-                                                            : (fallbackSute != null && fallbackSute !== '') ? Number(fallbackSute)
-                                                            : undefined;
+                                                        const cleanNum = (v: any): number | undefined => {
+                                                            if (v == null || v === '') return undefined;
+                                                            const n = Number(String(v).replace(/,/g, '').trim());
+                                                            return !isNaN(n) && isFinite(n) ? n : undefined;
+                                                        };
+                                                        const customSute = cleanNum(savedSute) ?? cleanNum(fallbackSute);
                                                         const isLinked = (pattiSute !== undefined) || (customSute !== undefined);
                                                         const suteNum = pattiSute !== undefined ? pattiSute : customSute;
                                                         let suteStr = '';
                                                         if (suteNum !== undefined && isFinite(suteNum)) suteStr = fmtSuteDec(suteNum);
                                                         let suteNetStr = '';
-                                                        const nw = (netWt != null && netWt !== '') ? Number(netWt) : null;
+                                                        const nw = cleanNum(netWt);
                                                         if (isLinked && suteStr !== '' && suteNum !== undefined) {
-                                                            if (nw !== null && isFinite(nw) && nw > 0) {
+                                                            if (nw !== undefined && nw > 0) {
                                                                 suteNetStr = stripWt(Math.round(nw - (suteNum * bagsForSute)));
-                                                            } else if (savedSuteNet != null && savedSuteNet !== '' && Number(savedSuteNet) > 0) {
-                                                                suteNetStr = stripWt(savedSuteNet);
+                                                            } else if (savedSuteNet != null && savedSuteNet !== '') {
+                                                                const sNetNum = cleanNum(savedSuteNet);
+                                                                if (sNetNum !== undefined && sNetNum > 0) {
+                                                                    suteNetStr = stripWt(sNetNum);
+                                                                }
                                                             }
                                                         }
                                                         return { sute: suteStr, suteNet: suteNetStr, isLinked };
@@ -4757,7 +4763,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                     const millSuteInfo = resolveSute(de.sute, de.suteNetWeight, de.netWeight);
                                                     const millSute = millSuteInfo.sute ? `${millSuteInfo.sute} Kg` : '-';
                                                     const millSuteNet = millSuteInfo.isLinked
-                                                        ? (millSuteInfo.suteNet && Number(millSuteInfo.suteNet) > 0 ? `${millSuteInfo.suteNet} Kg` : '-')
+                                                        ? (millSuteInfo.suteNet ? `${millSuteInfo.suteNet} Kg` : '-')
                                                         : <span style={{ color: '#b45309', fontSize: '9.5px', fontWeight: 'bold' }}>Patti Not Linked</span>;
                                                     const millStatus = de.wbStatus && de.wbStatus !== 'none' ? toTitleCase(de.wbStatus) : '-';
                                                     const millAddedBy = de.wbAddedByUser?.fullName || de.wbAddedByUser?.username || de.wbAddedBy?.fullName || de.wbAddedBy?.username || '-';
@@ -4786,7 +4792,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                     const partySuteInfo = resolveSute(de.partySute, de.partySuteNetWeight, partyNetVal, isPartyOnlyWb ? de.sute : null);
                                                     const partySute = partySuteInfo.sute ? `${partySuteInfo.sute} Kg` : '-';
                                                     const partySuteNet = partySuteInfo.isLinked
-                                                        ? (partySuteInfo.suteNet && Number(partySuteInfo.suteNet) > 0 ? `${partySuteInfo.suteNet} Kg` : '-')
+                                                        ? (partySuteInfo.suteNet ? `${partySuteInfo.suteNet} Kg` : '-')
                                                         : <span style={{ color: '#b45309', fontSize: '9.5px', fontWeight: 'bold' }}>Patti Not Linked</span>;
                                                     const partyStatus = de.wbStatus && de.wbStatus !== 'none' ? toTitleCase(de.wbStatus) : '-';
                                                     const partyAddedBy = de.wbAddedByUser?.fullName || de.wbAddedByUser?.username || de.wbAddedBy?.fullName || de.wbAddedBy?.username || de.sampleEntry?.creator?.fullName || de.sampleEntry?.creator?.username || detailEntry?.creator?.fullName || detailEntry?.creator?.username || '-';

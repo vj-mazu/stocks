@@ -163,6 +163,7 @@ router.get('/band-malal-book', auth, async (req, res) => {
     const where = {
       [Op.or]: [
         { placeStatus: 'approved' },
+        { placeStatus: 'placed' },
         // Only BMB-edit-pending entries (EDIT_PENDING:approved) stay visible in BMB.
         // In-Transit edits (EDIT_PENDING:placed) remain in In-Transit, not BMB.
         { placeStatus: 'pending', placeRejectReason: { [Op.like]: 'EDIT_PENDING:approved%' } }

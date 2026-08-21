@@ -188,8 +188,7 @@ router.get('/in-transit', auth, async (req, res) => {
         // All other pending entries (including In-Transit edits EDIT_PENDING:placed) stay in In-Transit.
         { placeStatus: 'pending', placeRejectReason: { [Op.or]: [null, { [Op.notLike]: 'EDIT_PENDING:approved%' }] } },
         { placeStatus: 'none' },
-        { placeStatus: null },
-        { placeStatus: 'placed' }
+        { placeStatus: null }
       ]
     };
 
