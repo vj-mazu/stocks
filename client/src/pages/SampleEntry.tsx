@@ -2568,11 +2568,43 @@ const SampleEntryPage: React.FC<{
           
           {activeTab === 'SAMPLE_BOOK' && entries.length > 0 && (
             <button
-              onClick={() => generateSampleEntryPDF(entries, {
-                title: filterEntryType === 'RICE_SAMPLE' ? 'Rice Sample Book Report' : 'Paddy Sample Book Report',
-                entryType: filterEntryType === 'RICE_SAMPLE' ? 'RICE' : 'PADDY',
-                dateRange: filterDateFrom && filterDateTo ? `${filterDateFrom} to ${filterDateTo}` : 'Full Records'
-              })}
+              onClick={async () => {
+                try {
+                  let exportData = entries;
+                  if (totalEntries > entries.length) {
+                    toast.info('Preparing complete PDF report...');
+                    const token = localStorage.getItem('token');
+                    const params = new URLSearchParams();
+                    params.append('page', '1');
+                    params.append('pageSize', '50000');
+                    if (filterDateFrom) params.append('startDate', filterDateFrom);
+                    if (filterDateTo) params.append('endDate', filterDateTo);
+                    if (filterBroker) params.append('broker', filterBroker);
+                    if (filterVariety) params.append('variety', filterVariety);
+                    if (filterLocation) params.append('location', filterLocation);
+                    if (filterCollectedBy) params.append('collectedBy', filterCollectedBy);
+                    if (filterType) params.append('entryType', filterType);
+                    else if (filterEntryType) params.append('entryType', filterEntryType);
+
+                    const res = await axios.get(`${API_URL}/sample-entries/by-role?${params.toString()}`, {
+                      headers: { Authorization: `Bearer ${token}` }
+                    });
+                    exportData = res.data.entries || res.data.sampleEntries || entries;
+                  }
+                  generateSampleEntryPDF(exportData, {
+                    title: filterEntryType === 'RICE_SAMPLE' ? 'Rice Sample Book Report' : 'Paddy Sample Book Report',
+                    entryType: filterEntryType === 'RICE_SAMPLE' ? 'RICE' : 'PADDY',
+                    dateRange: filterDateFrom && filterDateTo ? `${filterDateFrom} to ${filterDateTo}` : 'Full Records'
+                  });
+                } catch (err) {
+                  console.error('PDF export error:', err);
+                  generateSampleEntryPDF(entries, {
+                    title: filterEntryType === 'RICE_SAMPLE' ? 'Rice Sample Book Report' : 'PADDY',
+                    entryType: filterEntryType === 'RICE_SAMPLE' ? 'RICE' : 'PADDY',
+                    dateRange: filterDateFrom && filterDateTo ? `${filterDateFrom} to ${filterDateTo}` : 'Full Records'
+                  });
+                }
+              }}
               style={{
                 padding: '7px 16px',
                 backgroundColor: '#2e7d32',

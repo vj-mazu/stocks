@@ -416,6 +416,12 @@ const RecordsManagementPage: React.FC = () => {
     fetchRecords();
   }, [activeTab, page, dateFrom, dateTo, debouncedSearch, showAllRecords, selectedMonth, riceStockPage]);
 
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+    setRiceStockPage(1);
+  }, [debouncedSearch, dateFrom, dateTo, selectedMonth, activeTab]);
+
   // Auto-fetch when month changes for paddy stock
   useEffect(() => {
     if (activeTab === 'stock' && selectedMonth) {
@@ -9145,136 +9151,62 @@ const RecordsManagementPage: React.FC = () => {
               </DateGroup>
             ))}
 
-            {/* Enhanced Pagination - Different for Paddy Stock */}
-            <Pagination>
-              {(activeTab as string) === 'stock' ? (
-                /* Month-wise Navigation for Paddy Stock */
-                <>
-                  <PageButton
-                    onClick={() => navigateMonth('prev')}
-                    disabled={loading}
-                  >
-                    ‹ Previous Month
-                  </PageButton>
+            {/* Enhanced Pagination for Paddy Stock */}
+            {(activeTab as string) === 'stock' && (
+              <Pagination>
+                <PageButton
+                  onClick={() => navigateMonth('prev')}
+                  disabled={loading}
+                >
+                  ‹ Previous Month
+                </PageButton>
 
-                  <div style={{
-                    margin: '0 2rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    fontSize: '0.9rem',
-                    color: '#374151'
-                  }}>
-                    <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
-                      📅 {getCurrentMonthLabel()}
-                    </div>
-                    <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>
-                      {Object.values(records).flat().length} stock entries this month
-                    </div>
+                <div style={{
+                  margin: '0 2rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  fontSize: '0.9rem',
+                  color: '#374151'
+                }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+                    📅 {getCurrentMonthLabel()}
                   </div>
-
-                  <PageButton
-                    onClick={() => navigateMonth('next')}
-                    disabled={loading}
-                  >
-                    Next Month ›
-                  </PageButton>
-
-                  {/* Quick Month Selector */}
-                  <div style={{ marginLeft: '2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <label style={{ fontSize: '0.85rem', color: '#6b7280' }}>Jump to:</label>
-                    <Select
-                      value={selectedMonth || ''}
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          setSelectedMonth(e.target.value);
-                          toast.info('Loading selected month...');
-                        }
-                      }}
-                      style={{ padding: '0.25rem', fontSize: '0.85rem', minWidth: '150px' }}
-                    >
-                      <option value="">Select Month</option>
-                      {availableMonths.map((m) => (
-                        <option key={m.month} value={m.month}>
-                          {m.month_label}
-                        </option>
-                      ))}
-                    </Select>
+                  <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>
+                    {Object.values(records).flat().length} stock entries this month
                   </div>
-                </>
-              ) : (
-                /* Regular Pagination for Other Tabs */
-                <>
-                  <PageButton
-                    onClick={() => setPage(1)}
-                    disabled={page === 1}
+                </div>
+
+                <PageButton
+                  onClick={() => navigateMonth('next')}
+                  disabled={loading}
+                >
+                  Next Month ›
+                </PageButton>
+
+                {/* Quick Month Selector */}
+                <div style={{ marginLeft: '2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.85rem', color: '#6b7280' }}>Jump to:</label>
+                  <Select
+                    value={selectedMonth || ''}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        setSelectedMonth(e.target.value);
+                        toast.info('Loading selected month...');
+                      }
+                    }}
+                    style={{ padding: '0.25rem', fontSize: '0.85rem', minWidth: '150px' }}
                   >
-                    « First
-                  </PageButton>
-
-                  <PageButton
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                  >
-                    ‹ Previous
-                  </PageButton>
-
-                  {/* Page Numbers */}
-                  {(() => {
-                    const maxVisiblePages = 5;
-                    const startPage = Math.max(1, page - Math.floor(maxVisiblePages / 2));
-                    const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-                    const pages = [];
-
-                    for (let i = startPage; i <= endPage; i++) {
-                      pages.push(
-                        <PageButton
-                          key={i}
-                          $active={i === page}
-                          onClick={() => setPage(i)}
-                        >
-                          {i}
-                        </PageButton>
-                      );
-                    }
-
-                    return pages;
-                  })()}
-
-                  <PageButton
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                  >
-                    Next ›
-                  </PageButton>
-
-                  <PageButton
-                    onClick={() => setPage(totalPages)}
-                    disabled={page === totalPages}
-                  >
-                    Last »
-                  </PageButton>
-
-                  <div style={{
-                    margin: '0 1rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    fontSize: '0.85rem',
-                    color: '#6b7280'
-                  }}>
-                    <div style={{ fontWeight: 'bold', color: '#374151' }}>
-                      Page {page} of {totalPages}
-                    </div>
-                    <div>
-                      Showing {((page - 1) * 250) + 1}-{Math.min(page * 250, ((page - 1) * 250) + Object.values(records).flat().length)}
-                      of {Object.values(records).flat().length > 0 ?
-                        (showAllRecords ? 'all' : selectedMonth ? 'monthly' : 'filtered') : '0'} records
-                    </div>
-                  </div>
-                </>
-              )}
-            </Pagination>
+                    <option value="">Select Month</option>
+                    {availableMonths.map((m) => (
+                      <option key={m.month} value={m.month}>
+                        {m.month_label}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              </Pagination>
+            )}
           </RecordsContainer>
         </div>
       )}

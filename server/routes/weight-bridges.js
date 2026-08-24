@@ -46,7 +46,7 @@ router.post('/', auth, async (req, res) => {
             tareWeight: tareWeight || null,
             netWeight: netWeight || null,
             isActive: isActive !== undefined ? isActive : true,
-            createdBy: req.user.id,
+            createdBy: req.user.userId || req.user.id,
         });
         res.status(201).json({ bridge });
     } catch (error) {

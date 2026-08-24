@@ -904,8 +904,12 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
     const totalDeductions = Number((Number(lessDf) + Number(lessWb)).toFixed(2));
     const grandTotal = Math.round(totalLorryAmount + totalAdditions - totalDeductions);
 
+    const [isSavingPatti, setIsSavingPatti] = useState(false);
+
     const handleSave = async () => {
+        if (isSavingPatti) return;
         try {
+            setIsSavingPatti(true);
             const token = localStorage.getItem('token');
             await axios.post(`${API_URL}/sample-entries/${entry.id}/patti`, {
                 hamaliRate,
@@ -925,6 +929,8 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
         } catch (err: any) {
             console.error('Error saving patti:', err);
             toast.error(err.response?.data?.error || 'Failed to save Patti Record');
+        } finally {
+            setIsSavingPatti(false);
         }
     };
 
@@ -1169,18 +1175,19 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                     {!isReadOnly && (
                         <button
                             onClick={handleSave}
+                            disabled={isSavingPatti}
                             style={{
                                 padding: '8px 16px',
-                                backgroundColor: '#10b981',
+                                backgroundColor: isSavingPatti ? '#6ee7b7' : '#10b981',
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: '4px',
-                                cursor: 'pointer',
+                                cursor: isSavingPatti ? 'not-allowed' : 'pointer',
                                 fontSize: '13px',
                                 fontWeight: '700'
                             }}
                         >
-                            💾 Save & Complete Patti
+                            {isSavingPatti ? '⏳ Saving Patti...' : '💾 Save & Complete Patti'}
                         </button>
                     )}
                 </div>

@@ -282,8 +282,10 @@ const PhysicalInspection: React.FC = () => {
   useEffect(() => {
     loadEntries();
     const interval = setInterval(() => {
-      loadEntries(true);
-    }, 12000); // Silent background reload every 12 seconds
+      if (!document.hidden) {
+        loadEntries(true);
+      }
+    }, 30000); // Silent background reload every 30 seconds when tab is active
     return () => clearInterval(interval);
   }, []);
 

@@ -186,21 +186,18 @@ const ResampleAllotment: React.FC<ResampleAllotmentProps> = ({ entryType, exclud
   }, [entries]);
 
   const handleAssign = async (entry: ResampleEntry) => {
-    const assigned = isResampleAssigned(entry);
-    const selected = assignments[entry.id] !== undefined
-      ? assignments[entry.id]
-      : (assigned ? getLatestResampleAssignedName(entry) : '');
-
+    if (assigningIds.has(entry.id)) return;
+    const selected = assignments[entry.id];
     if (!selected) {
-      showNotification('Select Sample Collected By', 'error');
+      showNotification('Please select a supervisor to assign', 'error');
       return;
     }
-
-    if (assigned && selected === getLatestResampleAssignedName(entry)) {
+    if (selected === (entry.sampleCollectedBy || '')) {
       showNotification('No changes made to supervisor assignment', 'info');
       return;
     }
     try {
+      setAssigningIds(prev => new Set(prev).add(entry.id));
       const token = localStorage.getItem('token');
       const payload: any = {
         sampleCollectedBy: selected
@@ -222,6 +219,12 @@ const ResampleAllotment: React.FC<ResampleAllotmentProps> = ({ entryType, exclud
       loadEntries();
     } catch (error: any) {
       showNotification(error.response?.data?.error || 'Failed to assign user', 'error');
+    } finally {
+      setAssigningIds(prev => {
+        const next = new Set(prev);
+        next.delete(entry.id);
+        return next;
+      });
     }
   };
 

@@ -374,11 +374,11 @@ export const generatePurchasePDF = (
     });
 
     // Add totals
-    const totalBags = records.reduce((sum, r) => sum + (r.bags || 0), 0);
-    const totalWeight = records.reduce((sum, r) => sum + (parseFloat(r.netWeight) || 0), 0);
+    const totalBags = records.reduce((sum, r) => sum + (safeParseAmount(r.bags) || 0), 0);
+    const totalWeight = records.reduce((sum, r) => sum + (safeParseAmount(r.netWeight) || 0), 0);
     const totalAmount = records.reduce((sum, r) => {
         const rate = r.purchaseRate || {};
-        return sum + (parseFloat(rate.totalAmount || r.totalAmount) || 0);
+        return sum + (safeParseAmount(rate.totalAmount || r.totalAmount) || 0);
     }, 0);
 
     addSummary(doc, [
@@ -664,7 +664,7 @@ export const generatePaddyStockPDF = (
             );
             if (clearingEntry) {
                 const clearDate = formatDate(clearingEntry.date);
-                if (clearDate <= d) {
+                if (parseDateToTimestamp(clearDate) <= parseDateToTimestamp(d)) {
                     closingProduction[key].bags = 0;  // Cleared
                 }
             }
@@ -2626,9 +2626,34 @@ function formatDateDisplay(date: string): string {
     }
 }
 
+function safeParseAmount(val: any): number {
+    if (typeof val === 'number') return isNaN(val) ? 0 : val;
+    if (!val) return 0;
+    const cleaned = String(val).replace(/,/g, '').replace(/[₹\s]/g, '').trim();
+    const num = parseFloat(cleaned);
+    return Number.isFinite(num) ? num : 0;
+}
+
+function parseDateToTimestamp(dStr: string | Date | null | undefined): number {
+    if (!dStr) return 0;
+    if (dStr instanceof Date) return dStr.getTime();
+    const str = String(dStr).trim();
+    if (str.includes('/')) {
+        const parts = str.split('/');
+        if (parts.length === 3) {
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1;
+            const year = parseInt(parts[2], 10);
+            return new Date(year, month, day).getTime();
+        }
+    }
+    const t = new Date(str).getTime();
+    return isNaN(t) ? 0 : t;
+}
+
 function formatNumber(value: any): string {
     if (value === null || value === undefined || value === '') return '-';
-    const num = parseFloat(value);
+    const num = safeParseAmount(value);
     if (isNaN(num)) return '-';
     return num.toFixed(2);
 }

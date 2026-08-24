@@ -100,7 +100,7 @@ router.get('/arrivals', auth, async (req, res) => {
     const { search } = req.query;
     if (search) {
       const searchPattern = `%${search}%`;
-      where[Op.or] = [
+      const searchOr = [
         { slNo: { [Op.iLike]: searchPattern } },
         { wbNo: { [Op.iLike]: searchPattern } },
         { lorryNumber: { [Op.iLike]: searchPattern } },
@@ -108,6 +108,15 @@ router.get('/arrivals', auth, async (req, res) => {
         { variety: { [Op.iLike]: searchPattern } },
         { fromLocation: { [Op.iLike]: searchPattern } }
       ];
+      if (where[Op.or]) {
+        where[Op.and] = [
+          { [Op.or]: where[Op.or] },
+          { [Op.or]: searchOr }
+        ];
+        delete where[Op.or];
+      } else {
+        where[Op.or] = searchOr;
+      }
       console.log(`🔍 Arrivals search applied: ${search}`);
     }
 

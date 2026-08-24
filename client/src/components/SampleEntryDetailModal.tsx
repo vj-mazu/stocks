@@ -239,6 +239,15 @@ const formatFlexibleValue = (value: any, digits = 2) => {
     if (num % 1 === 0) return String(num);
     return num.toFixed(digits).replace(/0+$/, '').replace(/\.$/, '');
 };
+const formatCombinedX = (raw1: any, val1: any, raw2: any, val2: any) => {
+    const p1 = String(raw1 !== undefined && raw1 !== null && raw1 !== '' ? raw1 : (val1 !== undefined && val1 !== null ? val1 : '')).trim();
+    if (!p1 || p1 === '0' || p1 === '0.00' || p1 === '-') return '-';
+    if (/[xX×]/.test(p1)) {
+        return p1.replace(/[xX]/g, '×');
+    }
+    const p2 = String(raw2 !== undefined && raw2 !== null && raw2 !== '' ? raw2 : (val2 !== undefined && val2 !== null ? val2 : '0')).trim();
+    return `${p1}×${p2 || '0'}`;
+};
 const formatIndianCurrency = (value: any) => {
     const num = Number(value);
     return Number.isFinite(num)
@@ -1470,21 +1479,18 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             const mVal = String(attempt.moisture === undefined || attempt.moisture === null ? '' : attempt.moisture);
             const moisture = mRaw ? `${mRaw}%` : (mVal && mVal !== '0' && mVal !== '0.00' ? `${mVal}%` : '-');
 
-            const c1Raw = attempt.cutting1Raw;
-            const c1Val = String(attempt.cutting1 === undefined || attempt.cutting1 === null ? '' : attempt.cutting1);
-            const c2Raw = attempt.cutting2Raw;
-            const c2Val = String(attempt.cutting2 === undefined || attempt.cutting2 === null ? '' : attempt.cutting2);
-            let cutting = '-';
-            if (c1Raw) cutting = `${c1Raw}x${c2Raw || 0}`;
-            else if (c1Val && c1Val !== '0' && c1Val !== '0.00') cutting = `${c1Val}x${c2Val || 0}`;
+            const formatCombinedX = (raw1: any, val1: any, raw2: any, val2: any) => {
+                const p1 = String(raw1 !== undefined && raw1 !== null && raw1 !== '' ? raw1 : (val1 !== undefined && val1 !== null ? val1 : '')).trim();
+                if (!p1 || p1 === '0' || p1 === '0.00' || p1 === '-') return '-';
+                if (/[xX×]/.test(p1)) {
+                    return p1.replace(/[xX]/g, '×');
+                }
+                const p2 = String(raw2 !== undefined && raw2 !== null && raw2 !== '' ? raw2 : (val2 !== undefined && val2 !== null ? val2 : '0')).trim();
+                return `${p1}×${p2 || '0'}`;
+            };
 
-            const b1Raw = attempt.bend1Raw;
-            const b1Val = String(attempt.bend1 === undefined || attempt.bend1 === null ? '' : attempt.bend1);
-            const b2Raw = attempt.bend2Raw;
-            const b2Val = String(attempt.bend2 === undefined || attempt.bend2 === null ? '' : attempt.bend2);
-            let bend = '-';
-            if (b1Raw) bend = `${b1Raw}x${b2Raw || 0}`;
-            else if (b1Val && b1Val !== '0' && b1Val !== '0.00') bend = `${b1Val}x${b2Val || 0}`;
+            const cutting = formatCombinedX(attempt.cutting1Raw, attempt.cutting1, attempt.cutting2Raw, attempt.cutting2);
+            const bend = formatCombinedX(attempt.bend1Raw, attempt.bend1, attempt.bend2Raw, attempt.bend2);
 
             const gRaw = attempt.grainsCountRaw;
             const gVal = String(attempt.grainsCount === undefined || attempt.grainsCount === null ? '' : attempt.grainsCount);
@@ -1578,17 +1584,13 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 };
 
                 const formatStageCutting = (stageObj: any) => {
-                    if (stageObj.cutting1 === undefined || stageObj.cutting1 === null) return '-';
-                    const c1 = parseFloat(stageObj.cutting1);
-                    const c2 = parseFloat(stageObj.cutting2) || 0;
-                    return `${isNaN(c1) || c1 === 0 ? 1 : c1}x${c2}`;
+                    if (!stageObj) return '-';
+                    return formatCombinedX(stageObj.cutting1Raw || stageObj.cutting1, stageObj.cutting1, stageObj.cutting2Raw || stageObj.cutting2, stageObj.cutting2);
                 };
 
                 const formatStageBend = (stageObj: any) => {
-                    if (stageObj.bend1 === undefined || stageObj.bend1 === null) return '-';
-                    const b1 = parseFloat(stageObj.bend1);
-                    const b2 = parseFloat(stageObj.bend2) || 0;
-                    return `${isNaN(b1) || b1 === 0 ? 1 : b1}x${b2}`;
+                    if (!stageObj) return '-';
+                    return formatCombinedX(stageObj.bend1Raw || stageObj.bend1, stageObj.bend1, stageObj.bend2Raw || stageObj.bend2, stageObj.bend2);
                 };
 
                 const formatStageGrains = (stageObj: any) => {
@@ -2456,17 +2458,13 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         };
 
         const formatStageCutting = (stageObj: any) => {
-            if (stageObj.cutting1 === undefined || stageObj.cutting1 === null) return '-';
-            const c1 = parseFloat(stageObj.cutting1);
-            const c2 = parseFloat(stageObj.cutting2) || 0;
-            return `${isNaN(c1) || c1 === 0 ? 1 : c1}x${c2}`;
+            if (!stageObj) return '-';
+            return formatCombinedX(stageObj.cutting1Raw || stageObj.cutting1, stageObj.cutting1, stageObj.cutting2Raw || stageObj.cutting2, stageObj.cutting2);
         };
 
         const formatStageBend = (stageObj: any) => {
-            if (stageObj.bend1 === undefined || stageObj.bend1 === null) return '-';
-            const b1 = parseFloat(stageObj.bend1);
-            const b2 = parseFloat(stageObj.bend2) || 0;
-            return `${isNaN(b1) || b1 === 0 ? 1 : b1}x${b2}`;
+            if (!stageObj) return '-';
+            return formatCombinedX(stageObj.bend1Raw || stageObj.bend1, stageObj.bend1, stageObj.bend2Raw || stageObj.bend2, stageObj.bend2);
         };
 
         const formatStageGrains = (stageObj: any) => {
