@@ -1397,30 +1397,12 @@ const sanitizeInventoryQualityField = (field: string, value: string) => {
   const f = String(field || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
   if (f === 'cutting' || f === 'bend') {
-    return String(value || '').replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×').slice(0, 15);
+    return String(value || '').replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×').slice(0, 20);
   }
 
-  // All mix, smix, lmix, kandu, oil, sk fields - Allow any alphanumeric, decimal, or text
-  if (
-    f.includes('mix') ||
-    f.includes('kandu') ||
-    f.includes('oil') ||
-    f.includes('sk')
-  ) {
-    return String(value || '').slice(0, 30);
-  }
-
-  if (f.includes('grain')) {
-    return String(value || '').replace(/[^0-9]/g, '').slice(0, 3);
-  }
-
-  let cleaned = String(value || '').replace(/[^0-9.]/g, '');
-  const dotCount = (cleaned.match(/\./g) || []).length;
-  if (dotCount > 1) {
-    const firstDot = cleaned.indexOf('.');
-    cleaned = cleaned.substring(0, firstDot + 1) + cleaned.substring(firstDot + 1).replace(/\./g, '');
-  }
-  return cleaned.slice(0, 6);
+  // All other fields (mix, smix, lmix, kandu, oil, sk, moisture, dryMoisture, grains, paddyWb, etc.)
+  // Allow full unrestricted text, alphabets, decimals, and numbers
+  return String(value || '').slice(0, 50);
 };
 
 const cleanDecimal = (val: any) => {
@@ -4904,7 +4886,8 @@ const Arrivals: React.FC = () => {
   const sanitizeInventoryQualityField = (field: string, value: string) => {
     let clean = String(value || '');
     if (field === 'cutting' || field === 'bend') {
-      clean = clean.replace(/[^0-9×xX]/g, '').replace(/[xX]/g, '×');
+      // Allow digits and decimal points (e.g. "1×1.4", "2.5×3")
+      clean = clean.replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×');
       if (!clean.includes('×') && clean.length > 0) {
         clean = '1×' + clean;
       }
@@ -4917,11 +4900,19 @@ const Arrivals: React.FC = () => {
 
 
 
-      const first = (parts[0] || '').substring(0, 1);
+      const clampDecimalPart = (part: string, maxLen: number) => {
+        let p = part.replace(/[^0-9.]/g, '');
+        const dotParts = p.split('.');
+        if (dotParts.length > 2) {
+          p = `${dotParts[0]}.${dotParts.slice(1).join('')}`;
+        }
+        return p.slice(0, maxLen);
+      };
+      const first = clampDecimalPart(parts[0] || '', 4);
 
 
 
-      const second = (parts[1] || '').substring(0, 4);
+      const second = clampDecimalPart(parts[1] || '', 5);
 
 
 
@@ -4929,7 +4920,10 @@ const Arrivals: React.FC = () => {
 
 
 
-    } else if (['moisture', 'dryMoisture', 'grains', 'mix', 'sMix', 'lMix', 'sk', 'kandu', 'oil', 'paddyWb'].includes(field)) {
+    } else if (field === 'sMix' || field === 'lMix') {
+      // S Mix / L Mix — allow alphanumeric and decimals (e.g. "Nil", "2.5")
+      clean = clean.slice(0, 30);
+    } else if (['moisture', 'dryMoisture', 'grains', 'mix', 'sk', 'kandu', 'oil', 'paddyWb'].includes(field)) {
 
 
 
