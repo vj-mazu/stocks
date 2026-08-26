@@ -15030,11 +15030,6 @@ const Arrivals: React.FC = () => {
                       ) : (
                         <input type="text" value={inventoryQualityForm[field.key as keyof typeof inventoryQualityForm]}
                           onChange={(e) => setInventoryQualityForm(p => ({ ...p, [field.key]: sanitizeInventoryQualityField(field.key, e.target.value) }))}
-                          onFocus={() => {
-                            if (['cutting', 'bend'].includes(field.key) && !inventoryQualityForm[field.key as keyof typeof inventoryQualityForm]) {
-                              setInventoryQualityForm(p => ({ ...p, [field.key]: '1x' }));
-                            }
-                          }}
                           style={{ width: '100%', padding: '4px', border: activeRecheck ? '1.5px solid #ef4444' : '1px solid #ccc', borderRadius: '3px', fontSize: '11px', boxSizing: 'border-box', backgroundColor: activeRecheck ? '#fef2f2' : '#fff' }}
                           placeholder={field.placeholder} />
                       )}
