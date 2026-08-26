@@ -817,11 +817,18 @@ const CompletedLots: React.FC<CompletedLotsProps> = ({ excludeEntryType }) => {
 };
 
 // Patti Calculation Modal Component
+// Patti Calculation Modal Component
 interface PattiCalculationModalProps {
     entry: any;
     isReadOnly: boolean;
     onClose: () => void;
     onSaved: () => void;
+}
+
+interface CustomPattiItem {
+    id: string;
+    label: string;
+    amount: number | string;
 }
 
 const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, isReadOnly, onClose, onSaved }) => {
@@ -844,7 +851,9 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
     // Additions & Deductions & Per-Lorry Packaging State
     const savedPatti = entry.pattiRecord || {};
     const initialLorryPackagings = savedPatti.lorryPackagings || {};
-    const [lorryPackagings, setLorryPackagings] = useState<{ [key: string]: number }>(() => {
+    const pkgKg = Number(String(entry.packaging || '75').replace(/[^0-9.]/g, '')) || 75;
+
+    const [lorryPackagings] = useState<{ [key: string]: number }>(() => {
         const initial: { [key: string]: number } = {};
         pattiTrips.forEach((insp: any) => {
             if (initialLorryPackagings[insp.id] !== undefined) {
@@ -858,16 +867,68 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
     });
 
     const [hamaliRate, setHamaliRate] = useState<number>(savedPatti.hamaliRate !== undefined ? Number(savedPatti.hamaliRate) : 12);
+    const [hamaliUnit, setHamaliUnit] = useState<string>(savedPatti.hamaliUnit || 'per_bag');
+
     const [brokerageRate, setBrokerageRate] = useState<number>(savedPatti.brokerageRate !== undefined ? Number(savedPatti.brokerageRate) : 11);
+    const [brokerageUnit, setBrokerageUnit] = useState<string>(savedPatti.brokerageUnit || 'per_qtl');
+
     const [lessDf, setLessDf] = useState<number>(savedPatti.lessDf !== undefined ? Number(savedPatti.lessDf) : 0);
     const [lessWb, setLessWb] = useState<number>(savedPatti.lessWb !== undefined ? Number(savedPatti.lessWb) : 0);
+
+    // Dynamic custom additions (+ Add)
+    const [customAdditions, setCustomAdditions] = useState<CustomPattiItem[]>(() => {
+        if (Array.isArray(savedPatti.customAdditions) && savedPatti.customAdditions.length > 0) {
+            return savedPatti.customAdditions.map((item: any, idx: number) => ({
+                id: item.id || `add-${idx}-${Date.now()}`,
+                label: item.label || '',
+                amount: item.amount !== undefined ? item.amount : ''
+            }));
+        }
+        return [];
+    });
+
+    // Dynamic custom deductions (- Less)
+    const [customDeductions, setCustomDeductions] = useState<CustomPattiItem[]>(() => {
+        if (Array.isArray(savedPatti.customDeductions) && savedPatti.customDeductions.length > 0) {
+            return savedPatti.customDeductions.map((item: any, idx: number) => ({
+                id: item.id || `less-${idx}-${Date.now()}`,
+                label: item.label || '',
+                amount: item.amount !== undefined ? item.amount : ''
+            }));
+        }
+        return [];
+    });
+
+    const handleAddAdditionRow = () => {
+        setCustomAdditions(prev => [...prev, { id: `add-${Date.now()}`, label: '', amount: '' }]);
+    };
+
+    const handleRemoveAdditionRow = (id: string) => {
+        setCustomAdditions(prev => prev.filter(r => r.id !== id));
+    };
+
+    const handleUpdateAdditionRow = (id: string, field: 'label' | 'amount', value: any) => {
+        setCustomAdditions(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+    };
+
+    const handleAddDeductionRow = () => {
+        setCustomDeductions(prev => [...prev, { id: `less-${Date.now()}`, label: '', amount: '' }]);
+    };
+
+    const handleRemoveDeductionRow = (id: string) => {
+        setCustomDeductions(prev => prev.filter(r => r.id !== id));
+    };
+
+    const handleUpdateDeductionRow = (id: string, field: 'label' | 'amount', value: any) => {
+        setCustomDeductions(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+    };
 
     // Calculate totals of patti-linked trips dynamically based on current lorry packaging state
     const calculatedTrips = pattiTrips.map((insp: any) => {
         const bags = Number(getApprovedFullAvgBags(insp.samplingStages || {}, insp.bags) || 0);
         const netWt = Number(insp.lorryTransitDetail?.netWeight || 0);
         const sute = Number(insp.linkedPattiRate?.sute || 0);
-        const shoot = Math.round(sute * bags);
+        const shoot = Math.round(sute * bags); // Rounded integer with no decimals
         const suteNetWt = Math.round(Math.max(0, netWt - shoot));
         const rate = Number(insp.linkedPattiRate?.rate || 0);
         
@@ -877,27 +938,11 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
         const amount = Math.round((suteNetWt * rate) / kg);
         const unloadingDate = insp.lorryTransitDetail?.placeDate || insp.inspectionDate;
 
-        const rateType = insp.linkedPattiRate?.rateType;
-        let typeDisplay = 'PD/WB';
-        if (rateType) {
-            if (rateType === 'PD_LOOSE' || rateType === 'LOOSE' || rateType === 'MD_LOOSE') {
-                typeDisplay = 'PD/LOOSE';
-            } else if (rateType === 'PD_WB' || rateType === 'WB' || rateType === 'MD_WB') {
-                typeDisplay = 'PD/WB';
-            } else {
-                typeDisplay = String(rateType).replace(/_/g, '/').toUpperCase();
-            }
-        } else {
-            const rawPkg = String(insp.sampleEntry?.packaging || entry.packaging || '').trim().toLowerCase();
-            typeDisplay = (rawPkg === '0' || rawPkg === 'loose' || kg === 0) ? 'PD/LOOSE' : 'PD/WB';
-        }
-
         return {
             id: insp.id,
             unloadingDate,
             bags,
             kg,
-            type: typeDisplay,
             variety: entry.variety,
             netWt,
             shoot,
@@ -914,11 +959,30 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
     const totalSuteNetWt = Math.round(calculatedTrips.reduce((sum, t) => sum + t.suteNetWt, 0));
     const totalLorryAmount = calculatedTrips.reduce((sum, t) => sum + t.amount, 0);
 
-    const hamaliAmount = Number((hamaliRate * totalBags).toFixed(2));
-    const brokerageAmount = Number((brokerageRate * (totalSuteNetWt / 100)).toFixed(2));
-    const totalAdditions = Number((hamaliAmount + brokerageAmount).toFixed(2));
-    const totalDeductions = Number((Number(lessDf) + Number(lessWb)).toFixed(2));
+    // Hamali calculation: if per_qtl -> (totalNetWt / 100) * rate, if per_bag -> totalBags * rate
+    const hamaliAmount = Number((
+        hamaliUnit === 'per_qtl'
+            ? ((totalNetWt / 100) * hamaliRate)
+            : (totalBags * hamaliRate)
+    ).toFixed(2));
+
+    // Brokerage calculation: if per_qtl -> (totalNetWt / 100) * rate (using Gross Net.wt, not sute net wt), if per_bag -> totalBags * rate
+    const brokerageAmount = Number((
+        brokerageUnit === 'per_bag'
+            ? (totalBags * brokerageRate)
+            : ((totalNetWt / 100) * brokerageRate)
+    ).toFixed(2));
+
+    const totalCustomAdditions = customAdditions.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const totalCustomDeductions = customDeductions.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+
+    const totalAdditions = Number((hamaliAmount + brokerageAmount + totalCustomAdditions).toFixed(2));
+    const totalDeductions = Number((Number(lessDf) + Number(lessWb) + totalCustomDeductions).toFixed(2));
     const grandTotal = Math.round(totalLorryAmount + totalAdditions - totalDeductions);
+
+    // Left side stats
+    const avgWbPerBag = totalBags > 0 ? (totalNetWt / totalBags).toFixed(2) : '0';
+    const avgRate = totalSuteNetWt > 0 ? Math.round((grandTotal / totalSuteNetWt) * pkgKg) : 0;
 
     const [isSavingPatti, setIsSavingPatti] = useState(false);
 
@@ -929,13 +993,19 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
             const token = localStorage.getItem('token');
             await axios.post(`${API_URL}/sample-entries/${entry.id}/patti`, {
                 hamaliRate,
+                hamaliUnit,
                 hamaliAmount,
                 brokerageRate,
+                brokerageUnit,
                 brokerageAmount,
+                customAdditions,
                 lessDf,
                 lessWb,
+                customDeductions,
                 totalAmount: totalLorryAmount,
                 grandTotal,
+                avgWbPerBag: Number(avgWbPerBag),
+                avgRate,
                 lorryPackagings
             }, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -995,23 +1065,25 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                 backgroundColor: 'white',
                 padding: '24px',
                 borderRadius: '8px',
-                width: '90%',
-                maxWidth: '900px',
-                maxHeight: '90vh',
+                width: '92%',
+                maxWidth: '920px',
+                maxHeight: '92vh',
                 overflowY: 'auto',
                 boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
             }}>
                 {/* Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px dashed #333', paddingBottom: '12px', marginBottom: '16px' }}>
                     <div>
-                        <h2 style={{ margin: 0, fontSize: '20px', color: '#111827', fontWeight: '800' }}>KBD</h2>
+                        <h2 style={{ margin: 0, fontSize: '18px', color: '#111827', fontWeight: '800', letterSpacing: '0.5px' }}>
+                            PATTI CALCULATION SHEET
+                        </h2>
                         <div style={{ fontSize: '13px', color: '#4b5563', marginTop: '4px', fontWeight: '600' }}>
                             Party: <span style={{ color: '#111827' }}>{entry.partyName}</span> | Location: <span style={{ color: '#111827' }}>{entry.location}</span>
                         </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
                         <span style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#374151' }}>Date: {new Date().toLocaleDateString('en-GB')}</span>
-                        <span style={{ fontSize: '12px', fontWeight: '700', backgroundColor: '#e5e7eb', padding: '2px 6px', borderRadius: '4px', display: 'inline-block', marginTop: '4px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: '700', backgroundColor: '#e5e7eb', padding: '2px 8px', borderRadius: '4px', display: 'inline-block', marginTop: '4px' }}>
                             Pkg: {entry.packaging || 75} Kg
                         </span>
                     </div>
@@ -1021,13 +1093,12 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', marginBottom: '20px', border: '1px solid #000' }}>
                     <thead>
                         <tr style={{ backgroundColor: '#f3f4f6', borderBottom: '1px solid #000' }}>
-                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700' }}>Date</th>
+                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700' }}>un.date</th>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700' }}>Bags</th>
-                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700' }}>Type</th>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>Verity</th>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '700' }}>Net.wt</th>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '700' }}>Shoot</th>
-                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '700' }}>Sute Net.wt</th>
+                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '700' }}>Net.wt</th>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700' }}>Rate</th>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '700' }}>Amount</th>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>Lorry</th>
@@ -1040,7 +1111,6 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                                     {trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-GB') : '-'}
                                 </td>
                                 <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{trip.bags}</td>
-                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700', color: '#1e40af' }}>{trip.type}</td>
                                 <td style={{ border: '1px solid #000', padding: '6px' }}>{trip.variety}</td>
                                 <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right' }}>{trip.netWt}</td>
                                 <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', color: '#dc2626', fontWeight: '600' }}>{trip.shoot}</td>
@@ -1054,84 +1124,211 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                         <tr style={{ backgroundColor: '#f9fafb', borderTop: '2px solid #000', borderBottom: '2px solid #000', fontWeight: '800' }}>
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>Total</td>
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>{totalBags}</td>
-                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}></td>
-                            <td style={{ border: '1px solid #000', padding: '8px' }}></td>
+                            <td style={{ border: '1px solid #000', padding: '8px' }}>-</td>
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>{totalNetWt}</td>
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right', color: '#dc2626' }}>{totalShoot}</td>
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>{totalSuteNetWt}</td>
-                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}></td>
+                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>-</td>
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>{totalLorryAmount.toLocaleString('en-IN')}</td>
-                            <td style={{ border: '1px solid #000', padding: '8px' }}></td>
+                            <td style={{ border: '1px solid #000', padding: '8px' }}>-</td>
                         </tr>
                     </tbody>
                 </table>
 
-                {/* Bottom Calculations */}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
-                    <div style={{ width: '100%', maxWidth: '350px' }}>
+                {/* Bottom Calculations Layout: Left Stats + Right Breakdown */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '16px', gap: '20px', flexWrap: 'wrap' }}>
+                    {/* Left Side: Avg Stats */}
+                    <div style={{ flex: 1, minWidth: '220px', padding: '12px 16px', background: '#fff5f5', borderRadius: '8px', border: '1px solid #fed7d7' }}>
+                        <div style={{ fontSize: '15px', fontWeight: '800', color: '#dc2626', marginBottom: '14px' }}>
+                            Avg WB Per Bag: {avgWbPerBag}
+                        </div>
+                        <div style={{ fontSize: '15px', fontWeight: '800', color: '#dc2626', lineHeight: '1.4' }}>
+                            Avg Rate &nbsp;: {avgRate.toLocaleString('en-IN')}
+                            <div style={{ fontSize: '13px', fontWeight: '700', color: '#dc2626', marginTop: '2px' }}>
+                                {pkgKg} Kg Bag
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Side: Calculation Breakdown */}
+                    <div style={{ width: '100%', maxWidth: '440px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #eee' }}>
                             <span style={{ fontWeight: '600' }}>Lorry Total Amount:</span>
                             <span style={{ fontWeight: '700' }}>Rs {totalLorryAmount.toLocaleString('en-IN')}</span>
                         </div>
+
                         {/* Hamali */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
-                            <span>Add: Hamali @</span>
+                            <span style={{ whiteSpace: 'nowrap' }}>Add: Hamali @</span>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <input
                                     type="number"
                                     disabled={isReadOnly}
                                     value={hamaliRate}
                                     onChange={(e) => setHamaliRate(Number(e.target.value))}
-                                    style={{ width: '50px', padding: '2px', textAlign: 'center', fontSize: '12px' }}
+                                    style={{ width: '55px', padding: '3px', textAlign: 'center', fontSize: '12px', border: '1px solid #ccc', borderRadius: '3px' }}
                                 />
-                                <span>/ bag</span>
+                                <select
+                                    value={hamaliUnit}
+                                    disabled={isReadOnly}
+                                    onChange={(e) => setHamaliUnit(e.target.value)}
+                                    style={{ fontSize: '11px', padding: '2px 4px', border: '1px solid #ccc', borderRadius: '3px' }}
+                                >
+                                    <option value="per_bag">/ bag</option>
+                                    <option value="per_qtl">/ qtl</option>
+                                </select>
                             </div>
                             <span style={{ fontWeight: '600' }}>Rs {hamaliAmount.toLocaleString('en-IN')}</span>
                         </div>
+
                         {/* Brokerage */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
-                            <span>Add: Brokerage @</span>
+                            <span style={{ whiteSpace: 'nowrap' }}>Add: Brokerage @</span>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <input
                                     type="number"
                                     disabled={isReadOnly}
                                     value={brokerageRate}
                                     onChange={(e) => setBrokerageRate(Number(e.target.value))}
-                                    style={{ width: '50px', padding: '2px', textAlign: 'center', fontSize: '12px' }}
+                                    style={{ width: '55px', padding: '3px', textAlign: 'center', fontSize: '12px', border: '1px solid #ccc', borderRadius: '3px' }}
                                 />
-                                <span>/ qtl</span>
+                                <select
+                                    value={brokerageUnit}
+                                    disabled={isReadOnly}
+                                    onChange={(e) => setBrokerageUnit(e.target.value)}
+                                    style={{ fontSize: '11px', padding: '2px 4px', border: '1px solid #ccc', borderRadius: '3px' }}
+                                >
+                                    <option value="per_qtl">/ qtl</option>
+                                    <option value="per_bag">/ bag</option>
+                                </select>
                             </div>
                             <span style={{ fontWeight: '600' }}>Rs {brokerageAmount.toLocaleString('en-IN')}</span>
                         </div>
+
+                        {/* Dynamic Custom Additions */}
+                        {customAdditions.map((item) => (
+                            <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 0', borderBottom: '1px solid #eee' }}>
+                                <span style={{ color: '#16a34a', fontWeight: '800', fontSize: '14px' }}>+</span>
+                                <input
+                                    type="text"
+                                    disabled={isReadOnly}
+                                    placeholder="Addition Description (Alphanumeric)"
+                                    value={item.label}
+                                    onChange={(e) => handleUpdateAdditionRow(item.id, 'label', e.target.value)}
+                                    style={{ flex: 1, padding: '3px 6px', fontSize: '12px', border: '1.5px solid #16a34a', borderRadius: '3px', boxSizing: 'border-box' }}
+                                />
+                                <input
+                                    type="number"
+                                    disabled={isReadOnly}
+                                    placeholder="Amount"
+                                    value={item.amount}
+                                    onChange={(e) => handleUpdateAdditionRow(item.id, 'amount', e.target.value)}
+                                    style={{ width: '85px', padding: '3px 6px', fontSize: '12px', border: '1.5px solid #16a34a', borderRadius: '3px', textAlign: 'right', boxSizing: 'border-box' }}
+                                />
+                                {!isReadOnly && (
+                                    <button
+                                        type="button"
+                                        onClick={() => handleRemoveAdditionRow(item.id)}
+                                        style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: 'bold', cursor: 'pointer', padding: '0 4px', fontSize: '14px' }}
+                                        title="Remove row"
+                                    >
+                                        ✕
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+
+                        {/* Button to add dynamic addition row */}
+                        {!isReadOnly && (
+                            <div style={{ padding: '3px 0' }}>
+                                <button
+                                    type="button"
+                                    onClick={handleAddAdditionRow}
+                                    style={{ background: 'none', border: 'none', color: '#16a34a', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                >
+                                    + Add Addition Row
+                                </button>
+                            </div>
+                        )}
+
                         {/* Sub Total (Additions) */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #eee', color: '#16a34a', fontWeight: '700' }}>
                             <span>Total Additions:</span>
                             <span>Rs {totalAdditions.toLocaleString('en-IN')}</span>
                         </div>
+
                         {/* Less DF */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
-                            <span>Less: DF:</span>
+                            <span>Less: DF (Discount):</span>
                             <input
                                 type="number"
                                 disabled={isReadOnly}
                                 value={lessDf}
                                 onChange={(e) => setLessDf(Number(e.target.value))}
-                                style={{ width: '80px', padding: '2px', textAlign: 'right', fontSize: '12px' }}
+                                style={{ width: '80px', padding: '2px', textAlign: 'right', fontSize: '12px', border: '1px solid #ccc', borderRadius: '3px' }}
                             />
                             <span style={{ fontWeight: '600', color: '#dc2626' }}>- Rs {Number(lessDf).toLocaleString('en-IN')}</span>
                         </div>
+
                         {/* Less WB */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
-                            <span>Less: WB:</span>
+                            <span>Less: WB (Weighbridge):</span>
                             <input
                                 type="number"
                                 disabled={isReadOnly}
                                 value={lessWb}
                                 onChange={(e) => setLessWb(Number(e.target.value))}
-                                style={{ width: '80px', padding: '2px', textAlign: 'right', fontSize: '12px' }}
+                                style={{ width: '80px', padding: '2px', textAlign: 'right', fontSize: '12px', border: '1px solid #ccc', borderRadius: '3px' }}
                             />
                             <span style={{ fontWeight: '600', color: '#dc2626' }}>- Rs {Number(lessWb).toLocaleString('en-IN')}</span>
                         </div>
+
+                        {/* Dynamic Custom Deductions */}
+                        {customDeductions.map((item) => (
+                            <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 0', borderBottom: '1px solid #eee' }}>
+                                <span style={{ color: '#dc2626', fontWeight: '800', fontSize: '14px' }}>-</span>
+                                <input
+                                    type="text"
+                                    disabled={isReadOnly}
+                                    placeholder="Deduction Description (Alphanumeric)"
+                                    value={item.label}
+                                    onChange={(e) => handleUpdateDeductionRow(item.id, 'label', e.target.value)}
+                                    style={{ flex: 1, padding: '3px 6px', fontSize: '12px', border: '1.5px solid #dc2626', borderRadius: '3px', boxSizing: 'border-box' }}
+                                />
+                                <input
+                                    type="number"
+                                    disabled={isReadOnly}
+                                    placeholder="Amount"
+                                    value={item.amount}
+                                    onChange={(e) => handleUpdateDeductionRow(item.id, 'amount', e.target.value)}
+                                    style={{ width: '85px', padding: '3px 6px', fontSize: '12px', border: '1.5px solid #dc2626', borderRadius: '3px', textAlign: 'right', boxSizing: 'border-box' }}
+                                />
+                                {!isReadOnly && (
+                                    <button
+                                        type="button"
+                                        onClick={() => handleRemoveDeductionRow(item.id)}
+                                        style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: 'bold', cursor: 'pointer', padding: '0 4px', fontSize: '14px' }}
+                                        title="Remove row"
+                                    >
+                                        ✕
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+
+                        {/* Button to add dynamic deduction row */}
+                        {!isReadOnly && (
+                            <div style={{ padding: '3px 0' }}>
+                                <button
+                                    type="button"
+                                    onClick={handleAddDeductionRow}
+                                    style={{ background: 'none', border: 'none', color: '#dc2626', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                >
+                                    - Add Deduction Row
+                                </button>
+                            </div>
+                        )}
+
                         {/* Grand Total */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '2px solid #000', borderBottom: '2px double #000', marginTop: '8px', fontSize: '15px', fontWeight: '800', color: '#1e3a8a' }}>
                             <span>Grand Total:</span>

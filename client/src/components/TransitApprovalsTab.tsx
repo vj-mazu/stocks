@@ -248,8 +248,10 @@ const TransitApprovalsTab: React.FC = () => {
                   <th style={WB_HEAD}>Slip No</th>
                   <th style={WB_HEAD}>Gross Wt</th>
                   <th style={WB_HEAD}>Tare Wt</th>
-                  <th style={WB_HEAD}>Sute</th>
                   <th style={WB_HEAD}>Net Wt</th>
+                  <th style={WB_HEAD}>Sute</th>
+                  <th style={{ ...WB_HEAD, color: '#fef08a' }}>WB Sute (Kg)</th>
+                  <th style={WB_HEAD}>Sute Net Wt</th>
                   <th style={{ ...WB_HEAD, width: '140px' }}>Actions</th>
                 </tr>
               </thead>
@@ -258,6 +260,11 @@ const TransitApprovalsTab: React.FC = () => {
                   const sampleEntry = entry.sampleEntry || {};
                   const inspection = entry.physicalInspection || {};
                   const lorryNumber = entry.lorryNumber || inspection.lorryNumber || sampleEntry.lorryNumber || '-';
+                  const bags = Number(inspection.bags || sampleEntry.bags || 0);
+                  const suteNum = Number(entry.sute || 0);
+                  const wbSuteKg = suteNum > 0 && bags > 0 ? Math.round(suteNum * bags) : null;
+                  const netWt = Number(entry.netWeight || 0);
+                  const suteNetWt = wbSuteKg !== null && netWt > 0 ? Math.max(0, netWt - wbSuteKg) : null;
 
                   return (
                     <tr key={`wb-${entry.id}`} style={{ borderBottom: '1px solid #cbd5e1', background: idx % 2 === 0 ? '#ffffff' : '#fffbeb' }}>
@@ -296,8 +303,10 @@ const TransitApprovalsTab: React.FC = () => {
                       <td style={{ ...CELL, fontWeight: '700' }}>{entry.wbNo || '-'}</td>
                       <td style={CELL}>{entry.grossWeight ? `${entry.grossWeight} Kg` : '-'}</td>
                       <td style={CELL}>{entry.tareWeight ? `${entry.tareWeight} Kg` : '-'}</td>
-                      <td style={CELL}>{entry.sute ? `${entry.sute} Kg` : '-'}</td>
                       <td style={{ ...CELL, fontWeight: '700', color: '#16a34a' }}>{entry.netWeight ? `${entry.netWeight} Kg` : '-'}</td>
+                      <td style={CELL}>{entry.sute ? `${entry.sute} Kg` : '-'}</td>
+                      <td style={{ ...CELL, fontWeight: '700', color: '#dc2626' }}>{wbSuteKg !== null ? `${wbSuteKg} Kg` : '-'}</td>
+                      <td style={{ ...CELL, fontWeight: '700', color: '#0369a1' }}>{suteNetWt !== null ? `${suteNetWt} Kg` : '-'}</td>
                       <td style={{ ...CELL, borderRight: 'none' }}>
                         <div style={{ display: 'inline-flex', gap: '6px' }}>
                           <button

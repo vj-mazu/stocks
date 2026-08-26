@@ -2104,7 +2104,23 @@ router.get('/tabs/completed-lots', authenticateToken, cacheMiddleware(30), async
 router.post('/:id/patti', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { hamaliRate, hamaliAmount, brokerageRate, brokerageAmount, lessDf, lessWb, totalAmount, grandTotal, lorryPackagings } = req.body;
+    const {
+      hamaliRate,
+      hamaliUnit,
+      hamaliAmount,
+      brokerageRate,
+      brokerageUnit,
+      brokerageAmount,
+      customAdditions,
+      lessDf,
+      lessWb,
+      customDeductions,
+      totalAmount,
+      grandTotal,
+      avgWbPerBag,
+      avgRate,
+      lorryPackagings
+    } = req.body;
 
     const PattiRecord = require('../models/PattiRecord');
     
@@ -2114,32 +2130,32 @@ router.post('/:id/patti', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Sample entry not found' });
     }
 
+    const payload = {
+      hamaliRate: Number(hamaliRate) || 0,
+      hamaliUnit: hamaliUnit || 'per_bag',
+      hamaliAmount: Number(hamaliAmount) || 0,
+      brokerageRate: Number(brokerageRate) || 0,
+      brokerageUnit: brokerageUnit || 'per_qtl',
+      brokerageAmount: Number(brokerageAmount) || 0,
+      customAdditions: Array.isArray(customAdditions) ? customAdditions : [],
+      lessDf: Number(lessDf) || 0,
+      lessWb: Number(lessWb) || 0,
+      customDeductions: Array.isArray(customDeductions) ? customDeductions : [],
+      totalAmount: Number(totalAmount) || 0,
+      grandTotal: Number(grandTotal) || 0,
+      avgWbPerBag: avgWbPerBag !== undefined ? Number(avgWbPerBag) : null,
+      avgRate: avgRate !== undefined ? Number(avgRate) : null,
+      lorryPackagings: lorryPackagings || {}
+    };
+
     // Save or update PattiRecord
     let patti = await PattiRecord.findOne({ where: { sampleEntryId: id } });
     if (patti) {
-      await patti.update({
-        hamaliRate: Number(hamaliRate),
-        hamaliAmount: Number(hamaliAmount),
-        brokerageRate: Number(brokerageRate),
-        brokerageAmount: Number(brokerageAmount),
-        lessDf: Number(lessDf),
-        lessWb: Number(lessWb),
-        totalAmount: Number(totalAmount),
-        grandTotal: Number(grandTotal),
-        lorryPackagings: lorryPackagings || {}
-      });
+      await patti.update(payload);
     } else {
       patti = await PattiRecord.create({
         sampleEntryId: id,
-        hamaliRate: Number(hamaliRate),
-        hamaliAmount: Number(hamaliAmount),
-        brokerageRate: Number(brokerageRate),
-        brokerageAmount: Number(brokerageAmount),
-        lessDf: Number(lessDf),
-        lessWb: Number(lessWb),
-        totalAmount: Number(totalAmount),
-        grandTotal: Number(grandTotal),
-        lorryPackagings: lorryPackagings || {}
+        ...payload
       });
     }
 

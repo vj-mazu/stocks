@@ -4731,7 +4731,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                         if (!isFinite(n)) return String(v);
                                                         return (n % 1 === 0) ? String(n) : String(parseFloat(n.toFixed(2)));
                                                     };
-                                                    const resolveSute = (savedSute: any, savedSuteNet: any, netWt: any, fallbackSute: any = null): { sute: string; suteNet: string; isLinked: boolean } => {
+                                                    const resolveSute = (savedSute: any, savedSuteNet: any, netWt: any, fallbackSute: any = null): { sute: string; wbSute: string; suteNet: string; isLinked: boolean } => {
                                                         const cleanNum = (v: any): number | undefined => {
                                                             if (v == null || v === '') return undefined;
                                                             const n = Number(String(v).replace(/,/g, '').trim());
@@ -4742,11 +4742,14 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                         const suteNum = pattiSute !== undefined ? pattiSute : customSute;
                                                         let suteStr = '';
                                                         if (suteNum !== undefined && isFinite(suteNum)) suteStr = fmtSuteDec(suteNum);
+                                                        let wbSuteStr = '';
                                                         let suteNetStr = '';
                                                         const nw = cleanNum(netWt);
                                                         if (isLinked && suteStr !== '' && suteNum !== undefined) {
+                                                            const shootKg = Math.round(suteNum * bagsForSute);
+                                                            wbSuteStr = stripWt(shootKg);
                                                             if (nw !== undefined && nw > 0) {
-                                                                suteNetStr = stripWt(Math.round(nw - (suteNum * bagsForSute)));
+                                                                suteNetStr = stripWt(Math.round(nw - shootKg));
                                                             } else if (savedSuteNet != null && savedSuteNet !== '') {
                                                                 const sNetNum = cleanNum(savedSuteNet);
                                                                 if (sNetNum !== undefined && sNetNum > 0) {
@@ -4754,10 +4757,13 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                 }
                                                             }
                                                         }
-                                                        return { sute: suteStr, suteNet: suteNetStr, isLinked };
+                                                        return { sute: suteStr, wbSute: wbSuteStr, suteNet: suteNetStr, isLinked };
                                                     };
                                                     const millSuteInfo = resolveSute(de.sute, de.suteNetWeight, de.netWeight);
                                                     const millSute = millSuteInfo.sute ? `${millSuteInfo.sute} Kg` : '-';
+                                                    const millWbSute = millSuteInfo.isLinked
+                                                        ? (millSuteInfo.wbSute ? `${millSuteInfo.wbSute} Kg` : '-')
+                                                        : '-';
                                                     const millSuteNet = millSuteInfo.isLinked
                                                         ? (millSuteInfo.suteNet ? `${millSuteInfo.suteNet} Kg` : '-')
                                                         : <span style={{ color: '#b45309', fontSize: '9.5px', fontWeight: 'bold' }}>Patti Not Linked</span>;
@@ -4787,6 +4793,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                     const partyNetVal = de.partyNetWeight ?? (partySe?.netWeight ?? (isPartyOnlyWb ? de.netWeight : null));
                                                     const partySuteInfo = resolveSute(de.partySute, de.partySuteNetWeight, partyNetVal, isPartyOnlyWb ? de.sute : null);
                                                     const partySute = partySuteInfo.sute ? `${partySuteInfo.sute} Kg` : '-';
+                                                    const partyWbSute = partySuteInfo.isLinked
+                                                        ? (partySuteInfo.wbSute ? `${partySuteInfo.wbSute} Kg` : '-')
+                                                        : '-';
                                                     const partySuteNet = partySuteInfo.isLinked
                                                         ? (partySuteInfo.suteNet ? `${partySuteInfo.suteNet} Kg` : '-')
                                                         : <span style={{ color: '#b45309', fontSize: '9.5px', fontWeight: 'bold' }}>Patti Not Linked</span>;
@@ -4830,6 +4839,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                                 <th style={thS}>TARE (Kg)</th>
                                                                                 <th style={thS}>NET (Kg)</th>
                                                                                 <th style={thS}>SUTE</th>
+                                                                                <th style={{ ...thS, color: '#fef08a' }}>WB SUTE (Kg)</th>
                                                                                 <th style={thS}>SUTE NET (Kg)</th>
                                                                                 <th style={thS}>STATUS</th>
                                                                                 <th style={thS}>ADDED BY</th>
@@ -4846,6 +4856,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                                 <td style={tdS}>{millTare}</td>
                                                                                 <td style={{ ...tdS, fontWeight: '800', color: '#059669' }}>{millNet}</td>
                                                                                 <td style={tdS}>{millSute}</td>
+                                                                                <td style={{ ...tdS, fontWeight: '800', color: '#dc2626' }}>{millWbSute}</td>
                                                                                 <td style={{ ...tdS, fontWeight: '800', color: '#0369a1' }}>{millSuteNet}</td>
                                                                                 <td style={{ ...tdS, color: millStatus === 'Approved' ? '#15803d' : millStatus === 'Pending' ? '#d97706' : '#1e293b', fontWeight: '700' }}>{millStatus}</td>
                                                                                 <td style={{ ...tdS, color: '#7c3aed' }}>{millAddedBy}</td>
@@ -4869,6 +4880,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                                     <td style={tdS}>{partyTare}</td>
                                                                                     <td style={{ ...tdS, fontWeight: '800', color: '#059669' }}>{partyNet}</td>
                                                                                     <td style={tdS}>{partySute}</td>
+                                                                                    <td style={{ ...tdS, fontWeight: '800', color: '#dc2626' }}>{partyWbSute}</td>
                                                                                     <td style={{ ...tdS, fontWeight: '800', color: '#0369a1' }}>{partySuteNet}</td>
                                                                                     <td style={{ ...tdS, color: partyStatus === 'Approved' ? '#15803d' : partyStatus === 'Pending' ? '#d97706' : '#1e293b', fontWeight: '700' }}>{partyStatus}</td>
                                                                                     <td style={{ ...tdS, color: '#7c3aed' }}>{partyAddedBy}</td>

@@ -23,6 +23,12 @@ const PattiRecord = sequelize.define('PattiRecord', {
     defaultValue: 12.00,
     field: 'hamali_rate'
   },
+  hamaliUnit: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    defaultValue: 'per_bag',
+    field: 'hamali_unit'
+  },
   hamaliAmount: {
     type: DataTypes.DECIMAL(12, 2),
     allowNull: false,
@@ -34,10 +40,22 @@ const PattiRecord = sequelize.define('PattiRecord', {
     defaultValue: 11.00,
     field: 'brokerage_rate'
   },
+  brokerageUnit: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    defaultValue: 'per_qtl',
+    field: 'brokerage_unit'
+  },
   brokerageAmount: {
     type: DataTypes.DECIMAL(12, 2),
     allowNull: false,
     field: 'brokerage_amount'
+  },
+  customAdditions: {
+    type: DataTypes.JSONB,
+    allowNull: true,
+    defaultValue: [],
+    field: 'custom_additions'
   },
   lessDf: {
     type: DataTypes.DECIMAL(12, 2),
@@ -51,6 +69,12 @@ const PattiRecord = sequelize.define('PattiRecord', {
     defaultValue: 0.00,
     field: 'less_wb'
   },
+  customDeductions: {
+    type: DataTypes.JSONB,
+    allowNull: true,
+    defaultValue: [],
+    field: 'custom_deductions'
+  },
   totalAmount: {
     type: DataTypes.DECIMAL(15, 2),
     allowNull: false,
@@ -60,6 +84,16 @@ const PattiRecord = sequelize.define('PattiRecord', {
     type: DataTypes.DECIMAL(15, 2),
     allowNull: false,
     field: 'grand_total'
+  },
+  avgWbPerBag: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    field: 'avg_wb_per_bag'
+  },
+  avgRate: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    field: 'avg_rate'
   },
   lorryPackagings: {
     type: DataTypes.JSONB,
@@ -71,6 +105,29 @@ const PattiRecord = sequelize.define('PattiRecord', {
   tableName: 'patti_records',
   underscored: true
 });
+
+// Auto-migration helper for new columns
+const runPattiAutoMigration = async () => {
+  try {
+    const queries = [
+      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS hamali_unit VARCHAR(20) DEFAULT 'per_bag';`,
+      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS brokerage_unit VARCHAR(20) DEFAULT 'per_qtl';`,
+      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS custom_additions JSONB DEFAULT '[]'::jsonb;`,
+      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS custom_deductions JSONB DEFAULT '[]'::jsonb;`,
+      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS avg_wb_per_bag DECIMAL(10, 2);`,
+      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS avg_rate DECIMAL(10, 2);`
+    ];
+    for (const q of queries) {
+      await sequelize.query(q).catch(() => {});
+    }
+  } catch (err) {
+    console.error('PattiRecord migration notice:', err?.message || err);
+  }
+};
+
+setTimeout(() => {
+  runPattiAutoMigration();
+}, 2000);
 
 PattiRecord.associate = (models) => {
   PattiRecord.belongsTo(models.SampleEntry, {
