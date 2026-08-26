@@ -4196,19 +4196,15 @@ const Arrivals: React.FC = () => {
         const isWbPending = entry.wbStatus === 'pending';
         if (!hasPendingQuality && !isPlacePending && !isWbPending) return false;
       }
-      // 6. Mill/Location staff: hide when sampling is completed & approved, and WB is done
+      // 6. Mill/Location staff: hide ONLY when BOTH sampling steps (Lot Avg + Gutti) are approved, and WB is approved
       if (isStaffMillOrLoc) {
         const qParams = entry.inventoryQualityParameters || [];
         const lotApproved = qParams.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
         const fullApproved = qParams.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
-        const hasLot = qParams.some((p: any) => p.type === 'lot_avg' && p.status !== 'rejected');
-        const hasFull = qParams.some((p: any) => p.type === 'full_lorry_avg' && p.status !== 'rejected');
         const hasPending = qParams.some((p: any) => p.status === 'pending');
-        const isBothApproved = lotApproved && fullApproved;
-        const isSingleApproved = (lotApproved && !hasFull) || (fullApproved && !hasLot);
-        const isQsApproved = (isBothApproved || isSingleApproved) && !hasPending && (lotApproved || fullApproved);
-        const isWbDone = entry.wbStatus === 'approved' || entry.wbStatus === 'pending';
-        if (isQsApproved && isWbDone) return false;
+        const isBothApproved = lotApproved && fullApproved && !hasPending;
+        const isWbDone = entry.wbStatus === 'approved';
+        if (isBothApproved && isWbDone) return false;
       }
       return true;
     });
