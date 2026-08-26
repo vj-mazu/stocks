@@ -1396,8 +1396,8 @@ interface VarietyAllocation {
 const sanitizeInventoryQualityField = (field: string, value: string) => {
   if (field === 'cutting' || field === 'bend') {
     let clean = String(value || '').replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×');
-    if (!clean.includes('×') && clean.length > 0 && /^\d/.test(clean)) {
-      clean = clean.substring(0, 1) + '×' + clean.substring(1);
+    if (!clean.includes('×') && clean.length > 0) {
+      clean = '1×' + clean;
     }
     const xCount = (clean.match(/×/g) || []).length;
     if (xCount > 1) {
@@ -1406,20 +1406,38 @@ const sanitizeInventoryQualityField = (field: string, value: string) => {
     }
     const parts = clean.split('×');
     const first = (parts[0] || '').substring(0, 1);
-    const second = (parts[1] || '').substring(0, 6);
-    return second !== undefined && clean.includes('×') ? `${first}×${second}` : first;
+    let second = (parts[1] || '');
+    const dotCount = (second.match(/\./g) || []).length;
+    if (dotCount > 1) {
+      const firstDot = second.indexOf('.');
+      second = second.substring(0, firstDot + 1) + second.substring(firstDot + 1).replace(/\./g, '');
+    }
+    second = second.substring(0, 6);
+    return clean.includes('×') ? `${first}×${second}` : first;
   }
 
   const alphaFields = ['mix', 'sMix', 'lMix', 'oil', 'kandu', 'sk'];
   if (alphaFields.includes(field)) {
-    return String(value || '').replace(/[^0-9.xX×]/g, '').slice(0, 8);
+    let cleaned = String(value || '').replace(/[^0-9.a-zA-Z×]/g, '');
+    const dotCount = (cleaned.match(/\./g) || []).length;
+    if (dotCount > 1) {
+      const firstDot = cleaned.indexOf('.');
+      cleaned = cleaned.substring(0, firstDot + 1) + cleaned.substring(firstDot + 1).replace(/\./g, '');
+    }
+    return cleaned.slice(0, 10);
   }
 
   if (field === 'grains' || field === 'grainsCount') {
     return String(value || '').replace(/[^0-9]/g, '').slice(0, 3);
   }
 
-  return String(value || '').replace(/[^0-9.]/g, '').slice(0, 6);
+  let cleaned = String(value || '').replace(/[^0-9.]/g, '');
+  const dotCount = (cleaned.match(/\./g) || []).length;
+  if (dotCount > 1) {
+    const firstDot = cleaned.indexOf('.');
+    cleaned = cleaned.substring(0, firstDot + 1) + cleaned.substring(firstDot + 1).replace(/\./g, '');
+  }
+  return cleaned.slice(0, 6);
 };
 
 const cleanDecimal = (val: any) => {
@@ -1884,18 +1902,21 @@ const Arrivals: React.FC = () => {
     const hasFullRecheck = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'rejected' && p.rejectReason && p.rejectReason.startsWith('RECHECK:'));
 
     let qsBadge = null;
-    const isQsApproved = fullApproved || (lotApproved && !params.some((p: any) => p.type === 'full_lorry_avg' && p.status !== 'approved'));
 
-    if (lotPending || fullPending) {
-      qsBadge = <span style={{ background: '#fef3c7', color: '#92400e', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Pending</span>;
-    } else if (hasLotRecheck || hasFullRecheck) {
+    if (hasLotRecheck || hasFullRecheck) {
       qsBadge = <span style={{ background: '#eff6ff', color: '#1d4ed8', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Recheck</span>;
+    } else if (lotPending || fullPending) {
+      qsBadge = <span style={{ background: '#fef3c7', color: '#92400e', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Pending</span>;
+    } else if (lotApproved && fullApproved) {
+      qsBadge = <span style={{ background: '#dcfce7', color: '#166534', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Approved</span>;
+    } else if (lotApproved) {
+      qsBadge = <span style={{ background: '#dcfce7', color: '#166534', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Lot Approved</span>;
+    } else if (fullApproved) {
+      qsBadge = <span style={{ background: '#dcfce7', color: '#166534', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Gutti Approved</span>;
     } else if (lotRejected || fullRejected) {
       qsBadge = <span style={{ background: '#fee2e2', color: '#991b1b', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Rejected</span>;
-    } else if (isQsApproved) {
-      qsBadge = <span style={{ background: '#dcfce7', color: '#166534', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Approved</span>;
     } else {
-      qsBadge = <span style={{ background: '#f1f5f9', color: '#64748b', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Pending</span>;
+      qsBadge = <span style={{ background: '#f1f5f9', color: '#64748b', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Required</span>;
     }
 
     // 3. GD Status
@@ -4192,12 +4213,17 @@ const Arrivals: React.FC = () => {
         const isWbPending = entry.wbStatus === 'pending';
         if (!hasPendingQuality && !isPlacePending && !isWbPending) return false;
       }
-      // 6. Mill/Location staff: hide when BOTH sampling (Lot Avg + Gutti) and WB are completed
+      // 6. Mill/Location staff: hide when sampling is completed & approved, and WB is done
       if (isStaffMillOrLoc) {
         const qParams = entry.inventoryQualityParameters || [];
         const lotApproved = qParams.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
         const fullApproved = qParams.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
-        const isQsApproved = fullApproved || (lotApproved && !qParams.some((p: any) => p.type === 'full_lorry_avg' && p.status !== 'approved'));
+        const hasLot = qParams.some((p: any) => p.type === 'lot_avg' && p.status !== 'rejected');
+        const hasFull = qParams.some((p: any) => p.type === 'full_lorry_avg' && p.status !== 'rejected');
+        const hasPending = qParams.some((p: any) => p.status === 'pending');
+        const isBothApproved = lotApproved && fullApproved;
+        const isSingleApproved = (lotApproved && !hasFull) || (fullApproved && !hasLot);
+        const isQsApproved = (isBothApproved || isSingleApproved) && !hasPending;
         const isWbDone = entry.wbStatus === 'approved' || entry.wbStatus === 'pending';
         if (isQsApproved && isWbDone) return false;
       }
@@ -4268,12 +4294,17 @@ const Arrivals: React.FC = () => {
           return;
         }
         if (!ltd || (ltd.placeStatus !== 'approved' && ltd.placeStatus !== 'placed')) {
-          // Mill/Location staff: hide when BOTH sampling (Lot Avg + Gutti) and WB are completed
+          // Mill/Location staff: hide when sampling is completed & approved, and WB is done
           if (isStaffMillOrLoc) {
             const qParams = insp?.inventoryQualityParameters || insp?.lorryTransitDetail?.inventoryQualityParameters || [];
             const lotApproved = qParams.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
             const fullApproved = qParams.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
-            const isQsApproved = fullApproved || (lotApproved && !qParams.some((p: any) => p.type === 'full_lorry_avg' && p.status !== 'approved'));
+            const hasLot = qParams.some((p: any) => p.type === 'lot_avg' && p.status !== 'rejected');
+            const hasFull = qParams.some((p: any) => p.type === 'full_lorry_avg' && p.status !== 'rejected');
+            const hasPending = qParams.some((p: any) => p.status === 'pending');
+            const isBothApproved = lotApproved && fullApproved;
+            const isSingleApproved = (lotApproved && !hasFull) || (fullApproved && !hasLot);
+            const isQsApproved = (isBothApproved || isSingleApproved) && !hasPending;
             const isWbDone = ltd && (ltd.wbStatus === 'approved' || ltd.wbStatus === 'pending');
             if (isQsApproved && isWbDone) return;
           }
@@ -4550,35 +4581,33 @@ const Arrivals: React.FC = () => {
                   </div>
                 )}
 
-                
-{(() => {
+                {(() => {
                   const params = isPlaceholder ? (entry.inventoryQualityParameters || []) : (inspection.inventoryQualityParameters || []);
                   const isFullApproved = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
                   const isLotApproved = params.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
-                  const isFullPending = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'pending');
-                  const isLotPending = params.some((p: any) => p.type === 'lot_avg' && p.status === 'pending');
+                  const isLotDone = params.some((p: any) => p.type === 'lot_avg' && p.status !== 'rejected');
+                  const isFullDone = params.some((p: any) => p.type === 'full_lorry_avg' && p.status !== 'rejected');
 
                   let btnText = '🔬 Mill Quality Sampling';
                   let btnBg = '#a855f7';
                   let isBtnDisabled = false;
+
                   if (isLotApproved && isFullApproved) {
                     btnText = '✅ Sampling Complete';
                     btnBg = '#059669';
                     isBtnDisabled = true;
-                  } else if (isLotApproved) {
-                    btnText = '🔬 Add Gutti';
-                    btnBg = '#0284c7';
-                  } else if (isLotPending) {
-                    btnText = '⏳ Lot Pending';
+                  } else if (isLotDone && isFullDone) {
+                    btnText = '⏳ QS Under Review';
                     btnBg = '#d97706';
                     isBtnDisabled = true;
-                  } else if (isFullApproved) {
-                    btnText = '🔬 Add Lot Avg';
+                  } else if (isLotDone && !isFullDone) {
+                    btnText = isLotApproved ? '🔬 Add Gutti' : '🔬 Add Gutti';
+                    btnBg = '#0284c7';
+                    isBtnDisabled = false;
+                  } else if (isFullDone && !isLotDone) {
+                    btnText = isFullApproved ? '🔬 Add Lot Avg' : '🔬 Add Lot Avg';
                     btnBg = '#a855f7';
-                  } else if (isFullPending) {
-                    btnText = '⏳ Full Lorry Pending';
-                    btnBg = '#b45309';
-                    isBtnDisabled = true;
+                    isBtnDisabled = false;
                   }
 
                   return (
@@ -4819,29 +4848,33 @@ const Arrivals: React.FC = () => {
                   )}
                 </div>
 
-                
-{canAddInventoryQuality && (() => {
+                {canAddInventoryQuality && (() => {
                   const params = entry.inventoryQualityParameters || [];
                   const isFullApproved = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
                   const isLotApproved = params.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
-                  const isFullPending = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'pending');
-                  const isLotPending = params.some((p: any) => p.type === 'lot_avg' && p.status === 'pending');
+                  const isLotDone = params.some((p: any) => p.type === 'lot_avg' && p.status !== 'rejected');
+                  const isFullDone = params.some((p: any) => p.type === 'full_lorry_avg' && p.status !== 'rejected');
 
                   let btnText = '🔬 Mill Quality Sampling';
                   let btnBg = '#a855f7';
                   let isBtnDisabled = false;
 
-                  if (isFullApproved) {
+                  if (isLotApproved && isFullApproved) {
                     btnText = '✅ Sampling Complete';
                     btnBg = '#059669';
                     isBtnDisabled = true;
-                  } else if (isFullPending) {
-                    btnText = '⏳ Full Lorry Avg Pending';
-                    btnBg = '#b45309';
+                  } else if (isLotDone && isFullDone) {
+                    btnText = '⏳ QS Under Review';
+                    btnBg = '#d97706';
                     isBtnDisabled = true;
-                  } else {
-                    btnText = '🔬 Add Gutti';
+                  } else if (isLotDone && !isFullDone) {
+                    btnText = isLotApproved ? '🔬 Add Gutti' : '🔬 Add Gutti';
                     btnBg = '#0284c7';
+                    isBtnDisabled = false;
+                  } else if (isFullDone && !isLotDone) {
+                    btnText = isFullApproved ? '🔬 Add Lot Avg' : '🔬 Add Lot Avg';
+                    btnBg = '#a855f7';
+                    isBtnDisabled = false;
                   }
 
                   return (
@@ -7507,36 +7540,33 @@ const Arrivals: React.FC = () => {
 
                               {/* 7. Actions */}
                               <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'center', fontSize: '11px', verticalAlign: 'middle' }}>
-                                
-{(() => {
+                                {(() => {
                                   const params = (inspection?.inventoryQualityParameters) || (entry?.inventoryQualityParameters) || (inspection?.lorryTransitDetail?.inventoryQualityParameters) || [];
                                   const isFullApproved = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
                                   const isLotApproved = params.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
-                                  const isLotPending = params.some((p: any) => p.type === 'lot_avg' && p.status === 'pending');
-                                  const isFullPending = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'pending');
-                                  const hasLotRejected = params.some((p: any) => p.type === 'lot_avg' && p.status === 'rejected');
+                                  const isLotDone = params.some((p: any) => p.type === 'lot_avg' && p.status !== 'rejected');
+                                  const isFullDone = params.some((p: any) => p.type === 'full_lorry_avg' && p.status !== 'rejected');
 
                                   let btnText = '🔬 Mill Quality Sampling';
                                   let btnBg = '#a855f7';
                                   let isBtnDisabled = false;
+
                                   if (isLotApproved && isFullApproved) {
                                     btnText = '✅ Sampling Complete';
                                     btnBg = '#059669';
                                     isBtnDisabled = true;
-                                  } else if (isLotApproved) {
-                                    btnText = '🔬 Add Gutti';
-                                    btnBg = '#0284c7';
-                                  } else if (isLotPending) {
-                                    btnText = '⏳ Lot Pending';
+                                  } else if (isLotDone && isFullDone) {
+                                    btnText = '⏳ QS Under Review';
                                     btnBg = '#d97706';
                                     isBtnDisabled = true;
-                                  } else if (isFullApproved) {
-                                    btnText = '🔬 Add Lot Avg';
+                                  } else if (isLotDone && !isFullDone) {
+                                    btnText = isLotApproved ? '🔬 Add Gutti' : '🔬 Add Gutti';
+                                    btnBg = '#0284c7';
+                                    isBtnDisabled = false;
+                                  } else if (isFullDone && !isLotDone) {
+                                    btnText = isFullApproved ? '🔬 Add Lot Avg' : '🔬 Add Lot Avg';
                                     btnBg = '#a855f7';
-                                  } else if (isFullPending) {
-                                    btnText = '⏳ Full Lorry Pending';
-                                    btnBg = '#b45309';
-                                    isBtnDisabled = true;
+                                    isBtnDisabled = false;
                                   }
 
                                   return (
@@ -9370,50 +9400,36 @@ const Arrivals: React.FC = () => {
 
                                  
 {canAddInventoryQuality && (() => {
-
-
-
-                                   const params = entry.inventoryQualityParameters || [];
-
-
-
-                                   const isFullApproved = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
-
-
-
-                                   const isLotApproved = params.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
-
-
-
-                                   const isFullPending = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'pending');
-
-
-
-                                   const isLotPending = params.some((p: any) => p.type === 'lot_avg' && p.status === 'pending');
-
-
-
-                                   
-
-
+                                    const params = entry.inventoryQualityParameters || [];
+                                    const isFullApproved = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
+                                    const isLotApproved = params.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
+                                    const isLotDone = params.some((p: any) => p.type === 'lot_avg' && p.status !== 'rejected');
+                                    const isFullDone = params.some((p: any) => p.type === 'full_lorry_avg' && p.status !== 'rejected');
 
                                     let btnText = '🔬 Mill Quality Sampling';
                                     let btnBg = '#a855f7';
                                     let isBtnDisabled = false;
 
-                                    if (isFullApproved) {
-                                       btnText = '✅ Sampling Complete';
-                                       btnBg = '#059669';
-                                       isBtnDisabled = true;
-                                     } else if (isFullPending) {
-                                       btnText = '⏳ Full Lorry Avg Pending';
-                                       btnBg = '#b45309';
-                                       isBtnDisabled = true;
-                                     } else {
-                                       btnText = '🔬 Add Gutti';
-                                       btnBg = '#0284c7';
+                                    if (isLotApproved && isFullApproved) {
+                                      btnText = '✅ Sampling Complete';
+                                      btnBg = '#059669';
+                                      isBtnDisabled = true;
+                                    } else if (isLotDone && isFullDone) {
+                                      btnText = '⏳ QS Under Review';
+                                      btnBg = '#d97706';
+                                      isBtnDisabled = true;
+                                    } else if (isLotDone && !isFullDone) {
+                                      btnText = '🔬 Add Gutti';
+                                      btnBg = '#0284c7';
+                                      isBtnDisabled = false;
+                                    } else if (isFullDone && !isLotDone) {
+                                      btnText = '🔬 Add Lot Avg';
+                                      btnBg = '#a855f7';
+                                      isBtnDisabled = false;
+                                    } else {
+                                       btnText = '🔬 Mill Quality Sampling';
+                                       btnBg = '#a855f7';
                                      }
-
 
 
                                    return (
