@@ -1418,13 +1418,13 @@ const sanitizeInventoryQualityField = (field: string, value: string) => {
 
   const alphaFields = ['mix', 'sMix', 'lMix', 'oil', 'kandu', 'sk'];
   if (alphaFields.includes(field)) {
-    let cleaned = String(value || '').replace(/[^0-9.a-zA-Z×]/g, '');
+    let cleaned = String(value || '').replace(/[^0-9.a-zA-Z×\s-]/g, '');
     const dotCount = (cleaned.match(/\./g) || []).length;
     if (dotCount > 1) {
       const firstDot = cleaned.indexOf('.');
       cleaned = cleaned.substring(0, firstDot + 1) + cleaned.substring(firstDot + 1).replace(/\./g, '');
     }
-    return cleaned.slice(0, 10);
+    return cleaned.slice(0, 20);
   }
 
   if (field === 'grains' || field === 'grainsCount') {

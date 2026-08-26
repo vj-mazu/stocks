@@ -867,8 +867,8 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
         const bags = Number(getApprovedFullAvgBags(insp.samplingStages || {}, insp.bags) || 0);
         const netWt = Number(insp.lorryTransitDetail?.netWeight || 0);
         const sute = Number(insp.linkedPattiRate?.sute || 0);
-        const shoot = Number((sute * bags).toFixed(2));
-        const suteNetWt = Math.max(0, netWt - shoot);
+        const shoot = Math.round(sute * bags);
+        const suteNetWt = Math.round(Math.max(0, netWt - shoot));
         const rate = Number(insp.linkedPattiRate?.rate || 0);
         
         // Fetch customized or default packaging size for this lorry
@@ -877,11 +877,27 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
         const amount = Math.round((suteNetWt * rate) / kg);
         const unloadingDate = insp.lorryTransitDetail?.placeDate || insp.inspectionDate;
 
+        const rateType = insp.linkedPattiRate?.rateType;
+        let typeDisplay = 'PD/WB';
+        if (rateType) {
+            if (rateType === 'PD_LOOSE' || rateType === 'LOOSE' || rateType === 'MD_LOOSE') {
+                typeDisplay = 'PD/LOOSE';
+            } else if (rateType === 'PD_WB' || rateType === 'WB' || rateType === 'MD_WB') {
+                typeDisplay = 'PD/WB';
+            } else {
+                typeDisplay = String(rateType).replace(/_/g, '/').toUpperCase();
+            }
+        } else {
+            const rawPkg = String(insp.sampleEntry?.packaging || entry.packaging || '').trim().toLowerCase();
+            typeDisplay = (rawPkg === '0' || rawPkg === 'loose' || kg === 0) ? 'PD/LOOSE' : 'PD/WB';
+        }
+
         return {
             id: insp.id,
             unloadingDate,
             bags,
             kg,
+            type: typeDisplay,
             variety: entry.variety,
             netWt,
             shoot,
@@ -894,8 +910,8 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
 
     const totalBags = calculatedTrips.reduce((sum, t) => sum + t.bags, 0);
     const totalNetWt = calculatedTrips.reduce((sum, t) => sum + t.netWt, 0);
-    const totalShoot = calculatedTrips.reduce((sum, t) => sum + t.shoot, 0);
-    const totalSuteNetWt = calculatedTrips.reduce((sum, t) => sum + t.suteNetWt, 0);
+    const totalShoot = Math.round(calculatedTrips.reduce((sum, t) => sum + t.shoot, 0));
+    const totalSuteNetWt = Math.round(calculatedTrips.reduce((sum, t) => sum + t.suteNetWt, 0));
     const totalLorryAmount = calculatedTrips.reduce((sum, t) => sum + t.amount, 0);
 
     const hamaliAmount = Number((hamaliRate * totalBags).toFixed(2));
@@ -1005,13 +1021,13 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', marginBottom: '20px', border: '1px solid #000' }}>
                     <thead>
                         <tr style={{ backgroundColor: '#f3f4f6', borderBottom: '1px solid #000' }}>
-                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700' }}>un.date</th>
+                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700' }}>Date</th>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700' }}>Bags</th>
-                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700' }}>Kg</th>
+                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700' }}>Type</th>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>Verity</th>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '700' }}>Net.wt</th>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '700' }}>Shoot</th>
-                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '700' }}>Net.wt</th>
+                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '700' }}>Sute Net.wt</th>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700' }}>Rate</th>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '700' }}>Amount</th>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>Lorry</th>
@@ -1024,27 +1040,10 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                                     {trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-GB') : '-'}
                                 </td>
                                 <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{trip.bags}</td>
-                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
-                                    {isReadOnly ? (
-                                        `${trip.kg} Kg`
-                                    ) : (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', justifyContent: 'center' }}>
-                                            <input
-                                                type="number"
-                                                value={lorryPackagings[trip.id] || trip.kg}
-                                                onChange={(e) => {
-                                                    const val = Number(e.target.value);
-                                                    setLorryPackagings(prev => ({ ...prev, [trip.id]: val }));
-                                                }}
-                                                style={{ width: '45px', padding: '2px', textAlign: 'center', fontWeight: '700' }}
-                                            />
-                                            <span style={{ fontSize: '11px', fontWeight: '600' }}>Kg</span>
-                                        </div>
-                                    )}
-                                </td>
+                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700', color: '#1e40af' }}>{trip.type}</td>
                                 <td style={{ border: '1px solid #000', padding: '6px' }}>{trip.variety}</td>
                                 <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right' }}>{trip.netWt}</td>
-                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', color: '#dc2626' }}>{trip.shoot}</td>
+                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', color: '#dc2626', fontWeight: '600' }}>{trip.shoot}</td>
                                 <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '600' }}>{trip.suteNetWt}</td>
                                 <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', color: '#16a34a', fontWeight: '700' }}>{trip.rate}</td>
                                 <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '600' }}>{trip.amount.toLocaleString('en-IN')}</td>
@@ -1055,7 +1054,7 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                         <tr style={{ backgroundColor: '#f9fafb', borderTop: '2px solid #000', borderBottom: '2px solid #000', fontWeight: '800' }}>
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>Total</td>
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>{totalBags}</td>
-                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>{(() => { const kgs = calculatedTrips.map(t => t.kg); return kgs.length > 0 && kgs.every(k => k === kgs[0]) ? kgs[0] : '-'; })()}</td>
+                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>-</td>
                             <td style={{ border: '1px solid #000', padding: '8px' }}>-</td>
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>{totalNetWt}</td>
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right', color: '#dc2626' }}>{totalShoot}</td>
@@ -1111,7 +1110,7 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                         </div>
                         {/* Less DF */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
-                            <span>Less: DF (Discount):</span>
+                            <span>Less: DF:</span>
                             <input
                                 type="number"
                                 disabled={isReadOnly}
@@ -1123,7 +1122,7 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                         </div>
                         {/* Less WB */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
-                            <span>Less: WB (Weighbridge):</span>
+                            <span>Less: WB:</span>
                             <input
                                 type="number"
                                 disabled={isReadOnly}
