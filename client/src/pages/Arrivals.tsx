@@ -1394,7 +1394,9 @@ interface VarietyAllocation {
 }
 
 const sanitizeInventoryQualityField = (field: string, value: string) => {
-  if (field === 'cutting' || field === 'bend') {
+  const f = String(field || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  if (f === 'cutting' || f === 'bend') {
     let clean = String(value || '').replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×');
     if (!clean.includes('×') && clean.length > 0) {
       clean = '1×' + clean;
@@ -1416,8 +1418,13 @@ const sanitizeInventoryQualityField = (field: string, value: string) => {
     return clean.includes('×') ? `${first}×${second}` : first;
   }
 
-  const alphaFields = ['mix', 'sMix', 'lMix', 'oil', 'kandu', 'sk'];
-  if (alphaFields.includes(field)) {
+  // All mix, smix, lmix, kandu, oil, sk fields
+  if (
+    f.includes('mix') ||
+    f.includes('kandu') ||
+    f.includes('oil') ||
+    f.includes('sk')
+  ) {
     let cleaned = String(value || '').replace(/[^0-9.a-zA-Z×\s-]/g, '');
     const dotCount = (cleaned.match(/\./g) || []).length;
     if (dotCount > 1) {
@@ -1427,7 +1434,7 @@ const sanitizeInventoryQualityField = (field: string, value: string) => {
     return cleaned.slice(0, 20);
   }
 
-  if (field === 'grains' || field === 'grainsCount') {
+  if (f.includes('grain')) {
     return String(value || '').replace(/[^0-9]/g, '').slice(0, 3);
   }
 
