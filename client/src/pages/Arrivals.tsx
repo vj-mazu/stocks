@@ -14984,7 +14984,7 @@ const Arrivals: React.FC = () => {
                           </div>
                           {inventoryQualityToggle.dryMoisture === 'Yes' && (
                             <input type="text" value={inventoryQualityForm.dryMoisture}
-                              onChange={(e) => setInventoryQualityForm(p => ({ ...p, dryMoisture: sanitizeInventoryQualityField('dryMoisture', e.target.value) }))}
+                              onChange={(e) => setInventoryQualityForm(p => ({ ...p, dryMoisture: e.target.value }))}
                               style={{ width: '100%', padding: '4px', border: activeRecheck ? '1.5px solid #ef4444' : '1px solid #ccc', borderRadius: '3px', fontSize: '11px', boxSizing: 'border-box', backgroundColor: activeRecheck ? '#fef2f2' : '#fff' }}
                               placeholder="14.2" />
                           )}
@@ -15023,7 +15023,7 @@ const Arrivals: React.FC = () => {
                         </>
                       ) : (
                         <input type="text" value={inventoryQualityForm[field.key as keyof typeof inventoryQualityForm]}
-                          onChange={(e) => setInventoryQualityForm(p => ({ ...p, [field.key]: sanitizeInventoryQualityField(field.key, e.target.value) }))}
+                          onChange={(e) => setInventoryQualityForm(p => ({ ...p, [field.key]: e.target.value }))}
                           style={{ width: '100%', padding: '4px', border: activeRecheck ? '1.5px solid #ef4444' : '1px solid #ccc', borderRadius: '3px', fontSize: '11px', boxSizing: 'border-box', backgroundColor: activeRecheck ? '#fef2f2' : '#fff' }}
                           placeholder={field.placeholder} />
                       )}
@@ -15083,7 +15083,7 @@ const Arrivals: React.FC = () => {
                         ))}
                       </div>
                       {(inventoryQualityToggle.paddyWb === 'Yes') && (
-                        <input type="number" step="0.01" value={inventoryQualityForm.paddyWb} onChange={(e) => setInventoryQualityForm(p => ({ ...p, paddyWb: sanitizeInventoryQualityField('paddyWb', e.target.value) }))}
+                        <input type="text" value={inventoryQualityForm.paddyWb} onChange={(e) => setInventoryQualityForm(p => ({ ...p, paddyWb: e.target.value }))}
                           style={{ width: '100%', padding: '4px', border: activeRecheck ? '1.5px solid #ef4444' : '1px solid #ccc', borderRadius: '3px', fontSize: '10px', boxSizing: 'border-box', backgroundColor: activeRecheck ? '#fef2f2' : '#fff' }}
                           placeholder="Val" />
                       )}
