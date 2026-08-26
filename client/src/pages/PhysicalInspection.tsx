@@ -583,7 +583,7 @@ const PhysicalInspection: React.FC = () => {
       }
       const parts = clean.split('×');
       const first = (parts[0] || '').substring(0, 1);
-      const second = (parts[1] || '').substring(0, 4);
+      const second = (parts[1] || '').substring(0, 6);
       clean = second !== undefined && clean.includes('×') ? `${first}×${second}` : first;
       finalValue = clean;
     } else if (field === 'moisture' || field === 'dryMoistureValue' || field === 'grainsCount' || field === 'mix' || field === 'mixS' || field === 'mixL' || field === 'sk' || field === 'kandu' || field === 'oil' || field === 'paddyWb') {
@@ -591,21 +591,7 @@ const PhysicalInspection: React.FC = () => {
       let cleaned = '';
 
       if (alphaFields.includes(field)) {
-        cleaned = String(value || '').replace(/[^0-9.a-zA-Z]/g, '');
-        const alphaMatch = cleaned.match(/[a-zA-Z]/g);
-        if (alphaMatch && alphaMatch.length > 1) {
-          let firstAlphaFound = false;
-          cleaned = Array.from(cleaned).filter(char => {
-            if (/[a-zA-Z]/.test(char)) {
-              if (!firstAlphaFound) {
-                firstAlphaFound = true;
-                return true;
-              }
-              return false;
-            }
-            return true;
-          }).join('');
-        }
+        cleaned = String(value || '').replace(/[^0-9.a-zA-Z×]/g, '');
       } else {
         cleaned = String(value || '').replace(/[^0-9.]/g, '');
       }
@@ -613,7 +599,7 @@ const PhysicalInspection: React.FC = () => {
       if (field === 'grainsCount') {
         if (cleaned.length > 3) return;
       } else {
-        if (cleaned.length > 6) return;
+        if (cleaned.length > 8) return;
       }
       finalValue = cleaned;
     }

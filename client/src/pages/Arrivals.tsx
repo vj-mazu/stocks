@@ -5670,11 +5670,34 @@ const Arrivals: React.FC = () => {
   const canApproveInventoryQuality = user && ['admin', 'owner', 'manager', 'ceo'].includes(user.role);
   const canApproveWB = user && ['admin', 'md', 'owner', 'manager', 'ceo', 'inventory_head'].includes(user.role);
 
+  const sanitizeInventoryQualityField = (field: string, value: string) => {
+    if (field === 'cutting' || field === 'bend') {
+      let clean = String(value || '').replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×');
+      if (!clean.includes('×') && clean.length > 0 && /^\d/.test(clean)) {
+        clean = clean.substring(0, 1) + '×' + clean.substring(1);
+      }
+      const xCount = (clean.match(/×/g) || []).length;
+      if (xCount > 1) {
+        const idx = clean.indexOf('×');
+        clean = clean.substring(0, idx + 1) + clean.substring(idx + 1).replace(/×/g, '');
+      }
+      const parts = clean.split('×');
+      const first = (parts[0] || '').substring(0, 1);
+      const second = (parts[1] || '').substring(0, 6);
+      return second !== undefined && clean.includes('×') ? `${first}×${second}` : first;
+    }
 
+    const alphaFields = ['mix', 'sMix', 'lMix', 'oil', 'kandu', 'sk'];
+    if (alphaFields.includes(field)) {
+      return String(value || '').replace(/[^0-9.xX×]/g, '').slice(0, 8);
+    }
 
+    if (field === 'grains' || field === 'grainsCount') {
+      return String(value || '').replace(/[^0-9]/g, '').slice(0, 3);
+    }
 
-
-
+    return String(value || '').replace(/[^0-9.]/g, '').slice(0, 6);
+  };
 
   // Mill Quality Parameters Handlers
 
@@ -7060,14 +7083,14 @@ const Arrivals: React.FC = () => {
 
 
                               <td style={{ border: '1px solid #000', padding: '6px', wordBreak: 'break-word' }}>
-                                <span style={{ color: '#000000', fontSize: '13px', fontWeight: '800', display: 'inline-block' }}>
+                                <span style={{ color: '#000000', fontSize: '19px', fontWeight: '800', display: 'inline-block', lineHeight: '1.2' }}>
                                   {entry.brokerName || '-'}
                                 </span>
                               </td>
 
 
 
-                              <td style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', wordBreak: 'break-word' }}>
+                              <td style={{ border: '1px solid #000', padding: '5px', fontWeight: '700', wordBreak: 'break-word', whiteSpace: 'normal' }}>
 
 
 
@@ -7149,7 +7172,27 @@ const Arrivals: React.FC = () => {
 
 
 
-                                    fontWeight: 'inherit'
+                                    fontWeight: 'inherit',
+
+
+
+                                    whiteSpace: 'normal',
+
+
+
+                                    wordBreak: 'break-word',
+
+
+
+                                    lineHeight: '1.3',
+
+
+
+                                    display: 'inline-block',
+
+
+
+                                    maxWidth: '100%'
 
 
 
@@ -8694,8 +8737,8 @@ const Arrivals: React.FC = () => {
 
 
                           {/* Column 3: Broker */}
-                          <td style={{ border: '1px solid #000', padding: '6px' }}>
-                            <span style={{ color: '#000000', fontSize: '13px', fontWeight: '800', display: 'inline-block' }}>
+                          <td style={{ border: '1px solid #000', padding: '6px', wordBreak: 'break-word' }}>
+                            <span style={{ color: '#000000', fontSize: '19px', fontWeight: '800', display: 'inline-block', lineHeight: '1.2' }}>
                               {entry.broker || entry.brokerName || '-'}
                             </span>
                           </td>
@@ -8710,7 +8753,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                          <td style={{ border: '1px solid #000', padding: '5px', fontWeight: '600' }}>
+                          <td style={{ border: '1px solid #000', padding: '5px', fontWeight: '600', wordBreak: 'break-word', whiteSpace: 'normal' }}>
 
 
 
@@ -8982,7 +9025,17 @@ const Arrivals: React.FC = () => {
 
 
 
-                                fontWeight: 'inherit'
+                                fontWeight: 'inherit',
+
+                                whiteSpace: 'normal',
+
+                                wordBreak: 'break-word',
+
+                                lineHeight: '1.3',
+
+                                display: 'inline-block',
+
+                                maxWidth: '100%'
 
 
 
@@ -14913,12 +14966,12 @@ const Arrivals: React.FC = () => {
                     { label: 'Grains Count', key: 'grains', type: 'text', placeholder: '', required: true },
                     { label: 'Cutting', key: 'cutting', type: 'text', placeholder: '1x', required: true },
                     { label: 'Bend', key: 'bend', type: 'text', placeholder: '1x', required: true },
-                    { label: 'Mix (%)', key: 'mix', type: 'text', placeholder: '1x', required: true },
-                    { label: 'SMix', key: 'sMix', type: 'text', placeholder: '1x', required: true },
-                    { label: 'LMix', key: 'lMix', type: 'text', placeholder: '1x', required: true },
-                    { label: 'SK (%)', key: 'sk', type: 'text', placeholder: '1x', required: true },
-                    { label: 'Kandu (%)', key: 'kandu', type: 'text', placeholder: '1x', required: true },
-                    { label: 'Oil (%)', key: 'oil', type: 'text', placeholder: '1x', required: true },
+                    { label: 'Mix (%)', key: 'mix', type: 'text', placeholder: '', required: true },
+                    { label: 'SMix', key: 'sMix', type: 'text', placeholder: '', required: true },
+                    { label: 'LMix', key: 'lMix', type: 'text', placeholder: '', required: true },
+                    { label: 'SK (%)', key: 'sk', type: 'text', placeholder: '', required: true },
+                    { label: 'Kandu (%)', key: 'kandu', type: 'text', placeholder: '', required: true },
+                    { label: 'Oil (%)', key: 'oil', type: 'text', placeholder: '', required: true },
                     { label: 'Paddy Discolor', key: 'pColor', type: 'select', options: ['Normal Color', 'Light Discolor', 'Medium Discolor', 'Dark Discolor'] },
                     { label: 'Kadiga', key: 'kadiga', type: 'kadiga', required: true },
                     { label: 'Smell', key: 'smell', type: 'smell' }
@@ -14990,7 +15043,7 @@ const Arrivals: React.FC = () => {
                         <input type="text" value={inventoryQualityForm[field.key as keyof typeof inventoryQualityForm]}
                           onChange={(e) => setInventoryQualityForm(p => ({ ...p, [field.key]: sanitizeInventoryQualityField(field.key, e.target.value) }))}
                           onFocus={() => {
-                            if (['cutting', 'bend', 'mix', 'sMix', 'lMix', 'sk', 'kandu', 'oil'].includes(field.key) && !inventoryQualityForm[field.key as keyof typeof inventoryQualityForm]) {
+                            if (['cutting', 'bend'].includes(field.key) && !inventoryQualityForm[field.key as keyof typeof inventoryQualityForm]) {
                               setInventoryQualityForm(p => ({ ...p, [field.key]: '1x' }));
                             }
                           }}

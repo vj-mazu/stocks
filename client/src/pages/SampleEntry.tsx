@@ -880,7 +880,7 @@ const SampleEntryPage: React.FC<{
     }
     const parts = clean.split('×');
     const first = (parts[0] || '').substring(0, 1);
-    const second = (parts[1] || '').substring(0, 4);
+    const second = (parts[1] || '').substring(0, 6);
     clean = second !== undefined && clean.includes('×') ? `${first}×${second}` : first;
     setQualityData(prev => ({ ...prev, cutting: clean, cutting1: first, cutting2: second }));
   };
@@ -906,33 +906,18 @@ const SampleEntryPage: React.FC<{
     }
     const parts = clean.split('×');
     const first = (parts[0] || '').substring(0, 1);
-    const second = (parts[1] || '').substring(0, 4);
+    const second = (parts[1] || '').substring(0, 6);
     clean = second !== undefined && clean.includes('×') ? `${first}×${second}` : first;
     setQualityData(prev => ({ ...prev, bend: clean, bend1: first, bend2: second }));
   };
 
-  // Helper: restrict quality param value - 5 digits total for most, 3 digits for grains
-  // Allow one optional alphabet character for specific fields (mixS, mixL, mix, oil, kandu, sk)
+  // Helper: restrict quality param value - allows numbers, decimals, and x
   const handleQualityInput = (field: string, value: string) => {
     const alphaFields = ['mixS', 'mixL', 'mix', 'oil', 'kandu', 'sk'];
     let cleaned = '';
 
     if (alphaFields.includes(field)) {
-      cleaned = value.replace(/[^0-9.a-zA-Z]/g, '');
-      const alphaMatch = cleaned.match(/[a-zA-Z]/g);
-      if (alphaMatch && alphaMatch.length > 1) {
-        let firstAlphaFound = false;
-        cleaned = Array.from(cleaned).filter(char => {
-          if (/[a-zA-Z]/.test(char)) {
-            if (!firstAlphaFound) {
-              firstAlphaFound = true;
-              return true;
-            }
-            return false;
-          }
-          return true;
-        }).join('');
-      }
+      cleaned = value.replace(/[^0-9.a-zA-Z×]/g, '');
     } else {
       cleaned = value.replace(/[^0-9.]/g, '');
     }
@@ -941,8 +926,7 @@ const SampleEntryPage: React.FC<{
     if (threeDigitFields.includes(field)) {
       if (cleaned.length > 3) return;
     } else {
-      // Limit to 5 digits for moisture and other fields
-      if (cleaned.length > 5) return;
+      if (cleaned.length > 8) return;
     }
     setQualityData(prev => ({ ...prev, [field]: cleaned }));
   };
