@@ -4214,6 +4214,16 @@ const Arrivals: React.FC = () => {
       }
       return true;
     });
+
+    // Sort chronologically ascending so oldest is SL No 1 and dates go in exact order (e.g. 31/07 before 05/08 before 11/08)
+    return [...filtered].sort((a, b) => {
+      const dateA = safeDateStr(a.date);
+      const dateB = safeDateStr(b.date);
+      if (dateA !== dateB) {
+        return dateA.localeCompare(dateB);
+      }
+      return (Number(a.id) || 0) - (Number(b.id) || 0);
+    });
   }, [bandMalalEntries, bmbDateFilter, bmbDateFromFilter, bmbDateToFilter, bmbBrokerFilter, bmbVarietyFilter, bmbSearchQuery, bmbStatusFilter, isStaffMillOrLoc, isMillStaff]);
 
   const paginatedBmbEntries = useMemo(() => {
@@ -8355,7 +8365,46 @@ const Arrivals: React.FC = () => {
 
         <div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+            {/* Left Side: Direct Date Filtering & Search */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#fff', padding: '2px 8px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+                <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#475569' }}>📅 From:</span>
+                <input 
+                  type="date" 
+                  value={bmbDateFromFilter}
+                  onChange={(e) => { setBmbDateFromFilter(e.target.value); setBmbPage(1); }}
+                  style={{ padding: '3px 6px', fontSize: '12px', border: 'none', outline: 'none', background: 'transparent' }}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#fff', padding: '2px 8px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+                <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#475569' }}>To:</span>
+                <input 
+                  type="date" 
+                  value={bmbDateToFilter}
+                  onChange={(e) => { setBmbDateToFilter(e.target.value); setBmbPage(1); }}
+                  style={{ padding: '3px 6px', fontSize: '12px', border: 'none', outline: 'none', background: 'transparent' }}
+                />
+              </div>
+              {(bmbDateFromFilter || bmbDateToFilter) && (
+                <button
+                  type="button"
+                  onClick={() => { setBmbDateFromFilter(''); setBmbDateToFilter(''); setBmbPage(1); }}
+                  style={{ padding: '5px 10px', border: '1px solid #fca5a5', borderRadius: '6px', background: '#fee2e2', color: '#ef4444', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', height: '32px' }}
+                >
+                  ✕ Clear Date
+                </button>
+              )}
+              <input
+                type="text"
+                value={bmbSearchQuery}
+                onChange={(e) => { setBmbSearchQuery(e.target.value); setBmbPage(1); }}
+                placeholder="🔍 Search Party, Broker, Lorry..."
+                style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', background: '#fff', fontSize: '12px', width: '220px', height: '32px', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            {/* Right Side: Records, Status, More Filters */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <select
                 value={bmbPageSize}
@@ -8392,7 +8441,7 @@ const Arrivals: React.FC = () => {
                   gap: '4px' 
                 }}
               >
-                🔍 Filters
+                🔍 More Filters
               </button>
             </div>
           </div>
