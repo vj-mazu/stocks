@@ -4215,14 +4215,14 @@ const Arrivals: React.FC = () => {
       return true;
     });
 
-    // Sort chronologically ascending so oldest is SL No 1 and dates go in exact order (e.g. 31/07 before 05/08 before 11/08)
+    // Sort latest date first (descending: newest date at top, oldest date at bottom)
     return [...filtered].sort((a, b) => {
       const dateA = safeDateStr(a.date);
       const dateB = safeDateStr(b.date);
       if (dateA !== dateB) {
-        return dateA.localeCompare(dateB);
+        return dateB.localeCompare(dateA);
       }
-      return (Number(a.id) || 0) - (Number(b.id) || 0);
+      return (Number(b.id) || 0) - (Number(a.id) || 0);
     });
   }, [bandMalalEntries, bmbDateFilter, bmbDateFromFilter, bmbDateToFilter, bmbBrokerFilter, bmbVarietyFilter, bmbSearchQuery, bmbStatusFilter, isStaffMillOrLoc, isMillStaff]);
 
@@ -8759,7 +8759,7 @@ const Arrivals: React.FC = () => {
 
 
 
-                            {entry.slNo}
+                            {idx + 1 + (bmbPage - 1) * bmbPageSize}
 
 
 
