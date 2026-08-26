@@ -1074,18 +1074,23 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                 {/* Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px dashed #333', paddingBottom: '12px', marginBottom: '16px' }}>
                     <div>
-                        <h2 style={{ margin: 0, fontSize: '18px', color: '#111827', fontWeight: '800', letterSpacing: '0.5px' }}>
-                            PATTI CALCULATION SHEET
+                        <h2 style={{ margin: 0, fontSize: '20px', color: '#111827', fontWeight: '800', letterSpacing: '0.5px' }}>
+                            KBD
                         </h2>
                         <div style={{ fontSize: '13px', color: '#4b5563', marginTop: '4px', fontWeight: '600' }}>
                             Party: <span style={{ color: '#111827' }}>{entry.partyName}</span> | Location: <span style={{ color: '#111827' }}>{entry.location}</span>
                         </div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
+                    <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
                         <span style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#374151' }}>Date: {new Date().toLocaleDateString('en-GB')}</span>
-                        <span style={{ fontSize: '12px', fontWeight: '700', backgroundColor: '#e5e7eb', padding: '2px 8px', borderRadius: '4px', display: 'inline-block', marginTop: '4px' }}>
-                            Pkg: {entry.packaging || 75} Kg
-                        </span>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px' }}>
+                            <span style={{ fontSize: '12px', fontWeight: '700', backgroundColor: '#e5e7eb', padding: '2px 8px', borderRadius: '4px', display: 'inline-block' }}>
+                                Pkg: {entry.packaging || 75} Kg
+                            </span>
+                            <span style={{ fontSize: '12px', fontWeight: '700', backgroundColor: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: '4px', display: 'inline-block' }}>
+                                Type: {entry.rateType || entry.sampleType || (entry.wbInputType === 'party' ? 'PD' : 'WB') || 'PD/WB'}
+                            </span>
+                        </div>
                     </div>
                 </div>
 
@@ -1124,13 +1129,13 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                         <tr style={{ backgroundColor: '#f9fafb', borderTop: '2px solid #000', borderBottom: '2px solid #000', fontWeight: '800' }}>
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>Total</td>
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>{totalBags}</td>
-                            <td style={{ border: '1px solid #000', padding: '8px' }}>-</td>
+                            <td style={{ border: '1px solid #000', padding: '8px' }}></td>
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>{totalNetWt}</td>
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right', color: '#dc2626' }}>{totalShoot}</td>
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>{totalSuteNetWt}</td>
-                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>-</td>
+                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}></td>
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>{totalLorryAmount.toLocaleString('en-IN')}</td>
-                            <td style={{ border: '1px solid #000', padding: '8px' }}>-</td>
+                            <td style={{ border: '1px solid #000', padding: '8px' }}></td>
                         </tr>
                     </tbody>
                 </table>
@@ -1152,55 +1157,41 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
 
                     {/* Right Side: Calculation Breakdown */}
                     <div style={{ width: '100%', maxWidth: '440px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #eee' }}>
-                            <span style={{ fontWeight: '600' }}>Lorry Total Amount:</span>
-                            <span style={{ fontWeight: '700' }}>Rs {totalLorryAmount.toLocaleString('en-IN')}</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '2px solid #000', marginBottom: '6px', fontSize: '14px' }}>
+                            <span style={{ fontWeight: '800', color: '#0f172a' }}>Lorry Total Amount:</span>
+                            <span style={{ fontWeight: '800', color: '#0f172a' }}>Rs {totalLorryAmount.toLocaleString('en-IN')}</span>
                         </div>
 
                         {/* Hamali */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
-                            <span style={{ whiteSpace: 'nowrap' }}>Add: Hamali @</span>
+                            <span style={{ whiteSpace: 'nowrap', fontWeight: '500' }}>Add: Hamali @</span>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <input
                                     type="number"
-                                    disabled={isReadOnly}
+                                    readOnly
                                     value={hamaliRate}
-                                    onChange={(e) => setHamaliRate(Number(e.target.value))}
-                                    style={{ width: '55px', padding: '3px', textAlign: 'center', fontSize: '12px', border: '1px solid #ccc', borderRadius: '3px' }}
+                                    style={{ width: '55px', padding: '3px', textAlign: 'center', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '3px', background: '#f1f5f9', color: '#334155', fontWeight: '700', cursor: 'not-allowed' }}
                                 />
-                                <select
-                                    value={hamaliUnit}
-                                    disabled={isReadOnly}
-                                    onChange={(e) => setHamaliUnit(e.target.value)}
-                                    style={{ fontSize: '11px', padding: '2px 4px', border: '1px solid #ccc', borderRadius: '3px' }}
-                                >
-                                    <option value="per_bag">/ bag</option>
-                                    <option value="per_qtl">/ qtl</option>
-                                </select>
+                                <span style={{ fontSize: '12px', color: '#475569', fontWeight: '600' }}>
+                                    {hamaliUnit === 'per_qtl' ? '/ qtl' : '/ bag'}
+                                </span>
                             </div>
                             <span style={{ fontWeight: '600' }}>Rs {hamaliAmount.toLocaleString('en-IN')}</span>
                         </div>
 
                         {/* Brokerage */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
-                            <span style={{ whiteSpace: 'nowrap' }}>Add: Brokerage @</span>
+                            <span style={{ whiteSpace: 'nowrap', fontWeight: '500' }}>Add: Brokerage @</span>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <input
                                     type="number"
-                                    disabled={isReadOnly}
+                                    readOnly
                                     value={brokerageRate}
-                                    onChange={(e) => setBrokerageRate(Number(e.target.value))}
-                                    style={{ width: '55px', padding: '3px', textAlign: 'center', fontSize: '12px', border: '1px solid #ccc', borderRadius: '3px' }}
+                                    style={{ width: '55px', padding: '3px', textAlign: 'center', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '3px', background: '#f1f5f9', color: '#334155', fontWeight: '700', cursor: 'not-allowed' }}
                                 />
-                                <select
-                                    value={brokerageUnit}
-                                    disabled={isReadOnly}
-                                    onChange={(e) => setBrokerageUnit(e.target.value)}
-                                    style={{ fontSize: '11px', padding: '2px 4px', border: '1px solid #ccc', borderRadius: '3px' }}
-                                >
-                                    <option value="per_qtl">/ qtl</option>
-                                    <option value="per_bag">/ bag</option>
-                                </select>
+                                <span style={{ fontSize: '12px', color: '#475569', fontWeight: '600' }}>
+                                    {brokerageUnit === 'per_bag' ? '/ bag' : '/ qtl'}
+                                </span>
                             </div>
                             <span style={{ fontWeight: '600' }}>Rs {brokerageAmount.toLocaleString('en-IN')}</span>
                         </div>
@@ -1259,7 +1250,7 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
 
                         {/* Less DF */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
-                            <span>Less: DF (Discount):</span>
+                            <span>Less: DF:</span>
                             <input
                                 type="number"
                                 disabled={isReadOnly}
@@ -1272,7 +1263,7 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
 
                         {/* Less WB */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
-                            <span>Less: WB (Weighbridge):</span>
+                            <span>Less: WB:</span>
                             <input
                                 type="number"
                                 disabled={isReadOnly}

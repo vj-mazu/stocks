@@ -4105,11 +4105,19 @@ const Arrivals: React.FC = () => {
     return params.find((p: any) => p.type === inventoryQualityType && p.status === 'rejected' && p.rejectReason && p.rejectReason.startsWith('RECHECK:'));
   }, [qualitySamplingEntry, inventoryQualityType]);
 
-  // Timezone-safe date string (YYYY-MM-DD) — avoids toISOString() day-shift bugs in filters
+  // Timezone-safe date string (YYYY-MM-DD) — handles YYYY-MM-DD, DD/MM/YYYY, DD-MM-YYYY, and ISO strings
   function safeDateStr(value: any): string {
     if (!value) return '';
     if (typeof value === 'string') {
-      const t = value.indexOf('T') >= 0 ? value.split('T')[0] : value.split(' ')[0];
+      const s = value.trim();
+      const dmyMatch = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+      if (dmyMatch) {
+        const day = String(dmyMatch[1]).padStart(2, '0');
+        const month = String(dmyMatch[2]).padStart(2, '0');
+        const year = dmyMatch[3];
+        return `${year}-${month}-${day}`;
+      }
+      const t = s.indexOf('T') >= 0 ? s.split('T')[0] : s.split(' ')[0];
       if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
     }
     const d = new Date(value);
@@ -4155,7 +4163,7 @@ const Arrivals: React.FC = () => {
   };
 
   const filteredBmbEntries = useMemo(() => {
-    return bandMalalEntries.filter((entry) => {
+    const filtered = bandMalalEntries.filter((entry) => {
       // 1. Date filter
       if (bmbDateFilter) {
         const entryDate = safeDateStr(entry.date);
@@ -4215,12 +4223,31 @@ const Arrivals: React.FC = () => {
       return true;
     });
 
+    const parseEpoch = (item: any): number => {
+      const val = item.date || item.placeDate || item.entryDate || item.createdAt;
+      if (!val) return 0;
+      if (val instanceof Date) return isNaN(val.getTime()) ? 0 : val.getTime();
+      if (typeof val === 'number') return val;
+      const s = String(val).trim();
+      if (!s) return 0;
+      const dmyMatch = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+      if (dmyMatch) {
+        const day = parseInt(dmyMatch[1], 10);
+        const month = parseInt(dmyMatch[2], 10) - 1;
+        const year = parseInt(dmyMatch[3], 10);
+        const d = new Date(year, month, day);
+        return isNaN(d.getTime()) ? 0 : d.getTime();
+      }
+      const d = new Date(s);
+      return isNaN(d.getTime()) ? 0 : d.getTime();
+    };
+
     // Sort latest date first (descending: newest date at top, oldest date at bottom)
     return [...filtered].sort((a, b) => {
-      const dateA = safeDateStr(a.date);
-      const dateB = safeDateStr(b.date);
-      if (dateA !== dateB) {
-        return dateB.localeCompare(dateA);
+      const timeA = parseEpoch(a);
+      const timeB = parseEpoch(b);
+      if (timeA !== timeB) {
+        return timeB - timeA; // Descending: newer timestamp first
       }
       return (Number(b.id) || 0) - (Number(a.id) || 0);
     });
@@ -8366,41 +8393,14 @@ const Arrivals: React.FC = () => {
         <div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
-            {/* Left Side: Direct Date Filtering & Search */}
+            {/* Left Side: Search */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#fff', padding: '2px 8px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
-                <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#475569' }}>📅 From:</span>
-                <input 
-                  type="date" 
-                  value={bmbDateFromFilter}
-                  onChange={(e) => { setBmbDateFromFilter(e.target.value); setBmbPage(1); }}
-                  style={{ padding: '3px 6px', fontSize: '12px', border: 'none', outline: 'none', background: 'transparent' }}
-                />
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#fff', padding: '2px 8px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
-                <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#475569' }}>To:</span>
-                <input 
-                  type="date" 
-                  value={bmbDateToFilter}
-                  onChange={(e) => { setBmbDateToFilter(e.target.value); setBmbPage(1); }}
-                  style={{ padding: '3px 6px', fontSize: '12px', border: 'none', outline: 'none', background: 'transparent' }}
-                />
-              </div>
-              {(bmbDateFromFilter || bmbDateToFilter) && (
-                <button
-                  type="button"
-                  onClick={() => { setBmbDateFromFilter(''); setBmbDateToFilter(''); setBmbPage(1); }}
-                  style={{ padding: '5px 10px', border: '1px solid #fca5a5', borderRadius: '6px', background: '#fee2e2', color: '#ef4444', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', height: '32px' }}
-                >
-                  ✕ Clear Date
-                </button>
-              )}
               <input
                 type="text"
                 value={bmbSearchQuery}
                 onChange={(e) => { setBmbSearchQuery(e.target.value); setBmbPage(1); }}
                 placeholder="🔍 Search Party, Broker, Lorry..."
-                style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', background: '#fff', fontSize: '12px', width: '220px', height: '32px', boxSizing: 'border-box' }}
+                style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', background: '#fff', fontSize: '12px', width: '260px', height: '32px', boxSizing: 'border-box' }}
               />
             </div>
 
