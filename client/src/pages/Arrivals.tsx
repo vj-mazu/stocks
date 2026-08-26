@@ -1394,20 +1394,27 @@ interface VarietyAllocation {
 }
 
 const formatQualityCuttingInput = (value: string) => {
-  let clean = value.replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×');
+  let clean = String(value || '').replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×');
+
+  if (!clean) return '';
+
+  // If user typed without × (e.g. "12", "1", "24", "1.5")
+  if (!clean.includes('×')) {
+    clean = '1×' + clean;
+  }
+
+  // Ensure only one × symbol
   const xCount = (clean.match(/×/g) || []).length;
   if (xCount > 1) {
     const idx = clean.indexOf('×');
     clean = clean.substring(0, idx + 1) + clean.substring(idx + 1).replace(/×/g, '');
   }
-  if (clean.length === 1 && !clean.includes('×') && /^\d$/.test(clean)) {
-    clean = clean + '×';
-  }
+
   const parts = clean.split('×');
-  const first = (parts[0] || '').substring(0, 5);
-  const second = (parts[1] || '').substring(0, 6);
+  const first = (parts[0] || '1').substring(0, 2);
+  const second = (parts[1] || '').substring(0, 4);
   clean = second !== undefined && clean.includes('×') ? `${first}×${second}` : first;
-  return clean;
+  return clean.slice(0, 6);
 };
 
 const sanitizeInventoryQualityField = (field: string, value: string) => {
@@ -1418,8 +1425,8 @@ const sanitizeInventoryQualityField = (field: string, value: string) => {
   }
 
   // All other fields (mix, smix, lmix, kandu, oil, sk, moisture, dryMoisture, grains, paddyWb, etc.)
-  // Allow full unrestricted text, alphabets, decimals, and numbers
-  return String(value || '').slice(0, 50);
+  // Enforce max 6 characters
+  return String(value || '').slice(0, 6);
 };
 
 const cleanDecimal = (val: any) => {
@@ -15001,7 +15008,8 @@ const Arrivals: React.FC = () => {
                           </div>
                           {inventoryQualityToggle.dryMoisture === 'Yes' && (
                             <input type="text" value={inventoryQualityForm.dryMoisture}
-                              onChange={(e) => setInventoryQualityForm(p => ({ ...p, dryMoisture: e.target.value }))}
+                              maxLength={6}
+                              onChange={(e) => setInventoryQualityForm(p => ({ ...p, dryMoisture: e.target.value.slice(0, 6) }))}
                               style={{ width: '100%', padding: '4px', border: activeRecheck ? '1.5px solid #ef4444' : '1px solid #ccc', borderRadius: '3px', fontSize: '11px', boxSizing: 'border-box', backgroundColor: activeRecheck ? '#fef2f2' : '#fff' }}
                               placeholder="14.2" />
                           )}
@@ -15042,6 +15050,7 @@ const Arrivals: React.FC = () => {
                         <input type="text"
                           value={inventoryQualityForm[field.key as 'cutting' | 'bend']}
                           placeholder="1×"
+                          maxLength={6}
                           onFocus={(e) => {
                             if (!inventoryQualityForm[field.key as 'cutting' | 'bend']) {
                               setInventoryQualityForm(p => ({ ...p, [field.key]: '1×' }));
@@ -15050,11 +15059,18 @@ const Arrivals: React.FC = () => {
                                   e.target.setSelectionRange(2, 2);
                                 } catch (_) {}
                               }, 10);
+                            } else {
+                              const len = e.target.value.length;
+                              setTimeout(() => {
+                                try {
+                                  e.target.setSelectionRange(len, len);
+                                } catch (_) {}
+                              }, 10);
                             }
                           }}
                           onChange={(e) => {
                             const val = formatQualityCuttingInput(e.target.value);
-                            setInventoryQualityForm(p => ({ ...p, [field.key]: val }));
+                            setInventoryQualityForm(p => ({ ...p, [field.key]: val.slice(0, 6) }));
                           }}
                           style={{
                             width: '100%',
@@ -15070,7 +15086,8 @@ const Arrivals: React.FC = () => {
                           placeholder={field.placeholder} />
                       ) : (
                         <input type="text" value={inventoryQualityForm[field.key as keyof typeof inventoryQualityForm]}
-                          onChange={(e) => setInventoryQualityForm(p => ({ ...p, [field.key]: e.target.value }))}
+                          maxLength={6}
+                          onChange={(e) => setInventoryQualityForm(p => ({ ...p, [field.key]: e.target.value.slice(0, 6) }))}
                           style={{ width: '100%', padding: '4px', border: activeRecheck ? '1.5px solid #ef4444' : '1px solid #ccc', borderRadius: '3px', fontSize: '11px', boxSizing: 'border-box', backgroundColor: activeRecheck ? '#fef2f2' : '#fff' }}
                           placeholder={field.placeholder} />
                       )}
@@ -15102,15 +15119,15 @@ const Arrivals: React.FC = () => {
                         ))}
                       </div>
                       <div style={{ display: 'flex', gap: '4px', visibility: wbEnabled ? 'visible' : 'hidden' }}>
-                        <input type="number" step="0.01" placeholder="R" value={inventoryQualityForm.wbR} onChange={(e) => setInventoryQualityForm(p => ({ ...p, wbR: e.target.value }))} disabled={!wbEnabled}
+                        <input type="text" maxLength={6} placeholder="R" value={inventoryQualityForm.wbR} onChange={(e) => setInventoryQualityForm(p => ({ ...p, wbR: e.target.value.slice(0, 6) }))} disabled={!wbEnabled}
                           style={{ flex: 1, padding: '3px', border: activeRecheck ? '1.5px solid #ef4444' : '1px solid #ccc', borderRadius: '3px', fontSize: '10px', backgroundColor: activeRecheck ? '#fef2f2' : '#fff' }} />
-                        <input type="number" step="0.01" placeholder="BK" value={inventoryQualityForm.wbBk} onChange={(e) => setInventoryQualityForm(p => ({ ...p, wbBk: e.target.value }))} disabled={!wbEnabled}
+                        <input type="text" maxLength={6} placeholder="BK" value={inventoryQualityForm.wbBk} onChange={(e) => setInventoryQualityForm(p => ({ ...p, wbBk: e.target.value.slice(0, 6) }))} disabled={!wbEnabled}
                           style={{ flex: 1, padding: '3px', border: activeRecheck ? '1.5px solid #ef4444' : '1px solid #ccc', borderRadius: '3px', fontSize: '10px', backgroundColor: activeRecheck ? '#fef2f2' : '#fff' }} />
                       </div>
                     </div>
                     <div>
                       <label style={{ fontWeight: '600', color: '#333', fontSize: '10px' }}>WB (T) — Auto</label>
-                      <input type="number" step="0.01" readOnly value={inventoryQualityForm.wbT}
+                      <input type="text" maxLength={6} readOnly value={inventoryQualityForm.wbT}
                         style={{ width: '100%', padding: '3px', border: '1px solid #a5d6a7', borderRadius: '3px', fontSize: '10px', backgroundColor: '#e8f5e9', fontWeight: '700', cursor: 'not-allowed', boxSizing: 'border-box' }} />
                     </div>
                     <div>
@@ -15130,7 +15147,7 @@ const Arrivals: React.FC = () => {
                         ))}
                       </div>
                       {(inventoryQualityToggle.paddyWb === 'Yes') && (
-                        <input type="text" value={inventoryQualityForm.paddyWb} onChange={(e) => setInventoryQualityForm(p => ({ ...p, paddyWb: e.target.value }))}
+                        <input type="text" maxLength={6} value={inventoryQualityForm.paddyWb} onChange={(e) => setInventoryQualityForm(p => ({ ...p, paddyWb: e.target.value.slice(0, 6) }))}
                           style={{ width: '100%', padding: '4px', border: activeRecheck ? '1.5px solid #ef4444' : '1px solid #ccc', borderRadius: '3px', fontSize: '10px', boxSizing: 'border-box', backgroundColor: activeRecheck ? '#fef2f2' : '#fff' }}
                           placeholder="Val" />
                       )}
