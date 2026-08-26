@@ -1004,7 +1004,7 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                 {/* Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px dashed #333', paddingBottom: '12px', marginBottom: '16px' }}>
                     <div>
-                        <h2 style={{ margin: 0, fontSize: '20px', color: '#111827', fontWeight: '800' }}>PATTI CALCULATION SHEET (KBD)</h2>
+                        <h2 style={{ margin: 0, fontSize: '20px', color: '#111827', fontWeight: '800' }}>KBD</h2>
                         <div style={{ fontSize: '13px', color: '#4b5563', marginTop: '4px', fontWeight: '600' }}>
                             Party: <span style={{ color: '#111827' }}>{entry.partyName}</span> | Location: <span style={{ color: '#111827' }}>{entry.location}</span>
                         </div>
@@ -1054,14 +1054,14 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                         <tr style={{ backgroundColor: '#f9fafb', borderTop: '2px solid #000', borderBottom: '2px solid #000', fontWeight: '800' }}>
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>Total</td>
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>{totalBags}</td>
-                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>-</td>
-                            <td style={{ border: '1px solid #000', padding: '8px' }}>-</td>
+                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}></td>
+                            <td style={{ border: '1px solid #000', padding: '8px' }}></td>
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>{totalNetWt}</td>
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right', color: '#dc2626' }}>{totalShoot}</td>
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>{totalSuteNetWt}</td>
-                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>-</td>
+                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}></td>
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>{totalLorryAmount.toLocaleString('en-IN')}</td>
-                            <td style={{ border: '1px solid #000', padding: '8px' }}>-</td>
+                            <td style={{ border: '1px solid #000', padding: '8px' }}></td>
                         </tr>
                     </tbody>
                 </table>
