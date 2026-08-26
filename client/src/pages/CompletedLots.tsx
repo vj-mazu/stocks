@@ -1128,12 +1128,12 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                                 <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
                                     {trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-GB') : '-'}
                                 </td>
-                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{trip.bags}</td>
+                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{trip.bags ? trip.bags.toLocaleString('en-IN') : '0'}</td>
                                 <td style={{ border: '1px solid #000', padding: '6px' }}>{trip.variety}</td>
-                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right' }}>{trip.netWt}</td>
-                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', color: '#dc2626', fontWeight: '600' }}>{trip.shoot}</td>
-                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '600' }}>{trip.suteNetWt}</td>
-                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', color: '#16a34a', fontWeight: '700' }}>{trip.rate}</td>
+                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right' }}>{trip.netWt ? trip.netWt.toLocaleString('en-IN') : '0'}</td>
+                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', color: '#dc2626', fontWeight: '600' }}>{trip.shoot ? trip.shoot.toLocaleString('en-IN') : '0'}</td>
+                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '600' }}>{trip.suteNetWt ? trip.suteNetWt.toLocaleString('en-IN') : '0'}</td>
+                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', color: '#16a34a', fontWeight: '700' }}>{trip.rate ? trip.rate.toLocaleString('en-IN') : '0'}</td>
                                 <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '600' }}>{trip.amount.toLocaleString('en-IN')}</td>
                                 <td style={{ border: '1px solid #000', padding: '6px', fontWeight: '700' }}>{trip.lorryNo}</td>
                             </tr>
@@ -1141,11 +1141,11 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                         {/* Totals Row */}
                         <tr style={{ backgroundColor: '#f9fafb', borderTop: '2px solid #000', borderBottom: '2px solid #000', fontWeight: '800' }}>
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>Total</td>
-                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>{totalBags}</td>
+                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>{totalBags.toLocaleString('en-IN')}</td>
                             <td style={{ border: '1px solid #000', padding: '8px' }}></td>
-                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>{totalNetWt}</td>
-                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right', color: '#dc2626' }}>{totalShoot}</td>
-                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>{totalSuteNetWt}</td>
+                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>{totalNetWt.toLocaleString('en-IN')}</td>
+                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right', color: '#dc2626' }}>{totalShoot.toLocaleString('en-IN')}</td>
+                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>{totalSuteNetWt.toLocaleString('en-IN')}</td>
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}></td>
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>{totalLorryAmount.toLocaleString('en-IN')}</td>
                             <td style={{ border: '1px solid #000', padding: '8px' }}></td>
@@ -1237,22 +1237,32 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                         {customAdditions.map((item) => (
                             <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 0', borderBottom: '1px solid #eee' }}>
                                 <span style={{ color: '#16a34a', fontWeight: '800', fontSize: '14px' }}>+</span>
-                                <input
-                                    type="text"
-                                    disabled={isReadOnly}
-                                    placeholder="Addition Description (Alphanumeric)"
-                                    value={item.label}
-                                    onChange={(e) => handleUpdateAdditionRow(item.id, 'label', e.target.value)}
-                                    style={{ flex: 1, padding: '3px 6px', fontSize: '12px', border: '1.5px solid #16a34a', borderRadius: '3px', boxSizing: 'border-box' }}
-                                />
-                                <input
-                                    type="number"
-                                    disabled={isReadOnly}
-                                    placeholder="Amount"
-                                    value={item.amount}
-                                    onChange={(e) => handleUpdateAdditionRow(item.id, 'amount', e.target.value)}
-                                    style={{ width: '85px', padding: '3px 6px', fontSize: '12px', border: '1.5px solid #16a34a', borderRadius: '3px', textAlign: 'right', boxSizing: 'border-box' }}
-                                />
+                                {isReadOnly ? (
+                                    <span style={{ flex: 1, fontSize: '12px', color: '#15803d', fontWeight: '600', wordBreak: 'break-word', whiteSpace: 'normal' }}>
+                                        {item.label || 'Addition'}
+                                    </span>
+                                ) : (
+                                    <textarea
+                                        rows={1}
+                                        placeholder="Addition Description (Alphanumeric)"
+                                        value={item.label}
+                                        onChange={(e) => handleUpdateAdditionRow(item.id, 'label', e.target.value)}
+                                        style={{ flex: 1, padding: '4px 6px', fontSize: '12px', border: '1.5px solid #16a34a', borderRadius: '4px', boxSizing: 'border-box', resize: 'vertical', minHeight: '28px', fontFamily: 'inherit' }}
+                                    />
+                                )}
+                                {isReadOnly ? (
+                                    <span style={{ fontWeight: '700', fontSize: '12px', color: '#15803d' }}>
+                                        Rs {Number(item.amount || 0).toLocaleString('en-IN')}
+                                    </span>
+                                ) : (
+                                    <input
+                                        type="number"
+                                        placeholder="Amount"
+                                        value={item.amount}
+                                        onChange={(e) => handleUpdateAdditionRow(item.id, 'amount', e.target.value)}
+                                        style={{ width: '90px', padding: '4px 6px', fontSize: '12px', border: '1.5px solid #16a34a', borderRadius: '4px', textAlign: 'right', boxSizing: 'border-box', height: '28px', fontWeight: '700' }}
+                                    />
+                                )}
                                 {!isReadOnly && (
                                     <button
                                         type="button"
@@ -1315,22 +1325,32 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                         {customDeductions.map((item) => (
                             <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 0', borderBottom: '1px solid #eee' }}>
                                 <span style={{ color: '#dc2626', fontWeight: '800', fontSize: '14px' }}>-</span>
-                                <input
-                                    type="text"
-                                    disabled={isReadOnly}
-                                    placeholder="Deduction Description (Alphanumeric)"
-                                    value={item.label}
-                                    onChange={(e) => handleUpdateDeductionRow(item.id, 'label', e.target.value)}
-                                    style={{ flex: 1, padding: '3px 6px', fontSize: '12px', border: '1.5px solid #dc2626', borderRadius: '3px', boxSizing: 'border-box' }}
-                                />
-                                <input
-                                    type="number"
-                                    disabled={isReadOnly}
-                                    placeholder="Amount"
-                                    value={item.amount}
-                                    onChange={(e) => handleUpdateDeductionRow(item.id, 'amount', e.target.value)}
-                                    style={{ width: '85px', padding: '3px 6px', fontSize: '12px', border: '1.5px solid #dc2626', borderRadius: '3px', textAlign: 'right', boxSizing: 'border-box' }}
-                                />
+                                {isReadOnly ? (
+                                    <span style={{ flex: 1, fontSize: '12px', color: '#b91c1c', fontWeight: '600', wordBreak: 'break-word', whiteSpace: 'normal' }}>
+                                        {item.label || 'Deduction'}
+                                    </span>
+                                ) : (
+                                    <textarea
+                                        rows={1}
+                                        placeholder="Deduction Description (Alphanumeric)"
+                                        value={item.label}
+                                        onChange={(e) => handleUpdateDeductionRow(item.id, 'label', e.target.value)}
+                                        style={{ flex: 1, padding: '4px 6px', fontSize: '12px', border: '1.5px solid #dc2626', borderRadius: '4px', boxSizing: 'border-box', resize: 'vertical', minHeight: '28px', fontFamily: 'inherit' }}
+                                    />
+                                )}
+                                {isReadOnly ? (
+                                    <span style={{ fontWeight: '700', fontSize: '12px', color: '#b91c1c' }}>
+                                        - Rs {Number(item.amount || 0).toLocaleString('en-IN')}
+                                    </span>
+                                ) : (
+                                    <input
+                                        type="number"
+                                        placeholder="Amount"
+                                        value={item.amount}
+                                        onChange={(e) => handleUpdateDeductionRow(item.id, 'amount', e.target.value)}
+                                        style={{ width: '90px', padding: '4px 6px', fontSize: '12px', border: '1.5px solid #dc2626', borderRadius: '4px', textAlign: 'right', boxSizing: 'border-box', height: '28px', fontWeight: '700' }}
+                                    />
+                                )}
                                 {!isReadOnly && (
                                     <button
                                         type="button"
