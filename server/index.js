@@ -307,6 +307,19 @@ const startServer = async () => {
       console.warn('⚠️ Column alteration warning (weight_bridges location):', e.message);
     }
 
+    // Ensure sample_entry_offerings columns exist
+    try {
+      await sequelize.query("ALTER TABLE sample_entry_offerings ADD COLUMN IF NOT EXISTS check_post_unit VARCHAR(20) DEFAULT 'lumps';");
+      await sequelize.query("ALTER TABLE sample_entry_offerings ADD COLUMN IF NOT EXISTS market_price_unit VARCHAR(20) DEFAULT 'lumps';");
+      await sequelize.query("ALTER TABLE sample_entry_offerings ADD COLUMN IF NOT EXISTS check_post_value VARCHAR(255);");
+      await sequelize.query("ALTER TABLE sample_entry_offerings ADD COLUMN IF NOT EXISTS market_price_value NUMERIC(10, 2);");
+      await sequelize.query("ALTER TABLE sample_entry_offerings ADD COLUMN IF NOT EXISTS check_post BOOLEAN DEFAULT false;");
+      await sequelize.query("ALTER TABLE sample_entry_offerings ADD COLUMN IF NOT EXISTS market_price BOOLEAN DEFAULT false;");
+      console.log('✅ Checked/created check_post_unit & market_price columns in sample_entry_offerings.');
+    } catch (e) {
+      console.warn('⚠️ Column alteration warning (sample_entry_offerings columns):', e.message);
+    }
+
     // Ensure inventory_quality_parameters table exists
     try {
       const { InventoryQualityParameter } = require('./models');
