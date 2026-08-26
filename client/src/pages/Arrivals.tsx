@@ -1393,11 +1393,28 @@ interface VarietyAllocation {
   warehouseCode: string;
 }
 
+const formatQualityCuttingInput = (value: string) => {
+  let clean = value.replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×');
+  const xCount = (clean.match(/×/g) || []).length;
+  if (xCount > 1) {
+    const idx = clean.indexOf('×');
+    clean = clean.substring(0, idx + 1) + clean.substring(idx + 1).replace(/×/g, '');
+  }
+  if (clean.length === 1 && !clean.includes('×') && /^\d$/.test(clean)) {
+    clean = clean + '×';
+  }
+  const parts = clean.split('×');
+  const first = (parts[0] || '').substring(0, 5);
+  const second = (parts[1] || '').substring(0, 6);
+  clean = second !== undefined && clean.includes('×') ? `${first}×${second}` : first;
+  return clean;
+};
+
 const sanitizeInventoryQualityField = (field: string, value: string) => {
   const f = String(field || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
   if (f === 'cutting' || f === 'bend') {
-    return String(value || '').replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×').slice(0, 20);
+    return formatQualityCuttingInput(value);
   }
 
   // All other fields (mix, smix, lmix, kandu, oil, sk, moisture, dryMoisture, grains, paddyWb, etc.)
@@ -15021,6 +15038,36 @@ const Arrivals: React.FC = () => {
                             </div>
                           )}
                         </>
+                      ) : (field.key === 'cutting' || field.key === 'bend') ? (
+                        <input type="text"
+                          value={inventoryQualityForm[field.key as 'cutting' | 'bend']}
+                          placeholder="1×"
+                          onFocus={(e) => {
+                            if (!inventoryQualityForm[field.key as 'cutting' | 'bend']) {
+                              setInventoryQualityForm(p => ({ ...p, [field.key]: '1×' }));
+                              setTimeout(() => {
+                                try {
+                                  e.target.setSelectionRange(2, 2);
+                                } catch (_) {}
+                              }, 10);
+                            }
+                          }}
+                          onChange={(e) => {
+                            const val = formatQualityCuttingInput(e.target.value);
+                            setInventoryQualityForm(p => ({ ...p, [field.key]: val }));
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '4px',
+                            border: activeRecheck ? '1.5px solid #ef4444' : '1px solid #ccc',
+                            borderRadius: '3px',
+                            fontSize: '11px',
+                            boxSizing: 'border-box',
+                            backgroundColor: activeRecheck ? '#fef2f2' : '#fff',
+                            fontWeight: '700',
+                            letterSpacing: '0.5px'
+                          }}
+                          placeholder={field.placeholder} />
                       ) : (
                         <input type="text" value={inventoryQualityForm[field.key as keyof typeof inventoryQualityForm]}
                           onChange={(e) => setInventoryQualityForm(p => ({ ...p, [field.key]: e.target.value }))}
