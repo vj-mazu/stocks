@@ -113,12 +113,12 @@ interface FinalPriceFormData {
   bankLoanUnit: 'per_bag' | 'lumps';
   paymentConditionEnabled: boolean;
   paymentConditionValue: string;
-  paymentConditionUnit: 'days' | 'month';
   marketPrice: boolean;
   marketPriceValue: string;
-  marketPriceUnit: 'per_quintal' | 'per_kg' | 'lumps';
+  marketPriceUnit: 'percentage' | 'lumps';
   checkPost: boolean;
   checkPostValue: string;
+  checkPostUnit: 'percentage' | 'lumps';
   finalPrice: string;
   remarks: string;
 }
@@ -512,6 +512,7 @@ const DEFAULT_FINAL_DATA: FinalPriceFormData = {
   marketPriceUnit: 'lumps',
   checkPost: false,
   checkPostValue: '',
+  checkPostUnit: 'lumps',
   finalPrice: '',
   remarks: ''
 };
@@ -1216,9 +1217,10 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
           paymentConditionUnit: selectedOffer.paymentConditionUnit || d.paymentConditionUnit || 'days',
           marketPrice: !!d.marketPrice,
           marketPriceValue: d.marketPriceValue != null ? cleanPrefillNumber(d.marketPriceValue) : '',
-          marketPriceUnit: (d.marketPriceUnit as 'per_quintal' | 'per_kg' | 'lumps') || 'lumps',
+          marketPriceUnit: (d.marketPriceUnit as 'percentage' | 'lumps') || 'lumps',
           checkPost: !!d.checkPost,
           checkPostValue: d.checkPostValue || '',
+          checkPostUnit: (d.checkPostUnit as 'percentage' | 'lumps') || 'lumps',
           finalPrice: cleanPrefillNumber(d.finalPrice) || cleanPrefillNumber(entry.finalPrice) || '',
           remarks: d.finalRemarks || ''
         });
@@ -1340,6 +1342,7 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
           marketPriceUnit: finalData.marketPriceUnit,
           checkPost: finalData.checkPost,
           checkPostValue: finalData.checkPostValue || null,
+          checkPostUnit: finalData.checkPostUnit || 'lumps',
           finalPrice: finalData.finalPrice ? parseFloat(finalData.finalPrice) : null,
           remarks: finalData.remarks,
           isFinalized: true,
@@ -2870,7 +2873,7 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                       )}
                     </div>
                     <div style={compactNarrowFieldStyle}>
-                      <label style={labelStyle}>Market Price</label>
+                      <label style={labelStyle}>Market Fees</label>
                       <div style={{ display: 'flex', gap: '6px', marginBottom: '4px', fontSize: '11px' }}>
                         <label style={radioLabelStyle}><input type="radio" name="finalMarketPrice" checked={finalData.marketPrice}
                           onChange={() => setFinalData({ ...finalData, marketPrice: true })} /> <span style={{ color: '#27ae60', fontWeight: '600' }}>Yes</span></label>
@@ -2881,11 +2884,10 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                         <div style={compactSplitInputStyle}>
                           <input type="text" inputMode="decimal" value={finalData.marketPriceValue}
                             onChange={e => setFinalData({ ...finalData, marketPriceValue: sanitizeAmountInput(e.target.value, 8) })}
-                            style={compactBottomAmountInputStyle} placeholder="Market price" />
-                          <select value={finalData.marketPriceUnit} onChange={e => setFinalData({ ...finalData, marketPriceUnit: e.target.value as 'per_quintal' | 'per_kg' | 'lumps' })}
+                            style={compactBottomAmountInputStyle} placeholder="Market fees" />
+                          <select value={finalData.marketPriceUnit} onChange={e => setFinalData({ ...finalData, marketPriceUnit: e.target.value as 'percentage' | 'lumps' })}
                             style={compactBottomUnitSelectStyle}>
-                            <option value="per_quintal">₹ / Qtl</option>
-                            <option value="per_kg">₹ / Kg</option>
+                            <option value="percentage">Percentage (%)</option>
                             <option value="lumps">Lumps</option>
                           </select>
                         </div>
@@ -2905,6 +2907,11 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                           <input type="text" inputMode="decimal" value={finalData.checkPostValue}
                             onChange={e => setFinalData({ ...finalData, checkPostValue: sanitizeAmountInput(e.target.value, 8) })}
                             style={compactBottomAmountInputStyle} placeholder="Check post" />
+                          <select value={finalData.checkPostUnit || 'lumps'} onChange={e => setFinalData({ ...finalData, checkPostUnit: e.target.value as 'percentage' | 'lumps' })}
+                            style={compactBottomUnitSelectStyle}>
+                            <option value="percentage">Percentage (%)</option>
+                            <option value="lumps">Lumps</option>
+                          </select>
                         </div>
                       )}
                       <div style={{ marginTop: '4px', fontSize: '10px', color: '#94a3b8' }}>Reference only — no effect on calculation</div>

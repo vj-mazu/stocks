@@ -53,53 +53,15 @@ const formatDecimal = (val: any) => {
 };
 
 const handleCuttingInput = (value: string, entryType?: string) => {
-  if (entryType === 'RICE_SAMPLE') {
-    const cleaned = value.replace(/[^0-9.]/g, '');
-    if (cleaned.length > 5) return { raw: cleaned, part1: cleaned, part2: '' };
-    return { raw: cleaned, part1: cleaned, part2: '' };
-  }
-
-  // Auto-insert × symbol for cutting/bend - 1 digit before × and 4 digits after ×
-  // (matches Sample Entry quality parameters behavior)
-  let clean = value.replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×');
-  if (!clean.includes('×') && clean.length > 0) {
-    clean = '1×' + clean;
-  }
-  const xCount = (clean.match(/×/g) || []).length;
-  if (xCount > 1) {
-    const idx = clean.indexOf('×');
-    clean = clean.substring(0, idx + 1) + clean.substring(idx + 1).replace(/×/g, '');
-  }
+  let clean = value.replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×').slice(0, 15);
   const parts = clean.split('×');
-  const first = (parts[0] || '').substring(0, 1);
-  const second = (parts[1] || '').substring(0, 4);
-  clean = second !== undefined && clean.includes('×') ? `${first}×${second}` : first;
-  return { raw: clean, part1: first, part2: second || '' };
+  return { raw: clean, part1: parts[0] || '', part2: parts[1] || '' };
 };
 
 const handleBendInput = (value: string, entryType?: string) => {
-  if (entryType === 'RICE_SAMPLE') {
-    const cleaned = value.replace(/[^0-9.]/g, '');
-    if (cleaned.length > 5) return { raw: cleaned, part1: cleaned, part2: '' };
-    return { raw: cleaned, part1: cleaned, part2: '' };
-  }
-
-  // Auto-insert × symbol for cutting/bend - 1 digit before × and 4 digits after ×
-  // (matches Sample Entry quality parameters behavior)
-  let clean = value.replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×');
-  if (!clean.includes('×') && clean.length > 0) {
-    clean = '1×' + clean;
-  }
-  const xCount = (clean.match(/×/g) || []).length;
-  if (xCount > 1) {
-    const idx = clean.indexOf('×');
-    clean = clean.substring(0, idx + 1) + clean.substring(idx + 1).replace(/×/g, '');
-  }
+  let clean = value.replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×').slice(0, 15);
   const parts = clean.split('×');
-  const first = (parts[0] || '').substring(0, 1);
-  const second = (parts[1] || '').substring(0, 4);
-  clean = second !== undefined && clean.includes('×') ? `${first}×${second}` : first;
-  return { raw: clean, part1: first, part2: second || '' };
+  return { raw: clean, part1: parts[0] || '', part2: parts[1] || '' };
 };
 
 interface PreviousInspection {

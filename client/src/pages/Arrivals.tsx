@@ -1397,25 +1397,7 @@ const sanitizeInventoryQualityField = (field: string, value: string) => {
   const f = String(field || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
   if (f === 'cutting' || f === 'bend') {
-    let clean = String(value || '').replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×');
-    if (!clean.includes('×') && clean.length > 0) {
-      clean = '1×' + clean;
-    }
-    const xCount = (clean.match(/×/g) || []).length;
-    if (xCount > 1) {
-      const idx = clean.indexOf('×');
-      clean = clean.substring(0, idx + 1) + clean.substring(idx + 1).replace(/×/g, '');
-    }
-    const parts = clean.split('×');
-    const first = (parts[0] || '').substring(0, 1);
-    let second = (parts[1] || '');
-    const dotCount = (second.match(/\./g) || []).length;
-    if (dotCount > 1) {
-      const firstDot = second.indexOf('.');
-      second = second.substring(0, firstDot + 1) + second.substring(firstDot + 1).replace(/\./g, '');
-    }
-    second = second.substring(0, 6);
-    return clean.includes('×') ? `${first}×${second}` : first;
+    return String(value || '').replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×').slice(0, 15);
   }
 
   // All mix, smix, lmix, kandu, oil, sk fields - Allow any alphanumeric, decimal, or text

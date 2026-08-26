@@ -287,6 +287,12 @@ const SampleEntryOffering = sequelize.define('SampleEntryOffering', {
         defaultValue: 'lumps',
         field: 'market_price_unit'
     },
+    checkPostUnit: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+        defaultValue: 'lumps',
+        field: 'check_post_unit'
+    },
     // === FINAL PRICE FIELDS ===
     finalBaseRate: {
         type: DataTypes.DECIMAL(10, 2),

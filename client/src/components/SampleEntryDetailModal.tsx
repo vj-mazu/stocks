@@ -277,22 +277,20 @@ const formatToggleUnitLabel = (value?: string) => value === 'per_quintal'
             : value === 'per_kg'
                 ? 'Per Kg'
                 : 'Per Bag';
-const formatMarketPriceUnitLabel = (value?: string) => value === 'per_kg'
-    ? 'Per Kg'
-    : value === 'per_quintal'
-        ? 'Per Qtl'
-        : value === 'lumps'
-            ? 'Lumps'
-            : 'Per Bag';
+const formatMarketPriceUnitLabel = (value?: string) => value === 'percentage'
+    ? '%'
+    : 'Lumps';
 const formatMarketPriceCell = (src: any) => {
     if (!src || !src.marketPrice || src.marketPriceValue === null || src.marketPriceValue === undefined || src.marketPriceValue === '' || Number(src.marketPriceValue) === 0) return '-';
     const unit = src.marketPriceUnit;
-    const suffix = unit === 'per_kg' ? ' /Kg' : unit === 'per_quintal' ? ' /Qtl' : unit === 'lumps' ? ' (Lumps)' : unit === 'per_bag' ? ' /Bag' : '';
-    return `Rs ${toNumberText(src.marketPriceValue)}${suffix}`;
+    const suffix = unit === 'percentage' ? '%' : ' (Lumps)';
+    return `${toNumberText(src.marketPriceValue)}${suffix}`;
 };
 const formatCheckPostCell = (src: any) => {
-    if (!src || !src.checkPost || src.checkPostValue === null || src.checkPostValue === undefined || String(src.checkPostValue).trim() === '') return '-';
-    return String(src.checkPostValue);
+    if (!src || !src.checkPost || src.checkPostValue === null || src.checkPostValue === undefined || String(src.checkPostValue).trim() === '' || Number(src.checkPostValue) === 0) return '-';
+    const unit = src.checkPostUnit;
+    const suffix = unit === 'percentage' ? '%' : ' (Lumps)';
+    return `${toNumberText(src.checkPostValue)}${suffix}`;
 };
 const fmtNum = (v: any) => {
     if (v === null || v === undefined || v === '') return '-';
