@@ -872,6 +872,9 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
     const [brokerageRate, setBrokerageRate] = useState<number>(savedPatti.brokerageRate !== undefined ? Number(savedPatti.brokerageRate) : 11);
     const [brokerageUnit, setBrokerageUnit] = useState<string>(savedPatti.brokerageUnit || 'per_qtl');
 
+    const [lfRate, setLfRate] = useState<number>(savedPatti.lfRate !== undefined ? Number(savedPatti.lfRate) : (Number(entry.offering?.lf || entry.offering?.finalLf || 0) || 0));
+    const [lfUnit, setLfUnit] = useState<string>(savedPatti.lfUnit || entry.offering?.lfUnit || 'per_bag');
+
     const [lessDf, setLessDf] = useState<number>(savedPatti.lessDf !== undefined ? Number(savedPatti.lessDf) : 0);
     const [lessWb, setLessWb] = useState<number>(savedPatti.lessWb !== undefined ? Number(savedPatti.lessWb) : 0);
 
@@ -973,10 +976,17 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
             : ((totalNetWt / 100) * brokerageRate)
     ).toFixed(2));
 
+    // LF calculation: if per_qtl -> (totalNetWt / 100) * rate, if per_bag -> totalBags * rate
+    const lfAmount = Number((
+        lfUnit === 'per_qtl'
+            ? ((totalNetWt / 100) * lfRate)
+            : (totalBags * lfRate)
+    ).toFixed(2));
+
     const totalCustomAdditions = customAdditions.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
     const totalCustomDeductions = customDeductions.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
-    const totalAdditions = Number((hamaliAmount + brokerageAmount + totalCustomAdditions).toFixed(2));
+    const totalAdditions = Number((hamaliAmount + brokerageAmount + lfAmount + totalCustomAdditions).toFixed(2));
     const totalDeductions = Number((Number(lessDf) + Number(lessWb) + totalCustomDeductions).toFixed(2));
     const grandTotal = Math.round(totalLorryAmount + totalAdditions - totalDeductions);
 
@@ -998,6 +1008,9 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                 brokerageRate,
                 brokerageUnit,
                 brokerageAmount,
+                lfRate,
+                lfUnit,
+                lfAmount,
                 customAdditions,
                 lessDf,
                 lessWb,
@@ -1194,6 +1207,30 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                                 </span>
                             </div>
                             <span style={{ fontWeight: '600' }}>Rs {brokerageAmount.toLocaleString('en-IN')}</span>
+                        </div>
+
+                        {/* LF */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
+                            <span style={{ whiteSpace: 'nowrap', fontWeight: '500' }}>Add: LF @</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <input
+                                    type="number"
+                                    disabled={isReadOnly}
+                                    value={lfRate}
+                                    onChange={(e) => setLfRate(Number(e.target.value))}
+                                    style={{ width: '55px', padding: '3px', textAlign: 'center', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '3px', background: isReadOnly ? '#f1f5f9' : '#fff', fontWeight: '700' }}
+                                />
+                                <select
+                                    value={lfUnit}
+                                    disabled={isReadOnly}
+                                    onChange={(e) => setLfUnit(e.target.value)}
+                                    style={{ fontSize: '11px', padding: '2px 4px', border: '1px solid #ccc', borderRadius: '3px' }}
+                                >
+                                    <option value="per_bag">/ bag</option>
+                                    <option value="per_qtl">/ qtl</option>
+                                </select>
+                            </div>
+                            <span style={{ fontWeight: '600' }}>Rs {lfAmount.toLocaleString('en-IN')}</span>
                         </div>
 
                         {/* Dynamic Custom Additions */}

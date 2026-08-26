@@ -51,6 +51,24 @@ const PattiRecord = sequelize.define('PattiRecord', {
     allowNull: false,
     field: 'brokerage_amount'
   },
+  lfRate: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    defaultValue: 0.00,
+    field: 'lf_rate'
+  },
+  lfUnit: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    defaultValue: 'per_bag',
+    field: 'lf_unit'
+  },
+  lfAmount: {
+    type: DataTypes.DECIMAL(12, 2),
+    allowNull: true,
+    defaultValue: 0.00,
+    field: 'lf_amount'
+  },
   customAdditions: {
     type: DataTypes.JSONB,
     allowNull: true,
@@ -112,6 +130,9 @@ const runPattiAutoMigration = async () => {
     const queries = [
       `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS hamali_unit VARCHAR(20) DEFAULT 'per_bag';`,
       `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS brokerage_unit VARCHAR(20) DEFAULT 'per_qtl';`,
+      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS lf_rate DECIMAL(10, 2) DEFAULT 0.00;`,
+      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS lf_unit VARCHAR(20) DEFAULT 'per_bag';`,
+      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS lf_amount DECIMAL(12, 2) DEFAULT 0.00;`,
       `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS custom_additions JSONB DEFAULT '[]'::jsonb;`,
       `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS custom_deductions JSONB DEFAULT '[]'::jsonb;`,
       `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS avg_wb_per_bag DECIMAL(10, 2);`,
