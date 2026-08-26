@@ -1391,16 +1391,36 @@ interface VarietyAllocation {
 
 
   warehouseCode: string;
-
-
-
 }
 
+const sanitizeInventoryQualityField = (field: string, value: string) => {
+  if (field === 'cutting' || field === 'bend') {
+    let clean = String(value || '').replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×');
+    if (!clean.includes('×') && clean.length > 0 && /^\d/.test(clean)) {
+      clean = clean.substring(0, 1) + '×' + clean.substring(1);
+    }
+    const xCount = (clean.match(/×/g) || []).length;
+    if (xCount > 1) {
+      const idx = clean.indexOf('×');
+      clean = clean.substring(0, idx + 1) + clean.substring(idx + 1).replace(/×/g, '');
+    }
+    const parts = clean.split('×');
+    const first = (parts[0] || '').substring(0, 1);
+    const second = (parts[1] || '').substring(0, 6);
+    return second !== undefined && clean.includes('×') ? `${first}×${second}` : first;
+  }
 
+  const alphaFields = ['mix', 'sMix', 'lMix', 'oil', 'kandu', 'sk'];
+  if (alphaFields.includes(field)) {
+    return String(value || '').replace(/[^0-9.xX×]/g, '').slice(0, 8);
+  }
 
+  if (field === 'grains' || field === 'grainsCount') {
+    return String(value || '').replace(/[^0-9]/g, '').slice(0, 3);
+  }
 
-
-
+  return String(value || '').replace(/[^0-9.]/g, '').slice(0, 6);
+};
 
 const cleanDecimal = (val: any) => {
 
@@ -5670,34 +5690,7 @@ const Arrivals: React.FC = () => {
   const canApproveInventoryQuality = user && ['admin', 'owner', 'manager', 'ceo'].includes(user.role);
   const canApproveWB = user && ['admin', 'md', 'owner', 'manager', 'ceo', 'inventory_head'].includes(user.role);
 
-  const sanitizeInventoryQualityField = (field: string, value: string) => {
-    if (field === 'cutting' || field === 'bend') {
-      let clean = String(value || '').replace(/[^0-9.×xX]/g, '').replace(/[xX]/g, '×');
-      if (!clean.includes('×') && clean.length > 0 && /^\d/.test(clean)) {
-        clean = clean.substring(0, 1) + '×' + clean.substring(1);
-      }
-      const xCount = (clean.match(/×/g) || []).length;
-      if (xCount > 1) {
-        const idx = clean.indexOf('×');
-        clean = clean.substring(0, idx + 1) + clean.substring(idx + 1).replace(/×/g, '');
-      }
-      const parts = clean.split('×');
-      const first = (parts[0] || '').substring(0, 1);
-      const second = (parts[1] || '').substring(0, 6);
-      return second !== undefined && clean.includes('×') ? `${first}×${second}` : first;
-    }
-
-    const alphaFields = ['mix', 'sMix', 'lMix', 'oil', 'kandu', 'sk'];
-    if (alphaFields.includes(field)) {
-      return String(value || '').replace(/[^0-9.xX×]/g, '').slice(0, 8);
-    }
-
-    if (field === 'grains' || field === 'grainsCount') {
-      return String(value || '').replace(/[^0-9]/g, '').slice(0, 3);
-    }
-
-    return String(value || '').replace(/[^0-9.]/g, '').slice(0, 6);
-  };
+  // Mill Quality Parameters Handlers
 
   // Mill Quality Parameters Handlers
 
