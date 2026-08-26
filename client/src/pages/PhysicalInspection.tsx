@@ -591,7 +591,7 @@ const PhysicalInspection: React.FC = () => {
       let cleaned = '';
 
       if (alphaFields.includes(field)) {
-        cleaned = String(value || '').replace(/[^0-9.a-zA-Z×\s-]/g, '');
+        cleaned = String(value || '').slice(0, 30);
       } else {
         cleaned = String(value || '').replace(/[^0-9.]/g, '');
       }
@@ -599,7 +599,7 @@ const PhysicalInspection: React.FC = () => {
       if (field === 'grainsCount') {
         if (cleaned.length > 3) return;
       } else {
-        if (cleaned.length > 20) return;
+        if (cleaned.length > 30) return;
       }
       finalValue = cleaned;
     }

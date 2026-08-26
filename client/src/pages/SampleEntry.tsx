@@ -917,7 +917,7 @@ const SampleEntryPage: React.FC<{
     let cleaned = '';
 
     if (alphaFields.includes(field)) {
-      cleaned = value.replace(/[^0-9.a-zA-Z×\s-]/g, '');
+      cleaned = String(value || '').slice(0, 30);
     } else {
       cleaned = value.replace(/[^0-9.]/g, '');
     }
@@ -926,7 +926,7 @@ const SampleEntryPage: React.FC<{
     if (threeDigitFields.includes(field)) {
       if (cleaned.length > 3) return;
     } else {
-      if (cleaned.length > 20) return;
+      if (cleaned.length > 30) return;
     }
     setQualityData(prev => ({ ...prev, [field]: cleaned }));
   };

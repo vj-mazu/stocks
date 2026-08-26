@@ -1418,20 +1418,14 @@ const sanitizeInventoryQualityField = (field: string, value: string) => {
     return clean.includes('×') ? `${first}×${second}` : first;
   }
 
-  // All mix, smix, lmix, kandu, oil, sk fields
+  // All mix, smix, lmix, kandu, oil, sk fields - Allow any alphanumeric, decimal, or text
   if (
     f.includes('mix') ||
     f.includes('kandu') ||
     f.includes('oil') ||
     f.includes('sk')
   ) {
-    let cleaned = String(value || '').replace(/[^0-9.a-zA-Z×\s-]/g, '');
-    const dotCount = (cleaned.match(/\./g) || []).length;
-    if (dotCount > 1) {
-      const firstDot = cleaned.indexOf('.');
-      cleaned = cleaned.substring(0, firstDot + 1) + cleaned.substring(firstDot + 1).replace(/\./g, '');
-    }
-    return cleaned.slice(0, 20);
+    return String(value || '').slice(0, 30);
   }
 
   if (f.includes('grain')) {
@@ -4230,7 +4224,7 @@ const Arrivals: React.FC = () => {
         const hasPending = qParams.some((p: any) => p.status === 'pending');
         const isBothApproved = lotApproved && fullApproved;
         const isSingleApproved = (lotApproved && !hasFull) || (fullApproved && !hasLot);
-        const isQsApproved = (isBothApproved || isSingleApproved) && !hasPending;
+        const isQsApproved = (isBothApproved || isSingleApproved) && !hasPending && (lotApproved || fullApproved);
         const isWbDone = entry.wbStatus === 'approved' || entry.wbStatus === 'pending';
         if (isQsApproved && isWbDone) return false;
       }
@@ -4311,7 +4305,7 @@ const Arrivals: React.FC = () => {
             const hasPending = qParams.some((p: any) => p.status === 'pending');
             const isBothApproved = lotApproved && fullApproved;
             const isSingleApproved = (lotApproved && !hasFull) || (fullApproved && !hasLot);
-            const isQsApproved = (isBothApproved || isSingleApproved) && !hasPending;
+            const isQsApproved = (isBothApproved || isSingleApproved) && !hasPending && (lotApproved || fullApproved);
             const isWbDone = ltd && (ltd.wbStatus === 'approved' || ltd.wbStatus === 'pending');
             if (isQsApproved && isWbDone) return;
           }
