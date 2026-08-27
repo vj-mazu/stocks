@@ -1151,14 +1151,14 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', marginBottom: '20px', border: '1px solid #000' }}>
                     <thead>
                         <tr style={{ backgroundColor: '#f3f4f6', borderBottom: '1px solid #000' }}>
-                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700' }}>un.date</th>
+                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700' }}>Date</th>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700' }}>Bags</th>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>Verity</th>
-                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '700' }}>Net.wt</th>
-                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '700' }}>Shoot</th>
-                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '700' }}>Net.wt</th>
-                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700' }}>Rate</th>
-                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '700' }}>Amount</th>
+                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>Net.wb</th>
+                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>Shoot</th>
+                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>Sute Net.wt</th>
+                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>Rate</th>
+                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>Amount</th>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>Lorry</th>
                         </tr>
                     </thead>
@@ -1169,13 +1169,13 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                                     {trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-GB') : '-'}
                                 </td>
                                 <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>{trip.bags ? trip.bags.toLocaleString('en-IN') : '0'}</td>
-                                <td style={{ border: '1px solid #000', padding: '6px' }}>{trip.variety}</td>
-                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right' }}>{trip.netWt ? trip.netWt.toLocaleString('en-IN') : '0'}</td>
-                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', color: '#dc2626', fontWeight: '600' }}>{trip.shoot ? trip.shoot.toLocaleString('en-IN') : '0'}</td>
-                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '600' }}>{trip.suteNetWt ? trip.suteNetWt.toLocaleString('en-IN') : '0'}</td>
-                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', color: '#16a34a', fontWeight: '700' }}>{trip.rate ? trip.rate.toLocaleString('en-IN') : '0'}</td>
-                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: '600' }}>{trip.amount.toLocaleString('en-IN')}</td>
-                                <td style={{ border: '1px solid #000', padding: '6px', fontWeight: '700' }}>{trip.lorryNo}</td>
+                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'left' }}>{trip.variety}</td>
+                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'left' }}>{trip.netWt ? trip.netWt.toLocaleString('en-IN') : '0'}</td>
+                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', color: '#dc2626', fontWeight: '600' }}>{trip.shoot ? trip.shoot.toLocaleString('en-IN') : '0'}</td>
+                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '600' }}>{trip.suteNetWt ? trip.suteNetWt.toLocaleString('en-IN') : '0'}</td>
+                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', color: '#16a34a', fontWeight: '700' }}>{trip.rate ? trip.rate.toLocaleString('en-IN') : '0'}</td>
+                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '600' }}>{trip.amount.toLocaleString('en-IN')}</td>
+                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>{trip.lorryNo}</td>
                             </tr>
                         ))}
                         {/* Totals Row */}
@@ -1183,11 +1183,11 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>Total</td>
                             <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>{totalBags.toLocaleString('en-IN')}</td>
                             <td style={{ border: '1px solid #000', padding: '8px' }}></td>
-                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>{totalNetWt.toLocaleString('en-IN')}</td>
-                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right', color: '#dc2626' }}>{totalShoot.toLocaleString('en-IN')}</td>
-                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>{totalSuteNetWt.toLocaleString('en-IN')}</td>
-                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}></td>
-                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>{totalLorryAmount.toLocaleString('en-IN')}</td>
+                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>{totalNetWt.toLocaleString('en-IN')}</td>
+                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'left', color: '#dc2626' }}>{totalShoot.toLocaleString('en-IN')}</td>
+                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>{totalSuteNetWt.toLocaleString('en-IN')}</td>
+                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}></td>
+                            <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>{totalLorryAmount.toLocaleString('en-IN')}</td>
                             <td style={{ border: '1px solid #000', padding: '8px' }}></td>
                         </tr>
                     </tbody>
@@ -1216,9 +1216,9 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                         </div>
 
                         {/* Hamali */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
-                            <span style={{ whiteSpace: 'nowrap', fontWeight: '500' }}>Add: Hamali @</span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
+                            <span style={{ width: '135px', whiteSpace: 'nowrap', fontWeight: '500' }}>Add: Hamali @</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', width: '110px' }}>
                                 <input
                                     type="number"
                                     readOnly
@@ -1229,13 +1229,13 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                                     {hamaliUnit === 'per_qtl' ? '/ qtl' : '/ bag'}
                                 </span>
                             </div>
-                            <span style={{ fontWeight: '600' }}>Rs {hamaliAmount.toLocaleString('en-IN')}</span>
+                            <span style={{ flex: 1, textAlign: 'right', fontWeight: '600' }}>Rs {hamaliAmount.toLocaleString('en-IN')}</span>
                         </div>
 
                         {/* Brokerage */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
-                            <span style={{ whiteSpace: 'nowrap', fontWeight: '500' }}>Add: Brokerage @</span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
+                            <span style={{ width: '135px', whiteSpace: 'nowrap', fontWeight: '500' }}>Add: Brokerage @</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', width: '110px' }}>
                                 <input
                                     type="number"
                                     readOnly
@@ -1246,13 +1246,13 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                                     {brokerageUnit === 'per_bag' ? '/ bag' : '/ qtl'}
                                 </span>
                             </div>
-                            <span style={{ fontWeight: '600' }}>Rs {brokerageAmount.toLocaleString('en-IN')}</span>
+                            <span style={{ flex: 1, textAlign: 'right', fontWeight: '600' }}>Rs {brokerageAmount.toLocaleString('en-IN')}</span>
                         </div>
 
                         {/* LF */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
-                            <span style={{ whiteSpace: 'nowrap', fontWeight: '500' }}>Add: LF @</span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
+                            <span style={{ width: '135px', whiteSpace: 'nowrap', fontWeight: '500' }}>Add: LF @</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', width: '110px' }}>
                                 <input
                                     type="number"
                                     readOnly
@@ -1263,7 +1263,7 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                                     {lfUnit === 'per_qtl' ? '/ qtl' : '/ bag'}
                                 </span>
                             </div>
-                            <span style={{ fontWeight: '600' }}>Rs {lfAmount.toLocaleString('en-IN')}</span>
+                            <span style={{ flex: 1, textAlign: 'right', fontWeight: '600' }}>Rs {lfAmount.toLocaleString('en-IN')}</span>
                         </div>
 
                         {/* Dynamic Custom Additions */}
@@ -1329,29 +1329,33 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                         </div>
 
                         {/* Less DF */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
-                            <span>Less: DF:</span>
-                            <input
-                                type="number"
-                                disabled={isReadOnly}
-                                value={lessDf}
-                                onChange={(e) => setLessDf(Number(e.target.value))}
-                                style={{ width: '80px', padding: '2px', textAlign: 'right', fontSize: '12px', border: '1px solid #ccc', borderRadius: '3px' }}
-                            />
-                            <span style={{ fontWeight: '600', color: '#dc2626' }}>- Rs {Number(lessDf).toLocaleString('en-IN')}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
+                            <span style={{ width: '135px', whiteSpace: 'nowrap' }}>Less: DF:</span>
+                            <div style={{ width: '110px' }}>
+                                <input
+                                    type="number"
+                                    disabled={isReadOnly}
+                                    value={lessDf}
+                                    onChange={(e) => setLessDf(Number(e.target.value))}
+                                    style={{ width: '80px', padding: '2px', textAlign: 'right', fontSize: '12px', border: '1px solid #ccc', borderRadius: '3px' }}
+                                />
+                            </div>
+                            <span style={{ flex: 1, textAlign: 'right', fontWeight: '600', color: '#dc2626' }}>- Rs {Number(lessDf).toLocaleString('en-IN')}</span>
                         </div>
 
                         {/* Less WB */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
-                            <span>Less: WB:</span>
-                            <input
-                                type="number"
-                                disabled={isReadOnly}
-                                value={lessWb}
-                                onChange={(e) => setLessWb(Number(e.target.value))}
-                                style={{ width: '80px', padding: '2px', textAlign: 'right', fontSize: '12px', border: '1px solid #ccc', borderRadius: '3px' }}
-                            />
-                            <span style={{ fontWeight: '600', color: '#dc2626' }}>- Rs {Number(lessWb).toLocaleString('en-IN')}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
+                            <span style={{ width: '135px', whiteSpace: 'nowrap' }}>Less: WB:</span>
+                            <div style={{ width: '110px' }}>
+                                <input
+                                    type="number"
+                                    disabled={isReadOnly}
+                                    value={lessWb}
+                                    onChange={(e) => setLessWb(Number(e.target.value))}
+                                    style={{ width: '80px', padding: '2px', textAlign: 'right', fontSize: '12px', border: '1px solid #ccc', borderRadius: '3px' }}
+                                />
+                            </div>
+                            <span style={{ flex: 1, textAlign: 'right', fontWeight: '600', color: '#dc2626' }}>- Rs {Number(lessWb).toLocaleString('en-IN')}</span>
                         </div>
 
                         {/* Dynamic Custom Deductions */}
