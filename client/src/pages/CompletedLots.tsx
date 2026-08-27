@@ -866,17 +866,57 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
         return initial;
     });
 
-    const [hamaliRate, setHamaliRate] = useState<number>(savedPatti.hamaliRate !== undefined ? Number(savedPatti.hamaliRate) : 12);
-    const [hamaliUnit, setHamaliUnit] = useState<string>(savedPatti.hamaliUnit || 'per_bag');
+    // Extract offering rates & units (fallback to defaults: Hamali 12/bag, Brokerage 11/qtl, LF 0/bag)
+    const offeringHamali = entry.offering?.finalHamali2 ?? entry.offering?.finalHamali ?? entry.offering?.hamali2 ?? entry.offering?.hamali;
+    const offeringHamaliUnit = entry.offering?.finalHamaliUnit2 ?? entry.offering?.finalHamaliUnit ?? entry.offering?.hamaliUnit2 ?? entry.offering?.hamaliUnit;
+    const defaultHamaliRate = savedPatti.hamaliRate !== undefined && savedPatti.hamaliRate !== null 
+        ? Number(savedPatti.hamaliRate) 
+        : (offeringHamali !== undefined && offeringHamali !== null && !isNaN(Number(offeringHamali)) ? Number(offeringHamali) : 12);
+    const defaultHamaliUnit = savedPatti.hamaliUnit || offeringHamaliUnit || 'per_bag';
 
-    const [brokerageRate, setBrokerageRate] = useState<number>(savedPatti.brokerageRate !== undefined ? Number(savedPatti.brokerageRate) : 11);
-    const [brokerageUnit, setBrokerageUnit] = useState<string>(savedPatti.brokerageUnit || 'per_qtl');
+    const offeringBrokerage = entry.offering?.finalBrokerage2 ?? entry.offering?.finalBrokerage ?? entry.offering?.brokerage2 ?? entry.offering?.brokerage;
+    const offeringBrokerageUnit = entry.offering?.finalBrokerageUnit2 ?? entry.offering?.finalBrokerageUnit ?? entry.offering?.brokerageUnit2 ?? entry.offering?.brokerageUnit;
+    const defaultBrokerageRate = savedPatti.brokerageRate !== undefined && savedPatti.brokerageRate !== null 
+        ? Number(savedPatti.brokerageRate) 
+        : (offeringBrokerage !== undefined && offeringBrokerage !== null && !isNaN(Number(offeringBrokerage)) ? Number(offeringBrokerage) : 11);
+    const defaultBrokerageUnit = savedPatti.brokerageUnit || offeringBrokerageUnit || 'per_qtl';
 
-    const [lfRate, setLfRate] = useState<number>(savedPatti.lfRate !== undefined ? Number(savedPatti.lfRate) : (Number(entry.offering?.lf || entry.offering?.finalLf || 0) || 0));
-    const [lfUnit, setLfUnit] = useState<string>(savedPatti.lfUnit || entry.offering?.lfUnit || 'per_bag');
+    const offeringLf = entry.offering?.finalLf2 ?? entry.offering?.finalLf ?? entry.offering?.lf2 ?? entry.offering?.lf;
+    const offeringLfUnit = entry.offering?.finalLfUnit2 ?? entry.offering?.finalLfUnit ?? entry.offering?.lfUnit2 ?? entry.offering?.lfUnit;
+    const defaultLfRate = savedPatti.lfRate !== undefined && savedPatti.lfRate !== null 
+        ? Number(savedPatti.lfRate) 
+        : (offeringLf !== undefined && offeringLf !== null && !isNaN(Number(offeringLf)) ? Number(offeringLf) : 0);
+    const defaultLfUnit = savedPatti.lfUnit || offeringLfUnit || 'per_bag';
+
+    const [hamaliRate] = useState<number>(defaultHamaliRate);
+    const [hamaliUnit] = useState<string>(defaultHamaliUnit);
+
+    const [brokerageRate] = useState<number>(defaultBrokerageRate);
+    const [brokerageUnit] = useState<string>(defaultBrokerageUnit);
+
+    const [lfRate] = useState<number>(defaultLfRate);
+    const [lfUnit] = useState<string>(defaultLfUnit);
 
     const [lessDf, setLessDf] = useState<number>(savedPatti.lessDf !== undefined ? Number(savedPatti.lessDf) : 0);
     const [lessWb, setLessWb] = useState<number>(savedPatti.lessWb !== undefined ? Number(savedPatti.lessWb) : 0);
+
+    const resolveLotTypeDisplay = () => {
+        const tripType = pattiTrips.find((t: any) => t.linkedPattiRate?.rateType)?.linkedPattiRate?.rateType;
+        const offeringType = entry.offering?.finalBaseRateType2 ||
+            entry.offering?.finalBaseRateType ||
+            entry.offering?.baseRateType ||
+            entry.offering?.offerBaseRateType;
+        const rawType = tripType || offeringType || entry.baseRateType || entry.rateType || entry.sampleType || '';
+        
+        const normalized = String(rawType).trim().toUpperCase();
+        if (normalized === 'PD_WB' || normalized === 'PD/WB') return 'PD/WB';
+        if (normalized === 'PD_LOOSE' || normalized === 'PD/LOOSE' || normalized === 'PD_LOOS') return 'PD/Loose';
+        if (normalized === 'WB' || normalized === 'MILL_WB') return 'WB';
+        if (normalized === 'PD' || normalized === 'PARTY_WB' || normalized === 'PARTY') return 'PD';
+        if (normalized === 'LOOSE' || normalized === 'LOOS') return 'Loose';
+        if (normalized) return normalized.replace(/_/g, '/');
+        return entry.wbInputType === 'party' ? 'PD' : 'WB';
+    };
 
     // Dynamic custom additions (+ Add)
     const [customAdditions, setCustomAdditions] = useState<CustomPattiItem[]>(() => {
@@ -1101,7 +1141,7 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                                 Pkg: {entry.packaging || 75} Kg
                             </span>
                             <span style={{ fontSize: '12px', fontWeight: '700', backgroundColor: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: '4px', display: 'inline-block' }}>
-                                Type: {entry.rateType || entry.sampleType || (entry.wbInputType === 'party' ? 'PD' : 'WB') || 'PD/WB'}
+                                Type: {resolveLotTypeDisplay()}
                             </span>
                         </div>
                     </div>
@@ -1215,20 +1255,13 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <input
                                     type="number"
-                                    disabled={isReadOnly}
+                                    readOnly
                                     value={lfRate}
-                                    onChange={(e) => setLfRate(Number(e.target.value))}
-                                    style={{ width: '55px', padding: '3px', textAlign: 'center', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '3px', background: isReadOnly ? '#f1f5f9' : '#fff', fontWeight: '700' }}
+                                    style={{ width: '55px', padding: '3px', textAlign: 'center', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '3px', background: '#f1f5f9', color: '#334155', fontWeight: '700', cursor: 'not-allowed' }}
                                 />
-                                <select
-                                    value={lfUnit}
-                                    disabled={isReadOnly}
-                                    onChange={(e) => setLfUnit(e.target.value)}
-                                    style={{ fontSize: '11px', padding: '2px 4px', border: '1px solid #ccc', borderRadius: '3px' }}
-                                >
-                                    <option value="per_bag">/ bag</option>
-                                    <option value="per_qtl">/ qtl</option>
-                                </select>
+                                <span style={{ fontSize: '12px', color: '#475569', fontWeight: '600' }}>
+                                    {lfUnit === 'per_qtl' ? '/ qtl' : '/ bag'}
+                                </span>
                             </div>
                             <span style={{ fontWeight: '600' }}>Rs {lfAmount.toLocaleString('en-IN')}</span>
                         </div>
@@ -1290,7 +1323,7 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                         )}
 
                         {/* Sub Total (Additions) */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #eee', color: '#16a34a', fontWeight: '700' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '2px solid #000', marginBottom: '8px', color: '#16a34a', fontWeight: '800', fontSize: '13px' }}>
                             <span>Total Additions:</span>
                             <span>Rs {totalAdditions.toLocaleString('en-IN')}</span>
                         </div>
