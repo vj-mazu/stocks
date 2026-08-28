@@ -118,6 +118,18 @@ const PattiRecord = sequelize.define('PattiRecord', {
     allowNull: true,
     defaultValue: {},
     field: 'lorry_packagings'
+  },
+  pattiMode: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    defaultValue: 'mill',
+    field: 'patti_mode'
+  },
+  partyPatti: {
+    type: DataTypes.JSONB,
+    allowNull: true,
+    defaultValue: null,
+    field: 'party_patti'
   }
 }, {
   tableName: 'patti_records',
@@ -136,7 +148,9 @@ const runPattiAutoMigration = async () => {
       `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS custom_additions JSONB DEFAULT '[]'::jsonb;`,
       `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS custom_deductions JSONB DEFAULT '[]'::jsonb;`,
       `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS avg_wb_per_bag DECIMAL(10, 2);`,
-      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS avg_rate DECIMAL(10, 2);`
+      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS avg_rate DECIMAL(10, 2);`,
+      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS patti_mode VARCHAR(20) DEFAULT 'mill';`,
+      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS party_patti JSONB;`
     ];
     for (const q of queries) {
       await sequelize.query(q).catch(() => {});

@@ -2105,6 +2105,7 @@ router.post('/:id/patti', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const {
+      pattiMode = 'mill',
       hamaliRate,
       hamaliUnit,
       hamaliAmount,
@@ -2156,13 +2157,34 @@ router.post('/:id/patti', authenticateToken, async (req, res) => {
 
     // Save or update PattiRecord
     let patti = await PattiRecord.findOne({ where: { sampleEntryId: id } });
-    if (patti) {
-      await patti.update(payload);
+    if (pattiMode === 'party') {
+      const partyData = {
+        ...payload,
+        savedAt: new Date().toISOString()
+      };
+      if (patti) {
+        await patti.update({ partyPatti: partyData });
+      } else {
+        patti = await PattiRecord.create({
+          sampleEntryId: id,
+          pattiMode: 'party',
+          partyPatti: partyData,
+          ...payload
+        });
+      }
     } else {
-      patti = await PattiRecord.create({
-        sampleEntryId: id,
-        ...payload
-      });
+      if (patti) {
+        await patti.update({
+          ...payload,
+          pattiMode: 'mill'
+        });
+      } else {
+        patti = await PattiRecord.create({
+          sampleEntryId: id,
+          pattiMode: 'mill',
+          ...payload
+        });
+      }
     }
 
     res.json({ success: true, patti });

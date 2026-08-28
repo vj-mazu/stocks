@@ -1880,23 +1880,36 @@ const Arrivals: React.FC = () => {
                    item.lorryTransitDetail?.inventoryQualityParameters || 
                    (item.physicalInspections && item.physicalInspections[0]?.inventoryQualityParameters) || 
                    [];
-    const lotApproved = params.some((p: any) => p.type === 'lot_avg' && p.status === 'approved');
-    const fullApproved = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved');
-    const lotPending = params.some((p: any) => p.type === 'lot_avg' && p.status === 'pending');
-    const fullPending = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'pending');
-    const lotRejected = params.some((p: any) => p.type === 'lot_avg' && p.status === 'rejected');
-    const fullRejected = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'rejected');
-    
-    const hasLotRecheck = params.some((p: any) => p.type === 'lot_avg' && p.status === 'rejected' && p.rejectReason && p.rejectReason.startsWith('RECHECK:'));
-    const hasFullRecheck = params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'rejected' && p.rejectReason && p.rejectReason.startsWith('RECHECK:'));
+
+    const lotParams = params.filter((p: any) => p.type === 'lot_avg').sort((a: any, b: any) => (Number(b.id) || 0) - (Number(a.id) || 0));
+    const fullParams = params.filter((p: any) => p.type === 'full_lorry_avg').sort((a: any, b: any) => (Number(b.id) || 0) - (Number(a.id) || 0));
+
+    const latestLot = lotParams[0];
+    const latestFull = fullParams[0];
+
+    const lotApproved = lotParams.some((p: any) => p.status === 'approved');
+    const fullApproved = fullParams.some((p: any) => p.status === 'approved');
+
+    const lotPending = latestLot && latestLot.status === 'pending';
+    const fullPending = latestFull && latestFull.status === 'pending';
+
+    const lotRecheck = !lotApproved && latestLot && latestLot.status === 'rejected' && latestLot.rejectReason && String(latestLot.rejectReason).startsWith('RECHECK:');
+    const fullRecheck = !fullApproved && latestFull && latestFull.status === 'rejected' && latestFull.rejectReason && String(latestFull.rejectReason).startsWith('RECHECK:');
+
+    const lotRejected = !lotApproved && !lotRecheck && latestLot && latestLot.status === 'rejected';
+    const fullRejected = !fullApproved && !fullRecheck && latestFull && latestFull.status === 'rejected';
 
     let qsBadge = null;
 
-    if (hasLotRecheck || hasFullRecheck) {
-      qsBadge = <span style={{ background: '#eff6ff', color: '#1d4ed8', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Recheck</span>;
-    } else if (lotPending || fullPending) {
+    if (lotPending || fullPending) {
       qsBadge = <span style={{ background: '#fef3c7', color: '#92400e', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Pending</span>;
+    } else if (lotRecheck || fullRecheck) {
+      qsBadge = <span style={{ background: '#eff6ff', color: '#1d4ed8', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Recheck</span>;
     } else if (lotApproved && fullApproved) {
+      qsBadge = <span style={{ background: '#dcfce7', color: '#166534', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Approved</span>;
+    } else if (lotApproved && !latestFull) {
+      qsBadge = <span style={{ background: '#dcfce7', color: '#166534', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Approved</span>;
+    } else if (fullApproved && !latestLot) {
       qsBadge = <span style={{ background: '#dcfce7', color: '#166534', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Approved</span>;
     } else if (lotApproved) {
       qsBadge = <span style={{ background: '#dcfce7', color: '#166534', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '9px', width: '80px', display: 'inline-block', textAlign: 'center' }}>QS: Lot Approved</span>;
@@ -15131,8 +15144,7 @@ const Arrivals: React.FC = () => {
                             backgroundColor: activeRecheck ? '#fef2f2' : '#fff',
                             fontWeight: '700',
                             letterSpacing: '0.5px'
-                          }}
-                          placeholder={field.placeholder} />
+                          }} />
                       ) : (
                         <input type="text" value={inventoryQualityForm[field.key as keyof typeof inventoryQualityForm]}
                           maxLength={6}

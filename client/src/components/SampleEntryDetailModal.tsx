@@ -4561,8 +4561,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         );
                                     })()}
 
-                                    {/* 3. Mill Quality Parameters (Inventory Quality) — Approve/Reject/Recheck live inside this modal */}
-                                    {((detailEntry as any).isBandMalalBook || progressiveMode || (detailEntry as any).isTransit || detailEntry.workflowStatus === 'IN_TRANSIT' || detailEntry.workflowStatus === 'BAND_MALAL_BOOK' || isAdminSampleBook2) && (!isArrivalsView || getAllMillQualityParameters().some((p: any) => p.status !== 'approved')) && (() => {
+                                    {/* 3. Mill Quality Parameters (Inventory Quality) — hidden in Arrivals view (merged above) */}
+                                    {!isArrivalsView && ((detailEntry as any).isBandMalalBook || progressiveMode || (detailEntry as any).isTransit || detailEntry.workflowStatus === 'IN_TRANSIT' || detailEntry.workflowStatus === 'BAND_MALAL_BOOK' || isAdminSampleBook2) && (() => {
                                          const paramsList = getAllMillQualityParameters();
                                          if (paramsList.length === 0) return null;
                                          return (

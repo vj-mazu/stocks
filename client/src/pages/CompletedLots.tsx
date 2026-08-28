@@ -153,6 +153,8 @@ const CompletedLots: React.FC<CompletedLotsProps> = ({ excludeEntryType }) => {
 
     // States for patti calculation modal
     const [selectedEntryForPatti, setSelectedEntryForPatti] = useState<any | null>(null);
+    const [selectedPattiInitialMode, setSelectedPattiInitialMode] = useState<'mill' | 'party'>('mill');
+    const [pattiDropdownOpenId, setPattiDropdownOpenId] = useState<string | null>(null);
     const [isPattiReadOnly, setIsPattiReadOnly] = useState<boolean>(false);
 
     // State for opening the detail patti modal
@@ -478,27 +480,141 @@ const CompletedLots: React.FC<CompletedLotsProps> = ({ excludeEntryType }) => {
                                                                     {supervisorName}
                                                                 </td>
                                                                 <td style={{ border: '1px solid #000', padding: '4px 3px', textAlign: 'center' }}>
-                                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: '100%' }}>
-                                                                        <button
-                                                                            onClick={() => {
-                                                                                setSelectedEntryForPatti(entry);
-                                                                                setIsPattiReadOnly(currentPattiTab === 'completed');
-                                                                            }}
-                                                                            style={{
-                                                                                width: '100%',
-                                                                                padding: '3px 4px',
-                                                                                fontSize: '10px',
-                                                                                fontWeight: '700',
-                                                                                backgroundColor: currentPattiTab === 'completed' ? '#3b82f6' : '#27ae60',
-                                                                                color: 'white',
-                                                                                border: 'none',
-                                                                                borderRadius: '3px',
-                                                                                cursor: 'pointer',
-                                                                                textAlign: 'center'
-                                                                            }}
-                                                                        >
-                                                                            {currentPattiTab === 'completed' ? 'View Patti' : 'Patti'}
-                                                                        </button>
+                                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: '100%', position: 'relative' }}>
+                                                                        {(() => {
+                                                                            const inspections = entry.lotAllotment?.physicalInspections || [];
+                                                                            const hasParty = inspections.some((insp: any) => {
+                                                                                const ltd = insp.lorryTransitDetail;
+                                                                                return ltd && (
+                                                                                    (ltd.partyNetWeight && Number(ltd.partyNetWeight) > 0) ||
+                                                                                    ltd.partyWbEnabled === 'yes' ||
+                                                                                    !!ltd.partyWbName ||
+                                                                                    !!ltd.partyWbNo
+                                                                                );
+                                                                            }) || entry.wbInputType === 'party' || !!entry.partyWbName;
+
+                                                                            if (!hasParty) {
+                                                                                return (
+                                                                                    <button
+                                                                                        onClick={() => {
+                                                                                            setSelectedEntryForPatti(entry);
+                                                                                            setSelectedPattiInitialMode('mill');
+                                                                                            setIsPattiReadOnly(currentPattiTab === 'completed');
+                                                                                        }}
+                                                                                        style={{
+                                                                                            width: '100%',
+                                                                                            padding: '3px 4px',
+                                                                                            fontSize: '10px',
+                                                                                            fontWeight: '700',
+                                                                                            backgroundColor: currentPattiTab === 'completed' ? '#3b82f6' : '#27ae60',
+                                                                                            color: 'white',
+                                                                                            border: 'none',
+                                                                                            borderRadius: '3px',
+                                                                                            cursor: 'pointer',
+                                                                                            textAlign: 'center'
+                                                                                        }}
+                                                                                    >
+                                                                                        {currentPattiTab === 'completed' ? 'View Patti' : 'Patti'}
+                                                                                    </button>
+                                                                                );
+                                                                            }
+
+                                                                            const isMenuOpen = pattiDropdownOpenId === entry.id;
+                                                                            return (
+                                                                                <div style={{ position: 'relative', width: '100%' }}>
+                                                                                    <button
+                                                                                        onClick={() => setPattiDropdownOpenId(isMenuOpen ? null : entry.id)}
+                                                                                        style={{
+                                                                                            width: '100%',
+                                                                                            padding: '3px 4px',
+                                                                                            fontSize: '10px',
+                                                                                            fontWeight: '700',
+                                                                                            backgroundColor: currentPattiTab === 'completed' ? '#3b82f6' : '#27ae60',
+                                                                                            color: 'white',
+                                                                                            border: 'none',
+                                                                                            borderRadius: '3px',
+                                                                                            cursor: 'pointer',
+                                                                                            textAlign: 'center',
+                                                                                            display: 'flex',
+                                                                                            alignItems: 'center',
+                                                                                            justifyContent: 'center',
+                                                                                            gap: '3px'
+                                                                                        }}
+                                                                                    >
+                                                                                        <span>{currentPattiTab === 'completed' ? 'View Patti' : 'Patti'}</span>
+                                                                                        <span style={{ fontSize: '8px' }}>▼</span>
+                                                                                    </button>
+                                                                                    {isMenuOpen && (
+                                                                                        <div style={{
+                                                                                            position: 'absolute',
+                                                                                            top: '100%',
+                                                                                            right: 0,
+                                                                                            zIndex: 999,
+                                                                                            background: '#ffffff',
+                                                                                            border: '1px solid #cbd5e1',
+                                                                                            borderRadius: '4px',
+                                                                                            boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
+                                                                                            minWidth: '115px',
+                                                                                            padding: '3px 0',
+                                                                                            marginTop: '2px'
+                                                                                        }}>
+                                                                                            <button
+                                                                                                onClick={() => {
+                                                                                                    setPattiDropdownOpenId(null);
+                                                                                                    setSelectedEntryForPatti(entry);
+                                                                                                    setSelectedPattiInitialMode('mill');
+                                                                                                    setIsPattiReadOnly(currentPattiTab === 'completed');
+                                                                                                }}
+                                                                                                style={{
+                                                                                                    width: '100%',
+                                                                                                    textAlign: 'left',
+                                                                                                    padding: '5px 8px',
+                                                                                                    fontSize: '10px',
+                                                                                                    fontWeight: '700',
+                                                                                                    border: 'none',
+                                                                                                    background: 'none',
+                                                                                                    color: '#1e293b',
+                                                                                                    cursor: 'pointer',
+                                                                                                    display: 'flex',
+                                                                                                    alignItems: 'center',
+                                                                                                    gap: '4px'
+                                                                                                }}
+                                                                                                onMouseEnter={(e) => (e.currentTarget.style.background = '#f1f5f9')}
+                                                                                                onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                                                                                            >
+                                                                                                🏭 Mill WB
+                                                                                            </button>
+                                                                                            <button
+                                                                                                onClick={() => {
+                                                                                                    setPattiDropdownOpenId(null);
+                                                                                                    setSelectedEntryForPatti(entry);
+                                                                                                    setSelectedPattiInitialMode('party');
+                                                                                                    setIsPattiReadOnly(currentPattiTab === 'completed');
+                                                                                                }}
+                                                                                                style={{
+                                                                                                    width: '100%',
+                                                                                                    textAlign: 'left',
+                                                                                                    padding: '5px 8px',
+                                                                                                    fontSize: '10px',
+                                                                                                    fontWeight: '700',
+                                                                                                    border: 'none',
+                                                                                                    background: 'none',
+                                                                                                    color: '#7c3aed',
+                                                                                                    cursor: 'pointer',
+                                                                                                    display: 'flex',
+                                                                                                    alignItems: 'center',
+                                                                                                    gap: '4px'
+                                                                                                }}
+                                                                                                onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f3ff')}
+                                                                                                onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                                                                                            >
+                                                                                                🤝 Party WB
+                                                                                            </button>
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                            );
+                                                                        })()}
                                                                         <button
                                                                             onClick={handleActionClick}
                                                                             style={{
@@ -805,6 +921,7 @@ const CompletedLots: React.FC<CompletedLotsProps> = ({ excludeEntryType }) => {
                 <PattiCalculationModal
                     entry={selectedEntryForPatti}
                     isReadOnly={isPattiReadOnly}
+                    initialMode={selectedPattiInitialMode}
                     onClose={() => setSelectedEntryForPatti(null)}
                     onSaved={() => {
                         setSelectedEntryForPatti(null);
@@ -817,10 +934,10 @@ const CompletedLots: React.FC<CompletedLotsProps> = ({ excludeEntryType }) => {
 };
 
 // Patti Calculation Modal Component
-// Patti Calculation Modal Component
 interface PattiCalculationModalProps {
     entry: any;
     isReadOnly: boolean;
+    initialMode?: 'mill' | 'party';
     onClose: () => void;
     onSaved: () => void;
 }
@@ -831,10 +948,24 @@ interface CustomPattiItem {
     amount: number | string;
 }
 
-const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, isReadOnly, onClose, onSaved }) => {
+const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, isReadOnly, initialMode = 'mill', onClose, onSaved }) => {
     const inspections = entry.lotAllotment?.physicalInspections || [];
     const pattiTrips = inspections.filter((insp: any) => insp.linkedPattiRate != null)
         .sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+    // Check if Party WB data is present on this lot
+    const hasPartyWbAvailable = pattiTrips.some((insp: any) => {
+        const ltd = insp.lorryTransitDetail;
+        return ltd && (
+            (ltd.partyNetWeight && Number(ltd.partyNetWeight) > 0) ||
+            ltd.partyWbEnabled === 'yes' ||
+            !!ltd.partyWbName ||
+            !!ltd.partyWbNo
+        );
+    }) || entry.wbInputType === 'party' || !!entry.partyWbName;
+
+    // Active Patti Mode: 'mill' or 'party'
+    const [pattiMode, setPattiMode] = useState<'mill' | 'party'>(initialMode === 'party' && hasPartyWbAvailable ? 'party' : 'mill');
 
     const getApprovedFullAvgBags = (stages: any, defaultBags: number) => {
         if (stages.balanced_lot?.approvalStatus === 'approved') return stages.balanced_lot.actualBags || defaultBags;
@@ -850,6 +981,7 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
 
     // Additions & Deductions & Per-Lorry Packaging State
     const savedPatti = entry.pattiRecord || {};
+    const savedPartyPatti = savedPatti.partyPatti || {};
     const initialLorryPackagings = savedPatti.lorryPackagings || {};
     const pkgKg = Number(String(entry.packaging || '75').replace(/[^0-9.]/g, '')) || 75;
 
@@ -888,19 +1020,89 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
         : (offeringLf !== undefined && offeringLf !== null && !isNaN(Number(offeringLf)) ? Number(offeringLf) : 0);
     const defaultLfUnit = savedPatti.lfUnit || offeringLfUnit || 'per_bag';
 
-    const [hamaliRate] = useState<number>(defaultHamaliRate);
-    const [hamaliUnit] = useState<string>(defaultHamaliUnit);
+    // Separate states for Mill WB vs Party WB
+    const [millHamaliRate] = useState<number>(defaultHamaliRate);
+    const [millHamaliUnit] = useState<string>(defaultHamaliUnit);
+    const [millBrokerageRate] = useState<number>(defaultBrokerageRate);
+    const [millBrokerageUnit] = useState<string>(defaultBrokerageUnit);
+    const [millLfRate] = useState<number>(defaultLfRate);
+    const [millLfUnit] = useState<string>(defaultLfUnit);
+    const [millLessDf, setMillLessDf] = useState<number>(savedPatti.lessDf !== undefined ? Number(savedPatti.lessDf) : 0);
+    const [millLessWb, setMillLessWb] = useState<number>(savedPatti.lessWb !== undefined ? Number(savedPatti.lessWb) : 0);
+    const [millCustomAdditions, setMillCustomAdditions] = useState<CustomPattiItem[]>(() => {
+        if (Array.isArray(savedPatti.customAdditions) && savedPatti.customAdditions.length > 0) {
+            return savedPatti.customAdditions.map((item: any, idx: number) => ({
+                id: item.id || `add-${idx}-${Date.now()}`,
+                label: item.label || '',
+                amount: item.amount !== undefined ? item.amount : ''
+            }));
+        }
+        return [];
+    });
+    const [millCustomDeductions, setMillCustomDeductions] = useState<CustomPattiItem[]>(() => {
+        if (Array.isArray(savedPatti.customDeductions) && savedPatti.customDeductions.length > 0) {
+            return savedPatti.customDeductions.map((item: any, idx: number) => ({
+                id: item.id || `less-${idx}-${Date.now()}`,
+                label: item.label || '',
+                amount: item.amount !== undefined ? item.amount : ''
+            }));
+        }
+        return [];
+    });
 
-    const [brokerageRate] = useState<number>(defaultBrokerageRate);
-    const [brokerageUnit] = useState<string>(defaultBrokerageUnit);
+    const [partyHamaliRate] = useState<number>(savedPartyPatti.hamaliRate !== undefined ? Number(savedPartyPatti.hamaliRate) : defaultHamaliRate);
+    const [partyHamaliUnit] = useState<string>(savedPartyPatti.hamaliUnit || defaultHamaliUnit);
+    const [partyBrokerageRate] = useState<number>(savedPartyPatti.brokerageRate !== undefined ? Number(savedPartyPatti.brokerageRate) : defaultBrokerageRate);
+    const [partyBrokerageUnit] = useState<string>(savedPartyPatti.brokerageUnit || defaultBrokerageUnit);
+    const [partyLfRate] = useState<number>(savedPartyPatti.lfRate !== undefined ? Number(savedPartyPatti.lfRate) : defaultLfRate);
+    const [partyLfUnit] = useState<string>(savedPartyPatti.lfUnit || defaultLfUnit);
+    const [partyLessDf, setPartyLessDf] = useState<number>(savedPartyPatti.lessDf !== undefined ? Number(savedPartyPatti.lessDf) : 0);
+    const [partyLessWb, setPartyLessWb] = useState<number>(savedPartyPatti.lessWb !== undefined ? Number(savedPartyPatti.lessWb) : 0);
+    const [partyCustomAdditions, setPartyCustomAdditions] = useState<CustomPattiItem[]>(() => {
+        if (Array.isArray(savedPartyPatti.customAdditions) && savedPartyPatti.customAdditions.length > 0) {
+            return savedPartyPatti.customAdditions.map((item: any, idx: number) => ({
+                id: item.id || `p-add-${idx}-${Date.now()}`,
+                label: item.label || '',
+                amount: item.amount !== undefined ? item.amount : ''
+            }));
+        }
+        return [];
+    });
+    const [partyCustomDeductions, setPartyCustomDeductions] = useState<CustomPattiItem[]>(() => {
+        if (Array.isArray(savedPartyPatti.customDeductions) && savedPartyPatti.customDeductions.length > 0) {
+            return savedPartyPatti.customDeductions.map((item: any, idx: number) => ({
+                id: item.id || `p-less-${idx}-${Date.now()}`,
+                label: item.label || '',
+                amount: item.amount !== undefined ? item.amount : ''
+            }));
+        }
+        return [];
+    });
 
-    const [lfRate] = useState<number>(defaultLfRate);
-    const [lfUnit] = useState<string>(defaultLfUnit);
+    // Active mode getters & setters
+    const hamaliRate = pattiMode === 'party' ? partyHamaliRate : millHamaliRate;
+    const hamaliUnit = pattiMode === 'party' ? partyHamaliUnit : millHamaliUnit;
+    const brokerageRate = pattiMode === 'party' ? partyBrokerageRate : millBrokerageRate;
+    const brokerageUnit = pattiMode === 'party' ? partyBrokerageUnit : millBrokerageUnit;
+    const lfRate = pattiMode === 'party' ? partyLfRate : millLfRate;
+    const lfUnit = pattiMode === 'party' ? partyLfUnit : millLfUnit;
 
-    const [lessDf, setLessDf] = useState<number>(savedPatti.lessDf !== undefined ? Number(savedPatti.lessDf) : 0);
-    const [lessWb, setLessWb] = useState<number>(savedPatti.lessWb !== undefined ? Number(savedPatti.lessWb) : 0);
+    const lessDf = pattiMode === 'party' ? partyLessDf : millLessDf;
+    const setLessDf = (val: number) => (pattiMode === 'party' ? setPartyLessDf(val) : setMillLessDf(val));
+
+    const lessWb = pattiMode === 'party' ? partyLessWb : millLessWb;
+    const setLessWb = (val: number) => (pattiMode === 'party' ? setPartyLessWb(val) : setMillLessWb(val));
+
+    const customAdditions = pattiMode === 'party' ? partyCustomAdditions : millCustomAdditions;
+    const setCustomAdditions = (updater: any) => (pattiMode === 'party' ? setPartyCustomAdditions(updater) : setMillCustomAdditions(updater));
+
+    const customDeductions = pattiMode === 'party' ? partyCustomDeductions : millCustomDeductions;
+    const setCustomDeductions = (updater: any) => (pattiMode === 'party' ? setPartyCustomDeductions(updater) : setMillCustomDeductions(updater));
 
     const resolveLotTypeDisplay = () => {
+        if (pattiMode === 'party') {
+            return 'Party WB';
+        }
         const tripType = pattiTrips.find((t: any) => t.linkedPattiRate?.rateType)?.linkedPattiRate?.rateType;
         const offeringType = entry.offering?.finalBaseRateType2 ||
             entry.offering?.finalBaseRateType ||
@@ -918,68 +1120,67 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
         return entry.wbInputType === 'party' ? 'PD' : 'WB';
     };
 
-    // Dynamic custom additions (+ Add)
-    const [customAdditions, setCustomAdditions] = useState<CustomPattiItem[]>(() => {
-        if (Array.isArray(savedPatti.customAdditions) && savedPatti.customAdditions.length > 0) {
-            return savedPatti.customAdditions.map((item: any, idx: number) => ({
-                id: item.id || `add-${idx}-${Date.now()}`,
-                label: item.label || '',
-                amount: item.amount !== undefined ? item.amount : ''
-            }));
-        }
-        return [];
-    });
-
-    // Dynamic custom deductions (- Less)
-    const [customDeductions, setCustomDeductions] = useState<CustomPattiItem[]>(() => {
-        if (Array.isArray(savedPatti.customDeductions) && savedPatti.customDeductions.length > 0) {
-            return savedPatti.customDeductions.map((item: any, idx: number) => ({
-                id: item.id || `less-${idx}-${Date.now()}`,
-                label: item.label || '',
-                amount: item.amount !== undefined ? item.amount : ''
-            }));
-        }
-        return [];
-    });
-
     const handleAddAdditionRow = () => {
-        setCustomAdditions(prev => [...prev, { id: `add-${Date.now()}`, label: '', amount: '' }]);
+        setCustomAdditions((prev: any[]) => [...prev, { id: `add-${Date.now()}`, label: '', amount: '' }]);
     };
 
     const handleRemoveAdditionRow = (id: string) => {
-        setCustomAdditions(prev => prev.filter(r => r.id !== id));
+        setCustomAdditions((prev: any[]) => prev.filter((r: any) => r.id !== id));
     };
 
     const handleUpdateAdditionRow = (id: string, field: 'label' | 'amount', value: any) => {
-        setCustomAdditions(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+        setCustomAdditions((prev: any[]) => prev.map((r: any) => r.id === id ? { ...r, [field]: value } : r));
     };
 
     const handleAddDeductionRow = () => {
-        setCustomDeductions(prev => [...prev, { id: `less-${Date.now()}`, label: '', amount: '' }]);
+        setCustomDeductions((prev: any[]) => [...prev, { id: `less-${Date.now()}`, label: '', amount: '' }]);
     };
 
     const handleRemoveDeductionRow = (id: string) => {
-        setCustomDeductions(prev => prev.filter(r => r.id !== id));
+        setCustomDeductions((prev: any[]) => prev.filter((r: any) => r.id !== id));
     };
 
     const handleUpdateDeductionRow = (id: string, field: 'label' | 'amount', value: any) => {
-        setCustomDeductions(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+        setCustomDeductions((prev: any[]) => prev.map((r: any) => r.id === id ? { ...r, [field]: value } : r));
     };
 
-    // Calculate totals of patti-linked trips dynamically based on current lorry packaging state
+    // Calculate totals dynamically based on current pattiMode (Mill WB vs Party WB)
     const calculatedTrips = pattiTrips.map((insp: any) => {
         const bags = Number(getApprovedFullAvgBags(insp.samplingStages || {}, insp.bags) || 0);
-        const netWt = Number(insp.lorryTransitDetail?.netWeight || 0);
-        const sute = Number(insp.linkedPattiRate?.sute || 0);
-        const shoot = Math.round(sute * bags); // Rounded integer with no decimals
-        const suteNetWt = Math.round(Math.max(0, netWt - shoot));
+        const ltd = insp.lorryTransitDetail || {};
+
+        let netWt = 0;
+        let sute = 0;
+        let shoot = 0;
+        let suteNetWt = 0;
+        let unloadingDate: any = null;
+
+        if (pattiMode === 'party') {
+            netWt = Number(ltd.partyNetWeight || ltd.netWeight || 0);
+            sute = Number(ltd.partySute !== undefined && ltd.partySute !== null ? ltd.partySute : (insp.linkedPattiRate?.sute ?? ltd.sute ?? 0));
+            shoot = Math.round(sute * bags);
+            if (ltd.partySuteNetWeight && Number(ltd.partySuteNetWeight) > 0) {
+                suteNetWt = Math.round(Number(ltd.partySuteNetWeight));
+            } else {
+                suteNetWt = Math.round(Math.max(0, netWt - shoot));
+            }
+            unloadingDate = ltd.partyWbDate || ltd.placeDate || ltd.wbDate || insp.inspectionDate;
+        } else {
+            netWt = Number(ltd.netWeight || 0);
+            sute = Number(insp.linkedPattiRate?.sute !== undefined && insp.linkedPattiRate?.sute !== null ? insp.linkedPattiRate.sute : (ltd.sute ?? 0));
+            shoot = Math.round(sute * bags);
+            if (ltd.suteNetWeight && Number(ltd.suteNetWeight) > 0) {
+                suteNetWt = Math.round(Number(ltd.suteNetWeight));
+            } else {
+                suteNetWt = Math.round(Math.max(0, netWt - shoot));
+            }
+            unloadingDate = ltd.placeDate || ltd.wbDate || insp.inspectionDate;
+        }
+
         const rate = Number(insp.linkedPattiRate?.rate || 0);
-        
-        // Fetch customized or default packaging size for this lorry
         const lorryPkgDefault = insp.sampleEntry?.packaging || entry.packaging || '75';
         const kg = lorryPackagings[insp.id] || Number(String(lorryPkgDefault).replace(/[^0-9.]/g, '')) || 75;
         const amount = Math.round((suteNetWt * rate) / kg);
-        const unloadingDate = insp.lorryTransitDetail?.placeDate || insp.inspectionDate;
 
         return {
             id: insp.id,
@@ -1009,7 +1210,7 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
             : (totalBags * hamaliRate)
     ).toFixed(2));
 
-    // Brokerage calculation: if per_qtl -> (totalNetWt / 100) * rate (using Gross Net.wt, not sute net wt), if per_bag -> totalBags * rate
+    // Brokerage calculation: if per_qtl -> (totalNetWt / 100) * rate, if per_bag -> totalBags * rate
     const brokerageAmount = Number((
         brokerageUnit === 'per_bag'
             ? (totalBags * brokerageRate)
@@ -1023,8 +1224,8 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
             : (totalBags * lfRate)
     ).toFixed(2));
 
-    const totalCustomAdditions = customAdditions.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-    const totalCustomDeductions = customDeductions.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const totalCustomAdditions = customAdditions.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0);
+    const totalCustomDeductions = customDeductions.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0);
 
     const totalAdditions = Number((hamaliAmount + brokerageAmount + lfAmount + totalCustomAdditions).toFixed(2));
     const totalDeductions = Number((Number(lessDf) + Number(lessWb) + totalCustomDeductions).toFixed(2));
@@ -1042,6 +1243,7 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
             setIsSavingPatti(true);
             const token = localStorage.getItem('token');
             await axios.post(`${API_URL}/sample-entries/${entry.id}/patti`, {
+                pattiMode,
                 hamaliRate,
                 hamaliUnit,
                 hamaliAmount,
@@ -1063,7 +1265,7 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            toast.success('Patti Record saved successfully!');
+            toast.success(`${pattiMode === 'party' ? 'Party WB' : 'Mill WB'} Patti saved successfully!`);
             onSaved();
         } catch (err: any) {
             console.error('Error saving patti:', err);
@@ -1076,6 +1278,9 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
     const handlePrint = () => {
         window.print();
     };
+
+    // Find party WB name for header if available
+    const firstPartyWbName = pattiTrips.find((t: any) => t.lorryTransitDetail?.partyWbName)?.lorryTransitDetail?.partyWbName || entry.partyWbName;
 
     return (
         <div style={{
@@ -1124,14 +1329,73 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                 overflowY: 'auto',
                 boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
             }}>
+                {/* Patti Mode Selector Tabs (No-Print) */}
+                <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc', padding: '8px 12px', borderRadius: '6px', marginBottom: '14px', border: '1px solid #e2e8f0' }}>
+                    <div style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>Patti Mode:</span>
+                        <span style={{ fontSize: '12px', color: pattiMode === 'party' ? '#7c3aed' : '#2563eb', fontWeight: '800' }}>
+                            {pattiMode === 'party' ? '🤝 Party WB Patti' : '🏭 Mill WB Patti'}
+                        </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                            type="button"
+                            onClick={() => setPattiMode('mill')}
+                            style={{
+                                padding: '5px 14px',
+                                fontSize: '12px',
+                                fontWeight: '700',
+                                borderRadius: '4px',
+                                border: pattiMode === 'mill' ? '2px solid #2563eb' : '1px solid #cbd5e1',
+                                background: pattiMode === 'mill' ? '#eff6ff' : '#ffffff',
+                                color: pattiMode === 'mill' ? '#1d4ed8' : '#64748b',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            🏭 Mill WB Patti
+                        </button>
+                        <button
+                            type="button"
+                            disabled={!hasPartyWbAvailable}
+                            onClick={() => setPattiMode('party')}
+                            title={!hasPartyWbAvailable ? 'Party WB details not entered for this lot' : 'View Party WB Patti'}
+                            style={{
+                                padding: '5px 14px',
+                                fontSize: '12px',
+                                fontWeight: '700',
+                                borderRadius: '4px',
+                                border: pattiMode === 'party' ? '2px solid #7c3aed' : '1px solid #cbd5e1',
+                                background: pattiMode === 'party' ? '#f5f3ff' : '#ffffff',
+                                color: pattiMode === 'party' ? '#6d28d9' : (hasPartyWbAvailable ? '#64748b' : '#94a3b8'),
+                                cursor: hasPartyWbAvailable ? 'pointer' : 'not-allowed',
+                                opacity: hasPartyWbAvailable ? 1 : 0.6
+                            }}
+                        >
+                            🤝 Party WB Patti {hasPartyWbAvailable ? '' : '(N/A)'}
+                        </button>
+                    </div>
+                </div>
+
                 {/* Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px dashed #333', paddingBottom: '12px', marginBottom: '16px' }}>
                     <div>
                         <h2 style={{ margin: 0, fontSize: '20px', color: '#111827', fontWeight: '800', letterSpacing: '0.5px' }}>
-                            KBD
+                            KBD {pattiMode === 'party' ? <span style={{ fontSize: '14px', color: '#7c3aed', fontWeight: '700' }}>(Party WB Patti)</span> : null}
                         </h2>
                         <div style={{ fontSize: '13px', color: '#4b5563', marginTop: '4px', fontWeight: '600' }}>
                             Party: <span style={{ color: '#111827' }}>{entry.partyName}</span> | Location: <span style={{ color: '#111827' }}>{entry.location}</span>
+                            {(() => {
+                                const bName = entry.broker || entry.brokerName || entry.sampleEntry?.broker || entry.sampleEntry?.brokerName;
+                                if (!bName) return null;
+                                return (
+                                    <span> | Broker: <span style={{ color: '#111827' }}>{bName}</span></span>
+                                );
+                            })()}
+                            {pattiMode === 'party' && firstPartyWbName && (
+                                <span style={{ marginLeft: '8px', color: '#7c3aed', fontWeight: '700' }}>
+                                    | Party WB: {firstPartyWbName}
+                                </span>
+                            )}
                         </div>
                     </div>
                     <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
@@ -1140,7 +1404,7 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                             <span style={{ fontSize: '12px', fontWeight: '700', backgroundColor: '#e5e7eb', padding: '2px 8px', borderRadius: '4px', display: 'inline-block' }}>
                                 Pkg: {entry.packaging || 75} Kg
                             </span>
-                            <span style={{ fontSize: '12px', fontWeight: '700', backgroundColor: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: '4px', display: 'inline-block' }}>
+                            <span style={{ fontSize: '12px', fontWeight: '700', backgroundColor: pattiMode === 'party' ? '#f3e8ff' : '#dbeafe', color: pattiMode === 'party' ? '#6b21a8' : '#1e40af', padding: '2px 8px', borderRadius: '4px', display: 'inline-block' }}>
                                 Type: {resolveLotTypeDisplay()}
                             </span>
                         </div>
@@ -1153,8 +1417,8 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                         <tr style={{ backgroundColor: '#f3f4f6', borderBottom: '1px solid #000' }}>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700' }}>Date</th>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700' }}>Bags</th>
-                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>Verity</th>
-                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>Net.wb</th>
+                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>Variety</th>
+                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>{pattiMode === 'party' ? 'Party Net.wb' : 'Net.wb'}</th>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>Shoot</th>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>Sute Net.wt</th>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>Rate</th>
@@ -1267,7 +1531,7 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                         </div>
 
                         {/* Dynamic Custom Additions */}
-                        {customAdditions.map((item) => (
+                        {customAdditions.map((item: any) => (
                             <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 0', borderBottom: '1px solid #eee' }}>
                                 <span style={{ color: '#16a34a', fontWeight: '800', fontSize: '14px' }}>+</span>
                                 {isReadOnly ? (
@@ -1359,7 +1623,7 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                         </div>
 
                         {/* Dynamic Custom Deductions */}
-                        {customDeductions.map((item) => (
+                        {customDeductions.map((item: any) => (
                             <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 0', borderBottom: '1px solid #eee' }}>
                                 <span style={{ color: '#dc2626', fontWeight: '800', fontSize: '14px' }}>-</span>
                                 {isReadOnly ? (
@@ -1468,7 +1732,7 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                                 fontWeight: '700'
                             }}
                         >
-                            {isSavingPatti ? '⏳ Saving Patti...' : '💾 Save & Complete Patti'}
+                            {isSavingPatti ? '⏳ Saving Patti...' : `💾 Save & Complete ${pattiMode === 'party' ? 'Party' : 'Mill'} Patti`}
                         </button>
                     )}
                 </div>
