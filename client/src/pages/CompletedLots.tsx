@@ -1422,12 +1422,12 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700' }}>Date</th>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: '700' }}>Bags</th>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>Variety</th>
-                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>{pattiMode === 'party' ? 'Party Net.wb' : 'Net.wb'}</th>
+                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>{pattiMode === 'party' ? 'Party Net WB' : 'Net WB'}</th>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>Shoot</th>
-                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>Sute Net.wt</th>
+                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>S.Net WB</th>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>Rate</th>
                             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>Amount</th>
-                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>Lorry</th>
+                            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', fontWeight: '700' }}>Lorry No</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1465,11 +1465,14 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '16px', gap: '20px', flexWrap: 'wrap' }}>
                     {/* Left Side: Avg Stats */}
                     <div style={{ flex: 1, minWidth: '220px', padding: '12px 16px', background: '#fff5f5', borderRadius: '8px', border: '1px solid #fed7d7' }}>
-                        <div style={{ fontSize: '15px', fontWeight: '800', color: '#dc2626', marginBottom: '14px' }}>
-                            Avg WB Per Bag: {avgWbPerBag}
+                        <div style={{ fontSize: '15px', fontWeight: '800', color: '#dc2626', marginBottom: '2px' }}>
+                            Avg WB : {avgWbPerBag}
+                        </div>
+                        <div style={{ fontSize: '13px', fontWeight: '700', color: '#dc2626', marginBottom: '14px' }}>
+                            Per Bag
                         </div>
                         <div style={{ fontSize: '15px', fontWeight: '800', color: '#dc2626', lineHeight: '1.4' }}>
-                            Avg Rate &nbsp;: {avgRate.toLocaleString('en-IN')}
+                            Avg Rate : {avgRate.toLocaleString('en-IN')}
                             <div style={{ fontSize: '13px', fontWeight: '700', color: '#dc2626', marginTop: '2px' }}>
                                 {pkgKg} Kg Bag
                             </div>
@@ -1699,9 +1702,27 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                             </div>
                         ))}
 
-                        {/* Button to add dynamic deduction row */}
+                        {/* Button to add dynamic deduction row and restore Less DF / Less WB */}
                         {!isReadOnly && (
-                            <div style={{ padding: '3px 0' }}>
+                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', padding: '3px 0' }}>
+                                {!showLessDf && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowLessDf(true)}
+                                        style={{ background: 'none', border: 'none', color: '#dc2626', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                    >
+                                        + Add Less DF
+                                    </button>
+                                )}
+                                {!showLessWb && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowLessWb(true)}
+                                        style={{ background: 'none', border: 'none', color: '#dc2626', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                    >
+                                        + Add Less WB
+                                    </button>
+                                )}
                                 <button
                                     type="button"
                                     onClick={handleAddDeductionRow}
