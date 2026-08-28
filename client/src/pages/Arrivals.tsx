@@ -14234,6 +14234,10 @@ const Arrivals: React.FC = () => {
             setIsDetailOpen(false);
             setSelectedDetailEntry(null);
           }}
+          onUpdate={async () => {
+            fetchBandMalalEntries();
+            fetchInTransitEntries();
+          }}
           onApproveQuality={handleApproveInventoryQuality}
           onRejectQuality={handleRejectInventoryQualityDirect}
           onRecheckQuality={handleRecheckInventoryQualityDirect}

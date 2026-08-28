@@ -942,7 +942,7 @@ class PhysicalInspectionService {
       const totalBags = (lotAllotment?.allottedBags && lotAllotment.allottedBags > 0) ? lotAllotment.allottedBags : (entry.bags || 0);
 
       // Get all inspections for this entry
-      const inspections = await PhysicalInspectionRepository.findBySampleEntryId(sampleEntryId);
+      const inspections = await PhysicalInspectionRepository.findBySampleEntryId(sampleEntryId, { includeLorryTransitDetail: true });
 
       // Calculate total inspected bags dynamically looking at approved full_avg actualBags
       const inspectedBags = inspections.reduce((sum, inspection) => {
@@ -972,7 +972,9 @@ class PhysicalInspectionService {
         samplingStages: inspection.samplingStages || {},
         lotAllotment: inspection.lotAllotment,
         linkedPattiRate: inspection.linkedPattiRate || null,
-        createdAt: inspection.createdAt
+        createdAt: inspection.createdAt,
+        lorryTransitDetail: inspection.lorryTransitDetail || null,
+        inventoryQualityParameters: inspection.inventoryQualityParameters || inspection.lorryTransitDetail?.inventoryQualityParameters || []
       }));
 
       const getInspectionSortTime = (insp) => {

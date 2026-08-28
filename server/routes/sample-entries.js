@@ -2147,6 +2147,8 @@ router.post('/:id/patti', authenticateToken, async (req, res) => {
       customAdditions: Array.isArray(customAdditions) ? customAdditions : [],
       lessDf: Number(lessDf) || 0,
       lessWb: Number(lessWb) || 0,
+      showLessDf: req.body.showLessDf !== undefined ? req.body.showLessDf : (Number(lessDf) > 0),
+      showLessWb: req.body.showLessWb !== undefined ? req.body.showLessWb : (Number(lessWb) > 0),
       customDeductions: Array.isArray(customDeductions) ? customDeductions : [],
       totalAmount: Number(totalAmount) || 0,
       grandTotal: Number(grandTotal) || 0,

@@ -2185,7 +2185,10 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
 
     const getAllMillQualityParameters = () => {
         const list: any[] = [];
-        const entryParams = (detailEntry as any).inventoryQualityParameters || [];
+        const entryParams = [
+            ...((detailEntry as any).inventoryQualityParameters || []),
+            ...((detailEntry as any).lorryTransitDetail?.inventoryQualityParameters || [])
+        ];
         entryParams.forEach((p: any) => {
             if (p && !list.some(item => String(item.id) === String(p.id))) {
                 const copy = { ...p, lorryNumber: detailEntry.lorryNumber, bags: detailEntry.bags };
@@ -2196,17 +2199,13 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             ? inspectionsProgress.previousInspections
             : (Array.isArray((detailEntry as any).physicalInspections) ? (detailEntry as any).physicalInspections : []);
         insps.forEach((insp: any) => {
-            const inspParams = insp.inventoryQualityParameters || [];
+            const inspParams = [
+                ...(insp.inventoryQualityParameters || []),
+                ...(insp.lorryTransitDetail?.inventoryQualityParameters || [])
+            ];
             inspParams.forEach((p: any) => {
                 if (p && !list.some(item => String(item.id) === String(p.id))) {
-                    const copy = { ...p, lorryNumber: insp.lorryNumber, bags: insp.bags };
-                    list.push(copy);
-                }
-            });
-            const transitParams = insp.lorryTransitDetail?.inventoryQualityParameters || [];
-            transitParams.forEach((p: any) => {
-                if (p && !list.some(item => String(item.id) === String(p.id))) {
-                    const copy = { ...p, lorryNumber: insp.lorryNumber || insp.lorryTransitDetail?.lorryNumber, bags: insp.bags || insp.lorryTransitDetail?.bags };
+                    const copy = { ...p, lorryNumber: insp.lorryNumber || insp.lorryTransitDetail?.lorryNumber || detailEntry.lorryNumber, bags: insp.bags || insp.lorryTransitDetail?.bags || detailEntry.bags };
                     list.push(copy);
                 }
             });
@@ -3183,6 +3182,57 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                             </div>
                         );
                     } else {
+                        const canApprove = ['admin', 'owner', 'manager', 'ceo'].includes(String(user?.role || '').toLowerCase());
+                        if (canApprove) {
+                            return (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                                    <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', background: '#fef3c7', color: '#92400e', border: '1px solid #fbbf24' }}>
+                                        ⏳ Pending
+                                    </span>
+                                    <div style={{ display: 'flex', gap: '3px' }}>
+                                        <button
+                                            onClick={async () => {
+                                                if (onApproveQuality) {
+                                                    await onApproveQuality(param.id);
+                                                    await refreshProgressData();
+                                                }
+                                            }}
+                                            style={{ padding: '3.5px 7px', fontSize: '9px', fontWeight: '800', background: '#22c55e', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer' }}
+                                        >
+                                            Approve
+                                        </button>
+                                        <button
+                                            onClick={async () => {
+                                                if (onRejectQuality) {
+                                                    const reason = window.prompt("Enter rejection reason:");
+                                                    if (reason !== null && reason.trim()) {
+                                                        await onRejectQuality(param.id, reason.trim());
+                                                        await refreshProgressData();
+                                                    }
+                                                }
+                                            }}
+                                            style={{ padding: '3.5px 7px', fontSize: '9px', fontWeight: '800', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer' }}
+                                        >
+                                            Reject
+                                        </button>
+                                        <button
+                                            onClick={async () => {
+                                                if (onRecheckQuality) {
+                                                    const reason = window.prompt("Enter recheck instructions/reason:");
+                                                    if (reason !== null && reason.trim()) {
+                                                        await onRecheckQuality(param.id, reason.trim());
+                                                        await refreshProgressData();
+                                                    }
+                                                }
+                                            }}
+                                            style={{ padding: '3.5px 7px', fontSize: '9px', fontWeight: '800', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer' }}
+                                        >
+                                            Recheck
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        }
                         return (
                             <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', background: '#fef3c7', color: '#92400e', border: '1px solid #fbbf24' }}>
                                 ⏳ Pending

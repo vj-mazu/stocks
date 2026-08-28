@@ -1029,6 +1029,8 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
     const [millLfUnit] = useState<string>(defaultLfUnit);
     const [millLessDf, setMillLessDf] = useState<number>(savedPatti.lessDf !== undefined ? Number(savedPatti.lessDf) : 0);
     const [millLessWb, setMillLessWb] = useState<number>(savedPatti.lessWb !== undefined ? Number(savedPatti.lessWb) : 0);
+    const [showMillLessDf, setShowMillLessDf] = useState<boolean>(savedPatti.showLessDf !== undefined ? savedPatti.showLessDf : (savedPatti.lessDf !== undefined && savedPatti.lessDf !== null ? Number(savedPatti.lessDf) > 0 : true));
+    const [showMillLessWb, setShowMillLessWb] = useState<boolean>(savedPatti.showLessWb !== undefined ? savedPatti.showLessWb : (savedPatti.lessWb !== undefined && savedPatti.lessWb !== null ? Number(savedPatti.lessWb) > 0 : true));
     const [millCustomAdditions, setMillCustomAdditions] = useState<CustomPattiItem[]>(() => {
         if (Array.isArray(savedPatti.customAdditions) && savedPatti.customAdditions.length > 0) {
             return savedPatti.customAdditions.map((item: any, idx: number) => ({
@@ -1058,6 +1060,8 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
     const [partyLfUnit] = useState<string>(savedPartyPatti.lfUnit || defaultLfUnit);
     const [partyLessDf, setPartyLessDf] = useState<number>(savedPartyPatti.lessDf !== undefined ? Number(savedPartyPatti.lessDf) : 0);
     const [partyLessWb, setPartyLessWb] = useState<number>(savedPartyPatti.lessWb !== undefined ? Number(savedPartyPatti.lessWb) : 0);
+    const [showPartyLessDf, setShowPartyLessDf] = useState<boolean>(savedPartyPatti.showLessDf !== undefined ? savedPartyPatti.showLessDf : (savedPartyPatti.lessDf !== undefined && savedPartyPatti.lessDf !== null ? Number(savedPartyPatti.lessDf) > 0 : true));
+    const [showPartyLessWb, setShowPartyLessWb] = useState<boolean>(savedPartyPatti.showLessWb !== undefined ? savedPartyPatti.showLessWb : (savedPartyPatti.lessWb !== undefined && savedPartyPatti.lessWb !== null ? Number(savedPartyPatti.lessWb) > 0 : true));
     const [partyCustomAdditions, setPartyCustomAdditions] = useState<CustomPattiItem[]>(() => {
         if (Array.isArray(savedPartyPatti.customAdditions) && savedPartyPatti.customAdditions.length > 0) {
             return savedPartyPatti.customAdditions.map((item: any, idx: number) => ({
@@ -1092,6 +1096,12 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
 
     const lessWb = pattiMode === 'party' ? partyLessWb : millLessWb;
     const setLessWb = (val: number) => (pattiMode === 'party' ? setPartyLessWb(val) : setMillLessWb(val));
+
+    const showLessDf = pattiMode === 'party' ? showPartyLessDf : showMillLessDf;
+    const setShowLessDf = (val: boolean) => (pattiMode === 'party' ? setShowPartyLessDf(val) : setShowMillLessDf(val));
+
+    const showLessWb = pattiMode === 'party' ? showPartyLessWb : showMillLessWb;
+    const setShowLessWb = (val: boolean) => (pattiMode === 'party' ? setShowPartyLessWb(val) : setShowMillLessWb(val));
 
     const customAdditions = pattiMode === 'party' ? partyCustomAdditions : millCustomAdditions;
     const setCustomAdditions = (updater: any) => (pattiMode === 'party' ? setPartyCustomAdditions(updater) : setMillCustomAdditions(updater));
@@ -1159,21 +1169,13 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
             netWt = Number(ltd.partyNetWeight || ltd.netWeight || 0);
             sute = Number(ltd.partySute !== undefined && ltd.partySute !== null ? ltd.partySute : (insp.linkedPattiRate?.sute ?? ltd.sute ?? 0));
             shoot = Math.round(sute * bags);
-            if (ltd.partySuteNetWeight && Number(ltd.partySuteNetWeight) > 0) {
-                suteNetWt = Math.round(Number(ltd.partySuteNetWeight));
-            } else {
-                suteNetWt = Math.round(Math.max(0, netWt - shoot));
-            }
+            suteNetWt = Math.round(Math.max(0, netWt - shoot));
             unloadingDate = ltd.partyWbDate || ltd.placeDate || ltd.wbDate || insp.inspectionDate;
         } else {
             netWt = Number(ltd.netWeight || 0);
             sute = Number(insp.linkedPattiRate?.sute !== undefined && insp.linkedPattiRate?.sute !== null ? insp.linkedPattiRate.sute : (ltd.sute ?? 0));
             shoot = Math.round(sute * bags);
-            if (ltd.suteNetWeight && Number(ltd.suteNetWeight) > 0) {
-                suteNetWt = Math.round(Number(ltd.suteNetWeight));
-            } else {
-                suteNetWt = Math.round(Math.max(0, netWt - shoot));
-            }
+            suteNetWt = Math.round(Math.max(0, netWt - shoot));
             unloadingDate = ltd.placeDate || ltd.wbDate || insp.inspectionDate;
         }
 
@@ -1228,7 +1230,7 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
     const totalCustomDeductions = customDeductions.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0);
 
     const totalAdditions = Number((hamaliAmount + brokerageAmount + lfAmount + totalCustomAdditions).toFixed(2));
-    const totalDeductions = Number((Number(lessDf) + Number(lessWb) + totalCustomDeductions).toFixed(2));
+    const totalDeductions = Number(((showLessDf ? Number(lessDf) : 0) + (showLessWb ? Number(lessWb) : 0) + totalCustomDeductions).toFixed(2));
     const grandTotal = Math.round(totalLorryAmount + totalAdditions - totalDeductions);
 
     // Left side stats
@@ -1254,8 +1256,10 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                 lfUnit,
                 lfAmount,
                 customAdditions,
-                lessDf,
-                lessWb,
+                lessDf: showLessDf ? lessDf : 0,
+                lessWb: showLessWb ? lessWb : 0,
+                showLessDf,
+                showLessWb,
                 customDeductions,
                 totalAmount: totalLorryAmount,
                 grandTotal,
@@ -1533,7 +1537,7 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                         {/* Dynamic Custom Additions */}
                         {customAdditions.map((item: any) => (
                             <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 0', borderBottom: '1px solid #eee' }}>
-                                <span style={{ color: '#16a34a', fontWeight: '800', fontSize: '14px' }}>+</span>
+                                <span style={{ width: '40px', fontWeight: '600', fontSize: '13px', color: '#16a34a' }}>Add:</span>
                                 {isReadOnly ? (
                                     <span style={{ flex: 1, fontSize: '12px', color: '#15803d', fontWeight: '600', wordBreak: 'break-word', whiteSpace: 'normal' }}>
                                         {item.label || 'Addition'}
@@ -1593,39 +1597,69 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                         </div>
 
                         {/* Less DF */}
-                        <div style={{ display: 'flex', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
-                            <span style={{ width: '135px', whiteSpace: 'nowrap' }}>Less: DF:</span>
-                            <div style={{ width: '110px' }}>
-                                <input
-                                    type="number"
-                                    disabled={isReadOnly}
-                                    value={lessDf}
-                                    onChange={(e) => setLessDf(Number(e.target.value))}
-                                    style={{ width: '80px', padding: '2px', textAlign: 'right', fontSize: '12px', border: '1px solid #ccc', borderRadius: '3px' }}
-                                />
+                        {showLessDf && (
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
+                                <span style={{ width: '135px', whiteSpace: 'nowrap', fontWeight: '500' }}>Less: DF:</span>
+                                <div style={{ width: '110px' }}>
+                                    <input
+                                        type="number"
+                                        disabled={isReadOnly}
+                                        value={lessDf}
+                                        onChange={(e) => setLessDf(Number(e.target.value))}
+                                        style={{ width: '80px', padding: '2px', textAlign: 'right', fontSize: '12px', border: '1px solid #ccc', borderRadius: '3px' }}
+                                    />
+                                </div>
+                                <span style={{ flex: 1, textAlign: 'right', fontWeight: '600', color: '#dc2626' }}>- Rs {Number(lessDf).toLocaleString('en-IN')}</span>
+                                {!isReadOnly && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setLessDf(0);
+                                            setShowLessDf(false);
+                                        }}
+                                        style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: 'bold', cursor: 'pointer', padding: '0 4px', fontSize: '14px', marginLeft: '6px' }}
+                                        title="Remove Less DF"
+                                    >
+                                        ✕
+                                    </button>
+                                )}
                             </div>
-                            <span style={{ flex: 1, textAlign: 'right', fontWeight: '600', color: '#dc2626' }}>- Rs {Number(lessDf).toLocaleString('en-IN')}</span>
-                        </div>
+                        )}
 
                         {/* Less WB */}
-                        <div style={{ display: 'flex', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
-                            <span style={{ width: '135px', whiteSpace: 'nowrap' }}>Less: WB:</span>
-                            <div style={{ width: '110px' }}>
-                                <input
-                                    type="number"
-                                    disabled={isReadOnly}
-                                    value={lessWb}
-                                    onChange={(e) => setLessWb(Number(e.target.value))}
-                                    style={{ width: '80px', padding: '2px', textAlign: 'right', fontSize: '12px', border: '1px solid #ccc', borderRadius: '3px' }}
-                                />
+                        {showLessWb && (
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
+                                <span style={{ width: '135px', whiteSpace: 'nowrap', fontWeight: '500' }}>Less: WB:</span>
+                                <div style={{ width: '110px' }}>
+                                    <input
+                                        type="number"
+                                        disabled={isReadOnly}
+                                        value={lessWb}
+                                        onChange={(e) => setLessWb(Number(e.target.value))}
+                                        style={{ width: '80px', padding: '2px', textAlign: 'right', fontSize: '12px', border: '1px solid #ccc', borderRadius: '3px' }}
+                                    />
+                                </div>
+                                <span style={{ flex: 1, textAlign: 'right', fontWeight: '600', color: '#dc2626' }}>- Rs {Number(lessWb).toLocaleString('en-IN')}</span>
+                                {!isReadOnly && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setLessWb(0);
+                                            setShowLessWb(false);
+                                        }}
+                                        style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: 'bold', cursor: 'pointer', padding: '0 4px', fontSize: '14px', marginLeft: '6px' }}
+                                        title="Remove Less WB"
+                                    >
+                                        ✕
+                                    </button>
+                                )}
                             </div>
-                            <span style={{ flex: 1, textAlign: 'right', fontWeight: '600', color: '#dc2626' }}>- Rs {Number(lessWb).toLocaleString('en-IN')}</span>
-                        </div>
+                        )}
 
                         {/* Dynamic Custom Deductions */}
                         {customDeductions.map((item: any) => (
                             <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 0', borderBottom: '1px solid #eee' }}>
-                                <span style={{ color: '#dc2626', fontWeight: '800', fontSize: '14px' }}>-</span>
+                                <span style={{ width: '40px', fontWeight: '600', fontSize: '13px', color: '#dc2626' }}>Less:</span>
                                 {isReadOnly ? (
                                     <span style={{ flex: 1, fontSize: '12px', color: '#b91c1c', fontWeight: '600', wordBreak: 'break-word', whiteSpace: 'normal' }}>
                                         {item.label || 'Deduction'}
