@@ -3037,7 +3037,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
     };
 
     // Merged quality rows: initial sample rows + per-load (trip) rows with "Load N" section bars.
-    // Used ONLY for the Arrivals view (In Transit / Band Mall Book) so all stages show in ONE table.
+    // Used for the top Quality Parameters table in Arrivals view (Initial Sample + Mill Avg Quality)
     const buildMergedQualityRows = () => {
         const merged: any[] = [];
 
@@ -3051,31 +3051,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             merged.push(cells);
         });
 
-        // 2. Per-load trip rows with "Load N - LORRY | Bags Loaded: X" section bars
-        const insps = (inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections)
-            ? inspectionsProgress.previousInspections
-            : (Array.isArray((detailEntry as any).physicalInspections) ? (detailEntry as any).physicalInspections : []))
-            .filter((insp: any) => {
-                if (!insp.lorryNumber || !detailEntry.lorryNumber) return true;
-                return insp.lorryNumber.trim().toUpperCase() === detailEntry.lorryNumber.trim().toUpperCase();
-            });
-
-        insps.forEach((insp: any, idx: number) => {
-            const stages = insp.samplingStages || {};
-            const bagsLoaded = getApprovedFullAvgBags(stages, insp.bags);
-            const lorryLabel = (insp.lorryNumber || 'Lorry').toUpperCase();
-            merged.push({
-                type: 'header',
-                content: `Load ${idx + 1} - ${lorryLabel} | Bags Loaded: ${bagsLoaded}`
-            });
-            const tripRows = buildTripQualityRows(insp, idx);
-            tripRows.forEach((r: any) => {
-                if (r && r.type) { merged.push(r); return; }
-                merged.push(normalizeQualityRow(r, 20));
-            });
-        });
-
-        // 3. Mill - Avg Quality Sampling section
+        // 2. Mill - Avg Quality Sampling section
         const paramsList = getAllMillQualityParameters();
         if (paramsList.length > 0) {
             merged.push({
@@ -4577,22 +4553,34 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         )}
                                     </div>
 
-                                    {/* 2. Lorry Load Details (Progressive Loads) for Band Mall Book and In-Transit */}
+                                    {/* 2. Lorry Load Details (Progressive Loads) */}
                                     {((detailEntry as any).isBandMalalBook || progressiveMode || (detailEntry as any).isTransit || detailEntry.workflowStatus === 'IN_TRANSIT' || detailEntry.workflowStatus === 'BAND_MALAL_BOOK' || isAdminSampleBook2 || isArrivalsView) && (() => {
-                                        const insps = (inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections)
-                                            ? inspectionsProgress.previousInspections
-                                            : (Array.isArray((detailEntry as any).physicalInspections) ? (detailEntry as any).physicalInspections : []))
-                                            .filter((insp: any) => {
-                                                if (!insp.lorryNumber || !detailEntry.lorryNumber) return true;
-                                                return insp.lorryNumber.trim().toUpperCase() === detailEntry.lorryNumber.trim().toUpperCase();
-                                            });
+                                        let rawInsps: any[] = [];
+                                        if (inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections) && inspectionsProgress.previousInspections.length > 0) {
+                                            rawInsps = inspectionsProgress.previousInspections;
+                                        } else if (Array.isArray((detailEntry as any).physicalInspections) && (detailEntry as any).physicalInspections.length > 0) {
+                                            rawInsps = (detailEntry as any).physicalInspections;
+                                        } else if (detailEntry.lotAllotment?.physicalInspections && Array.isArray(detailEntry.lotAllotment.physicalInspections) && detailEntry.lotAllotment.physicalInspections.length > 0) {
+                                            rawInsps = detailEntry.lotAllotment.physicalInspections;
+                                        } else if ((detailEntry as any).physicalInspection) {
+                                            rawInsps = [(detailEntry as any).physicalInspection];
+                                        }
+
+                                        const targetLorry = String(detailEntry.lorryNumber || '').replace(/\s+/g, '').toUpperCase();
+                                        const insps = rawInsps.filter((insp: any) => {
+                                            if (!insp) return false;
+                                            if (!targetLorry || !insp.lorryNumber) return true;
+                                            const inspLorry = String(insp.lorryNumber).replace(/\s+/g, '').toUpperCase();
+                                            return inspLorry === targetLorry || inspLorry === 'LOT_AVG' || inspLorry === 'BALANCED_LOT';
+                                        });
+
                                         if (insps.length === 0) return null;
                                         return (
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: isCompact ? '4px' : '15px', marginTop: isCompact ? '2px' : '10px' }}>
                                                 {insps.map((insp: any, idx: number) => {
                                                     const stages = insp.samplingStages || {};
                                                     const bagsLoaded = getApprovedFullAvgBags(stages, insp.bags);
-                                                    const title = `Load ${idx + 1} - ${insp.lorryNumber?.toUpperCase() || ''} | Bags Loaded: ${bagsLoaded}`;
+                                                    const title = `Load ${idx + 1} - ${insp.lorryNumber?.toUpperCase() || detailEntry.lorryNumber?.toUpperCase() || ''} | Bags Loaded: ${bagsLoaded}`;
                                                     const isNewRulesMode = inspectionsProgress?.samplingRulesMode === 'new' || detailEntry?.lotAllotment?.samplingRulesMode === 'new';
                                                     return (
                                                         <div key={insp.id || idx}>
