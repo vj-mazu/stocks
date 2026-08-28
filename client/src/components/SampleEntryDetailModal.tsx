@@ -4577,8 +4577,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                         )}
                                     </div>
 
-                                    {/* 2. Lorry Load Details (Progressive Loads) for Band Mall Book and In-Transit — hidden in Arrivals view (merged above) */}
-                                    {!isArrivalsView && ((detailEntry as any).isBandMalalBook || progressiveMode || isAdminSampleBook2) && (() => {
+                                    {/* 2. Lorry Load Details (Progressive Loads) for Band Mall Book and In-Transit */}
+                                    {((detailEntry as any).isBandMalalBook || progressiveMode || (detailEntry as any).isTransit || detailEntry.workflowStatus === 'IN_TRANSIT' || detailEntry.workflowStatus === 'BAND_MALAL_BOOK' || isAdminSampleBook2 || isArrivalsView) && (() => {
                                         const insps = (inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections)
                                             ? inspectionsProgress.previousInspections
                                             : (Array.isArray((detailEntry as any).physicalInspections) ? (detailEntry as any).physicalInspections : []))
