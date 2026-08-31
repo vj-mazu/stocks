@@ -286,6 +286,28 @@ To keep the repository fast, clean, and production-ready:
 * **Vercel**: Configured via [`vercel.json`](vercel.json) for static client hosting.
 * **Docker**: Configured via [`Dockerfile`](Dockerfile) and [`docker-compose.yml`](docker-compose.yml).
 
+## ☁️ AWS Cloud & Hosting Questions
+
+### Requirements:
+* **System**: Run complete Frontend and Backend 24/7.
+* **Active Users**: 25 to 30 Active Users.
+* **Storage**: Store database data + uploaded photos, bills, receipts, and PDF files.
+* **Performance**: Must be fast, smooth, and have the best performance without lag or crashing.
+
+---
+
+### Questions:
+1. **How much will it cost per month to host and run this entire software (Frontend + Backend + Database) 24/7 on AWS?**
+2. **Can we safely store all our data and uploaded photos/files, and how much will file storage cost per month?**
+3. **Will the server handle 25 to 30 active users at the same time with the best, fastest performance and zero lag?**
+4. **If server traffic increases or if more users are added, can it easily handle the load without slowing down?**
+5. **Are there any extra or hidden charges per month (for user logins, data transfer, or database storage)?**
+6. **Data Backup & Disaster Recovery**:
+   * How are automated daily/weekly backups of the complete database and uploaded files created and safely saved to AWS S3 / Google Drive?
+   * If the server crashes, hard drive corrupts, or accidental deletion occurs, how fast can we restore our entire data with zero data loss?
+   * How many days/months of backup history are kept (e.g. 30 days retention)?
+   * How much extra will automated backup storage cost per month?
+
 ---
 
 ## 📄 License
