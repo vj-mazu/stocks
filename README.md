@@ -312,4 +312,4 @@ To keep the repository fast, clean, and production-ready:
 
 ## 📄 License
 
-Proprietary Software — Developed for **Sri Krishna Constructions / KBD Rice Mill**. All rights reserved.
+Proprietary Software — Developed for **Mother India Mill**. All rights reserved.
