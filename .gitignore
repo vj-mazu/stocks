@@ -79,4 +79,8 @@ server/graphify-out/
 .cursor/
 .mcp.json
 skills-lock.json
+.graphify*
 .graphify_*.json
+.env
+.env.*
+!.env.example
