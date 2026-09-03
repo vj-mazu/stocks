@@ -1027,8 +1027,11 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
     const [millBrokerageUnit] = useState<string>(defaultBrokerageUnit);
     const [millLfRate] = useState<number>(defaultLfRate);
     const [millLfUnit] = useState<string>(defaultLfUnit);
-    const [millLessDf, setMillLessDf] = useState<number>(savedPatti.lessDf !== undefined ? Number(savedPatti.lessDf) : 0);
     const [millLessWb, setMillLessWb] = useState<number>(savedPatti.lessWb !== undefined ? Number(savedPatti.lessWb) : 0);
+    const [millDfRate, setMillDfRate] = useState<number>(() => {
+        if (savedPatti.dfRate !== undefined && savedPatti.dfRate !== null) return Number(savedPatti.dfRate);
+        return 0.3;
+    });
     const [showMillLessDf, setShowMillLessDf] = useState<boolean>(savedPatti.showLessDf !== undefined ? savedPatti.showLessDf : (savedPatti.lessDf !== undefined && savedPatti.lessDf !== null ? Number(savedPatti.lessDf) > 0 : true));
     const [showMillLessWb, setShowMillLessWb] = useState<boolean>(savedPatti.showLessWb !== undefined ? savedPatti.showLessWb : (savedPatti.lessWb !== undefined && savedPatti.lessWb !== null ? Number(savedPatti.lessWb) > 0 : true));
     const [millCustomAdditions, setMillCustomAdditions] = useState<CustomPattiItem[]>(() => {
@@ -1058,8 +1061,11 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
     const [partyBrokerageUnit] = useState<string>(savedPartyPatti.brokerageUnit || defaultBrokerageUnit);
     const [partyLfRate] = useState<number>(savedPartyPatti.lfRate !== undefined ? Number(savedPartyPatti.lfRate) : defaultLfRate);
     const [partyLfUnit] = useState<string>(savedPartyPatti.lfUnit || defaultLfUnit);
-    const [partyLessDf, setPartyLessDf] = useState<number>(savedPartyPatti.lessDf !== undefined ? Number(savedPartyPatti.lessDf) : 0);
     const [partyLessWb, setPartyLessWb] = useState<number>(savedPartyPatti.lessWb !== undefined ? Number(savedPartyPatti.lessWb) : 0);
+    const [partyDfRate, setPartyDfRate] = useState<number>(() => {
+        if (savedPartyPatti.dfRate !== undefined && savedPartyPatti.dfRate !== null) return Number(savedPartyPatti.dfRate);
+        return 0.3;
+    });
     const [showPartyLessDf, setShowPartyLessDf] = useState<boolean>(savedPartyPatti.showLessDf !== undefined ? savedPartyPatti.showLessDf : (savedPartyPatti.lessDf !== undefined && savedPartyPatti.lessDf !== null ? Number(savedPartyPatti.lessDf) > 0 : true));
     const [showPartyLessWb, setShowPartyLessWb] = useState<boolean>(savedPartyPatti.showLessWb !== undefined ? savedPartyPatti.showLessWb : (savedPartyPatti.lessWb !== undefined && savedPartyPatti.lessWb !== null ? Number(savedPartyPatti.lessWb) > 0 : true));
     const [partyCustomAdditions, setPartyCustomAdditions] = useState<CustomPattiItem[]>(() => {
@@ -1091,8 +1097,8 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
     const lfRate = pattiMode === 'party' ? partyLfRate : millLfRate;
     const lfUnit = pattiMode === 'party' ? partyLfUnit : millLfUnit;
 
-    const lessDf = pattiMode === 'party' ? partyLessDf : millLessDf;
-    const setLessDf = (val: number) => (pattiMode === 'party' ? setPartyLessDf(val) : setMillLessDf(val));
+    const dfRate = pattiMode === 'party' ? partyDfRate : millDfRate;
+    const setDfRate = (val: number) => (pattiMode === 'party' ? setPartyDfRate(val) : setMillDfRate(val));
 
     const lessWb = pattiMode === 'party' ? partyLessWb : millLessWb;
     const setLessWb = (val: number) => (pattiMode === 'party' ? setPartyLessWb(val) : setMillLessWb(val));
@@ -1226,11 +1232,13 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
             : (totalBags * lfRate)
     ).toFixed(2));
 
+    const dfAmount = Math.round(totalBags * (Number(dfRate) || 0));
+
     const totalCustomAdditions = customAdditions.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0);
     const totalCustomDeductions = customDeductions.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0);
 
     const totalAdditions = Number((hamaliAmount + brokerageAmount + lfAmount + totalCustomAdditions).toFixed(2));
-    const totalDeductions = Number(((showLessDf ? Number(lessDf) : 0) + (showLessWb ? Number(lessWb) : 0) + totalCustomDeductions).toFixed(2));
+    const totalDeductions = Number(((showLessDf ? dfAmount : 0) + (showLessWb ? Number(lessWb) : 0) + totalCustomDeductions).toFixed(2));
     const grandTotal = Math.round(totalLorryAmount + totalAdditions - totalDeductions);
 
     // Left side stats
@@ -1256,7 +1264,8 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                 lfUnit,
                 lfAmount,
                 customAdditions,
-                lessDf: showLessDf ? lessDf : 0,
+                lessDf: showLessDf ? dfAmount : 0,
+                dfRate: showLessDf ? dfRate : 0,
                 lessWb: showLessWb ? lessWb : 0,
                 showLessDf,
                 showLessWb,
@@ -1603,21 +1612,24 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                         {showLessDf && (
                             <div style={{ display: 'flex', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
                                 <span style={{ width: '135px', whiteSpace: 'nowrap', fontWeight: '500' }}>Less: DF:</span>
-                                <div style={{ width: '110px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '180px' }}>
                                     <input
                                         type="number"
+                                        step="0.01"
                                         disabled={isReadOnly}
-                                        value={lessDf}
-                                        onChange={(e) => setLessDf(Number(e.target.value))}
-                                        style={{ width: '80px', padding: '2px', textAlign: 'right', fontSize: '12px', border: '1px solid #ccc', borderRadius: '3px' }}
+                                        value={dfRate === 0 && !isReadOnly ? '' : dfRate}
+                                        onChange={(e) => setDfRate(e.target.value === '' ? 0 : Number(e.target.value))}
+                                        style={{ width: '60px', padding: '2px 4px', textAlign: 'center', fontSize: '12px', border: '1px solid #ccc', borderRadius: '3px', fontWeight: '600' }}
                                     />
+                                    <span style={{ fontSize: '12px', color: '#1e293b', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                                        {totalBags}bags x {Number(dfRate || 0).toFixed(2)}
+                                    </span>
                                 </div>
-                                <span style={{ flex: 1, textAlign: 'right', fontWeight: '600', color: '#dc2626' }}>- Rs {Number(lessDf).toLocaleString('en-IN')}</span>
+                                <span style={{ flex: 1, textAlign: 'right', fontWeight: '600', color: '#dc2626' }}>- Rs {dfAmount.toLocaleString('en-IN')}</span>
                                 {!isReadOnly && (
                                     <button
                                         type="button"
                                         onClick={() => {
-                                            setLessDf(0);
                                             setShowLessDf(false);
                                         }}
                                         style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: 'bold', cursor: 'pointer', padding: '0 4px', fontSize: '14px', marginLeft: '6px' }}
@@ -1708,7 +1720,10 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                                 {!showLessDf && (
                                     <button
                                         type="button"
-                                        onClick={() => setShowLessDf(true)}
+                                        onClick={() => {
+                                            setShowLessDf(true);
+                                            if (!dfRate || dfRate === 0) setDfRate(0.3);
+                                        }}
                                         style={{ background: 'none', border: 'none', color: '#dc2626', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                                     >
                                         + Add Less DF
