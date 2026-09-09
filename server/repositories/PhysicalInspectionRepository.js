@@ -127,8 +127,8 @@ class PhysicalInspectionRepository {
         required: false,
         include: [
           { model: require('../models/WeightBridge'), as: 'millWeightBridge', required: false, attributes: ['id', 'name', 'location'] },
-          { model: require('../models/Warehouse'), as: 'placeWarehouse', required: false, attributes: ['id', 'name', 'code'] },
-          { model: require('../models/Kunchinittu'), as: 'placeKunchinittuData', required: false, attributes: ['id', 'name', 'code'] },
+          { model: require('../models/Location').Warehouse, as: 'placeWarehouse', required: false, attributes: ['id', 'name', 'code'] },
+          { model: require('../models/Location').Kunchinittu, as: 'placeKunchinittuData', required: false, attributes: ['id', 'name', 'code'] },
           { model: User, as: 'wbAddedByUser', required: false, attributes: ['id', 'username', 'fullName'] },
           { model: User, as: 'wbApprover', required: false, attributes: ['id', 'username', 'fullName', 'role'] },
           { model: User, as: 'placeAddedByUser', required: false, attributes: ['id', 'username', 'fullName'] },

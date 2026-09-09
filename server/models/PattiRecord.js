@@ -130,6 +130,60 @@ const PattiRecord = sequelize.define('PattiRecord', {
     allowNull: true,
     defaultValue: null,
     field: 'party_patti'
+  },
+  egbRate: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    defaultValue: 0.00,
+    field: 'egb_rate'
+  },
+  egbAmount: {
+    type: DataTypes.DECIMAL(12, 2),
+    allowNull: true,
+    defaultValue: 0.00,
+    field: 'egb_amount'
+  },
+  showEgb: {
+    type: DataTypes.BOOLEAN,
+    allowNull: true,
+    defaultValue: false,
+    field: 'show_egb'
+  },
+  dfRate: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    defaultValue: 0.30,
+    field: 'df_rate'
+  },
+  lfAdvanceBrk: {
+    type: DataTypes.DECIMAL(12, 2),
+    allowNull: true,
+    defaultValue: 0.00,
+    field: 'lf_advance_brk'
+  },
+  showLfAdvanceBrk: {
+    type: DataTypes.BOOLEAN,
+    allowNull: true,
+    defaultValue: false,
+    field: 'show_lf_advance_brk'
+  },
+  cdRate: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    defaultValue: 0.00,
+    field: 'cd_rate'
+  },
+  cdAmount: {
+    type: DataTypes.DECIMAL(12, 2),
+    allowNull: true,
+    defaultValue: 0.00,
+    field: 'cd_amount'
+  },
+  showCd: {
+    type: DataTypes.BOOLEAN,
+    allowNull: true,
+    defaultValue: false,
+    field: 'show_cd'
   }
 }, {
   tableName: 'patti_records',
@@ -150,7 +204,16 @@ const runPattiAutoMigration = async () => {
       `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS avg_wb_per_bag DECIMAL(10, 2);`,
       `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS avg_rate DECIMAL(10, 2);`,
       `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS patti_mode VARCHAR(20) DEFAULT 'mill';`,
-      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS party_patti JSONB;`
+      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS party_patti JSONB;`,
+      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS egb_rate DECIMAL(10, 2) DEFAULT 0.00;`,
+      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS egb_amount DECIMAL(12, 2) DEFAULT 0.00;`,
+      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS show_egb BOOLEAN DEFAULT false;`,
+      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS df_rate DECIMAL(10, 2) DEFAULT 0.30;`,
+      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS lf_advance_brk DECIMAL(12, 2) DEFAULT 0.00;`,
+      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS show_lf_advance_brk BOOLEAN DEFAULT false;`,
+      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS cd_rate DECIMAL(10, 2) DEFAULT 0.00;`,
+      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS cd_amount DECIMAL(12, 2) DEFAULT 0.00;`,
+      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS show_cd BOOLEAN DEFAULT false;`
     ];
     for (const q of queries) {
       await sequelize.query(q).catch(() => {});

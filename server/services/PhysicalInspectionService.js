@@ -972,6 +972,7 @@ class PhysicalInspectionService {
         samplingStages: inspection.samplingStages || {},
         lotAllotment: inspection.lotAllotment,
         linkedPattiRate: inspection.linkedPattiRate || null,
+        lorryFreight: inspection.lorryFreight || null,
         createdAt: inspection.createdAt,
         lorryTransitDetail: inspection.lorryTransitDetail || null,
         inventoryQualityParameters: inspection.inventoryQualityParameters || inspection.lorryTransitDetail?.inventoryQualityParameters || []

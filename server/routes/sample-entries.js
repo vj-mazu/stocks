@@ -96,6 +96,7 @@ const QualityParameters = require('../models/QualityParameters');
 const SampleEntryOffering = require('../models/SampleEntryOffering');
 const CookingReport = require('../models/CookingReport');
 const SampleEntryAuditLog = require('../models/SampleEntryAuditLog');
+const PhysicalInspection = require('../models/PhysicalInspection');
 const User = require('../models/User');
 const { attachLoadingLotsHistories } = require('../utils/historyUtil');
 const { shouldCreateNewQualityAttempt, normalizeQualityEntryIntent } = require('../utils/qualityEntryIntent');
@@ -1448,6 +1449,7 @@ router.post('/:id/rate-linking-decision', authenticateToken, async (req, res) =>
         trip.hamaliUnit = data.rateInfo.hamaliUnit;
         trip.revisedLf = data.rateInfo.lf;
         trip.lfUnit = data.rateInfo.lfUnit;
+        trip.changed('linkedPattiRate', true);
         await trip.save();
         await AuditService.logUpdate(req.user.userId, 'physical_inspections', trip.id, oldTrip, trip);
 
@@ -1466,6 +1468,15 @@ router.post('/:id/rate-linking-decision', authenticateToken, async (req, res) =>
           offeringUpdates.hamaliUnit = data.rateInfo.hamaliUnit;
           offeringUpdates.lf = data.rateInfo.lf;
           offeringUpdates.lfUnit = data.rateInfo.lfUnit;
+          if (data.rateInfo.marketPrice !== undefined) {
+            offeringUpdates.marketPrice = data.rateInfo.marketPrice;
+            offeringUpdates.marketPriceValue = data.rateInfo.marketPriceValue;
+            offeringUpdates.marketPriceUnit = data.rateInfo.marketPriceUnit;
+          }
+          if (data.rateInfo.checkPost !== undefined) {
+            offeringUpdates.checkPost = data.rateInfo.checkPost;
+            offeringUpdates.checkPostValue = data.rateInfo.checkPostValue;
+          }
         }
         await offering.update(offeringUpdates);
       } else {
@@ -2144,11 +2155,20 @@ router.post('/:id/patti', authenticateToken, async (req, res) => {
       lfRate: lfRate !== undefined ? Number(lfRate) : 0,
       lfUnit: lfUnit || 'per_bag',
       lfAmount: lfAmount !== undefined ? Number(lfAmount) : 0,
+      egbRate: req.body.egbRate !== undefined ? Number(req.body.egbRate) : 0,
+      egbAmount: req.body.egbAmount !== undefined ? Number(req.body.egbAmount) : 0,
+      showEgb: req.body.showEgb !== undefined ? req.body.showEgb : false,
       customAdditions: Array.isArray(customAdditions) ? customAdditions : [],
       lessDf: Number(lessDf) || 0,
+      dfRate: req.body.dfRate !== undefined ? Number(req.body.dfRate) : 0.3,
       lessWb: Number(lessWb) || 0,
       showLessDf: req.body.showLessDf !== undefined ? req.body.showLessDf : (Number(lessDf) > 0),
       showLessWb: req.body.showLessWb !== undefined ? req.body.showLessWb : (Number(lessWb) > 0),
+      lfAdvanceBrk: req.body.lfAdvanceBrk !== undefined ? Number(req.body.lfAdvanceBrk) : 0,
+      showLfAdvanceBrk: req.body.showLfAdvanceBrk !== undefined ? req.body.showLfAdvanceBrk : (Number(req.body.lfAdvanceBrk) > 0),
+      cdRate: req.body.cdRate !== undefined ? Number(req.body.cdRate) : 0,
+      cdAmount: req.body.cdAmount !== undefined ? Number(req.body.cdAmount) : 0,
+      showCd: req.body.showCd !== undefined ? req.body.showCd : false,
       customDeductions: Array.isArray(customDeductions) ? customDeductions : [],
       totalAmount: Number(totalAmount) || 0,
       grandTotal: Number(grandTotal) || 0,
@@ -3736,6 +3756,11 @@ router.post('/:id/final-price', authenticateToken, async (req, res) => {
         isDispute: Boolean(req.body.isDispute === true || req.body.isDispute === 'true' || req.body.revisedRateOption === 'dispute'),
         isRevision: Boolean(req.body.isRevision === true || req.body.isRevision === 'true'),
         linkedRevisionId: req.body.linkedRevisionId || null,
+        marketPrice: req.body.marketPrice !== undefined ? Boolean(req.body.marketPrice) : false,
+        marketPriceValue: req.body.marketPriceValue !== undefined && req.body.marketPriceValue !== null && req.body.marketPriceValue !== '' ? Number(req.body.marketPriceValue) : null,
+        marketPriceUnit: req.body.marketPriceUnit || 'lumps',
+        checkPost: req.body.checkPost !== undefined ? Boolean(req.body.checkPost) : false,
+        checkPostValue: req.body.checkPostValue !== undefined && req.body.checkPostValue !== null && String(req.body.checkPostValue).trim() !== '' ? String(req.body.checkPostValue).trim() : null,
         linkedAt: new Date().toISOString(),
         linkedByUserId: req.user.userId
       };
@@ -3766,7 +3791,12 @@ router.post('/:id/final-price', authenticateToken, async (req, res) => {
             hamali: rateInfo.hamali,
             hamaliUnit: rateInfo.hamaliUnit,
             lf: rateInfo.lf,
-            lfUnit: rateInfo.lfUnit
+            lfUnit: rateInfo.lfUnit,
+            marketPrice: rateInfo.marketPrice,
+            marketPriceValue: rateInfo.marketPriceValue,
+            marketPriceUnit: rateInfo.marketPriceUnit,
+            checkPost: rateInfo.checkPost,
+            checkPostValue: rateInfo.checkPostValue
           }
         });
 
@@ -3787,6 +3817,7 @@ router.post('/:id/final-price', authenticateToken, async (req, res) => {
       trip.revisedLf = rateInfo.lf;
       trip.lfUnit = rateInfo.lfUnit;
 
+      trip.changed('linkedPattiRate', true);
       await trip.save();
       await AuditService.logUpdate(req.user.userId, 'physical_inspections', trip.id, oldTrip, trip);
 
@@ -4742,6 +4773,67 @@ router.get('/:id/inspection-progress', authenticateToken, async (req, res) => {
     res.json(progress);
   } catch (error) {
     console.error('Error getting inspection progress:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Save or update Lorry Freight Payment for a physical inspection trip
+router.post('/inspections/:inspectionId/lorry-freight', authenticateToken, async (req, res) => {
+  try {
+    const { inspectionId } = req.params;
+    const {
+      freightRate,
+      freightUnit,
+      bags,
+      netWeight,
+      baseFreight,
+      wbAmount,
+      showWb,
+      shortageAmount,
+      showShortage,
+      lfAdvanceBrk,
+      customAdditions,
+      customDeductions,
+      totalPayable,
+      loadedDate,
+      createdDate,
+      remarks,
+      status
+    } = req.body;
+
+    const inspection = await PhysicalInspection.findByPk(inspectionId);
+    if (!inspection) {
+      return res.status(404).json({ error: 'Physical inspection trip not found' });
+    }
+
+    const lorryFreightData = {
+      status: status || 'done',
+      freightRate: Number(freightRate) || 0,
+      freightUnit: freightUnit || 'per_bag',
+      bags: Number(bags) || 0,
+      netWeight: netWeight !== undefined && netWeight !== null ? Number(netWeight) : null,
+      baseFreight: Number(baseFreight) || 0,
+      wbAmount: Number(wbAmount) || 0,
+      showWb: showWb !== undefined ? !!showWb : true,
+      shortageAmount: Number(shortageAmount) || 0,
+      showShortage: showShortage !== undefined ? !!showShortage : true,
+      lfAdvanceBrk: Number(lfAdvanceBrk) || 0,
+      customAdditions: Array.isArray(customAdditions) ? customAdditions : [],
+      customDeductions: Array.isArray(customDeductions) ? customDeductions : [],
+      totalPayable: Number(totalPayable) || 0,
+      loadedDate: loadedDate || inspection.inspectionDate,
+      createdDate: createdDate || new Date().toISOString(),
+      remarks: remarks || '',
+      savedByUserId: req.user.id,
+      savedByUsername: req.user.username,
+      savedAt: new Date().toISOString()
+    };
+
+    await inspection.update({ lorryFreight: lorryFreightData });
+
+    res.json({ success: true, lorryFreight: lorryFreightData, inspectionId });
+  } catch (error) {
+    console.error('Error saving lorry freight:', error);
     res.status(500).json({ error: error.message });
   }
 });

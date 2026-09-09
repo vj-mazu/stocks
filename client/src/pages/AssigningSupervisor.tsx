@@ -148,7 +148,6 @@ const AssigningSupervisor: React.FC = () => {
       const filteredEntries = entriesWithoutSupervisor.filter((entry: SampleEntry) => {
         const o = offerCache[entry.id] || {};
         const hasLf = hasLfForRateType(o.baseRateType);
-        const hasEgb = hasEgbForRateType(o.baseRateType);
         const effectiveHamaliValue = o.hamali ?? o.hamaliPerKg;
         const suteMissing = !parseFloat(o.finalSute) && !parseFloat(o.sute);
         const mstMissing = !parseFloat(o.moistureValue);
@@ -157,10 +156,8 @@ const AssigningSupervisor: React.FC = () => {
         const lfMissing = hasLf && !parseFloat(o.lf);
         const cdMissing = !!o.cdEnabled && !parseFloat(o.cdValue);
         const bankLoanMissing = !!o.bankLoanEnabled && !parseFloat(o.bankLoanValue);
-        const paymentEnabled = !!o.paymentConditionEnabled;
-        const paymentMissing = paymentEnabled && !parseInt(o.paymentConditionValue, 10);
-        const egbMissing = hasEgb && o.egbType === 'purchase' && !parseFloat(o.egbValue);
-        const needsFill = suteMissing || mstMissing || hamaliMissing || bkrgMissing || lfMissing || cdMissing || bankLoanMissing || paymentMissing || egbMissing;
+        const paymentMissing = !(o.paymentConditionValue == null || o.paymentConditionValue === '') && !parseInt(o.paymentConditionValue, 10);
+        const needsFill = suteMissing || mstMissing || hamaliMissing || bkrgMissing || lfMissing || cdMissing || bankLoanMissing || paymentMissing;
         return !needsFill;
       });
 
@@ -202,7 +199,6 @@ const AssigningSupervisor: React.FC = () => {
 
     // Safety check - shouldn't happen due to UI disabled state, but just in case
     const hasLf = hasLfForRateType(o.baseRateType);
-    const hasEgb = hasEgbForRateType(o.baseRateType);
     const effectiveHamaliValue = o.hamali ?? o.hamaliPerKg;
     const suteMissing = !parseFloat(o.finalSute) && !parseFloat(o.sute);
     const mstMissing = !parseFloat(o.moistureValue);
@@ -211,10 +207,8 @@ const AssigningSupervisor: React.FC = () => {
     const lfMissing = hasLf && !parseFloat(o.lf);
     const cdMissing = !!o.cdEnabled && !parseFloat(o.cdValue);
     const bankLoanMissing = !!o.bankLoanEnabled && !parseFloat(o.bankLoanValue);
-    const paymentEnabled = !!o.paymentConditionEnabled;
-    const paymentMissing = paymentEnabled && !parseInt(o.paymentConditionValue, 10);
-    const egbMissing = hasEgb && o.egbType === 'purchase' && !parseFloat(o.egbValue);
-    const needsFill = suteMissing || mstMissing || hamaliMissing || bkrgMissing || lfMissing || cdMissing || bankLoanMissing || paymentMissing || egbMissing;
+    const paymentMissing = !(o.paymentConditionValue == null || o.paymentConditionValue === '') && !parseInt(o.paymentConditionValue, 10);
+    const needsFill = suteMissing || mstMissing || hamaliMissing || bkrgMissing || lfMissing || cdMissing || bankLoanMissing || paymentMissing;
 
     if (needsFill) {
       showNotification('Please fill missing financial values in the Loading Lots tab first.', 'error');

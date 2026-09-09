@@ -281,16 +281,30 @@ const formatMarketPriceUnitLabel = (value?: string) => value === 'percentage'
     ? '%'
     : 'Lumps';
 const formatMarketPriceCell = (src: any) => {
-    if (!src || !src.marketPrice || src.marketPriceValue === null || src.marketPriceValue === undefined || src.marketPriceValue === '' || Number(src.marketPriceValue) === 0) return '-';
-    const unit = src.marketPriceUnit;
-    const suffix = unit === 'percentage' ? '%' : ' (Lumps)';
-    return `${toNumberText(src.marketPriceValue)}${suffix}`;
+    if (!src) return '-';
+    const isEnabled = src.marketPrice === true || src.marketPrice === 'true' || src.marketPrice === 1 || src.marketPrice === '1';
+    const val = src.marketPriceValue;
+    if (val !== null && val !== undefined && String(val).trim() !== '') {
+        const unit = src.marketPriceUnit;
+        const suffix = unit === 'percentage' ? '%' : ' (Lumps)';
+        return `${toNumberText(val)}${suffix}`;
+    }
+    if (isEnabled) return 'Yes';
+    return '-';
 };
 const formatCheckPostCell = (src: any) => {
-    if (!src || !src.checkPost || src.checkPostValue === null || src.checkPostValue === undefined || String(src.checkPostValue).trim() === '' || Number(src.checkPostValue) === 0) return '-';
-    const unit = src.checkPostUnit;
-    const suffix = unit === 'percentage' ? '%' : ' (Lumps)';
-    return `${toNumberText(src.checkPostValue)}${suffix}`;
+    if (!src) return '-';
+    const isEnabled = src.checkPost === true || src.checkPost === 'true' || src.checkPost === 1 || src.checkPost === '1';
+    const val = src.checkPostValue;
+    if (val !== null && val !== undefined && String(val).trim() !== '') {
+        const num = Number(val);
+        if (!isNaN(num)) {
+            return `${num}`;
+        }
+        return String(val).trim();
+    }
+    if (isEnabled) return 'Yes';
+    return '-';
 };
 const fmtNum = (v: any) => {
     if (v === null || v === undefined || v === '') return '-';
@@ -707,6 +721,17 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         linkedRevisionId: '',
         disputeReason: ''
     });
+
+    const [pattiLinkModalData, setPattiLinkModalData] = useState<{
+        isOpen: boolean;
+        rateInfo: any;
+        marketPrice: boolean;
+        marketPriceValue: string;
+        marketPriceUnit: 'percentage' | 'lumps';
+        checkPost: boolean;
+        checkPostValue: string;
+        onConfirm?: (finalParams: any) => Promise<void> | void;
+    } | null>(null);
 
     const triggerDisputeFlow = async (inspectionId: string, stageKey: string) => {
         if (onTriggerDispute) {
@@ -1300,7 +1325,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                     } else if (name === 'CD') {
                                         thStyle.width = '55px';
                                         thStyle.textAlign = 'center';
-                                    } else if (name === 'MARKET PRICE') {
+                                    } else if (name === 'MARKET FEES' || name === 'MARKET PRICE') {
                                         thStyle.width = '85px';
                                         thStyle.textAlign = 'center';
                                     } else if (name === 'CHECK POST') {
@@ -1427,7 +1452,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                 cellStyle.width = '55px';
                                                 cellStyle.maxWidth = '55px';
                                                 cellStyle.textAlign = 'center';
-                                            } else if (upperCol === 'MARKET PRICE') {
+                                            } else if (upperCol === 'MARKET FEES' || upperCol === 'MARKET PRICE') {
                                                 cellStyle.width = '85px';
                                                 cellStyle.maxWidth = '85px';
                                                 cellStyle.textAlign = 'center';
@@ -3321,8 +3346,48 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         const rows: any[] = [];
         const versions = Array.isArray(o.offerVersions) ? o.offerVersions : [];
         const showLinkAction = typeof rateInfoAction === 'function';
+
+        const initiateLink = (rateInfo: any, sourceMeta: { marketPrice?: boolean; checkPost?: boolean; marketPriceValue?: any; marketPriceUnit?: any; checkPostValue?: any }) => {
+            if (!rateInfoAction) return;
+            const isMarketPriceEnabled = Boolean(sourceMeta.marketPrice);
+            const isCheckPostEnabled = Boolean(sourceMeta.checkPost);
+
+            if (isMarketPriceEnabled || isCheckPostEnabled) {
+                setPattiLinkModalData({
+                    isOpen: true,
+                    rateInfo,
+                    marketPrice: isMarketPriceEnabled,
+                    marketPriceValue: sourceMeta.marketPriceValue !== undefined && sourceMeta.marketPriceValue !== null ? String(sourceMeta.marketPriceValue) : '',
+                    marketPriceUnit: sourceMeta.marketPriceUnit === 'lumps' ? 'lumps' : 'percentage',
+                    checkPost: isCheckPostEnabled,
+                    checkPostValue: sourceMeta.checkPostValue !== undefined && sourceMeta.checkPostValue !== null ? String(sourceMeta.checkPostValue) : '',
+                    onConfirm: async (finalParams: any) => {
+                        await rateInfoAction({
+                            ...rateInfo,
+                            marketPrice: isMarketPriceEnabled,
+                            marketPriceValue: isMarketPriceEnabled && finalParams.marketPriceValue !== '' && finalParams.marketPriceValue !== null ? Number(finalParams.marketPriceValue) : null,
+                            marketPriceUnit: isMarketPriceEnabled ? finalParams.marketPriceUnit : 'lumps',
+                            checkPost: isCheckPostEnabled,
+                            checkPostValue: isCheckPostEnabled && finalParams.checkPostValue !== '' && finalParams.checkPostValue !== null ? String(finalParams.checkPostValue).trim() : null,
+                        });
+                        setPattiLinkModalData(null);
+                    }
+                });
+            } else {
+                rateInfoAction({
+                    ...rateInfo,
+                    marketPrice: false,
+                    marketPriceValue: null,
+                    marketPriceUnit: 'lumps',
+                    checkPost: false,
+                    checkPostValue: null,
+                });
+            }
+        };
         
-        const allInsps = detailEntry.physicalInspections || (detailEntry as any).lotAllotment?.physicalInspections || [];
+        const allInsps = (inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections) && inspectionsProgress.previousInspections.length > 0)
+            ? inspectionsProgress.previousInspections
+            : (detailEntry.physicalInspections || (detailEntry as any).lotAllotment?.physicalInspections || []);
         const targetInsp = allInsps.find((i: any) => String(i.id) === String(targetLorryTripId));
         const linkedPattiRate = targetInsp?.linkedPattiRate;
 
@@ -3337,7 +3402,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 
                 const actionBtn = showLinkAction ? (
                     <button
-                        onClick={() => rateInfoAction({
+                        onClick={() => initiateLink({
                             rate: Number(v.offerBaseRateValue || v.offeringPrice || 0),
                             rateType: v.baseRateType || o.baseRateType || 'PD_LOOSE',
                             sute: Number(suteVal || 0),
@@ -3349,6 +3414,12 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                             lfUnit: v.lfUnit || o.lfUnit || 'per_bag',
                             isDispute: false,
                             isRevision: false
+                        }, {
+                            marketPrice: v.marketPrice !== undefined ? v.marketPrice : o.marketPrice,
+                            checkPost: v.checkPost !== undefined ? v.checkPost : o.checkPost,
+                            marketPriceValue: v.marketPriceValue ?? o.marketPriceValue,
+                            marketPriceUnit: v.marketPriceUnit ?? o.marketPriceUnit,
+                            checkPostValue: v.checkPostValue ?? o.checkPostValue
                         })}
                         style={{ background: '#22c55e', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '10.5px', fontWeight: 'bold' }}
                     >
@@ -3404,7 +3475,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             
             const finalActionBtn = showLinkAction ? (
                 <button
-                    onClick={() => rateInfoAction({
+                    onClick={() => initiateLink({
                         rate: Number(o.finalPrice || o.finalBaseRate || 0),
                         rateType: o.finalBaseRateType || o.baseRateType || 'PD_LOOSE',
                         sute: Number(o.finalSute || o.sute || 0),
@@ -3416,6 +3487,12 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         lfUnit: o.lfUnit || 'per_bag',
                         isDispute: false,
                         isRevision: false
+                    }, {
+                        marketPrice: o.marketPrice,
+                        checkPost: o.checkPost,
+                        marketPriceValue: o.marketPriceValue,
+                        marketPriceUnit: o.marketPriceUnit,
+                        checkPostValue: o.checkPostValue
                     })}
                     style={{ background: '#22c55e', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '10.5px', fontWeight: 'bold' }}
                 >
@@ -3443,8 +3520,15 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 formatUnitValueText(o.egbValue ?? 0, toTitleCase(o.egbType || 'Mill')),
                 o.cdValue ? formatFlexibleValue(o.cdValue) : '-',
                 o.bankLoanValue ? `Rs ${formatIndianCurrencyFlexible(o.bankLoanValue)}` : '-',
-                formatMarketPriceCell(o),
-                formatCheckPostCell(o),
+                formatMarketPriceCell({
+                    marketPrice: (isFinalMatch && linkedPattiRate?.marketPrice !== undefined) ? linkedPattiRate.marketPrice : o.marketPrice,
+                    marketPriceValue: (isFinalMatch && linkedPattiRate?.marketPriceValue !== undefined && linkedPattiRate?.marketPriceValue !== null) ? linkedPattiRate.marketPriceValue : o.marketPriceValue,
+                    marketPriceUnit: (isFinalMatch && linkedPattiRate?.marketPriceUnit !== undefined) ? linkedPattiRate.marketPriceUnit : o.marketPriceUnit
+                }),
+                formatCheckPostCell({
+                    checkPost: (isFinalMatch && linkedPattiRate?.checkPost !== undefined) ? linkedPattiRate.checkPost : o.checkPost,
+                    checkPostValue: (isFinalMatch && linkedPattiRate?.checkPostValue !== undefined && linkedPattiRate?.checkPostValue !== null) ? linkedPattiRate.checkPostValue : o.checkPostValue
+                }),
                 <span style={{ fontWeight: 600 }}>{formatPaymentText(o.paymentConditionValue || 15, o.paymentConditionUnit || 'Days')}</span>,
                 finalActionBtn
             ];
@@ -3464,7 +3548,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
 
             const finalActionBtn2 = showLinkAction ? (
                 <button
-                    onClick={() => rateInfoAction({
+                    onClick={() => initiateLink({
                         rate: Number(o.finalPrice2 || o.finalBaseRate2 || 0),
                         rateType: (o as any).finalBaseRateType2 || o.finalBaseRateType || o.baseRateType || 'PD_LOOSE',
                         sute: Number(o.finalSute2 || o.finalSute || o.sute || 0),
@@ -3476,6 +3560,12 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         lfUnit: o.lfUnit2 || o.lfUnit || 'per_bag',
                         isDispute: false,
                         isRevision: false
+                    }, {
+                        marketPrice: o.marketPrice,
+                        checkPost: o.checkPost,
+                        marketPriceValue: o.marketPriceValue,
+                        marketPriceUnit: o.marketPriceUnit,
+                        checkPostValue: o.checkPostValue
                     })}
                     style={{ background: '#22c55e', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '10.5px', fontWeight: 'bold' }}
                 >
@@ -3505,8 +3595,15 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 formatUnitValueText(o.egbValue2 ?? 0, toTitleCase(o.egbType2 || 'Mill')),
                 o.cdValue2 ? formatFlexibleValue(o.cdValue2) : '-',
                 o.bankLoanValue2 ? `Rs ${formatIndianCurrencyFlexible(o.bankLoanValue2)}` : '-',
-                formatMarketPriceCell(o),
-                formatCheckPostCell(o),
+                formatMarketPriceCell({
+                    marketPrice: (isFinalMatch2 && linkedPattiRate?.marketPrice !== undefined) ? linkedPattiRate.marketPrice : o.marketPrice,
+                    marketPriceValue: (isFinalMatch2 && linkedPattiRate?.marketPriceValue !== undefined && linkedPattiRate?.marketPriceValue !== null) ? linkedPattiRate.marketPriceValue : o.marketPriceValue,
+                    marketPriceUnit: (isFinalMatch2 && linkedPattiRate?.marketPriceUnit !== undefined) ? linkedPattiRate.marketPriceUnit : o.marketPriceUnit
+                }),
+                formatCheckPostCell({
+                    checkPost: (isFinalMatch2 && linkedPattiRate?.checkPost !== undefined) ? linkedPattiRate.checkPost : o.checkPost,
+                    checkPostValue: (isFinalMatch2 && linkedPattiRate?.checkPostValue !== undefined && linkedPattiRate?.checkPostValue !== null) ? linkedPattiRate.checkPostValue : o.checkPostValue
+                }),
                 <span style={{ fontWeight: 600 }}>{formatPaymentText(o.paymentConditionValue2 || o.paymentConditionValue || 15, o.paymentConditionUnit2 || o.paymentConditionUnit || 'Days')}</span>,
                 finalActionBtn2
             ];
@@ -3709,11 +3806,18 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     // BANK LOAN
                     o.bankLoanValue ? `Rs ${formatIndianCurrencyFlexible(o.bankLoanValue)}` : '-',
                     // MARKET PRICE
-                    formatMarketPriceCell(o),
+                    formatMarketPriceCell({
+                        marketPrice: pendingData.marketPrice !== undefined ? pendingData.marketPrice : o.marketPrice,
+                        marketPriceValue: pendingData.marketPriceValue !== undefined ? pendingData.marketPriceValue : o.marketPriceValue,
+                        marketPriceUnit: pendingData.marketPriceUnit !== undefined ? pendingData.marketPriceUnit : o.marketPriceUnit
+                    }),
                     // CHECK POST
-                    formatCheckPostCell(o),
+                    formatCheckPostCell({
+                        checkPost: pendingData.checkPost !== undefined ? pendingData.checkPost : o.checkPost,
+                        checkPostValue: pendingData.checkPostValue !== undefined ? pendingData.checkPostValue : o.checkPostValue
+                    }),
                     // PAYMENT
-                    <span style={{ fontWeight: 600 }}>{formatPaymentText(o.paymentConditionValue || 15, o.paymentConditionUnit || 'Days')}</span>,
+                    <span style={{ fontWeight: 600 }}>{formatPaymentText(pendingData.paymentConditionValue || o.paymentConditionValue || 15, pendingData.paymentConditionUnit || o.paymentConditionUnit || 'Days')}</span>,
                     pendingData.disputeReason || '-'
                 ]);
             });
@@ -3890,7 +3994,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
 
                 const disputeActionBtn = showLinkAction ? (
                     <button
-                        onClick={() => rateInfoAction({
+                        onClick={() => initiateLink({
                             rate: Number(displayDisputeRate || o.finalPrice || o.finalBaseRate || 0),
                             rateType: displayDisputeType || o.finalBaseRateType || o.baseRateType || 'PD_LOOSE',
                             sute: Number(v.finalSute !== undefined && v.finalSute !== null ? v.finalSute : (o.finalSute || o.sute || 0)),
@@ -3904,6 +4008,12 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                             isDispute: Boolean(isDispute),
                             isRevision: Boolean(isRevision),
                             linkedRevisionId: isRevision ? (v.id || null) : null
+                        }, {
+                            marketPrice: v.marketPrice !== undefined ? v.marketPrice : o.marketPrice,
+                            checkPost: v.checkPost !== undefined ? v.checkPost : o.checkPost,
+                            marketPriceValue: v.marketPriceValue ?? o.marketPriceValue,
+                            marketPriceUnit: v.marketPriceUnit ?? o.marketPriceUnit,
+                            checkPostValue: v.checkPostValue ?? o.checkPostValue
                         })}
                         style={{ background: '#22c55e', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '10.5px', fontWeight: 'bold' }}
                     >
@@ -3995,14 +4105,14 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     v.bankLoanValue || o.bankLoanValue ? `Rs ${formatIndianCurrencyFlexible(v.bankLoanValue || o.bankLoanValue)}` : '-',
                     // MARKET PRICE
                     formatMarketPriceCell({
-                        marketPrice: v.marketPrice !== undefined ? v.marketPrice : o.marketPrice,
-                        marketPriceValue: v.marketPriceValue ?? o.marketPriceValue,
-                        marketPriceUnit: v.marketPriceUnit ?? o.marketPriceUnit
+                        marketPrice: (isMatch && linkedPattiRate?.marketPrice !== undefined) ? linkedPattiRate.marketPrice : (v.marketPrice !== undefined ? v.marketPrice : o.marketPrice),
+                        marketPriceValue: (isMatch && linkedPattiRate?.marketPriceValue !== undefined && linkedPattiRate?.marketPriceValue !== null) ? linkedPattiRate.marketPriceValue : (v.marketPriceValue ?? o.marketPriceValue),
+                        marketPriceUnit: (isMatch && linkedPattiRate?.marketPriceUnit !== undefined) ? linkedPattiRate.marketPriceUnit : (v.marketPriceUnit ?? o.marketPriceUnit)
                     }),
                     // CHECK POST
                     formatCheckPostCell({
-                        checkPost: v.checkPost !== undefined ? v.checkPost : o.checkPost,
-                        checkPostValue: v.checkPostValue ?? o.checkPostValue
+                        checkPost: (isMatch && linkedPattiRate?.checkPost !== undefined) ? linkedPattiRate.checkPost : (v.checkPost !== undefined ? v.checkPost : o.checkPost),
+                        checkPostValue: (isMatch && linkedPattiRate?.checkPostValue !== undefined && linkedPattiRate?.checkPostValue !== null) ? linkedPattiRate.checkPostValue : (v.checkPostValue ?? o.checkPostValue)
                     }),
                     // PAYMENT
                     <span style={{ fontWeight: 600 }}>{formatPaymentText(v.paymentConditionValue || o.paymentConditionValue || 15, v.paymentConditionUnit || o.paymentConditionUnit || 'Days')}</span>,
@@ -5260,7 +5370,24 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                             {isPendingRate ? (
                                                                                 <span style={{ color: '#d97706', background: '#fffbeb', padding: '2px 8px', borderRadius: '4px', border: '1px solid #fef3c7', whiteSpace: 'nowrap' }}>
                                                                                     Pending ({getPendingRateLabel(patti, patti.pendingRateLinkingData)})
-{/* Patti Rate Linking Details - for Band Mall Book */}
+                                                                                </span>
+                                                                            ) : tripRate ? (
+                                                                                <span style={{ color: '#16a34a', background: '#f0fdf4', padding: '2px 8px', borderRadius: '4px', border: '1px solid #bbf7d0' }}>Completed</span>
+                                                                            ) : (
+                                                                                '-'
+                                                                            )}
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+
+                                    {/* Patti Rate Linking Details - for Band Mall Book */}
                                     {(detailEntry as any).isBandMalalBook && (() => {
                                         const rawInspections = (detailEntry as any).physicalInspections || [];
                                         const patti = detailEntry.offering || {};
@@ -5340,22 +5467,6 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1' }}>{patti.paymentConditionValue ? `${fmtNum(patti.paymentConditionValue)} ${patti.paymentConditionUnit === 'month' ? 'Month' : 'Days'}` : '-'}</td>
                                                                         <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #cbd5e1', fontWeight: '700' }}>
                                                                             {isPendingRate ? <span style={{ color: '#d97706', background: '#fffbeb', padding: '2px 8px', borderRadius: '4px', border: '1px solid #fef3c7' }}>Pending</span> : tripRate ? <span style={{ color: '#16a34a', background: '#f0fdf4', padding: '2px 8px', borderRadius: '4px', border: '1px solid #bbf7d0' }}>Completed</span> : '-'}
-                                                                        </td>
-                                                                    </tr>
-                                                                );
-                                                            })}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                        );
-                                    })()}
-                                                                                </span>
-                                                                            ) : tripRate ? (
-                                                                                <span style={{ color: '#16a34a', background: '#f0fdf4', padding: '2px 8px', borderRadius: '4px', border: '1px solid #bbf7d0' }}>Completed</span>
-                                                                            ) : (
-                                                                                '-'
-                                                                            )}
                                                                         </td>
                                                                     </tr>
                                                                 );
@@ -5601,7 +5712,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                                              <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '75px', whiteSpace: 'nowrap' }}>EGB</th>
                                                              <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '55px', whiteSpace: 'nowrap' }}>CD</th>
                                                              <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '100px', whiteSpace: 'nowrap' }}>BANK LOAN</th>
-                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '85px', whiteSpace: 'nowrap' }}>MARKET PRICE</th>
+                                                             <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '85px', whiteSpace: 'nowrap' }}>MARKET FEES</th>
                                                              <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '75px', whiteSpace: 'nowrap' }}>CHECK POST</th>
                                                              <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '85px', whiteSpace: 'nowrap' }}>PAYMENT</th>
                                                              <th style={{ padding: '8px', fontWeight: '800', textAlign: 'center', border: '1px solid #cbd5e1', width: '90px', whiteSpace: 'nowrap' }}>STATUS</th>
@@ -6664,6 +6775,167 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                 }}
                             >
                                 Save Values
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {pattiLinkModalData?.isOpen && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 999999
+                }}>
+                    <div style={{
+                        backgroundColor: '#ffffff',
+                        borderRadius: '8px',
+                        width: '90%',
+                        maxWidth: '440px',
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
+                        overflow: 'hidden'
+                    }}>
+                        <div style={{
+                            padding: '14px 18px',
+                            backgroundColor: '#1e293b',
+                            color: '#ffffff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                        }}>
+                            <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                📋 Patti Rate Linking Details
+                            </h3>
+                            <button
+                                onClick={() => setPattiLinkModalData(null)}
+                                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '18px', cursor: 'pointer', padding: '0 4px' }}
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                            <div style={{ fontSize: '12px', color: '#475569', backgroundColor: '#f8fafc', padding: '8px 12px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                                Linking Rate: <strong style={{ color: '#0f172a' }}>Rs {pattiLinkModalData.rateInfo.rate}</strong> ({String(pattiLinkModalData.rateInfo.rateType).replace(/_/g, '/')})
+                            </div>
+
+                            {pattiLinkModalData.marketPrice && (
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '5px' }}>
+                                        Market Fees Rate
+                                    </label>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            value={pattiLinkModalData.marketPriceValue}
+                                            onChange={(e) => setPattiLinkModalData(prev => prev ? ({ ...prev, marketPriceValue: e.target.value }) : null)}
+                                            placeholder="Enter rate"
+                                            style={{
+                                                flex: 1,
+                                                padding: '8px 10px',
+                                                border: '1px solid #cbd5e1',
+                                                borderRadius: '6px',
+                                                fontSize: '13px',
+                                                outline: 'none'
+                                            }}
+                                            autoFocus
+                                        />
+                                        <select
+                                            value={pattiLinkModalData.marketPriceUnit}
+                                            onChange={(e) => setPattiLinkModalData(prev => prev ? ({ ...prev, marketPriceUnit: e.target.value as 'percentage' | 'lumps' }) : null)}
+                                            style={{
+                                                width: '130px',
+                                                padding: '8px 10px',
+                                                border: '1px solid #cbd5e1',
+                                                borderRadius: '6px',
+                                                fontSize: '12px',
+                                                fontWeight: '600',
+                                                backgroundColor: '#f8fafc',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            <option value="lumps">Lumps (₹)</option>
+                                            <option value="percentage">Percentage (%)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
+
+                            {pattiLinkModalData.checkPost && (
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '5px' }}>
+                                        Check Post
+                                    </label>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value={pattiLinkModalData.checkPostValue}
+                                        onChange={(e) => setPattiLinkModalData(prev => prev ? ({ ...prev, checkPostValue: e.target.value }) : null)}
+                                        placeholder="Enter check post number (e.g. 0, 1, 2...)"
+                                        style={{
+                                            width: '100%',
+                                            boxSizing: 'border-box',
+                                            padding: '8px 10px',
+                                            border: '1px solid #cbd5e1',
+                                            borderRadius: '6px',
+                                            fontSize: '13px',
+                                            outline: 'none'
+                                        }}
+                                    />
+                                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
+                                        Accepts any number, including 0.
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <div style={{
+                            padding: '12px 18px',
+                            backgroundColor: '#f8fafc',
+                            borderTop: '1px solid #e2e8f0',
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                            gap: '10px'
+                        }}>
+                            <button
+                                onClick={() => setPattiLinkModalData(null)}
+                                style={{
+                                    padding: '7px 16px',
+                                    border: '1px solid #cbd5e1',
+                                    borderRadius: '6px',
+                                    backgroundColor: '#ffffff',
+                                    color: '#475569',
+                                    fontWeight: '600',
+                                    fontSize: '12px',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (pattiLinkModalData.onConfirm) {
+                                        await pattiLinkModalData.onConfirm(pattiLinkModalData);
+                                    }
+                                }}
+                                style={{
+                                    padding: '7px 18px',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    backgroundColor: '#16a34a',
+                                    color: '#ffffff',
+                                    fontWeight: '700',
+                                    fontSize: '12px',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+                                }}
+                            >
+                                Confirm & Link Rate
                             </button>
                         </div>
                     </div>

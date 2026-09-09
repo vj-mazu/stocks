@@ -2556,24 +2556,25 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                   <div style={{ marginBottom: '8px' }}>
                     {isEgbVisible && (<div><label style={labelStyle}>EGB</label>
                       <div style={{ display: 'flex', gap: '8px', marginBottom: '6px', fontSize: '11px' }}>
-                        <label style={{ ...radioLabelStyle, padding: '4px 10px', borderRadius: '4px', border: offerData.egbType === 'mill' ? '2px solid #27ae60' : '1px solid #ddd', backgroundColor: offerData.egbType === 'mill' ? '#e8f5e9' : 'transparent' }}>
+                        <label style={{ ...radioLabelStyle, padding: '4px 10px', borderRadius: '4px', border: offerData.egbType === 'purchase' ? '2px solid #27ae60' : '1px solid #ddd', backgroundColor: offerData.egbType === 'purchase' ? '#e8f5e9' : 'transparent' }}>
+                          <input type="radio" name="offerEgbType" checked={offerData.egbType === 'purchase'}
+                            onChange={() => setOfferData({ ...offerData, egbType: 'purchase', egbValue: offerData.egbValue || '0' })} />
+                          <span style={{ fontWeight: '600', color: '#27ae60' }}>Yes</span>
+                        </label>
+                        <label style={{ ...radioLabelStyle, padding: '4px 10px', borderRadius: '4px', border: offerData.egbType === 'mill' ? '2px solid #e74c3c' : '1px solid #ddd', backgroundColor: offerData.egbType === 'mill' ? '#ffebee' : 'transparent' }}>
                           <input type="radio" name="offerEgbType" checked={offerData.egbType === 'mill'}
                             onChange={() => setOfferData({ ...offerData, egbType: 'mill', egbValue: '0' })} />
-                          <span style={{ fontWeight: '600', color: '#2e7d32' }}>Mill</span>
-                        </label>
-                        <label style={{ ...radioLabelStyle, padding: '4px 10px', borderRadius: '4px', border: offerData.egbType === 'purchase' ? '2px solid #e67e22' : '1px solid #ddd', backgroundColor: offerData.egbType === 'purchase' ? '#ffe0b2' : 'transparent' }}>
-                          <input type="radio" name="offerEgbType" checked={offerData.egbType === 'purchase'}
-                            onChange={() => setOfferData({ ...offerData, egbType: 'purchase', egbValue: '' })} />
-                          <span style={{ fontWeight: '600', color: '#e67e22' }}>Purchase</span>
+                          <span style={{ fontWeight: '600', color: '#e74c3c' }}>No</span>
                         </label>
                       </div>
-                      <input type="text" inputMode="decimal" value={offerData.egbType === 'mill' ? '0' : offerData.egbValue}
-                        onChange={e => setOfferData({ ...offerData, egbValue: sanitizeAmountInput(e.target.value) })}
-                        disabled={offerData.egbType === 'mill'}
-                        style={{ ...inputStyle, backgroundColor: offerData.egbType === 'mill' ? '#f0f0f0' : '#fff', cursor: offerData.egbType === 'mill' ? 'not-allowed' : 'text', maxWidth: '240px' }} placeholder="EGB value" />
-                      <div style={{ marginTop: '4px', fontSize: '10px', color: '#64748b' }}>
-                        {offerData.egbType === 'mill' ? 'Mill entries go to EGB ledger with bags and date.' : 'Purchase EGB is used in patti only.'}
-                      </div>
+                      {offerData.egbType === 'purchase' && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <input type="text" inputMode="decimal" value={offerData.egbValue}
+                            onChange={e => setOfferData({ ...offerData, egbValue: sanitizeAmountInput(e.target.value) })}
+                            style={{ ...inputStyle, maxWidth: '180px' }} placeholder="EGB Rate (₹)" />
+                          <span style={{ fontSize: '11px', color: '#64748b' }}>₹ / bag (0 if not decided)</span>
+                        </div>
+                      )}
                     </div>)}
                   </div>
                 )}
@@ -2880,19 +2881,6 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                         <label style={radioLabelStyle}><input type="radio" name="finalMarketPrice" checked={!finalData.marketPrice}
                           onChange={() => setFinalData({ ...finalData, marketPrice: false, marketPriceValue: '' })} /> <span style={{ color: '#e74c3c', fontWeight: '600' }}>No</span></label>
                       </div>
-                      {finalData.marketPrice && (
-                        <div style={compactSplitInputStyle}>
-                          <input type="text" inputMode="decimal" value={finalData.marketPriceValue}
-                            onChange={e => setFinalData({ ...finalData, marketPriceValue: sanitizeAmountInput(e.target.value, 8) })}
-                            style={compactBottomAmountInputStyle} placeholder="Market fees" />
-                          <select value={finalData.marketPriceUnit} onChange={e => setFinalData({ ...finalData, marketPriceUnit: e.target.value as 'percentage' | 'lumps' })}
-                            style={compactBottomUnitSelectStyle}>
-                            <option value="percentage">Percentage (%)</option>
-                            <option value="lumps">Lumps</option>
-                          </select>
-                        </div>
-                      )}
-                      <div style={{ marginTop: '4px', fontSize: '10px', color: '#94a3b8' }}>Reference only — no effect on calculation</div>
                     </div>
                     <div style={compactNarrowFieldStyle}>
                       <label style={labelStyle}>Check Post</label>
@@ -2902,19 +2890,6 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                         <label style={radioLabelStyle}><input type="radio" name="finalCheckPost" checked={!finalData.checkPost}
                           onChange={() => setFinalData({ ...finalData, checkPost: false, checkPostValue: '' })} /> <span style={{ color: '#e74c3c', fontWeight: '600' }}>No</span></label>
                       </div>
-                      {finalData.checkPost && (
-                        <div style={compactSplitInputStyle}>
-                          <input type="text" inputMode="decimal" value={finalData.checkPostValue}
-                            onChange={e => setFinalData({ ...finalData, checkPostValue: sanitizeAmountInput(e.target.value, 8) })}
-                            style={compactBottomAmountInputStyle} placeholder="Check post" />
-                          <select value={finalData.checkPostUnit || 'lumps'} onChange={e => setFinalData({ ...finalData, checkPostUnit: e.target.value as 'percentage' | 'lumps' })}
-                            style={compactBottomUnitSelectStyle}>
-                            <option value="percentage">Percentage (%)</option>
-                            <option value="lumps">Lumps</option>
-                          </select>
-                        </div>
-                      )}
-                      <div style={{ marginTop: '4px', fontSize: '10px', color: '#94a3b8' }}>Reference only — no effect on calculation</div>
                     </div>
                   </div>
                 )}
@@ -2925,24 +2900,25 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                     {isFinalEgbVisible && <div>
                       <label style={labelStyle}>EGB</label>
                       <div style={{ display: 'flex', gap: '8px', marginBottom: '6px', fontSize: '11px' }}>
-                        <label style={{ ...radioLabelStyle, padding: '4px 10px', borderRadius: '4px', border: finalData.egbType === 'mill' ? '2px solid #27ae60' : '1px solid #ddd', backgroundColor: finalData.egbType === 'mill' ? '#e8f5e9' : 'transparent' }}>
+                        <label style={{ ...radioLabelStyle, padding: '4px 10px', borderRadius: '4px', border: finalData.egbType === 'purchase' ? '2px solid #27ae60' : '1px solid #ddd', backgroundColor: finalData.egbType === 'purchase' ? '#e8f5e9' : 'transparent' }}>
+                          <input type="radio" name="finalEgbType" checked={finalData.egbType === 'purchase'}
+                            onChange={() => setFinalData({ ...finalData, egbType: 'purchase', egbValue: finalData.egbValue || '0' })} />
+                          <span style={{ fontWeight: '600', color: '#27ae60' }}>Yes</span>
+                        </label>
+                        <label style={{ ...radioLabelStyle, padding: '4px 10px', borderRadius: '4px', border: finalData.egbType === 'mill' ? '2px solid #e74c3c' : '1px solid #ddd', backgroundColor: finalData.egbType === 'mill' ? '#ffebee' : 'transparent' }}>
                           <input type="radio" name="finalEgbType" checked={finalData.egbType === 'mill'}
                             onChange={() => setFinalData({ ...finalData, egbType: 'mill', egbValue: '0' })} />
-                          <span style={{ fontWeight: '600', color: '#2e7d32' }}>Mill</span>
-                        </label>
-                        <label style={{ ...radioLabelStyle, padding: '4px 10px', borderRadius: '4px', border: finalData.egbType === 'purchase' ? '2px solid #e67e22' : '1px solid #ddd', backgroundColor: finalData.egbType === 'purchase' ? '#ffe0b2' : 'transparent' }}>
-                          <input type="radio" name="finalEgbType" checked={finalData.egbType === 'purchase'}
-                            onChange={() => setFinalData({ ...finalData, egbType: 'purchase', egbValue: '' })} />
-                          <span style={{ fontWeight: '600', color: '#e67e22' }}>Purchase</span>
+                          <span style={{ fontWeight: '600', color: '#e74c3c' }}>No</span>
                         </label>
                       </div>
-                      <input type="text" inputMode="decimal" value={finalData.egbType === 'mill' ? '0' : finalData.egbValue}
-                        onChange={e => setFinalData({ ...finalData, egbValue: sanitizeAmountInput(e.target.value) })}
-                        disabled={finalData.egbType === 'mill'}
-                        style={{ ...inputStyle, backgroundColor: finalData.egbType === 'mill' ? '#f0f0f0' : '#fff', cursor: finalData.egbType === 'mill' ? 'not-allowed' : 'text', maxWidth: '240px' }} placeholder="EGB value" />
-                      <div style={{ marginTop: '4px', fontSize: '10px', color: '#64748b' }}>
-                        {finalData.egbType === 'mill' ? 'Mill entries go to EGB ledger with bags and date.' : 'Purchase EGB is used in patti only.'}
-                      </div>
+                      {finalData.egbType === 'purchase' && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <input type="text" inputMode="decimal" value={finalData.egbValue}
+                            onChange={e => setFinalData({ ...finalData, egbValue: sanitizeAmountInput(e.target.value) })}
+                            style={{ ...inputStyle, maxWidth: '180px' }} placeholder="EGB Rate (₹)" />
+                          <span style={{ fontSize: '11px', color: '#64748b' }}>₹ / bag (0 if not decided)</span>
+                        </div>
+                      )}
                     </div>}
                   </div>
                 )}

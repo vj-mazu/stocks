@@ -180,6 +180,9 @@ interface PreviousInspection {
   reportedBy: {
     username: string;
   };
+  lorryTransitDetail?: any;
+  netWeight?: number;
+  partyNetWeight?: number;
 }
 
 interface InspectionProgress {
@@ -240,6 +243,188 @@ const AllottedSupervisors: React.FC = () => {
   const [detailModalEntry, setDetailModalEntry] = useState<SampleEntry | null>(null);
   const [selectedLorryForComparison, setSelectedLorryForComparison] = useState<any>(null);
   const [targetLorryTripId, setTargetLorryTripId] = useState<string | null>(null);
+
+  // Paddy Lorry Freight (LF) Payment modal state
+  const [lorryFreightModal, setLorryFreightModal] = useState<{
+    isOpen: boolean;
+    entry: any | null;
+    inspection: any | null;
+    freightRate: string;
+    freightUnit: 'per_bag' | 'per_qtl';
+    wbAmount: string;
+    showWb: boolean;
+    shortageAmount: string;
+    showShortage: boolean;
+    lfAdvanceBrk: string;
+    showLfAdvance: boolean;
+    customAdditions: Array<{ id: string; label: string; amount: string }>;
+    customDeductions: Array<{ id: string; label: string; amount: string }>;
+    remarks: string;
+    loadedDate: string;
+    createdDate: string;
+    isSaving: boolean;
+  }>({
+    isOpen: false,
+    entry: null,
+    inspection: null,
+    freightRate: '',
+    freightUnit: 'per_bag',
+    wbAmount: '0',
+    showWb: true,
+    shortageAmount: '0',
+    showShortage: true,
+    lfAdvanceBrk: '0',
+    showLfAdvance: true,
+    customAdditions: [],
+    customDeductions: [],
+    remarks: '',
+    loadedDate: '',
+    createdDate: '',
+    isSaving: false
+  });
+
+  const handleOpenLorryFreightModal = (entry: any, inspection: any) => {
+    const existing = inspection.lorryFreight || {};
+    const o = entry.offering || {};
+    const rate = existing.freightRate !== undefined && existing.freightRate !== null
+      ? String(existing.freightRate)
+      : (inspection.linkedPattiRate?.lfRate ?? inspection.revisedLf ?? o.finalLf2 ?? o.finalLf ?? o.lf2 ?? o.lf ?? '');
+    const rawUnit = existing.freightUnit || inspection.linkedPattiRate?.lfUnit || inspection.lfUnit || o.finalLfUnit2 || o.finalLfUnit || o.lfUnit2 || o.lfUnit || (o.baseRateUnit === 'per_quintal' ? 'per_qtl' : 'per_bag');
+    const isQtl = String(rawUnit).toLowerCase().includes('qtl') || String(rawUnit).toLowerCase().includes('quintal');
+    const unit: 'per_qtl' | 'per_bag' = isQtl ? 'per_qtl' : 'per_bag';
+    const wb = existing.wbAmount !== undefined ? String(existing.wbAmount) : (inspection.lorryTransitDetail?.wbCharge ? String(inspection.lorryTransitDetail.wbCharge) : '0');
+    const shortage = existing.shortageAmount !== undefined ? String(existing.shortageAmount) : '0';
+    const lfAdv = existing.lfAdvanceBrk !== undefined ? String(existing.lfAdvanceBrk) : '0';
+    const customAdd = Array.isArray(existing.customAdditions) ? existing.customAdditions : [];
+    const customDed = Array.isArray(existing.customDeductions) ? existing.customDeductions : [];
+    const loadedDate = existing.loadedDate || inspection.inspectionDate || entry.entryDate || '';
+    const createdDate = existing.createdDate ? String(existing.createdDate).split('T')[0] : new Date().toISOString().split('T')[0];
+
+    setLorryFreightModal({
+      isOpen: true,
+      entry,
+      inspection,
+      freightRate: rate !== undefined && rate !== null ? String(rate) : '',
+      freightUnit: unit,
+      wbAmount: wb,
+      showWb: existing.showWb !== undefined ? !!existing.showWb : true,
+      shortageAmount: shortage,
+      showShortage: existing.showShortage !== undefined ? !!existing.showShortage : true,
+      lfAdvanceBrk: lfAdv,
+      showLfAdvance: existing.showLfAdvance !== undefined ? !!existing.showLfAdvance : true,
+      customAdditions: customAdd,
+      customDeductions: customDed,
+      remarks: existing.remarks || '',
+      loadedDate,
+      createdDate,
+      isSaving: false
+    });
+  };
+
+  const handleSaveLorryFreight = async () => {
+    if (!lorryFreightModal.entry || !lorryFreightModal.inspection) return;
+    const { entry, inspection, freightRate, freightUnit, wbAmount, showWb, shortageAmount, showShortage, lfAdvanceBrk, showLfAdvance, customAdditions, customDeductions, remarks, loadedDate, createdDate } = lorryFreightModal;
+
+    const bags = Number(getApprovedFullAvgBags(inspection.samplingStages || {}, inspection.bags) || 0);
+    const resolvedRawNetWeight = inspection.lorryTransitDetail?.netWeight ?? inspection.netWeight ?? inspection.lorryTransitDetail?.partyNetWeight ?? inspection.partyNetWeight ?? (entry.lotAllotment?.physicalInspections?.find((i: any) => i.id === inspection.id)?.lorryTransitDetail?.netWeight) ?? 0;
+    const netWeight = Number(resolvedRawNetWeight) || 0;
+
+    if (freightUnit === 'per_qtl' && (!netWeight || netWeight <= 0)) {
+      showNotification('Lorry Net Weight is required to calculate LF Per Quintal. Please record weighbridge weight first.', 'error');
+      return;
+    }
+
+    const rateNum = Number(freightRate) || 0;
+    const baseFreight = freightUnit === 'per_qtl'
+      ? Number(((netWeight / 100) * rateNum).toFixed(2))
+      : Number((bags * rateNum).toFixed(2));
+
+    const totalCustomAdd = customAdditions.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const totalCustomDed = customDeductions.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const totalPayable = Number((baseFreight + (showWb ? Number(wbAmount) || 0 : 0) + (showShortage ? Number(shortageAmount) || 0 : 0) + (showLfAdvance ? Number(lfAdvanceBrk) || 0 : 0) + totalCustomAdd - totalCustomDed).toFixed(2));
+
+    try {
+      setLorryFreightModal(prev => ({ ...prev, isSaving: true }));
+      const token = localStorage.getItem('token');
+      const payload = {
+        freightRate: rateNum,
+        freightUnit,
+        bags,
+        netWeight: freightUnit === 'per_qtl' ? netWeight : null,
+        baseFreight,
+        wbAmount: showWb ? (Number(wbAmount) || 0) : 0,
+        showWb,
+        shortageAmount: showShortage ? (Number(shortageAmount) || 0) : 0,
+        showShortage,
+        lfAdvanceBrk: showLfAdvance ? (Number(lfAdvanceBrk) || 0) : 0,
+        showLfAdvance,
+        customAdditions,
+        customDeductions,
+        totalPayable,
+        loadedDate,
+        createdDate,
+        remarks,
+        status: 'done'
+      };
+
+      const res = await axios.post(`${API_URL}/sample-entries/inspections/${inspection.id}/lorry-freight`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      // Update inspectionProgress and entries in state so UI updates immediately
+      setInspectionProgress(prev => {
+        const currentProgress = prev[entry.id];
+        if (!currentProgress || !Array.isArray(currentProgress.previousInspections)) return prev;
+        const updated = currentProgress.previousInspections.map((insp: any) => {
+          if (insp.id === inspection.id) {
+            return {
+              ...insp,
+              lorryFreight: res.data.lorryFreight || payload
+            };
+          }
+          return insp;
+        });
+        return {
+          ...prev,
+          [entry.id]: {
+            ...currentProgress,
+            previousInspections: updated
+          }
+        };
+      });
+
+      setEntries(prev => prev.map(e => {
+        if (e.id === entry.id) {
+          const rawInsps = (e as any).lotAllotment?.physicalInspections || e.physicalInspections || [];
+          const updatedInsps = rawInsps.map((insp: any) => {
+            if (insp.id === inspection.id) {
+              return {
+                ...insp,
+                lorryFreight: res.data.lorryFreight || payload
+              };
+            }
+            return insp;
+          });
+          return {
+            ...e,
+            physicalInspections: updatedInsps,
+            lotAllotment: (e as any).lotAllotment ? {
+              ...(e as any).lotAllotment,
+              physicalInspections: updatedInsps
+            } : (e as any).lotAllotment
+          };
+        }
+        return e;
+      }));
+
+      showNotification('Paddy Lorry Freight Payment saved successfully!', 'success');
+      setLorryFreightModal(prev => ({ ...prev, isOpen: false, isSaving: false }));
+    } catch (err: any) {
+      console.error('Error saving lorry freight:', err);
+      showNotification(err.response?.data?.error || 'Failed to save lorry freight payment', 'error');
+      setLorryFreightModal(prev => ({ ...prev, isSaving: false }));
+    }
+  };
 
   const getApprovedFullAvgBags = (stages: any, defaultBags: any) => {
     if (!stages) return defaultBags;
@@ -525,7 +710,11 @@ const AllottedSupervisors: React.FC = () => {
               samplingStages: (inspection as any).samplingStages || {},
               reportedBy: inspection.reportedBy || { username: 'System' },
               createdAt: (inspection as any).createdAt,
-              linkedPattiRate: (inspection as any).linkedPattiRate
+              linkedPattiRate: (inspection as any).linkedPattiRate,
+              lorryFreight: (inspection as any).lorryFreight,
+              lorryTransitDetail: (inspection as any).lorryTransitDetail,
+              netWeight: (inspection as any).lorryTransitDetail?.netWeight || (inspection as any).netWeight,
+              partyNetWeight: (inspection as any).lorryTransitDetail?.partyNetWeight || (inspection as any).partyNetWeight
             }));
 
             if (mapped.length > 1) {
@@ -1857,15 +2046,34 @@ const AllottedSupervisors: React.FC = () => {
                                                 )}
                                               </td>
                                               <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
-                                                <span
-                                                  onClick={() => {
-                                                    setTargetLorryTripId(inspection.id);
-                                                    openDetailEntry(entry);
-                                                  }}
-                                                  style={{ color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}
-                                                >
-                                                  Payment
-                                                </span>
+                                                {inspection.lorryFreight?.status === 'done' || (inspection.lorryFreight && inspection.lorryFreight.totalPayable !== undefined) ? (
+                                                  <button
+                                                    onClick={() => handleOpenLorryFreightModal(entry, inspection)}
+                                                    style={{
+                                                      background: '#e8f5e9',
+                                                      border: '1px solid #c8e6c9',
+                                                      color: '#2e7d32',
+                                                      fontWeight: 'bold',
+                                                      cursor: 'pointer',
+                                                      padding: '3px 8px',
+                                                      fontSize: '11px',
+                                                      borderRadius: '4px',
+                                                      display: 'inline-flex',
+                                                      alignItems: 'center',
+                                                      gap: '3px'
+                                                    }}
+                                                    title={`Total LF Paid: Rs ${Number(inspection.lorryFreight?.totalPayable || 0).toLocaleString('en-IN')} (Click to view/edit)`}
+                                                  >
+                                                    ✅ Done
+                                                  </button>
+                                                ) : (
+                                                  <span
+                                                    onClick={() => handleOpenLorryFreightModal(entry, inspection)}
+                                                    style={{ color: '#1565c0', textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}
+                                                  >
+                                                    Payment
+                                                  </span>
+                                                )}
                                               </td>
                                               <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
                                                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center', justifyContent: 'center' }}>
@@ -2419,7 +2627,12 @@ const AllottedSupervisors: React.FC = () => {
                 isRevision: rateInfo.isRevision,
                 linkedRevisionId: rateInfo.linkedRevisionId || null,
                 disputeReason: rateInfo.disputeReason || '',
-                targetLorryTripId: targetLorryTripId
+                targetLorryTripId: targetLorryTripId,
+                marketPrice: rateInfo.marketPrice,
+                marketPriceValue: rateInfo.marketPriceValue,
+                marketPriceUnit: rateInfo.marketPriceUnit,
+                checkPost: rateInfo.checkPost,
+                checkPostValue: rateInfo.checkPostValue
               };
               
               const res = await axios.post(
@@ -2711,6 +2924,432 @@ const AllottedSupervisors: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Paddy Lorry Freight (LF) Payment Modal */}
+      {lorryFreightModal.isOpen && lorryFreightModal.entry && lorryFreightModal.inspection && (() => {
+        const { entry, inspection, freightRate, freightUnit, wbAmount, showWb, shortageAmount, showShortage, lfAdvanceBrk, showLfAdvance, customAdditions, customDeductions, remarks, loadedDate, createdDate, isSaving } = lorryFreightModal;
+        const bags = Number(getApprovedFullAvgBags(inspection.samplingStages || {}, inspection.bags) || 0);
+        const resolvedRawNetWeight = inspection.lorryTransitDetail?.netWeight ?? inspection.netWeight ?? inspection.lorryTransitDetail?.partyNetWeight ?? inspection.partyNetWeight ?? (entry.lotAllotment?.physicalInspections?.find((i: any) => i.id === inspection.id)?.lorryTransitDetail?.netWeight) ?? 0;
+        const netWeight = Number(resolvedRawNetWeight) || 0;
+        const rateNum = Number(freightRate) || 0;
+        const hasMissingWeightForQtl = freightUnit === 'per_qtl' && (!netWeight || netWeight <= 0);
+
+        const baseFreight = freightUnit === 'per_qtl'
+          ? (netWeight > 0 ? Number(((netWeight / 100) * rateNum).toFixed(2)) : 0)
+          : Number((bags * rateNum).toFixed(2));
+
+        const totalCustomAdd = customAdditions.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+        const totalCustomDed = customDeductions.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+        const totalPayable = Number((baseFreight + (showWb ? Number(wbAmount) || 0 : 0) + (showShortage ? Number(shortageAmount) || 0 : 0) + (showLfAdvance ? Number(lfAdvanceBrk) || 0 : 0) + totalCustomAdd - totalCustomDed).toFixed(2));
+
+        const handleAddAdditionRow = () => {
+          setLorryFreightModal(prev => ({
+            ...prev,
+            customAdditions: [...prev.customAdditions, { id: `lf-add-${Date.now()}`, label: '', amount: '' }]
+          }));
+        };
+
+        const handleRemoveAdditionRow = (id: string) => {
+          setLorryFreightModal(prev => ({
+            ...prev,
+            customAdditions: prev.customAdditions.filter(item => item.id !== id)
+          }));
+        };
+
+        const handleUpdateAdditionRow = (id: string, field: 'label' | 'amount', value: string) => {
+          setLorryFreightModal(prev => ({
+            ...prev,
+            customAdditions: prev.customAdditions.map(item => item.id === id ? { ...item, [field]: value } : item)
+          }));
+        };
+
+        const handleAddDeductionRow = () => {
+          setLorryFreightModal(prev => ({
+            ...prev,
+            customDeductions: [...prev.customDeductions, { id: `lf-less-${Date.now()}`, label: '', amount: '' }]
+          }));
+        };
+
+        const handleRemoveDeductionRow = (id: string) => {
+          setLorryFreightModal(prev => ({
+            ...prev,
+            customDeductions: prev.customDeductions.filter(item => item.id !== id)
+          }));
+        };
+
+        const handleUpdateDeductionRow = (id: string, field: 'label' | 'amount', value: string) => {
+          setLorryFreightModal(prev => ({
+            ...prev,
+            customDeductions: prev.customDeductions.map(item => item.id === id ? { ...item, [field]: value } : item)
+          }));
+        };
+
+        return (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(3px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 12000, padding: '16px'
+          }}>
+            <div style={{
+              background: '#ffffff', borderRadius: '12px', maxWidth: '620px', width: '100%',
+              maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
+              border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column'
+            }}>
+              {/* Header */}
+              <div style={{
+                padding: '16px 20px', borderBottom: '1px solid #e2e8f0',
+                background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
+                color: '#ffffff', borderRadius: '12px 12px 0 0'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '11px', background: 'rgba(255,255,255,0.2)', padding: '3px 8px', borderRadius: '4px' }}>
+                    📅 Loaded: <strong>{loadedDate || '-'}</strong>
+                  </div>
+                  <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 800, letterSpacing: '0.3px', textAlign: 'center' }}>
+                    🚛 Paddy Lorry Freight
+                  </h3>
+                  <div style={{ fontSize: '11px', background: 'rgba(255,255,255,0.2)', padding: '3px 8px', borderRadius: '4px' }}>
+                    ⏱ Created: <strong>{createdDate || '-'}</strong>
+                  </div>
+                </div>
+
+                {/* Sub-header info */}
+                <div style={{
+                  background: 'rgba(255,255,255,0.12)', borderRadius: '6px', padding: '8px 12px',
+                  display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '6px', fontSize: '12px'
+                }}>
+                  <div><span style={{ opacity: 0.8 }}>Broker:</span> <strong>{entry.brokerName || '-'}</strong></div>
+                  <div><span style={{ opacity: 0.8 }}>Party:</span> <strong>{entry.partyName || '-'}</strong></div>
+                  <div><span style={{ opacity: 0.8 }}>Lorry No:</span> <strong>{inspection.lorryNumber || '-'}</strong></div>
+                  <div><span style={{ opacity: 0.8 }}>Bags:</span> <strong>{bags}</strong></div>
+                  <div><span style={{ opacity: 0.8 }}>Variety:</span> <strong>{entry.variety || '-'}</strong></div>
+                  <div>
+                    <span style={{ opacity: 0.8 }}>Net Wt:</span>{' '}
+                    <strong>{netWeight > 0 ? `${netWeight.toLocaleString('en-IN')} Kg` : 'Not recorded'}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Body Content */}
+              <div style={{ padding: '20px', flex: 1 }}>
+                {/* Rate type & Rate display section (Freezed from Final Rate) */}
+                <div style={{
+                  background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px 14px', marginBottom: '14px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: '#334155' }}>
+                        LF Rate:
+                      </span>
+                      <span style={{
+                        background: '#e0e7ff', color: '#3730a3', padding: '3px 8px', borderRadius: '4px',
+                        fontSize: '13px', fontWeight: 800
+                      }}>
+                        ₹{Number(freightRate || 0).toFixed(2)} {freightUnit === 'per_qtl' ? '/ qtl' : '/ bag'}
+                      </span>
+                    </div>
+
+                    <div style={{ textAlign: 'right', fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>
+                      {freightUnit === 'per_qtl' ? (
+                        netWeight > 0 ? (
+                          <span>({netWeight.toLocaleString('en-IN')} Kg ÷ 100) × ₹{rateNum} = <strong style={{ color: '#16a34a' }}>₹{baseFreight.toLocaleString('en-IN')}</strong></span>
+                        ) : (
+                          <span style={{ color: '#dc2626', fontSize: '11px' }}>Net weight missing</span>
+                        )
+                      ) : (
+                        <span>{bags} Bags × ₹{rateNum} = <strong style={{ color: '#16a34a' }}>₹{baseFreight.toLocaleString('en-IN')}</strong></span>
+                      )}
+                    </div>
+                  </div>
+
+                  {hasMissingWeightForQtl && (
+                    <div style={{
+                      marginTop: '8px', padding: '6px 10px', background: '#fef2f2', border: '1px solid #fecaca',
+                      borderRadius: '5px', color: '#b91c1c', fontSize: '11px', fontWeight: 600
+                    }}>
+                      ⚠️ Lorry Net Weight has not been recorded yet. Please record weighbridge weight before submitting freight Per Quintal.
+                    </div>
+                  )}
+                </div>
+
+                {/* Additions / Deductions Items List */}
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px 14px', marginBottom: '14px' }}>
+                  {/* Base Freight Display Row */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid #f1f5f9' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>
+                      Base Freight:
+                    </span>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#16a34a' }}>
+                      ₹{baseFreight.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+
+                  {/* Add: WB (Weighbridge) */}
+                  {showWb && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
+                      <span style={{ width: '150px', fontSize: '13px', fontWeight: 600, color: '#16a34a' }}>Add: WB:</span>
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '12px', color: '#64748b' }}>₹</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={wbAmount === '0' ? '' : wbAmount}
+                          onChange={(e) => setLorryFreightModal(prev => ({ ...prev, wbAmount: e.target.value === '' ? '0' : e.target.value }))}
+                          placeholder="0"
+                          style={{ width: '90px', padding: '4px 6px', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '4px', textAlign: 'right', fontWeight: 700 }}
+                        />
+                      </div>
+                      <span style={{ width: '90px', textAlign: 'right', fontSize: '13px', fontWeight: 700, color: '#16a34a' }}>
+                        + ₹{Number(wbAmount || 0).toLocaleString('en-IN')}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setLorryFreightModal(prev => ({ ...prev, showWb: false, wbAmount: '0' }))}
+                        style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: 'bold', cursor: 'pointer', padding: '0 4px', fontSize: '14px' }}
+                        title="Remove WB"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Add: Shortage */}
+                  {showShortage && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
+                      <span style={{ width: '150px', fontSize: '13px', fontWeight: 600, color: '#16a34a' }}>Shortage:</span>
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '12px', color: '#64748b' }}>₹</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={shortageAmount === '0' ? '' : shortageAmount}
+                          onChange={(e) => setLorryFreightModal(prev => ({ ...prev, shortageAmount: e.target.value === '' ? '0' : e.target.value }))}
+                          placeholder="0"
+                          style={{ width: '90px', padding: '4px 6px', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '4px', textAlign: 'right', fontWeight: 700 }}
+                        />
+                      </div>
+                      <span style={{ width: '90px', textAlign: 'right', fontSize: '13px', fontWeight: 700, color: '#16a34a' }}>
+                        + ₹{Number(shortageAmount || 0).toLocaleString('en-IN')}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setLorryFreightModal(prev => ({ ...prev, showShortage: false, shortageAmount: '0' }))}
+                        style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: 'bold', cursor: 'pointer', padding: '0 4px', fontSize: '14px' }}
+                        title="Remove Shortage"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Add: LF Advance (BRK) */}
+                  {showLfAdvance && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
+                      <div style={{ width: '150px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#16a34a', display: 'block' }}>LF Advance (brk):</span>
+                      </div>
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '12px', color: '#64748b' }}>₹</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={lfAdvanceBrk === '0' ? '' : lfAdvanceBrk}
+                          onChange={(e) => setLorryFreightModal(prev => ({ ...prev, lfAdvanceBrk: e.target.value === '' ? '0' : e.target.value }))}
+                          placeholder="0"
+                          style={{ width: '90px', padding: '4px 6px', fontSize: '12px', border: '1.5px solid #16a34a', borderRadius: '4px', textAlign: 'right', fontWeight: 700 }}
+                        />
+                      </div>
+                      <span style={{ width: '90px', textAlign: 'right', fontSize: '13px', fontWeight: 700, color: '#16a34a' }}>
+                        + ₹{Number(lfAdvanceBrk || 0).toLocaleString('en-IN')}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setLorryFreightModal(prev => ({ ...prev, showLfAdvance: false, lfAdvanceBrk: '0' }))}
+                        style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: 'bold', cursor: 'pointer', padding: '0 4px', fontSize: '14px' }}
+                        title="Remove LF Advance"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Dynamic Custom Addition Rows */}
+                  {customAdditions.map(item => (
+                    <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
+                      <span style={{ width: '40px', fontSize: '12px', fontWeight: 700, color: '#16a34a' }}>Add:</span>
+                      <input
+                        type="text"
+                        placeholder="Addition Description (Alphanumeric)"
+                        value={item.label}
+                        onChange={(e) => handleUpdateAdditionRow(item.id, 'label', e.target.value)}
+                        style={{ flex: 1, padding: '4px 8px', fontSize: '12px', border: '1px solid #16a34a', borderRadius: '4px' }}
+                      />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ fontSize: '12px', color: '#64748b' }}>₹</span>
+                        <input
+                          type="number"
+                          placeholder="Amount"
+                          value={item.amount}
+                          onChange={(e) => handleUpdateAdditionRow(item.id, 'amount', e.target.value)}
+                          style={{ width: '85px', padding: '4px 6px', fontSize: '12px', border: '1px solid #16a34a', borderRadius: '4px', textAlign: 'right', fontWeight: 700 }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAdditionRow(item.id)}
+                        style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: 'bold', cursor: 'pointer', padding: '0 4px', fontSize: '14px' }}
+                        title="Remove row"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* Dynamic Custom Deduction Rows */}
+                  {customDeductions.map(item => (
+                    <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
+                      <span style={{ width: '40px', fontSize: '12px', fontWeight: 700, color: '#dc2626' }}>Less:</span>
+                      <input
+                        type="text"
+                        placeholder="Deduction Description (Alphanumeric)"
+                        value={item.label}
+                        onChange={(e) => handleUpdateDeductionRow(item.id, 'label', e.target.value)}
+                        style={{ flex: 1, padding: '4px 8px', fontSize: '12px', border: '1px solid #dc2626', borderRadius: '4px' }}
+                      />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ fontSize: '12px', color: '#64748b' }}>₹</span>
+                        <input
+                          type="number"
+                          placeholder="Amount"
+                          value={item.amount}
+                          onChange={(e) => handleUpdateDeductionRow(item.id, 'amount', e.target.value)}
+                          style={{ width: '85px', padding: '4px 6px', fontSize: '12px', border: '1px solid #dc2626', borderRadius: '4px', textAlign: 'right', fontWeight: 700 }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveDeductionRow(item.id)}
+                        style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: 'bold', cursor: 'pointer', padding: '0 4px', fontSize: '14px' }}
+                        title="Remove row"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* Add Row & Restore Buttons */}
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', paddingTop: '8px' }}>
+                    {!showWb && (
+                      <button
+                        type="button"
+                        onClick={() => setLorryFreightModal(prev => ({ ...prev, showWb: true }))}
+                        style={{ background: 'none', border: 'none', color: '#16a34a', fontWeight: 700, fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
+                      >
+                        + Add WB
+                      </button>
+                    )}
+                    {!showShortage && (
+                      <button
+                        type="button"
+                        onClick={() => setLorryFreightModal(prev => ({ ...prev, showShortage: true }))}
+                        style={{ background: 'none', border: 'none', color: '#16a34a', fontWeight: 700, fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
+                      >
+                        + Add Shortage
+                      </button>
+                    )}
+                    {!showLfAdvance && (
+                      <button
+                        type="button"
+                        onClick={() => setLorryFreightModal(prev => ({ ...prev, showLfAdvance: true }))}
+                        style={{ background: 'none', border: 'none', color: '#16a34a', fontWeight: 700, fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
+                      >
+                        + Add LF Advance (brk)
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleAddAdditionRow}
+                      style={{ background: 'none', border: 'none', color: '#16a34a', fontWeight: 700, fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
+                    >
+                      + Add Addition Row
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAddDeductionRow}
+                      style={{ background: 'none', border: 'none', color: '#dc2626', fontWeight: 700, fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
+                    >
+                      + Add Less Row
+                    </button>
+                  </div>
+                </div>
+
+                {/* Remarks */}
+                <div style={{ marginBottom: '14px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '3px', display: 'block' }}>
+                    Remarks (Optional):
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={remarks}
+                    onChange={(e) => setLorryFreightModal(prev => ({ ...prev, remarks: e.target.value }))}
+                    placeholder="Enter any freight notes / payment remarks..."
+                    style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '4px', boxSizing: 'border-box', resize: 'vertical' }}
+                  />
+                </div>
+
+                {/* Grand Total Summary Box */}
+                <div style={{
+                  background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+                  border: '2px solid #86efac', borderRadius: '8px', padding: '12px 16px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                }}>
+                  <div>
+                    <span style={{ fontSize: '12px', color: '#15803d', fontWeight: 700, display: 'block' }}>
+                      TOTAL NET PAYABLE FREIGHT
+                    </span>
+                    <span style={{ fontSize: '10px', color: '#166534' }}>
+                      (Base Freight + WB + Shortage + LF Advance + Additions - Deductions)
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '20px', fontWeight: 800, color: '#15803d' }}>
+                    ₹{totalPayable.toLocaleString('en-IN')}
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Actions Footer */}
+              <div style={{
+                padding: '14px 20px', borderTop: '1px solid #e2e8f0', background: '#f8fafc',
+                display: 'flex', justifyContent: 'flex-end', gap: '10px', borderRadius: '0 0 12px 12px'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setLorryFreightModal(prev => ({ ...prev, isOpen: false }))}
+                  disabled={isSaving}
+                  style={{ padding: '8px 16px', border: '1px solid #cbd5e1', borderRadius: '6px', background: '#ffffff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', color: '#475569' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveLorryFreight}
+                  disabled={isSaving || hasMissingWeightForQtl}
+                  style={{
+                    padding: '8px 20px', border: 'none', borderRadius: '6px',
+                    background: hasMissingWeightForQtl ? '#94a3b8' : 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+                    color: '#ffffff', fontSize: '13px', fontWeight: 700,
+                    cursor: (isSaving || hasMissingWeightForQtl) ? 'not-allowed' : 'pointer',
+                    boxShadow: hasMissingWeightForQtl ? 'none' : '0 2px 6px rgba(22, 163, 74, 0.3)'
+                  }}
+                >
+                  {isSaving ? 'Saving...' : 'Save LF Payment'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

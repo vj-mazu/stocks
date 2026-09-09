@@ -3502,11 +3502,11 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
               <div style={{ marginBottom: '10px' }}>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#1f2937', marginBottom: '4px', display: 'block' }}>EGB</label>
                 <div style={{ display: 'flex', gap: '8px', fontSize: '11px', marginBottom: '4px' }}>
-                  <label><input type="radio" name="offerEditEgb" checked={offerEditData.egbType === 'mill'} onChange={() => setOfferEditData({ ...offerEditData, egbType: 'mill', egbValue: '0' })} /> Mill</label>
-                  <label><input type="radio" name="offerEditEgb" checked={offerEditData.egbType === 'purchase'} onChange={() => setOfferEditData({ ...offerEditData, egbType: 'purchase' })} /> Purchase</label>
+                  <label><input type="radio" name="offerEditEgb" checked={offerEditData.egbType === 'purchase'} onChange={() => setOfferEditData({ ...offerEditData, egbType: 'purchase' })} /> <span style={{ color: '#27ae60', fontWeight: '600' }}>Yes</span></label>
+                  <label><input type="radio" name="offerEditEgb" checked={offerEditData.egbType !== 'purchase'} onChange={() => setOfferEditData({ ...offerEditData, egbType: 'mill', egbValue: '' })} /> <span style={{ color: '#e74c3c', fontWeight: '600' }}>No</span></label>
                 </div>
                 {offerEditData.egbType === 'purchase' && (
-                  <input type="text" inputMode="decimal" value={offerEditData.egbValue} onChange={(e) => setOfferEditData({ ...offerEditData, egbValue: sanitizeAmountInput(e.target.value) })} style={{ width: '160px', padding: '6px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '12px' }} placeholder="EGB value" />
+                  <input type="text" inputMode="decimal" value={offerEditData.egbValue} onChange={(e) => setOfferEditData({ ...offerEditData, egbValue: sanitizeAmountInput(e.target.value) })} style={{ width: '160px', padding: '6px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '12px' }} placeholder="EGB Rate (e.g. 5 or 0)" />
                 )}
               </div>
             )}
@@ -3712,35 +3712,18 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
                   )}
                 </div>
                 <div>
-                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#1f2937', marginBottom: '4px', display: 'block' }}>Market Price</label>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#1f2937', marginBottom: '4px', display: 'block' }}>Market Fees</label>
                   <div style={{ display: 'flex', gap: '6px', fontSize: '11px', marginBottom: '4px' }}>
-                    <label><input type="radio" name="finalEditMarketPrice" checked={finalEditData.marketPrice} onChange={() => setFinalEditData({ ...finalEditData, marketPrice: true })} /> Yes</label>
-                    <label><input type="radio" name="finalEditMarketPrice" checked={!finalEditData.marketPrice} onChange={() => setFinalEditData({ ...finalEditData, marketPrice: false, marketPriceValue: '' })} /> No</label>
+                    <label><input type="radio" name="finalEditMarketPrice" checked={finalEditData.marketPrice} onChange={() => setFinalEditData({ ...finalEditData, marketPrice: true })} /> <span style={{ color: '#27ae60', fontWeight: '600' }}>Yes</span></label>
+                    <label><input type="radio" name="finalEditMarketPrice" checked={!finalEditData.marketPrice} onChange={() => setFinalEditData({ ...finalEditData, marketPrice: false, marketPriceValue: '' })} /> <span style={{ color: '#e74c3c', fontWeight: '600' }}>No</span></label>
                   </div>
-                  {finalEditData.marketPrice && (
-                    <div style={editBottomSplitInputStyle}>
-                      <input type="text" inputMode="decimal" value={finalEditData.marketPriceValue} onChange={(e) => setFinalEditData({ ...finalEditData, marketPriceValue: sanitizeAmountInput(e.target.value, 8) })} style={editBottomAmountInputStyle} placeholder="Market price" />
-                      <select value={finalEditData.marketPriceUnit} onChange={(e) => setFinalEditData({ ...finalEditData, marketPriceUnit: e.target.value })} style={editBottomUnitSelectStyle}>
-                        <option value="per_quintal">₹ / Qtl</option>
-                        <option value="per_kg">₹ / Kg</option>
-                        <option value="lumps">Lumps</option>
-                      </select>
-                    </div>
-                  )}
-                  <div style={{ marginTop: '4px', fontSize: '10px', color: '#94a3b8' }}>Reference only — no effect on calculation</div>
                 </div>
                 <div>
                   <label style={{ fontSize: '11px', fontWeight: 700, color: '#1f2937', marginBottom: '4px', display: 'block' }}>Check Post</label>
                   <div style={{ display: 'flex', gap: '6px', fontSize: '11px', marginBottom: '4px' }}>
-                    <label><input type="radio" name="finalEditCheckPost" checked={finalEditData.checkPost} onChange={() => setFinalEditData({ ...finalEditData, checkPost: true })} /> Yes</label>
-                    <label><input type="radio" name="finalEditCheckPost" checked={!finalEditData.checkPost} onChange={() => setFinalEditData({ ...finalEditData, checkPost: false, checkPostValue: '' })} /> No</label>
+                    <label><input type="radio" name="finalEditCheckPost" checked={finalEditData.checkPost} onChange={() => setFinalEditData({ ...finalEditData, checkPost: true })} /> <span style={{ color: '#27ae60', fontWeight: '600' }}>Yes</span></label>
+                    <label><input type="radio" name="finalEditCheckPost" checked={!finalEditData.checkPost} onChange={() => setFinalEditData({ ...finalEditData, checkPost: false, checkPostValue: '' })} /> <span style={{ color: '#e74c3c', fontWeight: '600' }}>No</span></label>
                   </div>
-                  {finalEditData.checkPost && (
-                    <div style={editBottomSplitInputStyle}>
-                      <input type="text" inputMode="decimal" value={finalEditData.checkPostValue} onChange={(e) => setFinalEditData({ ...finalEditData, checkPostValue: sanitizeAmountInput(e.target.value, 8) })} style={editBottomAmountInputStyle} placeholder="Check post" />
-                    </div>
-                  )}
-                  <div style={{ marginTop: '4px', fontSize: '10px', color: '#94a3b8' }}>Reference only — no effect on calculation</div>
                 </div>
               </div>
             )}
@@ -3749,11 +3732,11 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
               <div style={{ marginBottom: '10px' }}>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#1f2937', marginBottom: '4px', display: 'block' }}>EGB</label>
                 <div style={{ display: 'flex', gap: '8px', fontSize: '11px', marginBottom: '4px' }}>
-                  <label><input type="radio" name="finalEditEgb" checked={finalEditData.egbType === 'mill'} onChange={() => setFinalEditData({ ...finalEditData, egbType: 'mill', egbValue: '' })} /> Mill</label>
-                  <label><input type="radio" name="finalEditEgb" checked={finalEditData.egbType === 'purchase'} onChange={() => setFinalEditData({ ...finalEditData, egbType: 'purchase' })} /> Purchase</label>
+                  <label><input type="radio" name="finalEditEgb" checked={finalEditData.egbType === 'purchase'} onChange={() => setFinalEditData({ ...finalEditData, egbType: 'purchase' })} /> <span style={{ color: '#27ae60', fontWeight: '600' }}>Yes</span></label>
+                  <label><input type="radio" name="finalEditEgb" checked={finalEditData.egbType !== 'purchase'} onChange={() => setFinalEditData({ ...finalEditData, egbType: 'mill', egbValue: '' })} /> <span style={{ color: '#e74c3c', fontWeight: '600' }}>No</span></label>
                 </div>
                 {finalEditData.egbType === 'purchase' && (
-                  <input type="text" inputMode="decimal" value={finalEditData.egbValue} onChange={(e) => setFinalEditData({ ...finalEditData, egbValue: sanitizeAmountInput(e.target.value) })} style={{ width: '160px', padding: '6px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '12px' }} placeholder="EGB value" />
+                  <input type="text" inputMode="decimal" value={finalEditData.egbValue} onChange={(e) => setFinalEditData({ ...finalEditData, egbValue: sanitizeAmountInput(e.target.value) })} style={{ width: '160px', padding: '6px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '12px' }} placeholder="EGB Rate (e.g. 5 or 0)" />
                 )}
               </div>
             )}

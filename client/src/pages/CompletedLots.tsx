@@ -1020,6 +1020,25 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
         : (offeringLf !== undefined && offeringLf !== null && !isNaN(Number(offeringLf)) ? Number(offeringLf) : 0);
     const defaultLfUnit = savedPatti.lfUnit || offeringLfUnit || 'per_bag';
 
+    const offeringEgb = entry.offering?.finalEgbValue2 ?? entry.offering?.finalEgbValue ?? entry.offering?.egbValue2 ?? entry.offering?.egbValue;
+    const offeringEgbType = entry.offering?.finalEgbType2 ?? entry.offering?.finalEgbType ?? entry.offering?.egbType2 ?? entry.offering?.egbType;
+    const defaultEgbRate = savedPatti.egbRate !== undefined && savedPatti.egbRate !== null
+        ? Number(savedPatti.egbRate)
+        : (offeringEgb !== undefined && offeringEgb !== null && !isNaN(Number(offeringEgb)) ? Number(offeringEgb) : 0);
+    const defaultShowEgb = savedPatti.showEgb !== undefined
+        ? savedPatti.showEgb
+        : (offeringEgbType === 'purchase' || Number(offeringEgb) > 0);
+
+    // Extract CD (Cash Discount) from offering or saved patti
+    const offeringCd = entry.offering?.finalCdValue2 ?? entry.offering?.finalCdValue ?? entry.offering?.cdValue2 ?? entry.offering?.cdValue;
+    const offeringCdEnabled = entry.offering?.cdEnabled === true || entry.offering?.cdEnabled === 'true' || (offeringCd !== undefined && offeringCd !== null && Number(offeringCd) > 0);
+    const defaultCdRate = savedPatti.cdRate !== undefined && savedPatti.cdRate !== null
+        ? Number(savedPatti.cdRate)
+        : (offeringCd !== undefined && offeringCd !== null && !isNaN(Number(offeringCd)) ? Number(offeringCd) : 0);
+    const defaultShowCd = savedPatti.showCd !== undefined
+        ? savedPatti.showCd
+        : (defaultCdRate > 0 || (offeringCdEnabled && defaultCdRate > 0));
+
     // Separate states for Mill WB vs Party WB
     const [millHamaliRate] = useState<number>(defaultHamaliRate);
     const [millHamaliUnit] = useState<string>(defaultHamaliUnit);
@@ -1027,6 +1046,25 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
     const [millBrokerageUnit] = useState<string>(defaultBrokerageUnit);
     const [millLfRate] = useState<number>(defaultLfRate);
     const [millLfUnit] = useState<string>(defaultLfUnit);
+    const [millEgbRate, setMillEgbRate] = useState<number>(defaultEgbRate);
+    const [showMillEgb, setShowMillEgb] = useState<boolean>(defaultShowEgb);
+    const [millCdRate, setMillCdRate] = useState<number>(defaultCdRate);
+    const [showMillCd, setShowMillCd] = useState<boolean>(defaultShowCd);
+    const [showMarketFeesModal, setShowMarketFeesModal] = useState<boolean>(false);
+
+    const initialLfAdvanceBrk = pattiTrips.reduce((sum: number, trip: any) => {
+        const adv = Number(trip.lorryFreight?.lfAdvanceBrk || trip.lfAdvanceBrk || 0);
+        return sum + (isNaN(adv) ? 0 : adv);
+    }, 0);
+    const defaultLfAdvanceBrk = savedPatti.lfAdvanceBrk !== undefined && savedPatti.lfAdvanceBrk !== null
+        ? Number(savedPatti.lfAdvanceBrk)
+        : initialLfAdvanceBrk;
+    const defaultShowLfAdvanceBrk = savedPatti.showLfAdvanceBrk !== undefined
+        ? savedPatti.showLfAdvanceBrk
+        : (defaultLfAdvanceBrk > 0);
+
+    const [millLfAdvanceBrk, setMillLfAdvanceBrk] = useState<number>(defaultLfAdvanceBrk);
+    const [showMillLfAdvanceBrk, setShowMillLfAdvanceBrk] = useState<boolean>(defaultShowLfAdvanceBrk);
     const [millLessWb, setMillLessWb] = useState<number>(savedPatti.lessWb !== undefined ? Number(savedPatti.lessWb) : 0);
     const [millDfRate, setMillDfRate] = useState<number>(() => {
         if (savedPatti.dfRate !== undefined && savedPatti.dfRate !== null) return Number(savedPatti.dfRate);
@@ -1055,12 +1093,31 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
         return [];
     });
 
+    const partyDefaultEgbRate = savedPartyPatti.egbRate !== undefined && savedPartyPatti.egbRate !== null
+        ? Number(savedPartyPatti.egbRate)
+        : defaultEgbRate;
+    const partyDefaultShowEgb = savedPartyPatti.showEgb !== undefined
+        ? savedPartyPatti.showEgb
+        : defaultShowEgb;
+    const partyDefaultCdRate = savedPartyPatti.cdRate !== undefined && savedPartyPatti.cdRate !== null
+        ? Number(savedPartyPatti.cdRate)
+        : defaultCdRate;
+    const partyDefaultShowCd = savedPartyPatti.showCd !== undefined
+        ? savedPartyPatti.showCd
+        : defaultShowCd;
+
     const [partyHamaliRate] = useState<number>(savedPartyPatti.hamaliRate !== undefined ? Number(savedPartyPatti.hamaliRate) : defaultHamaliRate);
     const [partyHamaliUnit] = useState<string>(savedPartyPatti.hamaliUnit || defaultHamaliUnit);
     const [partyBrokerageRate] = useState<number>(savedPartyPatti.brokerageRate !== undefined ? Number(savedPartyPatti.brokerageRate) : defaultBrokerageRate);
     const [partyBrokerageUnit] = useState<string>(savedPartyPatti.brokerageUnit || defaultBrokerageUnit);
     const [partyLfRate] = useState<number>(savedPartyPatti.lfRate !== undefined ? Number(savedPartyPatti.lfRate) : defaultLfRate);
     const [partyLfUnit] = useState<string>(savedPartyPatti.lfUnit || defaultLfUnit);
+    const [partyEgbRate, setPartyEgbRate] = useState<number>(partyDefaultEgbRate);
+    const [showPartyEgb, setShowPartyEgb] = useState<boolean>(partyDefaultShowEgb);
+    const [partyCdRate, setPartyCdRate] = useState<number>(partyDefaultCdRate);
+    const [showPartyCd, setShowPartyCd] = useState<boolean>(partyDefaultShowCd);
+    const [partyLfAdvanceBrk, setPartyLfAdvanceBrk] = useState<number>(savedPartyPatti.lfAdvanceBrk !== undefined ? Number(savedPartyPatti.lfAdvanceBrk) : defaultLfAdvanceBrk);
+    const [showPartyLfAdvanceBrk, setShowPartyLfAdvanceBrk] = useState<boolean>(savedPartyPatti.showLfAdvanceBrk !== undefined ? savedPartyPatti.showLfAdvanceBrk : defaultShowLfAdvanceBrk);
     const [partyLessWb, setPartyLessWb] = useState<number>(savedPartyPatti.lessWb !== undefined ? Number(savedPartyPatti.lessWb) : 0);
     const [partyDfRate, setPartyDfRate] = useState<number>(() => {
         if (savedPartyPatti.dfRate !== undefined && savedPartyPatti.dfRate !== null) return Number(savedPartyPatti.dfRate);
@@ -1097,11 +1154,28 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
     const lfRate = pattiMode === 'party' ? partyLfRate : millLfRate;
     const lfUnit = pattiMode === 'party' ? partyLfUnit : millLfUnit;
 
+    const egbRate = pattiMode === 'party' ? partyEgbRate : millEgbRate;
+    const setEgbRate = (val: number) => (pattiMode === 'party' ? setPartyEgbRate(val) : setMillEgbRate(val));
+
+    const showEgb = pattiMode === 'party' ? showPartyEgb : showMillEgb;
+    const setShowEgb = (val: boolean) => (pattiMode === 'party' ? setShowPartyEgb(val) : setShowMillEgb(val));
+
+    const cdRate = pattiMode === 'party' ? partyCdRate : millCdRate;
+    const setCdRate = (val: number) => (pattiMode === 'party' ? setPartyCdRate(val) : setMillCdRate(val));
+
+    const showCd = pattiMode === 'party' ? showPartyCd : showMillCd;
+    const setShowCd = (val: boolean) => (pattiMode === 'party' ? setShowPartyCd(val) : setShowMillCd(val));
+
+    const lfAdvanceBrk = pattiMode === 'party' ? partyLfAdvanceBrk : millLfAdvanceBrk;
+    const setLfAdvanceBrk = (val: number) => (pattiMode === 'party' ? setPartyLfAdvanceBrk(val) : setMillLfAdvanceBrk(val));
+
+    const showLfAdvanceBrk = pattiMode === 'party' ? showPartyLfAdvanceBrk : showMillLfAdvanceBrk;
+    const setShowLfAdvanceBrk = (val: boolean) => (pattiMode === 'party' ? setShowPartyLfAdvanceBrk(val) : setShowMillLfAdvanceBrk(val));
+
     const dfRate = pattiMode === 'party' ? partyDfRate : millDfRate;
     const setDfRate = (val: number) => (pattiMode === 'party' ? setPartyDfRate(val) : setMillDfRate(val));
 
     const lessWb = pattiMode === 'party' ? partyLessWb : millLessWb;
-    const setLessWb = (val: number) => (pattiMode === 'party' ? setPartyLessWb(val) : setMillLessWb(val));
 
     const showLessDf = pattiMode === 'party' ? showPartyLessDf : showMillLessDf;
     const setShowLessDf = (val: boolean) => (pattiMode === 'party' ? setShowPartyLessDf(val) : setShowMillLessDf(val));
@@ -1232,13 +1306,16 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
             : (totalBags * lfRate)
     ).toFixed(2));
 
+    const egbAmount = Number((totalBags * (Number(egbRate) || 0)).toFixed(2));
+
     const dfAmount = Math.round(totalBags * (Number(dfRate) || 0));
 
     const totalCustomAdditions = customAdditions.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0);
     const totalCustomDeductions = customDeductions.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0);
 
-    const totalAdditions = Number((hamaliAmount + brokerageAmount + lfAmount + totalCustomAdditions).toFixed(2));
-    const totalDeductions = Number(((showLessDf ? dfAmount : 0) + (showLessWb ? Number(lessWb) : 0) + totalCustomDeductions).toFixed(2));
+    const totalAdditions = Number((hamaliAmount + brokerageAmount + lfAmount + (showEgb ? egbAmount : 0) + totalCustomAdditions).toFixed(2));
+    const cdAmount = showCd && Number(cdRate) > 0 ? Math.round((totalLorryAmount + totalAdditions) * (Number(cdRate) / 100)) : 0;
+    const totalDeductions = Number(((showCd ? cdAmount : 0) + (showLessDf ? dfAmount : 0) + (showLessWb ? Number(lessWb) : 0) + (showLfAdvanceBrk ? Number(lfAdvanceBrk) : 0) + totalCustomDeductions).toFixed(2));
     const grandTotal = Math.round(totalLorryAmount + totalAdditions - totalDeductions);
 
     // Left side stats
@@ -1263,12 +1340,20 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                 lfRate,
                 lfUnit,
                 lfAmount,
+                egbRate: showEgb ? egbRate : 0,
+                egbAmount: showEgb ? egbAmount : 0,
+                showEgb,
                 customAdditions,
+                cdRate: showCd ? cdRate : 0,
+                cdAmount: showCd ? cdAmount : 0,
+                showCd,
                 lessDf: showLessDf ? dfAmount : 0,
                 dfRate: showLessDf ? dfRate : 0,
                 lessWb: showLessWb ? lessWb : 0,
                 showLessDf,
                 showLessWb,
+                lfAdvanceBrk: showLfAdvanceBrk ? lfAdvanceBrk : 0,
+                showLfAdvanceBrk,
                 customDeductions,
                 totalAmount: totalLorryAmount,
                 grandTotal,
@@ -1420,6 +1505,28 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                             <span style={{ fontSize: '12px', fontWeight: '700', backgroundColor: pattiMode === 'party' ? '#f3e8ff' : '#dbeafe', color: pattiMode === 'party' ? '#6b21a8' : '#1e40af', padding: '2px 8px', borderRadius: '4px', display: 'inline-block' }}>
                                 Type: {resolveLotTypeDisplay()}
                             </span>
+                            {/* Market Fees Link */}
+                            <button
+                                type="button"
+                                onClick={() => setShowMarketFeesModal(true)}
+                                style={{
+                                    fontSize: '12px',
+                                    fontWeight: '700',
+                                    backgroundColor: '#ecfdf5',
+                                    color: '#059669',
+                                    border: '1px solid #a7f3d0',
+                                    padding: '2px 8px',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    textDecoration: 'underline'
+                                }}
+                                title="Click to view Market Fees by Lorry Number"
+                            >
+                                🏷️ Market Fees
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1546,6 +1653,40 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                             <span style={{ flex: 1, textAlign: 'right', fontWeight: '600' }}>Rs {lfAmount.toLocaleString('en-IN')}</span>
                         </div>
 
+                        {/* EGB */}
+                        {showEgb && (
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
+                                <span style={{ width: '135px', whiteSpace: 'nowrap', fontWeight: '500' }}>Add: EGB @</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', width: '110px' }}>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        disabled={isReadOnly}
+                                        value={egbRate === 0 && !isReadOnly ? '' : egbRate}
+                                        onChange={(e) => setEgbRate(e.target.value === '' ? 0 : Number(e.target.value))}
+                                        placeholder="0"
+                                        style={{ width: '55px', padding: '3px', textAlign: 'center', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '3px', background: isReadOnly ? '#f1f5f9' : '#fff', color: '#334155', fontWeight: '700' }}
+                                    />
+                                    <span style={{ fontSize: '12px', color: '#475569', fontWeight: '600' }}>
+                                        / bag
+                                    </span>
+                                </div>
+                                <span style={{ flex: 1, textAlign: 'right', fontWeight: '600' }}>Rs {egbAmount.toLocaleString('en-IN')}</span>
+                                {!isReadOnly && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowEgb(false);
+                                        }}
+                                        style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: 'bold', cursor: 'pointer', padding: '0 4px', fontSize: '14px', marginLeft: '6px' }}
+                                        title="Remove EGB"
+                                    >
+                                        ✕
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
                         {/* Dynamic Custom Additions */}
                         {customAdditions.map((item: any) => (
                             <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 0', borderBottom: '1px solid #eee' }}>
@@ -1589,9 +1730,18 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                             </div>
                         ))}
 
-                        {/* Button to add dynamic addition row */}
+                        {/* Button to add dynamic addition row & restore EGB */}
                         {!isReadOnly && (
-                            <div style={{ padding: '3px 0' }}>
+                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', padding: '3px 0' }}>
+                                {!showEgb && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowEgb(true)}
+                                        style={{ background: 'none', border: 'none', color: '#16a34a', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                    >
+                                        + Add EGB
+                                    </button>
+                                )}
                                 <button
                                     type="button"
                                     onClick={handleAddAdditionRow}
@@ -1603,10 +1753,50 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                         )}
 
                         {/* Sub Total (Additions) */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '2px solid #000', marginBottom: '8px', color: '#16a34a', fontWeight: '800', fontSize: '13px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #cbd5e1', marginBottom: '6px', color: '#16a34a', fontWeight: '800', fontSize: '13px' }}>
                             <span>Total Additions:</span>
                             <span>Rs {totalAdditions.toLocaleString('en-IN')}</span>
                         </div>
+
+                        {/* Total with Additions (Upper line & Bottom line separator before Less deductions) */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderTop: '2px solid #000', borderBottom: '2px solid #000', marginBottom: '8px', color: '#0f172a', fontWeight: '800', fontSize: '13.5px', backgroundColor: '#f8fafc' }}>
+                            <span>Total (with Additions):</span>
+                            <span>Rs {(totalLorryAmount + totalAdditions).toLocaleString('en-IN')}</span>
+                        </div>
+
+                        {/* Less: CD (Cash Discount) */}
+                        {showCd && (
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
+                                <span style={{ width: '135px', whiteSpace: 'nowrap', fontWeight: '500' }}>Less: CD:</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '180px' }}>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        disabled={isReadOnly}
+                                        value={cdRate === 0 && !isReadOnly ? '' : cdRate}
+                                        onChange={(e) => setCdRate(e.target.value === '' ? 0 : Number(e.target.value))}
+                                        placeholder="0"
+                                        style={{ width: '60px', padding: '2px 4px', textAlign: 'center', fontSize: '12px', border: '1px solid #ccc', borderRadius: '3px', fontWeight: '600' }}
+                                    />
+                                    <span style={{ fontSize: '12px', color: '#1e293b', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                                        % on Rs {(totalLorryAmount + totalAdditions).toLocaleString('en-IN')}
+                                    </span>
+                                </div>
+                                <span style={{ flex: 1, textAlign: 'right', fontWeight: '600', color: '#dc2626' }}>- Rs {cdAmount.toLocaleString('en-IN')}</span>
+                                {!isReadOnly && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowCd(false);
+                                        }}
+                                        style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: 'bold', cursor: 'pointer', padding: '0 4px', fontSize: '14px', marginLeft: '6px' }}
+                                        title="Remove Less CD"
+                                    >
+                                        ✕
+                                    </button>
+                                )}
+                            </div>
+                        )}
 
                         {/* Less DF */}
                         {showLessDf && (
@@ -1671,6 +1861,37 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                             </div>
                         )}
 
+                        {/* Less LF Advance (BRK) */}
+                        {showLfAdvanceBrk && (
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
+                                <span style={{ width: '135px', whiteSpace: 'nowrap', fontWeight: '500' }}>Less: LF Adv (BRK):</span>
+                                <div style={{ width: '110px' }}>
+                                    <input
+                                        type="number"
+                                        disabled={isReadOnly}
+                                        value={lfAdvanceBrk === 0 && !isReadOnly ? '' : lfAdvanceBrk}
+                                        onChange={(e) => setLfAdvanceBrk(e.target.value === '' ? 0 : Number(e.target.value))}
+                                        placeholder="0"
+                                        style={{ width: '80px', padding: '2px', textAlign: 'right', fontSize: '12px', border: '1px solid #ccc', borderRadius: '3px' }}
+                                    />
+                                </div>
+                                <span style={{ flex: 1, textAlign: 'right', fontWeight: '600', color: '#dc2626' }}>- Rs {Number(lfAdvanceBrk || 0).toLocaleString('en-IN')}</span>
+                                {!isReadOnly && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setLfAdvanceBrk(0);
+                                            setShowLfAdvanceBrk(false);
+                                        }}
+                                        style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: 'bold', cursor: 'pointer', padding: '0 4px', fontSize: '14px', marginLeft: '6px' }}
+                                        title="Remove LF Advance"
+                                    >
+                                        ✕
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
                         {/* Dynamic Custom Deductions */}
                         {customDeductions.map((item: any) => (
                             <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 0', borderBottom: '1px solid #eee' }}>
@@ -1714,9 +1935,24 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                             </div>
                         ))}
 
-                        {/* Button to add dynamic deduction row and restore Less DF / Less WB */}
+                        {/* Button to add dynamic deduction row and restore Less CD / Less DF / Less WB / Less LF Advance */}
                         {!isReadOnly && (
                             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', padding: '3px 0' }}>
+                                {!showCd && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowCd(true);
+                                            if (!cdRate || cdRate === 0) {
+                                                const offerCd = Number(entry.offering?.finalCdValue2 ?? entry.offering?.finalCdValue ?? entry.offering?.cdValue2 ?? entry.offering?.cdValue ?? 0);
+                                                setCdRate(offerCd > 0 ? offerCd : 1);
+                                            }
+                                        }}
+                                        style={{ background: 'none', border: 'none', color: '#dc2626', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                    >
+                                        + Add CD
+                                    </button>
+                                )}
                                 {!showLessDf && (
                                     <button
                                         type="button"
@@ -1736,6 +1972,15 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                                         style={{ background: 'none', border: 'none', color: '#dc2626', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                                     >
                                         + Add Less WB
+                                    </button>
+                                )}
+                                {!showLfAdvanceBrk && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowLfAdvanceBrk(true)}
+                                        style={{ background: 'none', border: 'none', color: '#dc2626', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                    >
+                                        + Add LF Adv (BRK)
                                     </button>
                                 )}
                                 <button
@@ -1806,6 +2051,141 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                         </button>
                     )}
                 </div>
+
+                {/* Market Fees Modal (Popup showing only Lorry Number & linked Market Fees) */}
+                {showMarketFeesModal && (
+                    <div style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        backgroundColor: 'rgba(0, 0, 0, 0.55)',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        zIndex: 1100
+                    }}>
+                        <div style={{
+                            backgroundColor: '#ffffff',
+                            borderRadius: '8px',
+                            width: '90%',
+                            maxWidth: '460px',
+                            boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+                            overflow: 'hidden',
+                            border: '1px solid #e2e8f0'
+                        }}>
+                            {/* Modal Header */}
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                padding: '14px 18px',
+                                backgroundColor: '#f0fdf4',
+                                borderBottom: '1px solid #bbf7d0'
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{ fontSize: '18px' }}>🏷️</span>
+                                    <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#166534' }}>
+                                        Market Fees by Lorry
+                                    </h3>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowMarketFeesModal(false)}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        fontSize: '18px',
+                                        color: '#64748b',
+                                        cursor: 'pointer',
+                                        fontWeight: 'bold',
+                                        padding: '0 4px',
+                                        lineHeight: 1
+                                    }}
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            {/* Modal Content */}
+                            <div style={{ padding: '16px 18px', maxHeight: '60vh', overflowY: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                                    <thead>
+                                        <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #cbd5e1' }}>
+                                            <th style={{ padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#475569', width: '50px' }}>#</th>
+                                            <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: '700', color: '#475569' }}>Lorry No</th>
+                                            <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '700', color: '#475569' }}>Market Fees</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {pattiTrips.map((trip: any, idx: number) => {
+                                            const lpr = trip.linkedPattiRate || {};
+                                            const off = entry.offering || {};
+                                            const mVal = lpr.marketPriceValue !== undefined && lpr.marketPriceValue !== null && String(lpr.marketPriceValue).trim() !== ''
+                                                ? lpr.marketPriceValue
+                                                : (off.finalMarketPriceValue2 ?? off.finalMarketPriceValue ?? off.marketPriceValue2 ?? off.marketPriceValue);
+                                            const mUnit = lpr.marketPriceUnit || off.finalMarketPriceUnit2 || off.finalMarketPriceUnit || off.marketPriceUnit2 || off.marketPriceUnit || 'percentage';
+                                            const mEnabled = lpr.marketPrice === true || lpr.marketPrice === 'true' || off.marketPrice === true || off.marketPrice === 'true';
+
+                                            let formattedFees = '-';
+                                            if (mVal !== undefined && mVal !== null && String(mVal).trim() !== '') {
+                                                const unitLabel = mUnit === 'percentage' ? '%' : (mUnit === 'per_bag' ? ' / Bag' : (mUnit === 'per_qtl' ? ' / Qtl' : ' Lumps'));
+                                                formattedFees = `${mVal}${unitLabel}`;
+                                            } else if (mEnabled) {
+                                                formattedFees = 'Yes';
+                                            }
+
+                                            return (
+                                                <tr key={trip.id || idx} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
+                                                    <td style={{ padding: '8px 10px', textAlign: 'center', color: '#64748b', fontWeight: '600' }}>{idx + 1}</td>
+                                                    <td style={{ padding: '8px 10px', textAlign: 'left', fontWeight: '700', color: '#0f172a' }}>
+                                                        {trip.lorryNumber?.toUpperCase() || '-'}
+                                                    </td>
+                                                    <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '700', color: formattedFees !== '-' ? '#059669' : '#94a3b8' }}>
+                                                        {formattedFees}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                        {pattiTrips.length === 0 && (
+                                            <tr>
+                                                <td colSpan={3} style={{ padding: '16px', textAlign: 'center', color: '#94a3b8' }}>
+                                                    No lorries linked with patti rate
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div style={{
+                                padding: '10px 18px',
+                                backgroundColor: '#f8fafc',
+                                borderTop: '1px solid #e2e8f0',
+                                textAlign: 'right'
+                            }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowMarketFeesModal(false)}
+                                    style={{
+                                        padding: '6px 14px',
+                                        backgroundColor: '#16a34a',
+                                        color: '#ffffff',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        fontSize: '12px',
+                                        fontWeight: '700',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -152,6 +152,12 @@ const PhysicalInspection = sequelize.define('PhysicalInspection', {
     type: DataTypes.STRING(20),
     allowNull: true,
     field: 'lf_unit'
+  },
+  lorryFreight: {
+    type: DataTypes.JSONB,
+    allowNull: true,
+    defaultValue: null,
+    field: 'lorry_freight'
   }
 }, {
   tableName: 'physical_inspections',
@@ -170,6 +176,24 @@ const PhysicalInspection = sequelize.define('PhysicalInspection', {
     }
   ]
 });
+
+// Auto-migration helper for new columns
+const runPhysicalInspectionAutoMigration = async () => {
+  try {
+    const queries = [
+      `ALTER TABLE physical_inspections ADD COLUMN IF NOT EXISTS lorry_freight JSONB;`
+    ];
+    for (const q of queries) {
+      await sequelize.query(q).catch(() => {});
+    }
+  } catch (err) {
+    console.error('PhysicalInspection migration notice:', err?.message || err);
+  }
+};
+
+setTimeout(() => {
+  runPhysicalInspectionAutoMigration();
+}, 2000);
 
 PhysicalInspection.associate = (models) => {
   PhysicalInspection.belongsTo(models.SampleEntry, {
