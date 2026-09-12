@@ -204,7 +204,6 @@ router.get('/band-malal-book', auth, async (req, res) => {
         }
       ],
       order: [
-        [Sequelize.fn('COALESCE', Sequelize.col('LorryTransitDetail.placeApprovedAt'), Sequelize.col('LorryTransitDetail.placeDate'), Sequelize.col('LorryTransitDetail.createdAt')), 'ASC'],
         ['createdAt', 'ASC']
       ],
       limit: parseInt(limit)

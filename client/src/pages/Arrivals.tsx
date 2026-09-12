@@ -4255,14 +4255,14 @@ const Arrivals: React.FC = () => {
       return isNaN(d.getTime()) ? 0 : d.getTime();
     };
 
-    // Sort latest date first (descending: newest date at top, oldest date at bottom)
+    // Sort chronologically (ascending: oldest entry at top with SL No 1, newest entries at bottom)
     return [...filtered].sort((a, b) => {
       const timeA = parseEpoch(a);
       const timeB = parseEpoch(b);
       if (timeA !== timeB) {
-        return timeB - timeA; // Descending: newer timestamp first
+        return timeA - timeB; // Ascending: oldest first
       }
-      return (Number(b.id) || 0) - (Number(a.id) || 0);
+      return (Number(a.id) || 0) - (Number(b.id) || 0);
     });
   }, [bandMalalEntries, bmbDateFilter, bmbDateFromFilter, bmbDateToFilter, bmbBrokerFilter, bmbVarietyFilter, bmbSearchQuery, bmbStatusFilter, isStaffMillOrLoc, isMillStaff]);
 
