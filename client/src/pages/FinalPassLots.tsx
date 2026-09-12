@@ -81,6 +81,12 @@ interface OfferingData {
   paymentConditionEnabled: boolean;
   paymentConditionValue: string;
   paymentConditionUnit: 'days' | 'month';
+  marketPrice: boolean;
+  marketPriceValue: string;
+  marketPriceUnit: 'percentage' | 'lumps';
+  checkPost: boolean;
+  checkPostValue: string;
+  checkPostUnit: 'percentage' | 'lumps';
   remarks: string;
 }
 
@@ -162,6 +168,12 @@ interface OfferVersionData {
   paymentConditionEnabled?: boolean;
   paymentConditionValue?: number | string;
   paymentConditionUnit?: 'days' | 'month';
+  marketPrice?: boolean;
+  marketPriceValue?: number | string;
+  marketPriceUnit?: 'percentage' | 'lumps';
+  checkPost?: boolean;
+  checkPostValue?: number | string;
+  checkPostUnit?: 'percentage' | 'lumps';
   remarks?: string;
   updatedAt?: string;
   createdByRole?: string | null;
@@ -475,6 +487,12 @@ const DEFAULT_PADDY_OFFER: OfferingData = {
   paymentConditionEnabled: true,
   paymentConditionValue: '15',
   paymentConditionUnit: 'days',
+  marketPrice: false,
+  marketPriceValue: '',
+  marketPriceUnit: 'lumps',
+  checkPost: false,
+  checkPostValue: '',
+  checkPostUnit: 'lumps',
   remarks: ''
 };
 const DEFAULT_FINAL_DATA: FinalPriceFormData = {
@@ -703,6 +721,12 @@ const buildOfferFormData = (offer?: Partial<OfferVersionData> | null): OfferingD
       : true,
     paymentConditionValue: (offer?.paymentConditionValue ?? '15').toString(),
     paymentConditionUnit: offer?.paymentConditionUnit || 'days',
+    marketPrice: !!offer?.marketPrice,
+    marketPriceValue: toOptionalInputValue(offer?.marketPriceValue),
+    marketPriceUnit: (offer?.marketPriceUnit as 'percentage' | 'lumps') || 'lumps',
+    checkPost: !!offer?.checkPost,
+    checkPostValue: toOptionalInputValue(offer?.checkPostValue),
+    checkPostUnit: (offer?.checkPostUnit as 'percentage' | 'lumps') || 'lumps',
     remarks: offer?.remarks || ''
   };
 };
@@ -1147,6 +1171,12 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
           bankLoanUnit: offerData.bankLoanUnit,
           paymentConditionValue: offerData.paymentConditionEnabled && offerData.paymentConditionValue ? parseFloat(offerData.paymentConditionValue) : null,
           paymentConditionUnit: offerData.paymentConditionUnit,
+          marketPrice: offerData.marketPrice,
+          marketPriceValue: parseOptionalNumber(offerData.marketPriceValue),
+          marketPriceUnit: offerData.marketPriceUnit,
+          checkPost: offerData.checkPost,
+          checkPostValue: parseOptionalNumber(offerData.checkPostValue),
+          checkPostUnit: offerData.checkPostUnit,
           remarks: offerData.remarks
         },
         { headers: { Authorization: `Bearer ${token}` } }
@@ -1719,7 +1749,7 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                                 <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'left', whiteSpace: 'nowrap', width: '9%' }}>Variety</th>
                                 <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'left', whiteSpace: 'nowrap', width: '22%' }}>Offering Details</th>
                                 <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'left', whiteSpace: 'nowrap', width: '22%' }}>Final Price</th>
-                                <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', whiteSpace: 'nowrap', width: '6%' }}>Market Price</th>
+                                <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', whiteSpace: 'nowrap', width: '6%' }}>Market Fees</th>
                                 <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', whiteSpace: 'nowrap', width: '6%' }}>Check Post</th>
                                 <th style={{ border: '1px solid #000', padding: '3px 4px', fontWeight: '600', fontSize: '13px', textAlign: 'center', whiteSpace: 'nowrap', width: '8%' }}>Action</th>
                               </>
@@ -1746,7 +1776,7 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                                 <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'center', whiteSpace: 'normal', wordBreak: 'break-word', width: '5%' }}>Cooking</th>
                                 <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'center', whiteSpace: 'normal', wordBreak: 'break-word', width: '6.5%', minWidth: '90px' }}>Offer Rate</th>
                                 <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'center', whiteSpace: 'normal', wordBreak: 'break-word', width: '5%' }}>Final Rate</th>
-                                <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'center', whiteSpace: 'normal', wordBreak: 'break-word', width: '5%' }}>Market Price</th>
+                                <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'center', whiteSpace: 'normal', wordBreak: 'break-word', width: '5%' }}>Market Fees</th>
                                 <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'center', whiteSpace: 'normal', wordBreak: 'break-word', width: '5%' }}>Check Post</th>
                                 <th style={{ border: '1px solid #000', padding: '3px', fontWeight: '700', fontSize: '12px', textAlign: 'center', whiteSpace: 'normal', wordBreak: 'break-word', width: '5%' }}>Action</th>
                               </>
@@ -2547,6 +2577,24 @@ const FinalPassLots: React.FC<FinalPassLotsProps> = ({ entryType, excludeEntryTy
                           </select>
                         </div>
                       )}
+                    </div>
+                    <div style={compactNarrowFieldStyle}>
+                      <label style={labelStyle}>Market Fees</label>
+                      <div style={{ display: 'flex', gap: '6px', marginBottom: '4px', fontSize: '11px' }}>
+                        <label style={radioLabelStyle}><input type="radio" name="offerMarketPrice" checked={offerData.marketPrice}
+                          onChange={() => setOfferData({ ...offerData, marketPrice: true })} /> <span style={{ color: '#27ae60', fontWeight: '600' }}>Yes</span></label>
+                        <label style={radioLabelStyle}><input type="radio" name="offerMarketPrice" checked={!offerData.marketPrice}
+                          onChange={() => setOfferData({ ...offerData, marketPrice: false, marketPriceValue: '' })} /> <span style={{ color: '#e74c3c', fontWeight: '600' }}>No</span></label>
+                      </div>
+                    </div>
+                    <div style={compactNarrowFieldStyle}>
+                      <label style={labelStyle}>Check Post</label>
+                      <div style={{ display: 'flex', gap: '6px', marginBottom: '4px', fontSize: '11px' }}>
+                        <label style={radioLabelStyle}><input type="radio" name="offerCheckPost" checked={offerData.checkPost}
+                          onChange={() => setOfferData({ ...offerData, checkPost: true })} /> <span style={{ color: '#27ae60', fontWeight: '600' }}>Yes</span></label>
+                        <label style={radioLabelStyle}><input type="radio" name="offerCheckPost" checked={!offerData.checkPost}
+                          onChange={() => setOfferData({ ...offerData, checkPost: false, checkPostValue: '' })} /> <span style={{ color: '#e74c3c', fontWeight: '600' }}>No</span></label>
+                      </div>
                     </div>
                   </div>
                 )}

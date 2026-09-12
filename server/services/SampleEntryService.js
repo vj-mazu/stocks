@@ -515,6 +515,12 @@ const buildOfferPayload = (priceData, existingOffer = {}, slotKey) => {
     bankLoanUnit: normalizeToggleUnit(priceData.bankLoanUnit || existingOffer.bankLoanUnit || 'per_bag', 'per_bag'),
     paymentConditionValue: normalizePaymentValue(priceData.paymentConditionValue ?? existingOffer.paymentConditionValue, 15),
     paymentConditionUnit: normalizePaymentUnit(priceData.paymentConditionUnit || existingOffer.paymentConditionUnit || 'days', 'days'),
+    marketPrice: toBoolean(priceData.marketPrice, toBoolean(existingOffer.marketPrice, false)),
+    marketPriceValue: toNumberOrDefault(priceData.marketPriceValue ?? existingOffer.marketPriceValue, 0),
+    marketPriceUnit: normalizeToggleUnit(priceData.marketPriceUnit || existingOffer.marketPriceUnit || 'lumps', 'lumps'),
+    checkPost: toBoolean(priceData.checkPost, toBoolean(existingOffer.checkPost, false)),
+    checkPostValue: priceData.checkPostValue !== undefined && priceData.checkPostValue !== null ? String(priceData.checkPostValue) : (existingOffer.checkPostValue ? String(existingOffer.checkPostValue) : ''),
+    checkPostUnit: normalizeToggleUnit(priceData.checkPostUnit || existingOffer.checkPostUnit || 'lumps', 'lumps'),
     remarks: priceData.remarks ?? existingOffer.remarks ?? ''
   };
 };
@@ -550,7 +556,13 @@ const mirrorOfferToColumns = (offer) => {
       bankLoanValue: 0,
       bankLoanUnit: 'per_bag',
       paymentConditionValue: 15,
-      paymentConditionUnit: 'days'
+      paymentConditionUnit: 'days',
+      marketPrice: false,
+      marketPriceValue: 0,
+      marketPriceUnit: 'lumps',
+      checkPost: false,
+      checkPostValue: '',
+      checkPostUnit: 'lumps'
     };
   }
 
@@ -588,6 +600,12 @@ const mirrorOfferToColumns = (offer) => {
     bankLoanUnit: normalizeToggleUnit(offer.bankLoanUnit, 'per_bag'),
     paymentConditionValue: normalizePaymentValue(offer.paymentConditionValue, 15),
     paymentConditionUnit: normalizePaymentUnit(offer.paymentConditionUnit, 'days'),
+    marketPrice: toBoolean(offer.marketPrice, false),
+    marketPriceValue: toNumberOrDefault(offer.marketPriceValue, 0),
+    marketPriceUnit: normalizeToggleUnit(offer.marketPriceUnit, 'lumps'),
+    checkPost: toBoolean(offer.checkPost, false),
+    checkPostValue: offer.checkPostValue !== undefined && offer.checkPostValue !== null ? String(offer.checkPostValue) : '',
+    checkPostUnit: normalizeToggleUnit(offer.checkPostUnit, 'lumps'),
     finalRemarks: offer.finalRemarks || ''
   };
 };

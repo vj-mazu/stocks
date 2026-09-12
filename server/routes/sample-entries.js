@@ -1468,6 +1468,12 @@ router.post('/:id/rate-linking-decision', authenticateToken, async (req, res) =>
           offeringUpdates.hamaliUnit = data.rateInfo.hamaliUnit;
           offeringUpdates.lf = data.rateInfo.lf;
           offeringUpdates.lfUnit = data.rateInfo.lfUnit;
+          if (data.rateInfo.bankLoan !== undefined) {
+            offeringUpdates.bankLoanEnabled = data.rateInfo.bankLoan;
+            offeringUpdates.bankLoan = data.rateInfo.bankLoan;
+            offeringUpdates.bankLoanValue = data.rateInfo.bankLoanValue;
+            offeringUpdates.bankLoanUnit = data.rateInfo.bankLoanUnit;
+          }
           if (data.rateInfo.marketPrice !== undefined) {
             offeringUpdates.marketPrice = data.rateInfo.marketPrice;
             offeringUpdates.marketPriceValue = data.rateInfo.marketPriceValue;
@@ -3756,6 +3762,9 @@ router.post('/:id/final-price', authenticateToken, async (req, res) => {
         isDispute: Boolean(req.body.isDispute === true || req.body.isDispute === 'true' || req.body.revisedRateOption === 'dispute'),
         isRevision: Boolean(req.body.isRevision === true || req.body.isRevision === 'true'),
         linkedRevisionId: req.body.linkedRevisionId || null,
+        bankLoan: req.body.bankLoan !== undefined ? Boolean(req.body.bankLoan) : false,
+        bankLoanValue: req.body.bankLoanValue !== undefined && req.body.bankLoanValue !== null && req.body.bankLoanValue !== '' ? Number(req.body.bankLoanValue) : null,
+        bankLoanUnit: req.body.bankLoanUnit || 'per_bag',
         marketPrice: req.body.marketPrice !== undefined ? Boolean(req.body.marketPrice) : false,
         marketPriceValue: req.body.marketPriceValue !== undefined && req.body.marketPriceValue !== null && req.body.marketPriceValue !== '' ? Number(req.body.marketPriceValue) : null,
         marketPriceUnit: req.body.marketPriceUnit || 'lumps',
@@ -3792,6 +3801,9 @@ router.post('/:id/final-price', authenticateToken, async (req, res) => {
             hamaliUnit: rateInfo.hamaliUnit,
             lf: rateInfo.lf,
             lfUnit: rateInfo.lfUnit,
+            bankLoan: rateInfo.bankLoan,
+            bankLoanValue: rateInfo.bankLoanValue,
+            bankLoanUnit: rateInfo.bankLoanUnit,
             marketPrice: rateInfo.marketPrice,
             marketPriceValue: rateInfo.marketPriceValue,
             marketPriceUnit: rateInfo.marketPriceUnit,

@@ -4807,16 +4807,24 @@ const SampleEntryPage: React.FC<{
                         value={(() => {
                           const options = isRiceQualityEntry ? riceReportedByOptions : qualityUsers;
                           const current = qualityData.reportedBy || '';
-                          const match = options.find((name) => String(name).toLowerCase() === String(current).toLowerCase());
+                          const match = options.find((name) => String(name).trim().toLowerCase() === String(current).trim().toLowerCase());
                           return match || current;
                         })()}
                         onChange={(e) => setQualityData({ ...qualityData, reportedBy: e.target.value })}
                         style={{ width: '100%', padding: '6px', border: '1.5px solid #bbb', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box', fontWeight: '600', backgroundColor: '#fff', color: '#000', cursor: 'pointer' }}
                       >
                         <option value="">-- Select --</option>
-                        {(isRiceQualityEntry ? riceReportedByOptions : qualityUsers).map((qName, idx) => (
-                          <option key={idx} value={qName}>{toTitleCase(qName)}</option>
-                        ))}
+                        {(() => {
+                          const options = isRiceQualityEntry ? riceReportedByOptions : qualityUsers;
+                          const current = qualityData.reportedBy ? String(qualityData.reportedBy).trim() : '';
+                          const list = [...options];
+                          if (current && !list.some(name => name.toLowerCase() === current.toLowerCase())) {
+                            list.push(current);
+                          }
+                          return list.map((qName, idx) => (
+                            <option key={idx} value={qName}>{toTitleCase(qName)}</option>
+                          ));
+                        })()}
                       </select>
                       )}
                   </div>

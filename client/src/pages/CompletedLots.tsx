@@ -1051,6 +1051,7 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
     const [millCdRate, setMillCdRate] = useState<number>(defaultCdRate);
     const [showMillCd, setShowMillCd] = useState<boolean>(defaultShowCd);
     const [showMarketFeesModal, setShowMarketFeesModal] = useState<boolean>(false);
+    const [showBankLoanModal, setShowBankLoanModal] = useState<boolean>(false);
 
     const initialLfAdvanceBrk = pattiTrips.reduce((sum: number, trip: any) => {
         const adv = Number(trip.lorryFreight?.lfAdvanceBrk || trip.lfAdvanceBrk || 0);
@@ -1526,6 +1527,28 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                                 title="Click to view Market Fees by Lorry Number"
                             >
                                 🏷️ Market Fees
+                            </button>
+                            {/* Bank Loan Link */}
+                            <button
+                                type="button"
+                                onClick={() => setShowBankLoanModal(true)}
+                                style={{
+                                    fontSize: '12px',
+                                    fontWeight: '700',
+                                    backgroundColor: '#eff6ff',
+                                    color: '#2563eb',
+                                    border: '1px solid #bfdbfe',
+                                    padding: '2px 8px',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    textDecoration: 'underline'
+                                }}
+                                title="Click to view Bank Loan by Lorry Number"
+                            >
+                                🏦 Bank Loan
                             </button>
                         </div>
                     </div>
@@ -2172,6 +2195,141 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                                     style={{
                                         padding: '6px 14px',
                                         backgroundColor: '#16a34a',
+                                        color: '#ffffff',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        fontSize: '12px',
+                                        fontWeight: '700',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Bank Loan Modal (Popup showing Lorry Number & linked Bank Loan details) */}
+                {showBankLoanModal && (
+                    <div style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        backgroundColor: 'rgba(0, 0, 0, 0.55)',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        zIndex: 1100
+                    }}>
+                        <div style={{
+                            backgroundColor: '#ffffff',
+                            borderRadius: '8px',
+                            width: '90%',
+                            maxWidth: '460px',
+                            boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+                            overflow: 'hidden',
+                            border: '1px solid #e2e8f0'
+                        }}>
+                            {/* Modal Header */}
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                padding: '14px 18px',
+                                backgroundColor: '#eff6ff',
+                                borderBottom: '1px solid #bfdbfe'
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{ fontSize: '18px' }}>🏦</span>
+                                    <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#1e40af' }}>
+                                        Bank Loan by Lorry
+                                    </h3>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowBankLoanModal(false)}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        fontSize: '18px',
+                                        color: '#64748b',
+                                        cursor: 'pointer',
+                                        fontWeight: 'bold',
+                                        padding: '0 4px',
+                                        lineHeight: 1
+                                    }}
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            {/* Modal Content */}
+                            <div style={{ padding: '16px 18px', maxHeight: '60vh', overflowY: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                                    <thead>
+                                        <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #cbd5e1' }}>
+                                            <th style={{ padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#475569', width: '50px' }}>#</th>
+                                            <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: '700', color: '#475569' }}>Lorry No</th>
+                                            <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '700', color: '#475569' }}>Bank Loan</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {pattiTrips.map((trip: any, idx: number) => {
+                                            const lpr = trip.linkedPattiRate || {};
+                                            const off = entry.offering || {};
+                                            const bVal = lpr.bankLoanValue !== undefined && lpr.bankLoanValue !== null && String(lpr.bankLoanValue).trim() !== ''
+                                                ? lpr.bankLoanValue
+                                                : (off.finalBankLoanValue2 ?? off.finalBankLoanValue ?? off.bankLoanValue2 ?? off.bankLoanValue);
+                                            const bUnit = lpr.bankLoanUnit || off.finalBankLoanUnit2 || off.finalBankLoanUnit || off.bankLoanUnit2 || off.bankLoanUnit || 'lumps';
+                                            const bEnabled = lpr.bankLoan === true || lpr.bankLoan === 'true' || off.bankLoanEnabled === true || off.bankLoanEnabled === 'true';
+
+                                            let formattedLoan = '-';
+                                            if (bVal !== undefined && bVal !== null && String(bVal).trim() !== '') {
+                                                const unitLabel = bUnit === 'per_bag' ? ' / Bag' : (bUnit === 'per_qtl' ? ' / Qtl' : (bUnit === 'percentage' ? '%' : ' Lumps'));
+                                                formattedLoan = `${bVal}${unitLabel}`;
+                                            } else if (bEnabled) {
+                                                formattedLoan = 'Yes';
+                                            }
+
+                                            return (
+                                                <tr key={trip.id || idx} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
+                                                    <td style={{ padding: '8px 10px', textAlign: 'center', color: '#64748b', fontWeight: '600' }}>{idx + 1}</td>
+                                                    <td style={{ padding: '8px 10px', textAlign: 'left', fontWeight: '700', color: '#0f172a' }}>
+                                                        {trip.lorryNumber?.toUpperCase() || '-'}
+                                                    </td>
+                                                    <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '700', color: formattedLoan !== '-' ? '#2563eb' : '#94a3b8' }}>
+                                                        {formattedLoan}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                        {pattiTrips.length === 0 && (
+                                            <tr>
+                                                <td colSpan={3} style={{ padding: '16px', textAlign: 'center', color: '#94a3b8' }}>
+                                                    No lorries linked with patti rate
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div style={{
+                                padding: '10px 18px',
+                                backgroundColor: '#f8fafc',
+                                borderTop: '1px solid #e2e8f0',
+                                textAlign: 'right'
+                            }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowBankLoanModal(false)}
+                                    style={{
+                                        padding: '6px 14px',
+                                        backgroundColor: '#2563eb',
                                         color: '#ffffff',
                                         border: 'none',
                                         borderRadius: '4px',

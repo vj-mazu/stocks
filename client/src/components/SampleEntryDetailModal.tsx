@@ -725,6 +725,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
     const [pattiLinkModalData, setPattiLinkModalData] = useState<{
         isOpen: boolean;
         rateInfo: any;
+        bankLoan?: boolean;
+        bankLoanValue?: string;
+        bankLoanUnit?: string;
         marketPrice: boolean;
         marketPriceValue: string;
         marketPriceUnit: 'percentage' | 'lumps';
@@ -3347,15 +3350,19 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         const versions = Array.isArray(o.offerVersions) ? o.offerVersions : [];
         const showLinkAction = typeof rateInfoAction === 'function';
 
-        const initiateLink = (rateInfo: any, sourceMeta: { marketPrice?: boolean; checkPost?: boolean; marketPriceValue?: any; marketPriceUnit?: any; checkPostValue?: any }) => {
+        const initiateLink = (rateInfo: any, sourceMeta: { bankLoan?: boolean; bankLoanValue?: any; bankLoanUnit?: any; marketPrice?: boolean; checkPost?: boolean; marketPriceValue?: any; marketPriceUnit?: any; checkPostValue?: any }) => {
             if (!rateInfoAction) return;
+            const isBankLoanEnabled = Boolean(sourceMeta.bankLoan);
             const isMarketPriceEnabled = Boolean(sourceMeta.marketPrice);
             const isCheckPostEnabled = Boolean(sourceMeta.checkPost);
 
-            if (isMarketPriceEnabled || isCheckPostEnabled) {
+            if (isBankLoanEnabled || isMarketPriceEnabled || isCheckPostEnabled) {
                 setPattiLinkModalData({
                     isOpen: true,
                     rateInfo,
+                    bankLoan: isBankLoanEnabled,
+                    bankLoanValue: sourceMeta.bankLoanValue !== undefined && sourceMeta.bankLoanValue !== null ? String(sourceMeta.bankLoanValue) : '',
+                    bankLoanUnit: sourceMeta.bankLoanUnit || 'per_bag',
                     marketPrice: isMarketPriceEnabled,
                     marketPriceValue: sourceMeta.marketPriceValue !== undefined && sourceMeta.marketPriceValue !== null ? String(sourceMeta.marketPriceValue) : '',
                     marketPriceUnit: sourceMeta.marketPriceUnit === 'lumps' ? 'lumps' : 'percentage',
@@ -3364,6 +3371,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     onConfirm: async (finalParams: any) => {
                         await rateInfoAction({
                             ...rateInfo,
+                            bankLoan: isBankLoanEnabled,
+                            bankLoanValue: isBankLoanEnabled && finalParams.bankLoanValue !== '' && finalParams.bankLoanValue !== null ? Number(finalParams.bankLoanValue) : null,
+                            bankLoanUnit: isBankLoanEnabled ? (finalParams.bankLoanUnit || 'per_bag') : 'per_bag',
                             marketPrice: isMarketPriceEnabled,
                             marketPriceValue: isMarketPriceEnabled && finalParams.marketPriceValue !== '' && finalParams.marketPriceValue !== null ? Number(finalParams.marketPriceValue) : null,
                             marketPriceUnit: isMarketPriceEnabled ? finalParams.marketPriceUnit : 'lumps',
@@ -3376,6 +3386,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             } else {
                 rateInfoAction({
                     ...rateInfo,
+                    bankLoan: false,
+                    bankLoanValue: null,
+                    bankLoanUnit: 'per_bag',
                     marketPrice: false,
                     marketPriceValue: null,
                     marketPriceUnit: 'lumps',
@@ -3415,6 +3428,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                             isDispute: false,
                             isRevision: false
                         }, {
+                            bankLoan: v.bankLoan !== undefined ? v.bankLoan : o.bankLoan,
+                            bankLoanValue: v.bankLoanValue ?? o.bankLoanValue,
+                            bankLoanUnit: v.bankLoanUnit ?? o.bankLoanUnit,
                             marketPrice: v.marketPrice !== undefined ? v.marketPrice : o.marketPrice,
                             checkPost: v.checkPost !== undefined ? v.checkPost : o.checkPost,
                             marketPriceValue: v.marketPriceValue ?? o.marketPriceValue,
@@ -3488,6 +3504,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         isDispute: false,
                         isRevision: false
                     }, {
+                        bankLoan: o.bankLoanEnabled ?? o.bankLoan,
+                        bankLoanValue: o.finalBankLoanValue ?? o.bankLoanValue,
+                        bankLoanUnit: o.finalBankLoanUnit ?? o.bankLoanUnit,
                         marketPrice: o.marketPrice,
                         checkPost: o.checkPost,
                         marketPriceValue: o.marketPriceValue,
@@ -3561,6 +3580,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                         isDispute: false,
                         isRevision: false
                     }, {
+                        bankLoan: o.bankLoanEnabled ?? o.bankLoan,
+                        bankLoanValue: o.finalBankLoanValue2 ?? o.bankLoanValue2 ?? o.finalBankLoanValue ?? o.bankLoanValue,
+                        bankLoanUnit: o.finalBankLoanUnit2 ?? o.bankLoanUnit2 ?? o.finalBankLoanUnit ?? o.bankLoanUnit,
                         marketPrice: o.marketPrice,
                         checkPost: o.checkPost,
                         marketPriceValue: o.marketPriceValue,
@@ -4009,6 +4031,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                             isRevision: Boolean(isRevision),
                             linkedRevisionId: isRevision ? (v.id || null) : null
                         }, {
+                            bankLoan: v.bankLoan !== undefined ? v.bankLoan : (o.bankLoanEnabled ?? o.bankLoan),
+                            bankLoanValue: v.bankLoanValue ?? o.bankLoanValue,
+                            bankLoanUnit: v.bankLoanUnit ?? o.bankLoanUnit,
                             marketPrice: v.marketPrice !== undefined ? v.marketPrice : o.marketPrice,
                             checkPost: v.checkPost !== undefined ? v.checkPost : o.checkPost,
                             marketPriceValue: v.marketPriceValue ?? o.marketPriceValue,
@@ -6823,6 +6848,51 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                             <div style={{ fontSize: '12px', color: '#475569', backgroundColor: '#f8fafc', padding: '8px 12px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
                                 Linking Rate: <strong style={{ color: '#0f172a' }}>Rs {pattiLinkModalData.rateInfo.rate}</strong> ({String(pattiLinkModalData.rateInfo.rateType).replace(/_/g, '/')})
                             </div>
+
+                            {pattiLinkModalData.bankLoan && (
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '5px' }}>
+                                        🏦 Bank Loan Rate
+                                    </label>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <input
+                                            type="number"
+                                            step="any"
+                                            value={pattiLinkModalData.bankLoanValue || ''}
+                                            onChange={(e) => setPattiLinkModalData(prev => prev ? ({ ...prev, bankLoanValue: e.target.value }) : null)}
+                                            placeholder="Enter bank loan rate"
+                                            style={{
+                                                flex: 1,
+                                                padding: '8px 10px',
+                                                border: '1px solid #cbd5e1',
+                                                borderRadius: '6px',
+                                                fontSize: '13px',
+                                                outline: 'none'
+                                            }}
+                                            autoFocus
+                                        />
+                                        <select
+                                            value={pattiLinkModalData.bankLoanUnit || 'per_bag'}
+                                            onChange={(e) => setPattiLinkModalData(prev => prev ? ({ ...prev, bankLoanUnit: e.target.value }) : null)}
+                                            style={{
+                                                width: '130px',
+                                                padding: '8px 10px',
+                                                border: '1px solid #cbd5e1',
+                                                borderRadius: '6px',
+                                                fontSize: '12px',
+                                                fontWeight: '600',
+                                                backgroundColor: '#f8fafc',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            <option value="per_bag">/ Bag</option>
+                                            <option value="per_qtl">/ Qtl</option>
+                                            <option value="lumps">Lumps (₹)</option>
+                                            <option value="percentage">Percentage (%)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
 
                             {pattiLinkModalData.marketPrice && (
                                 <div>
