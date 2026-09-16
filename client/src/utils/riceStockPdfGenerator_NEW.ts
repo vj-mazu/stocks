@@ -444,8 +444,9 @@ function renderMovementRow(
         packaging = String(movement.packaging_brand);
     }
     
-    // Handle location - ensure string
-    const location = String(movement.location || movement.locationCode || 'A1');
+    // Handle location - format cleanly to prevent ugly wrapping or overflows
+    const rawLocation = String(movement.location || movement.locationCode || 'A1');
+    const location = formatLocation(rawLocation);
 
     const columns = [
         { text: qtls, width: width * 0.12 },
@@ -456,15 +457,48 @@ function renderMovementRow(
         { text: location, width: width * 0.18 }
     ];
 
-    let currentX = x + 2;
-    columns.forEach(col => {
-        // Ensure text is always a string
+    // Calculate required row height dynamically based on max wrapped lines
+    doc.setFontSize(CONTENT_SIZE);
+    doc.setFont('helvetica', 'normal');
+    let maxLines = 1;
+    const splitTexts = columns.map(col => {
         const textValue = String(col.text || '');
-        doc.text(textValue, currentX, y + 3, { align: 'left', maxWidth: col.width - 2 });
+        const lines = doc.splitTextToSize(textValue, col.width - 2);
+        const lineCount = Array.isArray(lines) ? lines.length : 1;
+        if (lineCount > maxLines) maxLines = lineCount;
+        return lines;
+    });
+
+    const rowHeight = Math.max(4.5, maxLines * 3.2);
+
+    // Background
+    doc.setFillColor(...bgColor);
+    doc.rect(x, y, width, rowHeight, 'F');
+
+    // Text
+    doc.setTextColor(0, 0, 0);
+
+    let currentX = x + 2;
+    columns.forEach((col, idx) => {
+        const lines = splitTexts[idx];
+        // Vertical alignment: start at y + 3
+        doc.text(lines, currentX, y + 3, { align: 'left' });
         currentX += col.width;
     });
 
-    return y + 4;
+    return y + rowHeight;
+}
+
+/**
+ * Format location names for compact, clean display without breaking
+ */
+function formatLocation(loc: string): string {
+    if (!loc) return '-';
+    let clean = String(loc).trim();
+    clean = clean.replace(/^DIRECT_LOADED_VEHICLE$/i, 'DIRECT LOAD');
+    clean = clean.replace(/^DIRECT_LOAD$/i, 'DIRECT LOAD');
+    clean = clean.replace(/_/g, ' ');
+    return clean;
 }
 
 /**
@@ -493,6 +527,48 @@ function renderPaltiHierarchical(
         // SINGLE PALTI - Render as 3 rows (source, target, shortage)
         return renderSinglePalti(doc, movement, x, currentY, width);
     }
+}
+
+/**
+ * Helper to render a multi-column row with dynamic height
+ */
+function renderDynamicRow(
+    doc: jsPDF,
+    columns: Array<{ text: string; width: number }>,
+    x: number,
+    y: number,
+    width: number,
+    bgColor: [number, number, number],
+    textColor: [number, number, number] = [0, 0, 0],
+    isBold: boolean = false
+): number {
+    doc.setFontSize(CONTENT_SIZE);
+    doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+
+    let maxLines = 1;
+    const splitTexts = columns.map(col => {
+        const textValue = String(col.text || '');
+        const lines = doc.splitTextToSize(textValue, col.width - 2);
+        const lineCount = Array.isArray(lines) ? lines.length : 1;
+        if (lineCount > maxLines) maxLines = lineCount;
+        return lines;
+    });
+
+    const rowHeight = Math.max(4.5, maxLines * 3.2);
+
+    doc.setFillColor(...bgColor);
+    doc.rect(x, y, width, rowHeight, 'F');
+
+    doc.setTextColor(...textColor);
+
+    let currentX = x + 2;
+    columns.forEach((col, idx) => {
+        const lines = splitTexts[idx];
+        doc.text(lines, currentX, y + 3, { align: 'left' });
+        currentX += col.width;
+    });
+
+    return y + rowHeight;
 }
 
 /**
@@ -544,8 +620,8 @@ function renderSinglePalti(
     }
     
     // Extract location info
-    const fromLoc = String(movement.fromLocation || movement.from || 'Source');
-    const toLoc = String(movement.toLocation || movement.to || movement.locationCode || 'Target');
+    const fromLoc = formatLocation(String(movement.fromLocation || movement.from || 'Source'));
+    const toLoc = formatLocation(String(movement.toLocation || movement.to || movement.locationCode || 'Target'));
     
     // Extract variety
     let variety = 'Sum25 RNR Raw';
@@ -564,12 +640,6 @@ function renderSinglePalti(
     const sourceBags = movement.sourceBags || Math.ceil((sourceQtls * 100) / sourcePackagingKg);
     
     // ROW 1: SOURCE (Yellow background)
-    doc.setFillColor(254, 243, 199); // #fef3c7 - Yellow
-    doc.rect(x, currentY, width, 4, 'F');
-    doc.setFontSize(CONTENT_SIZE);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 0, 0);
-    
     const sourceColumns = [
         { text: sourceQtls.toFixed(2), width: width * 0.12 },
         { text: `${sourceBags}/${sourcePackagingKg}kg`, width: width * 0.12 },
@@ -578,61 +648,31 @@ function renderSinglePalti(
         { text: sourcePackaging, width: width * 0.18 },
         { text: fromLoc, width: width * 0.18 }
     ];
-    
-    let currentX = x + 2;
-    sourceColumns.forEach(col => {
-        doc.text(String(col.text), currentX, currentY + 3, { align: 'left', maxWidth: col.width - 2 });
-        currentX += col.width;
-    });
-    currentY += 4;
+    currentY = renderDynamicRow(doc, sourceColumns, x, currentY, width, [254, 243, 199], [0, 0, 0]);
     
     // ROW 2: PALTI TARGET (Orange background)
-    doc.setFillColor(255, 237, 213); // #ffedd5 - Light orange
-    doc.rect(x, currentY, width, 4, 'F');
-    doc.setFontSize(CONTENT_SIZE);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(124, 45, 18); // Dark orange text
-    
     const targetBagSizeKg = Number(movement.targetPackaging?.allottedKg || movement.bagSizeKg || 26);
     const targetColumns = [
         { text: targetQtls.toFixed(2), width: width * 0.12 },
         { text: `${targetBags}/${targetBagSizeKg}kg`, width: width * 0.12 },
-        { text: '↳ Palti Target', width: width * 0.15 },
+        { text: '> Palti Target', width: width * 0.15 },
         { text: variety, width: width * 0.25 },
         { text: targetPackaging, width: width * 0.18 },
         { text: toLoc, width: width * 0.18 }
     ];
-    
-    currentX = x + 2;
-    targetColumns.forEach(col => {
-        doc.text(String(col.text), currentX, currentY + 3, { align: 'left', maxWidth: col.width - 2 });
-        currentX += col.width;
-    });
-    currentY += 4;
+    currentY = renderDynamicRow(doc, targetColumns, x, currentY, width, [255, 237, 213], [124, 45, 18]);
     
     // ROW 3: SHORTAGE (Red background) - only if shortage > 0
     if (shortageKg > 0) {
-        doc.setFillColor(254, 226, 226); // #fee2e2 - Light red
-        doc.rect(x, currentY, width, 4, 'F');
-        doc.setFontSize(CONTENT_SIZE);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(220, 38, 38); // Red text
-        
         const shortageColumns = [
             { text: shortageQtls.toFixed(2), width: width * 0.12 },
             { text: '-', width: width * 0.12 },
-            { text: '⚠️ Shortage', width: width * 0.15 },
+            { text: '[Shortage]', width: width * 0.15 },
             { text: '-', width: width * 0.25 },
             { text: '-', width: width * 0.18 },
             { text: `${shortageKg.toFixed(2)}kg`, width: width * 0.18 }
         ];
-        
-        currentX = x + 2;
-        shortageColumns.forEach(col => {
-            doc.text(String(col.text), currentX, currentY + 3, { align: 'left', maxWidth: col.width - 2 });
-            currentX += col.width;
-        });
-        currentY += 4;
+        currentY = renderDynamicRow(doc, shortageColumns, x, currentY, width, [254, 226, 226], [220, 38, 38], true);
     }
     
     return currentY;
@@ -671,7 +711,7 @@ function renderGroupedPalti(
         }
     }
     
-    const sourceLocation = String(movement.fromLocation || movement.location || 'Source');
+    const sourceLocation = formatLocation(String(movement.fromLocation || movement.location || 'Source'));
     
     // Extract variety
     let variety = 'Sum25 RNR Raw';
@@ -687,12 +727,6 @@ function renderGroupedPalti(
     const sourcePackagingKg = Number(movement.sourcePackaging?.allottedKg || movement.bagSizeKg || 26);
     
     // ROW 1: SOURCE (Yellow background)
-    doc.setFillColor(254, 243, 199); // #fef3c7 - Yellow
-    doc.rect(x, currentY, width, 4, 'F');
-    doc.setFontSize(CONTENT_SIZE);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 0, 0);
-    
     const sourceColumns = [
         { text: sourceQtls.toFixed(2), width: width * 0.12 },
         { text: `${sourceBags}/${sourcePackagingKg}kg`, width: width * 0.12 },
@@ -701,24 +735,12 @@ function renderGroupedPalti(
         { text: sourcePackaging, width: width * 0.18 },
         { text: sourceLocation, width: width * 0.18 }
     ];
-    
-    let currentX = x + 2;
-    sourceColumns.forEach(col => {
-        doc.text(String(col.text), currentX, currentY + 3, { align: 'left', maxWidth: col.width - 2 });
-        currentX += col.width;
-    });
-    currentY += 4;
+    currentY = renderDynamicRow(doc, sourceColumns, x, currentY, width, [254, 243, 199], [0, 0, 0]);
     
     // ROWS 2+: PALTI TARGETS (Orange background, alternating shades)
     const splits = movement.splits || [];
     splits.forEach((split: any, idx: number) => {
-        // Alternate between two orange shades
         const bgColor: [number, number, number] = idx % 2 === 0 ? [255, 247, 237] : [255, 237, 213]; // #fff7ed : #ffedd5
-        doc.setFillColor(...bgColor);
-        doc.rect(x, currentY, width, 4, 'F');
-        doc.setFontSize(CONTENT_SIZE);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(124, 45, 18); // Dark orange text
         
         const targetQtls = Math.abs(Number(split.qtls || 0));
         const targetBags = Math.abs(Number(split.bags || 0));
@@ -744,52 +766,34 @@ function renderGroupedPalti(
             }
         }
         
-        const targetLocation = String(split.targetLocation || split.to || 'Target');
+        const targetLocation = formatLocation(String(split.targetLocation || split.to || 'Target'));
         
         const targetColumns = [
             { text: targetQtls.toFixed(2), width: width * 0.12 },
             { text: `${targetBags}/${targetBagSizeKg}kg`, width: width * 0.12 },
-            { text: '↳ Palti Target', width: width * 0.15 },
+            { text: '> Palti Target', width: width * 0.15 },
             { text: targetVariety, width: width * 0.25 },
             { text: targetPackaging, width: width * 0.18 },
             { text: targetLocation, width: width * 0.18 }
         ];
         
-        currentX = x + 2;
-        targetColumns.forEach(col => {
-            doc.text(String(col.text), currentX, currentY + 3, { align: 'left', maxWidth: col.width - 2 });
-            currentX += col.width;
-        });
-        currentY += 4;
+        currentY = renderDynamicRow(doc, targetColumns, x, currentY, width, bgColor, [124, 45, 18]);
     });
     
     // LAST ROW: TOTAL SHORTAGE (Red background) - only if total shortage > 0
     const totalShortage = splits.reduce((sum: number, s: any) => sum + Number(s.shortageKg || 0), 0);
     if (totalShortage > 0) {
-        doc.setFillColor(254, 226, 226); // #fee2e2 - Light red
-        doc.rect(x, currentY, width, 4, 'F');
-        doc.setFontSize(CONTENT_SIZE);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(220, 38, 38); // Red text
-        
         const shortageQtls = totalShortage / 100;
         const shortageColumns = [
             { text: shortageQtls.toFixed(2), width: width * 0.12 },
             { text: '-', width: width * 0.12 },
-            { text: '⚠️ Shortage From Palti', width: width * 0.15 },
+            { text: '[Shortage From Palti]', width: width * 0.15 },
             { text: '-', width: width * 0.25 },
             { text: '-', width: width * 0.18 },
             { text: `${totalShortage.toFixed(1)}kg`, width: width * 0.18 }
         ];
-        
-        currentX = x + 2;
-        shortageColumns.forEach(col => {
-            doc.text(String(col.text), currentX, currentY + 3, { align: 'left', maxWidth: col.width - 2 });
-            currentX += col.width;
-        });
-        currentY += 4;
+        currentY = renderDynamicRow(doc, shortageColumns, x, currentY, width, [254, 226, 226], [220, 38, 38], true);
     }
-    
     return currentY;
 }
 
