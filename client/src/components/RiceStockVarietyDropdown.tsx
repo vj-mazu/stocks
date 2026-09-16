@@ -15,29 +15,34 @@ import axios from 'axios';
 const Container = styled.div`
   position: relative;
   width: 100%;
+  min-width: 0;
 `;
 
 const Label = styled.label`
   font-weight: 600;
   color: #374151;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   display: block;
   margin-bottom: 0.5rem;
+  white-space: nowrap;
 `;
 
 const Select = styled.select`
-  padding: 0.75rem;
+  padding: 0.75rem 1rem;
   border: 2px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 1rem;
+  border-radius: 10px;
+  font-size: 0.95rem;
   background: white;
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   cursor: pointer;
+  transition: all 0.2s;
 
   &:focus {
     outline: none;
-    border-color: #10b981;
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    border-color: #dc2626;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
   }
 
   &:disabled {
@@ -125,6 +130,7 @@ interface RiceStockVariety {
 
 interface RiceStockVarietyDropdownProps {
   value: number | null; // outturn_id
+  varietyName?: string; // variety text name
   onChange: (outturnId: number | null, varietyData?: RiceStockVariety) => void;
   label?: string;
   placeholder?: string;
@@ -139,6 +145,7 @@ interface RiceStockVarietyDropdownProps {
 
 const RiceStockVarietyDropdown: React.FC<RiceStockVarietyDropdownProps> = ({
   value,
+  varietyName,
   onChange,
   label = "Rice Variety",
   placeholder = "-- Select Rice Variety --",
@@ -151,6 +158,7 @@ const RiceStockVarietyDropdown: React.FC<RiceStockVarietyDropdownProps> = ({
   error
 }) => {
   const [varieties, setVarieties] = useState<RiceStockVariety[]>([]);
+  const [genericVarieties, setGenericVarieties] = useState<any[]>([]);
   const [filteredVarieties, setFilteredVarieties] = useState<RiceStockVariety[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -178,35 +186,31 @@ const RiceStockVarietyDropdown: React.FC<RiceStockVarietyDropdownProps> = ({
       console.log('   URL:', `/rice-stock/varieties?${params.toString()}`);
       console.log('   Token exists:', !!token);
 
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
       const response = await axios.get<{
-        varieties: any[];
-      }>(`${API_URL}/locations/rice-varieties?${params.toString()}`, {
+        varieties: RiceStockVariety[];
+        total: number;
+      }>(`/rice-stock/varieties?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       console.log('✅ RiceStockVarietyDropdown: API Response received');
       console.log('   Varieties count:', response.data.varieties?.length || 0);
 
-      // Map varieties from locations/rice-varieties structure: id, name, code
-      const fetchedVarieties: RiceStockVariety[] = (response.data.varieties || []).map((v: any) => ({
-        id: v.id,
-        code: v.code || v.name?.substring(0, 10).toUpperCase(),
-        standardized_variety: v.name,
-        allotted_variety: v.name,
-        variety: v.name, // Add 'variety' field for backwards-compatibility with stock check lookups
-        processing_type: 'Raw' // default fallback
-      }));
-      
-      setVarieties(fetchedVarieties);
-      setFilteredVarieties(fetchedVarieties);
-
-      // If there's a selected value, find the corresponding variety data
-      if (value && fetchedVarieties.length > 0) {
-        const selected = fetchedVarieties.find(v => v.id === value);
-        setSelectedVariety(selected || null);
+      // Also fetch generic rice varieties from Locations
+      let fetchedRiceVarieties: any[] = [];
+      try {
+        const riceVarietiesResponse = await axios.get<{ varieties: any[] }>('/locations/rice-varieties', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        fetchedRiceVarieties = (riceVarietiesResponse.data as any).varieties || [];
+        console.log('✅ RiceStockVarietyDropdown: Rice varieties from locations:', fetchedRiceVarieties.length);
+        setGenericVarieties(fetchedRiceVarieties);
+      } catch (locationsErr) {
+        console.error('⚠️ RiceStockVarietyDropdown: Error fetching locations rice varieties:', locationsErr);
       }
 
+      const fetchedVarieties = response.data.varieties || [];
+      setVarieties(fetchedVarieties);
     } catch (error) {
       console.error('❌ RiceStockVarietyDropdown: Error fetching rice stock varieties:', error);
       
@@ -230,31 +234,92 @@ const RiceStockVarietyDropdown: React.FC<RiceStockVarietyDropdownProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [processingTypeFilter, showVarietyInfo, value]);
+  }, [processingTypeFilter, showVarietyInfo]);
+
+  // Sync selected variety when value or varietyName changes without re-fetching
+  useEffect(() => {
+    if (value && value > 0 && varieties.length > 0) {
+      const selected = varieties.find(v => v.id === value);
+      setSelectedVariety(selected || null);
+    } else if (varietyName) {
+      const selectedOutturn = varieties.find(v => v.standardized_variety === varietyName);
+      if (selectedOutturn) {
+        setSelectedVariety(selectedOutturn);
+      } else if (genericVarieties.length > 0) {
+        const selectedGeneric = genericVarieties.find(v => v.name === varietyName);
+        if (selectedGeneric) {
+          setSelectedVariety({
+            id: null as any,
+            code: selectedGeneric.code,
+            standardized_variety: selectedGeneric.name,
+            allotted_variety: selectedGeneric.name,
+            processing_type: selectedGeneric.name.toUpperCase().includes('STEAM') ? 'Steam' : 'Raw'
+          });
+        }
+      }
+    }
+  }, [value, varietyName, varieties, genericVarieties]);
 
   // Filter varieties based on search and filter criteria
   const filterVarieties = useCallback(() => {
-    let filtered = varieties;
+    // Map outturns
+    const mappedOutturns: RiceStockVariety[] = varieties.map(v => ({ ...v, isGeneric: false } as any));
+    
+    // Map generic varieties from Locations
+    const mappedGenerics: RiceStockVariety[] = genericVarieties.map(gv => ({
+      id: -gv.id, // Use negative ID to prevent collision with outturns
+      code: gv.code,
+      standardized_variety: gv.name,
+      allotted_variety: gv.name,
+      processing_type: gv.name.toUpperCase().includes('STEAM') ? 'Steam' : 'Raw',
+      isGeneric: true,
+      genericId: gv.id
+    } as any));
 
-    // Locations rice varieties do not have a processing_type field, so we skip the processing type check
-    // to prevent filtering out all varieties.
-    // if (activeFilter !== 'all') { ... }
+    let combined = [...mappedOutturns, ...mappedGenerics];
+
+    // Apply processing type filter
+    if (activeFilter !== 'all') {
+      combined = combined.filter(v => v.processing_type === activeFilter);
+    }
 
     // Apply search filter
     if (searchTerm.trim()) {
       const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(v => 
+      combined = combined.filter(v => 
         v.standardized_variety.toLowerCase().includes(search) ||
         v.allotted_variety.toLowerCase().includes(search) ||
-        v.code.toLowerCase().includes(search)
+        (v.code && v.code.toLowerCase().includes(search))
       );
     }
 
-    // Sort alphabetically by standardized variety
-    filtered.sort((a, b) => a.standardized_variety.localeCompare(b.standardized_variety));
+    // Deduplicate by standardized_variety so no duplicates appear
+    const varietyMap = new Map<string, RiceStockVariety>();
+    for (const item of combined) {
+      const key = (item.standardized_variety || '').trim().toUpperCase();
+      if (!key) continue;
 
-    setFilteredVarieties(filtered);
-  }, [varieties, activeFilter, searchTerm]);
+      if (!varietyMap.has(key)) {
+        varietyMap.set(key, { ...item });
+      } else {
+        const existing = varietyMap.get(key)!;
+        if (item.usage_count !== undefined) {
+          existing.usage_count = (existing.usage_count || 0) + item.usage_count;
+        }
+        // Prefer real outturn ID (> 0) over generic ID (< 0)
+        if (item.id && item.id > 0 && (!existing.id || existing.id < 0 || existing.id < item.id)) {
+          existing.id = item.id;
+          existing.code = item.code || existing.code;
+        }
+      }
+    }
+
+    const uniqueList = Array.from(varietyMap.values());
+    // Sort alphabetically by standardized variety
+    uniqueList.sort((a, b) => a.standardized_variety.localeCompare(b.standardized_variety));
+
+    setFilteredVarieties(uniqueList);
+  }, [varieties, genericVarieties, activeFilter, searchTerm]);
 
   // Fetch varieties on component mount and when dependencies change
   useEffect(() => {
@@ -266,6 +331,30 @@ const RiceStockVarietyDropdown: React.FC<RiceStockVarietyDropdownProps> = ({
     filterVarieties();
   }, [filterVarieties]);
 
+  // Get active option value based on outturn ID and fallback variety name
+  const getSelectValue = () => {
+    if (value && value > 0) {
+      const directMatch = filteredVarieties.find(v => v.id === value);
+      if (directMatch) return String(directMatch.id);
+
+      const orig = varieties.find(v => v.id === value);
+      if (orig) {
+        const nameMatch = filteredVarieties.find(
+          v => v.standardized_variety.trim().toUpperCase() === orig.standardized_variety.trim().toUpperCase()
+        );
+        if (nameMatch) return String(nameMatch.id);
+      }
+      return String(value);
+    }
+    if (varietyName) {
+      const match = filteredVarieties.find(
+        v => v.standardized_variety.trim().toUpperCase() === varietyName.trim().toUpperCase()
+      );
+      if (match) return String(match.id);
+    }
+    return '';
+  };
+
   // Handle variety selection
   const handleSelectionChange = (selectedId: string) => {
     if (!selectedId) {
@@ -274,11 +363,22 @@ const RiceStockVarietyDropdown: React.FC<RiceStockVarietyDropdownProps> = ({
       return;
     }
 
-    const outturnId = Number.parseInt(selectedId, 10);
-    const varietyData = varieties.find(v => v.id === outturnId);
+    const numericId = Number.parseInt(selectedId, 10);
+    const selected = filteredVarieties.find(v => v.id === numericId);
     
-    setSelectedVariety(varietyData || null);
-    onChange(outturnId, varietyData);
+    if (selected) {
+      setSelectedVariety(selected);
+      if (selected.id < 0) {
+        // Generic variety selected - pass null as outturnId, but pass the variety object
+        onChange(null, selected);
+      } else {
+        // Outturn variety selected - pass outturnId
+        onChange(selected.id, selected);
+      }
+    } else {
+      setSelectedVariety(null);
+      onChange(null);
+    }
   };
 
   // Handle filter change
@@ -334,7 +434,7 @@ const RiceStockVarietyDropdown: React.FC<RiceStockVarietyDropdownProps> = ({
       )}
 
       <Select
-        value={value || ''}
+        value={getSelectValue()}
         onChange={(e) => handleSelectionChange(e.target.value)}
         required={required}
         disabled={disabled || loading}
@@ -346,9 +446,9 @@ const RiceStockVarietyDropdown: React.FC<RiceStockVarietyDropdownProps> = ({
         {filteredVarieties.map((variety) => (
           <option key={variety.id} value={variety.id}>
             {variety.standardized_variety}
-            {showVarietyInfo && variety.usage_count !== undefined && (
+            {showVarietyInfo && typeof variety.usage_count === 'number' && variety.usage_count > 0 ? (
               ` (${variety.usage_count} uses)`
-            )}
+            ) : null}
           </option>
         ))}
       </Select>
@@ -357,7 +457,7 @@ const RiceStockVarietyDropdown: React.FC<RiceStockVarietyDropdownProps> = ({
         <LoadingMessage>Loading rice varieties...</LoadingMessage>
       )}
 
-      {!loading && filteredVarieties.length === 0 && varieties.length > 0 && (
+      {!loading && filteredVarieties.length === 0 && (varieties.length > 0 || genericVarieties.length > 0) && (
         <ErrorMessage>No varieties match your search criteria.</ErrorMessage>
       )}
 
