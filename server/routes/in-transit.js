@@ -192,7 +192,7 @@ router.get('/in-transit', auth, async (req, res) => {
       ]
     };
 
-    // Fetch transit details with PhysicalInspection and SampleEntry associations
+    // Fetch transit details with PhysicalInspection, SampleEntry and all related associations eager-loaded
     const entries = await LorryTransitDetail.findAll({
       where,
       include: [
@@ -220,6 +220,54 @@ router.get('/in-transit', auth, async (req, res) => {
             { model: User, as: 'approver', attributes: ['id', 'username', 'fullName', 'role'] },
             { model: User, as: 'reporter', attributes: ['id', 'username', 'fullName', 'role'] }
           ]
+        },
+        {
+          model: Kunchinittu,
+          as: 'placeKunchinittuData',
+          attributes: ['id', 'name', 'code'],
+          required: false
+        },
+        {
+          model: Warehouse,
+          as: 'placeWarehouse',
+          attributes: ['id', 'name', 'code'],
+          required: false
+        },
+        {
+          model: Outturn,
+          as: 'outturn',
+          attributes: ['id', 'code', 'allottedVariety'],
+          required: false
+        },
+        {
+          model: WeightBridge,
+          as: 'millWeightBridge',
+          attributes: ['id', 'name', 'location'],
+          required: false
+        },
+        {
+          model: User,
+          as: 'wbAddedByUser',
+          attributes: ['id', 'username', 'fullName'],
+          required: false
+        },
+        {
+          model: User,
+          as: 'placeAddedByUser',
+          attributes: ['id', 'username', 'fullName'],
+          required: false
+        },
+        {
+          model: User,
+          as: 'placeApprover',
+          attributes: ['id', 'username', 'fullName'],
+          required: false
+        },
+        {
+          model: User,
+          as: 'wbApprover',
+          attributes: ['id', 'username', 'fullName', 'role'],
+          required: false
         }
       ],
       order: [['createdAt', 'DESC']],
@@ -228,49 +276,20 @@ router.get('/in-transit', auth, async (req, res) => {
 
     console.log(`✅ In-Transit: Found ${entries.length} transit detail entries`);
 
-    // Map entries with sequential numbers
+    // Map entries with sequential numbers using eager-loaded models (zero extra DB queries)
     const arrivals = await Promise.all(entries.map(async (detail, index) => {
       try {
         const inspection = detail.physicalInspection;
         const sampleEntry = detail.sampleEntry || {};
 
-        // Fetch place kunchinittu and warehouse if selected
-        const placeKunchinittu = detail.placeKunchinittuId
-          ? await Kunchinittu.findByPk(detail.placeKunchinittuId, { attributes: ['id', 'name', 'code'] })
-          : null;
-
-        const placeWarehouse = detail.placeWarehouseId
-          ? await Warehouse.findByPk(detail.placeWarehouseId, { attributes: ['id', 'name', 'code'] })
-          : null;
-
-        const outturn = detail.outturnId
-          ? await Outturn.findByPk(detail.outturnId, { attributes: ['id', 'code', 'allottedVariety'] })
-          : null;
-
-        // Fetch Mill Weight Bridge if exists
-        const millWb = detail.millWbId
-          ? await WeightBridge.findByPk(detail.millWbId, { attributes: ['id', 'name', 'location'] })
-          : null;
-
-        // Resolve wbAddedBy user name
-        const wbAddedByUser = detail.wbAddedBy
-          ? await User.findByPk(detail.wbAddedBy, { attributes: ['id', 'username', 'fullName'] })
-          : null;
-
-        // Resolve placeAddedBy user name
-        const placeAddedByUser = detail.placeAddedBy
-          ? await User.findByPk(detail.placeAddedBy, { attributes: ['id', 'username', 'fullName'] })
-          : null;
-
-        // Resolve placeApprover user name
-        const placeApproverUser = detail.placeApprovedBy
-          ? await User.findByPk(detail.placeApprovedBy, { attributes: ['id', 'username', 'fullName'] })
-          : null;
-
-        // Resolve wbApprover user name
-        const wbApproverUser = detail.wbApprovedBy
-          ? await User.findByPk(detail.wbApprovedBy, { attributes: ['id', 'username', 'fullName', 'role'] })
-          : null;
+        const placeKunchinittu = detail.placeKunchinittuData || null;
+        const placeWarehouse = detail.placeWarehouse || null;
+        const outturn = detail.outturn || null;
+        const millWb = detail.millWeightBridge || null;
+        const wbAddedByUser = detail.wbAddedByUser || null;
+        const placeAddedByUser = detail.placeAddedByUser || null;
+        const placeApproverUser = detail.placeApprover || null;
+        const wbApproverUser = detail.wbApprover || null;
 
         return {
           id: detail.id,

@@ -201,6 +201,54 @@ router.get('/band-malal-book', auth, async (req, res) => {
             { model: User, as: 'approver', attributes: ['id', 'username', 'fullName', 'role'] },
             { model: User, as: 'reporter', attributes: ['id', 'username', 'fullName', 'role'] }
           ]
+        },
+        {
+          model: Kunchinittu,
+          as: 'placeKunchinittuData',
+          attributes: ['id', 'name', 'code'],
+          required: false
+        },
+        {
+          model: Warehouse,
+          as: 'placeWarehouse',
+          attributes: ['id', 'name', 'code'],
+          required: false
+        },
+        {
+          model: Outturn,
+          as: 'outturn',
+          attributes: ['id', 'code', 'allottedVariety'],
+          required: false
+        },
+        {
+          model: WeightBridge,
+          as: 'millWeightBridge',
+          attributes: ['id', 'name', 'location'],
+          required: false
+        },
+        {
+          model: User,
+          as: 'wbAddedByUser',
+          attributes: ['id', 'username', 'fullName'],
+          required: false
+        },
+        {
+          model: User,
+          as: 'placeAddedByUser',
+          attributes: ['id', 'username', 'fullName'],
+          required: false
+        },
+        {
+          model: User,
+          as: 'placeApprover',
+          attributes: ['id', 'username', 'fullName'],
+          required: false
+        },
+        {
+          model: User,
+          as: 'wbApprover',
+          attributes: ['id', 'username', 'fullName', 'role'],
+          required: false
         }
       ],
       order: [
@@ -210,25 +258,6 @@ router.get('/band-malal-book', auth, async (req, res) => {
     });
 
     console.log(`✅ Band Malal Book: Found ${entries.length} transit detail entries (Total: ${totalApprovedCount})`);
-
-    console.log("=== BMB ENTRY DIAGNOSTICS ===");
-    entries.forEach((e, idx) => {
-      console.log(`[BMB ${idx}] ID: ${e.id}`);
-      console.log(`  - physicalInspectionId: ${e.physicalInspectionId}`);
-      console.log(`  - physicalInspection association loaded: ${!!e.physicalInspection}`);
-      if (e.physicalInspection) {
-        console.log(`    * PI ID: ${e.physicalInspection.id}`);
-        console.log(`    * PI Lorry: ${e.physicalInspection.lorryNumber}`);
-      }
-      console.log(`  - sampleEntryId: ${e.sampleEntryId}`);
-      console.log(`  - sampleEntry association loaded: ${!!e.sampleEntry}`);
-      if (e.sampleEntry) {
-        console.log(`    * SE ID: ${e.sampleEntry.id}`);
-        console.log(`    * SE Party: ${e.sampleEntry.partyName}`);
-        console.log(`    * SE Lorry: ${e.sampleEntry.lorryNumber}`);
-      }
-    });
-    console.log("===============================");
 
     // Map entries with sequential BMB numbers (counting UP from 1)
     const arrivals = await Promise.all(entries.map(async (detail, index) => {
@@ -295,42 +324,38 @@ router.get('/band-malal-book', auth, async (req, res) => {
           sampleEntry = {};
         }
 
-        // Fetch place kunchinittu and warehouse if selected
-        const placeKunchinittu = detail.placeKunchinittuId
+        // Use eager-loaded associations or fallback if auto-healed
+        const placeKunchinittu = detail.placeKunchinittuData || (detail.placeKunchinittuId
           ? await Kunchinittu.findByPk(detail.placeKunchinittuId, { attributes: ['id', 'name', 'code'] })
-          : null;
+          : null);
 
-        const placeWarehouse = detail.placeWarehouseId
+        const placeWarehouse = detail.placeWarehouse || (detail.placeWarehouseId
           ? await Warehouse.findByPk(detail.placeWarehouseId, { attributes: ['id', 'name', 'code'] })
-          : null;
+          : null);
 
-        const outturn = detail.outturnId
+        const outturn = detail.outturn || (detail.outturnId
           ? await Outturn.findByPk(detail.outturnId, { attributes: ['id', 'code', 'allottedVariety'] })
-          : null;
+          : null);
 
-        const millWb = detail.millWbId
+        const millWb = detail.millWeightBridge || (detail.millWbId
           ? await WeightBridge.findByPk(detail.millWbId, { attributes: ['id', 'name', 'location'] })
-          : null;
+          : null);
 
-        // Fetch wbAddedBy user details
-        const wbAddedByUser = detail.wbAddedBy
+        const wbAddedByUser = detail.wbAddedByUser || (detail.wbAddedBy
           ? await User.findByPk(detail.wbAddedBy, { attributes: ['id', 'username', 'fullName'] })
-          : null;
+          : null);
 
-        // Fetch placeAddedBy user details
-        const placeAddedByUser = detail.placeAddedBy
+        const placeAddedByUser = detail.placeAddedByUser || (detail.placeAddedBy
           ? await User.findByPk(detail.placeAddedBy, { attributes: ['id', 'username', 'fullName'] })
-          : null;
+          : null);
 
-        // Fetch placeApprovedBy user details
-        const placeApproverUser = detail.placeApprovedBy
+        const placeApproverUser = detail.placeApprover || (detail.placeApprovedBy
           ? await User.findByPk(detail.placeApprovedBy, { attributes: ['id', 'username', 'fullName'] })
-          : null;
+          : null);
 
-        // Fetch wbApprovedBy user details
-        const wbApproverUser = detail.wbApprovedBy
+        const wbApproverUser = detail.wbApprover || (detail.wbApprovedBy
           ? await User.findByPk(detail.wbApprovedBy, { attributes: ['id', 'username', 'fullName', 'role'] })
-          : null;
+          : null);
 
         return {
           id: detail.id,
