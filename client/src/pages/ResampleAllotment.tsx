@@ -107,6 +107,7 @@ const ResampleAllotment: React.FC<ResampleAllotmentProps> = ({ entryType, exclud
 
   const [paddySupervisors, setPaddySupervisors] = useState<{ id: number; username: string; fullName?: string | null; staffType?: string | null }[]>([]);
   const [assignments, setAssignments] = useState<Record<string, string>>({});
+  const [assigningIds, setAssigningIds] = useState<Set<string>>(new Set());
   const getResampleTimelineNames = (entry: ResampleEntry) => {
     const timeline = Array.isArray((entry as any).resampleCollectedTimeline) ? (entry as any).resampleCollectedTimeline : [];
     const history = Array.isArray((entry as any).resampleCollectedHistory) ? (entry as any).resampleCollectedHistory : [];
@@ -362,9 +363,19 @@ const ResampleAllotment: React.FC<ResampleAllotmentProps> = ({ entryType, exclud
                             <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center' }}>
                               <button
                                 onClick={() => handleAssign(entry)}
-                                style={{ padding: '3px 8px', background: assigned ? '#f39c12' : '#27ae60', color: 'white', border: 'none', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: 700 }}
+                                disabled={assigningIds.has(entry.id)}
+                                style={{
+                                  padding: '3px 8px',
+                                  background: assigningIds.has(entry.id) ? '#95a5a6' : (assigned ? '#f39c12' : '#27ae60'),
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  fontSize: '11px',
+                                  cursor: assigningIds.has(entry.id) ? 'not-allowed' : 'pointer',
+                                  fontWeight: 700
+                                }}
                               >
-                                {assigned ? 'Reassign' : 'Assign'}
+                                {assigningIds.has(entry.id) ? 'Saving...' : (assigned ? 'Reassign' : 'Assign')}
                               </button>
                             </td>
                           </tr>
