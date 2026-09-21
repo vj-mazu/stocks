@@ -2690,6 +2690,9 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
           if (!hasSk) return res.status(400).json({ error: 'SK is required' });
         }
 
+        // Fetch existing quality parameters for merging / preservation
+        const existingQuality = await QualityParametersService.getQualityParametersBySampleEntry(req.params.id);
+
         // When saving 100gms / prep only, if existing quality has cutting, bend, mix etc., preserve them instead of wiping out
         const isPrepOr100gSave = is100gOnly || isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly;
         const prevQ = existingQuality || {};
@@ -2770,7 +2773,6 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
         }
         // ----------------------------------------
 
-        const existingQuality = await QualityParametersService.getQualityParametersBySampleEntry(req.params.id);
         if (existingQuality) {
           const sampleEntry = await SampleEntry.findByPk(req.params.id);
           await hydrateSampleEntryWorkflowState(sampleEntry);
