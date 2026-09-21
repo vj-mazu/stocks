@@ -460,15 +460,20 @@ const getQualityAttemptsForEntry = (entry: any) => {
             return acc;
         }
 
+        if (acc.length >= 2) {
+            acc[1] = { ...acc[1], ...attempt, attemptNo: 2 };
+            return acc;
+        }
+
         acc.push(attempt);
         return acc;
     }, []);
     const currentQuality = entry?.qualityParameters;
 
     if (normalizedBaseAttempts.length > 0) {
-        return normalizedBaseAttempts.map((attempt: any, index: number) => ({
+        return normalizedBaseAttempts.slice(0, 2).map((attempt: any, index: number) => ({
             ...attempt,
-            attemptNo: Number(attempt?.attemptNo) || index + 1
+            attemptNo: index + 1
         }));
     }
 

@@ -74,6 +74,15 @@ const dedupeQualityAttempts = (attempts = []) => {
       deduped[existingIndex] = { ...deduped[existingIndex], ...attempt };
       return;
     }
+    // If we already have 2 attempts, merge any further attempt into the 2nd attempt (resample attempt)
+    if (deduped.length >= 2) {
+      deduped[1] = {
+        ...deduped[1],
+        ...attempt,
+        attemptNo: 2
+      };
+      return;
+    }
     deduped.push(attempt);
   });
   return deduped;

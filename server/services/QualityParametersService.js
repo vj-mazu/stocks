@@ -118,13 +118,24 @@ const appendQualityAttemptSnapshot = async (sampleEntryId, currentQuality) => {
 
   if (alreadyIncluded) return;
 
-  existingAttempts.push({
-    ...snapshot,
-    attemptNo: existingAttempts.length + 1
-  });
+  // Maximum 2 samples: 1st Sample and 2nd Sample (Resample).
+  // If we already have 2 or more attempts, merge the latest values into the 2nd attempt.
+  if (existingAttempts.length >= 2) {
+    existingAttempts[existingAttempts.length - 1] = {
+      ...existingAttempts[existingAttempts.length - 1],
+      ...snapshot,
+      attemptNo: 2
+    };
+  } else {
+    existingAttempts.push({
+      ...snapshot,
+      attemptNo: existingAttempts.length + 1
+    });
+  }
 
   await SampleEntryRepository.update(sampleEntryId, {
-    qualityAttemptDetails: existingAttempts
+    qualityAttemptDetails: existingAttempts,
+    qualityReportAttempts: existingAttempts.length
   });
 };
 

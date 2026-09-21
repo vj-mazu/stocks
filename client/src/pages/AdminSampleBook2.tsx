@@ -378,15 +378,20 @@ const getQualityAttemptsForEntry = (entry: any) => {
             return acc;
         }
 
+        if (acc.length >= 2) {
+            acc[1] = { ...acc[1], ...attempt, attemptNo: 2 };
+            return acc;
+        }
+
         acc.push(attempt);
         return acc;
     }, []);
     const currentQuality = entry?.qualityParameters;
 
     const qpAll = (normalizedBaseAttempts.length > 0) 
-        ? normalizedBaseAttempts.map((attempt: any, index: number) => ({
+        ? normalizedBaseAttempts.slice(0, 2).map((attempt: any, index: number) => ({
             ...attempt,
-            attemptNo: Number(attempt?.attemptNo) || index + 1
+            attemptNo: index + 1
         }))
         : (currentQuality && hasDisplayableQualitySnapshot(currentQuality) ? [{ ...currentQuality, attemptNo: 1 }] : []);
 
@@ -404,7 +409,7 @@ const getQualityAttemptsForEntry = (entry: any) => {
         || Boolean((entry as any)?.resampleDecisionAt)
         || Boolean((entry as any)?.resampleAfterFinal);
 
-    if (_hasResampleCollector && _hasExplicitResampleWorkflow) {
+    if (_hasResampleCollector && _hasExplicitResampleWorkflow && qpAll.length < 2) {
         let _collectorName = '';
         let _collectedDate: string | null = null;
         if (_resampleTimeline.length > 0) {
@@ -438,7 +443,7 @@ const getQualityAttemptsForEntry = (entry: any) => {
         }
     }
 
-    return qpAll;
+    return qpAll.slice(0, 2);
 };
 
 const getQualityAttemptSmellLabel = (entry: any, attempt?: any, isLatestAttempt = false) => {
