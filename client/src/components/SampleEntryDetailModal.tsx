@@ -3374,7 +3374,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     checkPost: isCheckPostEnabled,
                     checkPostValue: sourceMeta.checkPostValue !== undefined && sourceMeta.checkPostValue !== null ? String(sourceMeta.checkPostValue) : '',
                     onConfirm: async (finalParams: any) => {
-                        await rateInfoAction({
+                        const payload = {
                             ...rateInfo,
                             bankLoan: isBankLoanEnabled,
                             bankLoanValue: isBankLoanEnabled && finalParams.bankLoanValue !== '' && finalParams.bankLoanValue !== null ? Number(finalParams.bankLoanValue) : null,
@@ -3384,8 +3384,9 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                             marketPriceUnit: isMarketPriceEnabled ? finalParams.marketPriceUnit : 'lumps',
                             checkPost: isCheckPostEnabled,
                             checkPostValue: isCheckPostEnabled && finalParams.checkPostValue !== '' && finalParams.checkPostValue !== null ? String(finalParams.checkPostValue).trim() : null,
-                        });
+                        };
                         setPattiLinkModalData(null);
+                        await rateInfoAction(payload);
                     }
                 });
             } else {
