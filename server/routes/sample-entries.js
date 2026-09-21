@@ -2751,8 +2751,6 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
 
         // --- GPS and Resample Timeline Update ---
         const userProvidedGps = typeof req.body.gpsCoordinates === 'string' ? req.body.gpsCoordinates.trim() : '';
-        const isResampleAction = sampleEntry.entryType !== 'RICE_SAMPLE'
-          && isResampleWorkflowMarker(sampleEntry);
 
         let gpsUpdatePromise = Promise.resolve();
         if (isResampleAction) {
