@@ -3470,9 +3470,26 @@ router.post('/:id/lot-selection', authenticateToken, async (req, res) => {
 
     let nextStatus;
     if (decision === 'PASS_WITHOUT_COOKING') {
-      nextStatus = 'FINAL_REPORT';
+      nextStatus = [
+        'LOT_ALLOTMENT',
+        'PHYSICAL_INSPECTION',
+        'INVENTORY_ENTRY',
+        'OWNER_FINANCIAL',
+        'MANAGER_FINANCIAL',
+        'FINAL_REVIEW',
+        'COMPLETED'
+      ].includes(currentWorkflowStatus) ? currentWorkflowStatus : 'FINAL_REPORT';
     } else if (decision === 'PASS_WITH_COOKING') {
-      nextStatus = 'COOKING_REPORT';
+      nextStatus = [
+        'FINAL_REPORT',
+        'LOT_ALLOTMENT',
+        'PHYSICAL_INSPECTION',
+        'INVENTORY_ENTRY',
+        'OWNER_FINANCIAL',
+        'MANAGER_FINANCIAL',
+        'FINAL_REVIEW',
+        'COMPLETED'
+      ].includes(currentWorkflowStatus) ? currentWorkflowStatus : 'COOKING_REPORT';
     } else if (decision === 'FAIL') {
       nextStatus = 'FAILED';
     } else if (decision === 'RESAMPLE') {

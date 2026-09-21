@@ -133,21 +133,11 @@ class CookingReportService {
 
         if (currentStatus === 'PASS' || currentStatus === 'MEDIUM') {
           if (isResampleFlow) {
-            const isTriggeredResampleAwaitingDecision =
-              Boolean(sampleEntry?.resampleTriggeredAt)
-              && !sampleEntry?.resampleDecisionAt;
-
-            if (isTriggeredResampleAwaitingDecision) {
-              nextStatus = null;
-            } else
-            // Re-sample should not go back to pending sample selection.
+            // Re-sample should not go back to pending sample selection if already in loading.
             if (sampleEntry?.workflowStatus === 'LOT_ALLOTMENT') {
               nextStatus = null;
-            } else if (sampleEntry?.workflowStatus === 'STAFF_ENTRY') {
-              // Quality may not be saved yet, keep this entry in quality stage.
-              nextStatus = 'QUALITY_CHECK';
             } else {
-              // Re-sample quality+cooking approved: move directly to final stage.
+              // Re-sample cooking approved: move directly to final stage (Final Pass Lots).
               nextStatus = 'FINAL_REPORT';
             }
           } else {

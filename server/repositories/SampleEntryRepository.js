@@ -409,7 +409,16 @@ class SampleEntryRepository {
         }
       ];
     } else if (requestedStatus === 'PENDING_LOT_SELECTION') {
-      where.workflowStatus = { [Op.in]: ['QUALITY_CHECK', 'LOT_SELECTION'] };
+      where[Op.or] = [
+        { workflowStatus: { [Op.in]: ['QUALITY_CHECK', 'LOT_SELECTION'] } },
+        {
+          [Op.and]: [
+            { resampleTriggerRequired: true },
+            { resampleDecisionAt: { [Op.is]: null } },
+            { workflowStatus: { [Op.in]: ['FINAL_REPORT', 'LOT_ALLOTMENT'] } }
+          ]
+        }
+      ];
     } else if (requestedStatus === 'MILL_SAMPLE') {
       // Staff view: Mill Sample tab
       // Include normal STAFF_ENTRY and failed lots (resamples) that need new quality
