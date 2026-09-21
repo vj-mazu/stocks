@@ -2928,8 +2928,13 @@ const SampleEntryPage: React.FC<{
                             const isLocationStaff = user?.role === 'physical_supervisor';
                             const isLocationSample = entry.entryType === 'LOCATION_SAMPLE';
                             const isEntryCreator = (entry as any).creator?.id === user?.id || (entry as any).createdByUserId === user?.id;
-                            const isAssignedCollector = !!(entry.sampleCollectedBy && user?.username)
-                              && entry.sampleCollectedBy.trim().toLowerCase() === user.username.trim().toLowerCase();
+                            const currentUserNameLower = String(user?.username || '').trim().toLowerCase();
+                            const currentUserFullNameLower = String((user as any)?.fullName || '').trim().toLowerCase();
+                            const entryCollectorLower = String(entry.sampleCollectedBy || '').trim().toLowerCase();
+                            const isAssignedCollector = !!(
+                              (entryCollectorLower && (entryCollectorLower === currentUserNameLower || (currentUserFullNameLower && entryCollectorLower === currentUserFullNameLower)))
+                              || (isStaffUser && isPaddyResampleWorkflow && locationSupervisorSet.has(currentUserNameLower))
+                            );
                             const canManageResampleTrigger = ['admin', 'manager', 'owner', 'ceo'].includes(String(user?.role || '').toLowerCase());
                             
                             // Staff can edit anyone's entry, but Location Samples NOT given to office are restricted to collector

@@ -798,7 +798,7 @@ class SampleEntryService {
           if (!isResampleWorkflowEntry(entry)) return false;
           if (!hasResampleCookingSource(entry)) return false;
           const workflow = String(entry.workflowStatus || '').toUpperCase();
-          if (['FINAL_REPORT', 'LOT_ALLOTMENT', 'PHYSICAL_INSPECTION', 'INVENTORY_ENTRY', 'OWNER_FINANCIAL', 'MANAGER_FINANCIAL', 'FINAL_REVIEW', 'COMPLETED'].includes(workflow)) {
+          if (['PHYSICAL_INSPECTION', 'INVENTORY_ENTRY', 'OWNER_FINANCIAL', 'MANAGER_FINANCIAL', 'FINAL_REVIEW', 'COMPLETED'].includes(workflow)) {
             return false;
           }
           if (entry.resampleTriggerRequired) {

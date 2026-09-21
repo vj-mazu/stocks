@@ -69,8 +69,6 @@ describe('Resample Cooking Filter', () => {
       resampleTriggerRequired: false,
       resampleTriggeredAt: null,
       resampleOriginDecision: 'PASS_WITHOUT_COOKING',
-      resampleAfterFinal: false,
-      resampleCollectedTimeline: [{ username: 'location-user', date: '2026-04-01T09:00:00.000Z' }],
       cookingReport: null,
       qualityAttemptDetails: [{ attemptNo: 1, moistureRaw: '10.0', grainsCountRaw: '100' }]
     };
@@ -85,4 +83,37 @@ describe('Resample Cooking Filter', () => {
 
     expect(result.entries).toHaveLength(0);
   });
+
+  test('includes PASS_WITH_COOKING resample with final rate in cooking tab once triggered and 2nd quality exists', async () => {
+    const resampleWithFinalRate = {
+      id: 'entry-3',
+      entryType: 'LOCATION_SAMPLE',
+      workflowStatus: 'LOT_ALLOTMENT',
+      lotSelectionDecision: 'FAIL',
+      sampleCollectedBy: 'location-user',
+      resampleDecisionAt: null,
+      resampleTriggerRequired: true,
+      resampleTriggeredAt: '2026-04-01T09:30:00.000Z',
+      resampleOriginDecision: 'PASS_WITH_COOKING',
+      resampleAfterFinal: true,
+      resampleCollectedTimeline: [{ username: 'location-user', date: '2026-04-01T09:00:00.000Z' }],
+      cookingReport: { history: [{ cookingDoneBy: 'cook1', status: 'PASS', date: '2026-04-01T08:00:00.000Z' }] },
+      qualityAttemptDetails: [
+        { attemptNo: 1, moistureRaw: '10.0', grainsCountRaw: '100' },
+        { attemptNo: 2, moistureRaw: '11.0', grainsCountRaw: '105' }
+      ]
+    };
+
+    SampleEntryRepository.findByRoleAndFilters.mockResolvedValue({
+      entries: [resampleWithFinalRate],
+      total: 1,
+      totalPages: 1
+    });
+
+    const result = await SampleEntryService.getSampleEntriesByRole('staff', { status: 'RESAMPLE_COOKING_BOOK' }, 10);
+
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries[0].id).toBe('entry-3');
+  });
 });
+

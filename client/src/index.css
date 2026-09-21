@@ -160,105 +160,22 @@ div[style*="overflowX"] {
     float: none !important;
   }
 
-  /* TABLES → Vertical cards on mobile (see mobile-app.css for card styling) */
-  /* No min-width forcing — tables become vertical labeled cards via MobileViewEnhancer */
+  /* TABLES → Seamless mobile responsiveness (see mobile-app.css for card styling) */
   table {
-    display: table;
-    width: 100%;
-    min-width: 0;
-  }
-  thead {
-    display: table-header-group;
-  }
-  tr {
-    display: table-row;
-    margin-bottom: 0;
-    border: none;
-    padding: 0;
-  }
-  td, th {
-    display: table-cell;
-    padding: 8px 12px;
-    font-size: 13px;
-    white-space: normal;
-  }
-  td::before {
-    display: none; /* label shown only for mobile-card-table in mobile-app.css */
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
   }
   
-  /* Make all table containers horizontally scrollable */
-  div[style*="overflow-x"],
-  div[style*="overflow: auto"],
+  /* Prevent horizontal scroll leakage on mobile table containers */
   .table-container,
-  .table-wrapper {
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch;
-    width: 100% !important;
-    display: block !important;
-  }
-
-  /* Target inline grid forms explicitly injected with class and style tags */
-  .responsive-grid,
-  div[style*="display: grid"],
-  div[style*="display:grid"] {
-    grid-template-columns: 1fr !important;
-    gap: 12px !important;
-  }
-
-  /* Make sure flex layouts with too many items wrap on mobile, except explicitly no-wrap classes */
-  div[style*="display: flex"]:not(.no-wrap-flex),
-  div[style*="display:flex"]:not(.no-wrap-flex) {
-    flex-wrap: wrap !important;
-  }
-
-  /* Make tab container buttons scrollable horizontally instead of wrapping and stacking */
-  .tabs-container,
-  div[style*="border-bottom"],
-  div[style*="borderBottom"] {
-    overflow-x: auto !important;
-    white-space: nowrap !important;
-    display: flex !important;
-    flex-direction: row !important;
-    flex-wrap: nowrap !important;
-    gap: 8px !important;
-    padding-bottom: 6px !important;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none; /* Firefox */
-  }
-  .tabs-container::-webkit-scrollbar,
-  div[style*="border-bottom"]::-webkit-scrollbar,
-  div[style*="borderBottom"]::-webkit-scrollbar {
-    display: none; /* Safari and Chrome */
-  }
-  .tabs-container button,
-  div[style*="border-bottom"] button,
-  div[style*="borderBottom"] button {
-    flex-shrink: 0 !important;
-    white-space: nowrap !important;
-  }
-
-  /* Retain basic border styles for tables originally missing them */
-  .responsive-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
-    table-layout: auto;
-    border: 1px solid #000;
-  }
-  .responsive-table th, .responsive-table td {
-    border: 1px solid #000;
-    padding: 3px 4px;
-  }
-
-  /* Force table parent containers to allow horizontal scroll without breaking layout */
-  div:has(> table),
+  .table-wrapper,
   .table-responsive,
-  .table-container {
-    overflow-x: auto !important;
+  div:has(> table) {
+    overflow-x: hidden !important;
     width: 100% !important;
     max-width: 100% !important;
     display: block !important;
-    -webkit-overflow-scrolling: touch;
   }
 
   /* FORMS */
