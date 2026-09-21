@@ -133,4 +133,93 @@ describe('Resample Quality Parameter Preservation & Cap', () => {
     expect(mergedQuality.wbBk).toBe(7.5);
     expect(mergedQuality.wbT).toBe(75.0);
   });
+
+  test('Resample 100g save strictly isolates 2nd sample from inheriting 1st sample cutting, bend, mix', () => {
+    const ValidationService = require('../services/ValidationService');
+    const existingQuality = {
+      moisture: 12.0,
+      cutting1: 1.0,
+      cutting2: 12.0,
+      bend1: 1.0,
+      bend2: 12.0,
+      mix: '12',
+      kandu: '12',
+      oil: '12',
+      sk: '12',
+      grainsCount: 12,
+      wbR: 12.0,
+      wbBk: 12.0,
+      wbT: 24.0,
+      reportedBy: 'B Ramesh'
+    };
+
+    // Resample 100g submission (Moisture 11, Grains 11, WB 11)
+    const isResampleAction = true;
+    const isNextIntent = true;
+    const existingSecondAttempt = null;
+    const isPrepOr100gSave = true;
+    const prevQ = isResampleAction ? (existingSecondAttempt || {}) : (isPrepOr100gSave ? {} : existingQuality);
+
+    const reqBody = {
+      moisture: '11.0',
+      grainsCount: '11',
+      wbR: '11.0',
+      wbBk: '11.0',
+      wbT: '22.0',
+      reportedBy: 'Mahesh Kumar'
+    };
+
+    const hasMoisture = true;
+    const hasCutting1 = false;
+    const hasCutting2 = false;
+    const hasBend1 = false;
+    const hasBend2 = false;
+    const hasMix = false;
+    const hasKandu = false;
+    const hasOil = false;
+    const hasSk = false;
+    const hasGrains = true;
+    const hasWbR = true;
+    const hasWbBk = true;
+
+    const secondAttemptQuality = {
+      moisture: hasMoisture ? parseFloat(reqBody.moisture) : (isPrepOr100gSave ? (prevQ.moisture ?? null) : null),
+      cutting1: hasCutting1 ? parseFloat(reqBody.cutting1) : (isPrepOr100gSave ? (prevQ.cutting1 ?? null) : null),
+      cutting2: hasCutting2 ? parseFloat(reqBody.cutting2) : (isPrepOr100gSave ? (prevQ.cutting2 ?? null) : null),
+      bend1: hasBend1 ? parseFloat(reqBody.bend1) : (isPrepOr100gSave ? (prevQ.bend1 ?? null) : null),
+      bend2: hasBend2 ? parseFloat(reqBody.bend2) : (isPrepOr100gSave ? (prevQ.bend2 ?? null) : null),
+      bend: (hasBend1 || false) ? parseFloat(reqBody.bend1) : (isPrepOr100gSave ? (prevQ.bend ?? null) : null),
+      mix: hasMix ? reqBody.mix : (isPrepOr100gSave ? (prevQ.mix ?? null) : null),
+      kandu: hasKandu ? reqBody.kandu : (isPrepOr100gSave ? (prevQ.kandu ?? null) : null),
+      oil: hasOil ? reqBody.oil : (isPrepOr100gSave ? (prevQ.oil ?? null) : null),
+      sk: hasSk ? reqBody.sk : (isPrepOr100gSave ? (prevQ.sk ?? null) : null),
+      grainsCount: hasGrains ? parseInt(reqBody.grainsCount, 10) : (isPrepOr100gSave ? (prevQ.grainsCount ?? null) : null),
+      wbR: hasWbR ? parseFloat(reqBody.wbR) : 0,
+      wbBk: hasWbBk ? parseFloat(reqBody.wbBk) : 0,
+      wbT: parseFloat(reqBody.wbT),
+      reportedBy: reqBody.reportedBy
+    };
+
+    // Validate using ValidationService
+    const validation = ValidationService.validateQualityParameters(secondAttemptQuality);
+    expect(validation.valid).toBe(true);
+
+    // Verify 2nd attempt data
+    expect(secondAttemptQuality.moisture).toBe(11.0);
+    expect(secondAttemptQuality.grainsCount).toBe(11);
+    expect(secondAttemptQuality.wbR).toBe(11.0);
+    expect(secondAttemptQuality.wbBk).toBe(11.0);
+    expect(secondAttemptQuality.wbT).toBe(22.0);
+    expect(secondAttemptQuality.reportedBy).toBe('Mahesh Kumar');
+
+    // Verify 1st sample fields are NOT inherited
+    expect(secondAttemptQuality.cutting1).toBeNull();
+    expect(secondAttemptQuality.cutting2).toBeNull();
+    expect(secondAttemptQuality.bend1).toBeNull();
+    expect(secondAttemptQuality.bend2).toBeNull();
+    expect(secondAttemptQuality.mix).toBeNull();
+    expect(secondAttemptQuality.kandu).toBeNull();
+    expect(secondAttemptQuality.oil).toBeNull();
+    expect(secondAttemptQuality.sk).toBeNull();
+  });
 });
