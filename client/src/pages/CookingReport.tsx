@@ -264,8 +264,19 @@ const isResampleWorkflowEntry = (entry: any) => {
     ? entry.qualityAttemptDetails.filter(Boolean)
     : [];
   const decision = String(entry?.lotSelectionDecision || '').toUpperCase();
+  const originDecision = String(entry?.resampleOriginDecision || '').toUpperCase();
+  const hasTimeline = (Array.isArray(entry?.resampleCollectedTimeline) && entry.resampleCollectedTimeline.length > 0)
+    || (Array.isArray(entry?.resampleCollectedHistory) && entry.resampleCollectedHistory.length > 0);
+
   return decision === 'FAIL'
+    || originDecision === 'PASS_WITH_COOKING'
+    || originDecision === 'PASS_WITHOUT_COOKING'
+    || Boolean(entry?.resampleTriggerRequired)
+    || Boolean(entry?.resampleTriggeredAt)
     || Boolean(entry?.resampleStartAt)
+    || Boolean(entry?.resampleDecisionAt)
+    || Boolean(entry?.resampleAfterFinal)
+    || hasTimeline
     || baseAttempts.length > 1
     || Number(entry?.qualityReportAttempts || 0) > 1;
 };
@@ -1574,16 +1585,12 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
 
     return activeTab === 'RESAMPLE_COOKING_REPORT'
       && isResampleWorkflowEntry(entry)
-      && Boolean((entry as any).resampleTriggerRequired || String((entry as any).resampleOriginDecision || '').toUpperCase() === 'PASS_WITH_COOKING')
       && !hasFullQualitySnapshot(currentCycleQuality);
   };
   const shouldShowResamplePrepAction = (entry: SampleEntry) => {
     if (activeTab !== 'RESAMPLE_COOKING_REPORT') return false;
     if (!isResampleWorkflowEntry(entry)) return false;
     if (entry.entryType === 'RICE_SAMPLE') return false;
-    if (!(entry as any).resampleTriggerRequired && String((entry as any).resampleOriginDecision || '').toUpperCase() !== 'PASS_WITH_COOKING') {
-      return false;
-    }
 
     const normalizedRole = String(user?.role || '').toLowerCase();
     const assignedUser = String(entry.sampleCollectedBy || '').trim().toLowerCase();
