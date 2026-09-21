@@ -1408,46 +1408,8 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
         return itemDate && new Date(itemDate) >= new Date(resampleStartAt);
       });
       
-      // Original was "Pass with Cooking" - show old data, block adding report until second decision
+      // Original was "Pass with Cooking" - show old data, allow adding second cycle cooking / 100gms
       const hasCurrentCycleQuality = hasCurrentCycleQualityData(entry);
-
-      if (resampleTriggerRequired && hasFirstCycleCooking && !resampleDecisionTaken && !hasSecondCycleDecision) {
-        // Has old cooking data but no second-cycle decision yet
-        // Show entry but block adding report until the new resample quality is actually saved.
-        if (!hasCurrentCycleQuality) {
-          return { canAdd: false, reason: 'Awaiting Quality' };
-        }
-      }
-      
-      // Original was "Pass without Cooking" - no old cooking data
-      // Let normal flow handle it - if admin decides "Pass with Cooking" in Resample Pending,
-      // then the entry moves here with fresh cooking data
-      if (decision === 'PASS_WITHOUT_COOKING' && !hasFirstCycleCooking && qualityAttempts.length > 1) {
-        return { canAdd: false, reason: 'Cooking Not Needed' };
-      }
-
-      if (
-        decision === 'PASS_WITHOUT_COOKING'
-        || (resampleDecisionTaken && decision !== 'PASS_WITH_COOKING')
-        || (workflow === 'FINAL_REPORT' && decision !== 'PASS_WITH_COOKING')
-      ) {
-        return { canAdd: false, reason: 'Cooking Not Needed' };
-      }
-
-      if (
-        decision !== 'PASS_WITH_COOKING'
-        && workflow !== 'COOKING_REPORT'
-        && canUseIndependentFlow
-        && !hasSecondCycleDecision
-        && !resampleDecisionTaken
-        && !(resampleTriggerRequired && hasCurrentCycleQuality)
-      ) {
-        return { canAdd: false, reason: 'Waiting Decision' };
-      }
-
-      if (!hasCurrentCycleQualityData(entry) && !canUseIndependentFlow) {
-        return { canAdd: false, reason: 'Awaiting Quality' };
-      }
     }
 
     // Normal flow: one staff entry, then wait for admin.
@@ -1572,13 +1534,8 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
   };
   const shouldShowCompleteQualityAction = (entry: SampleEntry) => {
     const normalizedRole = String(user?.role || '').toLowerCase();
-    const assignedUser = String(entry.sampleCollectedBy || '').trim().toLowerCase();
-    const currentUser = String(user?.username || '').trim().toLowerCase();
-    const isPrivilegedQualityUser = ['admin', 'manager', 'owner', 'ceo'].includes(normalizedRole);
-    const isAssignedQualityUser = ['staff', 'quality_supervisor', 'paddy_supervisor', 'physical_supervisor'].includes(normalizedRole)
-      && !!assignedUser
-      && assignedUser === currentUser;
-    if (!(isPrivilegedQualityUser || isAssignedQualityUser)) return false;
+    const isAllowedRole = ['admin', 'manager', 'owner', 'ceo', 'staff', 'quality_supervisor', 'paddy_supervisor', 'physical_supervisor'].includes(normalizedRole);
+    if (!isAllowedRole) return false;
 
     const currentCycleQuality = getCurrentCycleQualitySnapshot(entry);
     if (!currentCycleQuality) return false;
@@ -1593,12 +1550,8 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
     if (entry.entryType === 'RICE_SAMPLE') return false;
 
     const normalizedRole = String(user?.role || '').toLowerCase();
-    const assignedUser = String(entry.sampleCollectedBy || '').trim().toLowerCase();
-    const currentUser = String(user?.username || '').trim().toLowerCase();
-    const isPrivilegedQualityUser = ['admin', 'manager', 'owner', 'ceo'].includes(normalizedRole);
-    const isAssignedQualityUser = ['staff', 'quality_supervisor', 'paddy_supervisor', 'physical_supervisor'].includes(normalizedRole)
-      && (!assignedUser || assignedUser === currentUser);
-    if (!(isPrivilegedQualityUser || isAssignedQualityUser)) return false;
+    const isAllowedRole = ['admin', 'manager', 'owner', 'ceo', 'staff', 'quality_supervisor', 'paddy_supervisor', 'physical_supervisor'].includes(normalizedRole);
+    if (!isAllowedRole) return false;
 
     const currentCycleQuality = getCurrentCycleQualitySnapshot(entry) as any;
     const isCurrentCycleWbMissing = !currentCycleQuality
