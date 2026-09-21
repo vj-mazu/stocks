@@ -1563,7 +1563,7 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
     const normalizedRole = String(user?.role || '').toLowerCase();
     const assignedUser = String(entry.sampleCollectedBy || '').trim().toLowerCase();
     const currentUser = String(user?.username || '').trim().toLowerCase();
-    const isPrivilegedQualityUser = ['admin', 'manager', 'owner'].includes(normalizedRole);
+    const isPrivilegedQualityUser = ['admin', 'manager', 'owner', 'ceo'].includes(normalizedRole);
     const isAssignedQualityUser = ['staff', 'quality_supervisor', 'paddy_supervisor', 'physical_supervisor'].includes(normalizedRole)
       && !!assignedUser
       && assignedUser === currentUser;
@@ -1585,7 +1585,20 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
       return false;
     }
 
-    return !hasCurrentCycleQualityData(entry);
+    const normalizedRole = String(user?.role || '').toLowerCase();
+    const assignedUser = String(entry.sampleCollectedBy || '').trim().toLowerCase();
+    const currentUser = String(user?.username || '').trim().toLowerCase();
+    const isPrivilegedQualityUser = ['admin', 'manager', 'owner', 'ceo'].includes(normalizedRole);
+    const isAssignedQualityUser = ['staff', 'quality_supervisor', 'paddy_supervisor', 'physical_supervisor'].includes(normalizedRole)
+      && (!assignedUser || assignedUser === currentUser);
+    if (!(isPrivilegedQualityUser || isAssignedQualityUser)) return false;
+
+    const currentCycleQuality = getCurrentCycleQualitySnapshot(entry) as any;
+    const isCurrentCycleWbMissing = !currentCycleQuality
+      || !isProvidedNumericValue(currentCycleQuality?.wbRRaw, currentCycleQuality?.wbR)
+      || !isProvidedNumericValue(currentCycleQuality?.wbBkRaw, currentCycleQuality?.wbBk);
+
+    return !hasCurrentCycleQualityData(entry) || isCurrentCycleWbMissing;
   };
 
   const renderSampleReportByWithDate = (entry: any) => {
