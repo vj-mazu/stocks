@@ -647,5 +647,6 @@ const attachLoadingLotsHistories = async (rows) => {
 };
 
 module.exports = {
-  attachLoadingLotsHistories
+  attachLoadingLotsHistories,
+  dedupeQualityAttempts
 };
