@@ -102,41 +102,50 @@ const buildQualityAttemptSnapshot = (quality = {}) => ({
   updatedAt: quality.updatedAt || null
 });
 
-const appendQualityAttemptSnapshot = async (sampleEntryId, currentQuality) => {
+const syncQualityAttemptSnapshots = async (sampleEntryId, currentQualityBeforeUpdate, updatedQuality, isNewAttempt = false) => {
   const sampleEntry = await SampleEntryRepository.findById(sampleEntryId);
-  if (!sampleEntry || !currentQuality) return;
+  if (!sampleEntry || !updatedQuality) return;
 
   const existingAttempts = Array.isArray(sampleEntry.qualityAttemptDetails)
     ? [...sampleEntry.qualityAttemptDetails].filter(Boolean)
     : [];
 
-  const snapshot = buildQualityAttemptSnapshot(currentQuality);
-  const alreadyIncluded = existingAttempts.some((attempt) => (
-    areQualityAttemptsEquivalent(attempt, snapshot)
-    && String(attempt?.updatedAt || attempt?.createdAt || '') === String(snapshot.updatedAt || snapshot.createdAt || '')
-  ));
+  const updatedSnapshot = buildQualityAttemptSnapshot(updatedQuality);
 
-  if (alreadyIncluded) return;
+  if (isNewAttempt) {
+    const firstAttempt = existingAttempts[0] || (currentQualityBeforeUpdate ? { ...buildQualityAttemptSnapshot(currentQualityBeforeUpdate), attemptNo: 1 } : null);
+    const secondAttempt = { ...updatedSnapshot, attemptNo: 2 };
+    const newAttempts = firstAttempt ? [firstAttempt, secondAttempt] : [secondAttempt];
 
-  // Maximum 2 samples: 1st Sample and 2nd Sample (Resample).
-  // If we already have 2 or more attempts, merge the latest values into the 2nd attempt.
-  if (existingAttempts.length >= 2) {
-    existingAttempts[existingAttempts.length - 1] = {
-      ...existingAttempts[existingAttempts.length - 1],
-      ...snapshot,
-      attemptNo: 2
-    };
+    await SampleEntryRepository.update(sampleEntryId, {
+      qualityAttemptDetails: newAttempts,
+      qualityReportAttempts: 2
+    });
   } else {
-    existingAttempts.push({
-      ...snapshot,
-      attemptNo: existingAttempts.length + 1
+    if (existingAttempts.length >= 2) {
+      existingAttempts[existingAttempts.length - 1] = {
+        ...existingAttempts[existingAttempts.length - 1],
+        ...updatedSnapshot,
+        attemptNo: 2
+      };
+    } else if (existingAttempts.length === 1) {
+      existingAttempts[0] = {
+        ...existingAttempts[0],
+        ...updatedSnapshot,
+        attemptNo: 1
+      };
+    } else {
+      existingAttempts.push({
+        ...updatedSnapshot,
+        attemptNo: 1
+      });
+    }
+
+    await SampleEntryRepository.update(sampleEntryId, {
+      qualityAttemptDetails: existingAttempts,
+      qualityReportAttempts: existingAttempts.length
     });
   }
-
-  await SampleEntryRepository.update(sampleEntryId, {
-    qualityAttemptDetails: existingAttempts,
-    qualityReportAttempts: existingAttempts.length
-  });
 };
 
 const hydrateSampleEntryWorkflowState = async (entry) => {
@@ -240,6 +249,9 @@ class QualityParametersService {
 
       // Log audit trail
       await AuditService.logCreate(userId, 'quality_parameters', quality.id, quality);
+
+      // Sync initial quality attempt snapshot
+      await syncQualityAttemptSnapshots(qualityData.sampleEntryId, null, quality, false);
 
       const sampleEntry = await SampleEntryRepository.findById(qualityData.sampleEntryId);
       await hydrateSampleEntryWorkflowState(sampleEntry);
@@ -388,12 +400,11 @@ class QualityParametersService {
         throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
       }
 
-      if (options.createNewAttempt === true) {
-        await appendQualityAttemptSnapshot(updates.sampleEntryId, current);
-      }
-
       // Update quality parameters
       const updated = await QualityParametersRepository.update(id, updates);
+
+      // Sync attempt snapshots (ensures attempt 2 is accurately updated with latest fields without inheriting attempt 1 cutting/bend)
+      await syncQualityAttemptSnapshots(updates.sampleEntryId, current, updated, options.createNewAttempt === true);
 
       // Auto-fail logic for smell (Medium, Dark, Orange ONLY) - sync to SampleEntry
       const shouldAutoFailPostUpdate = updates.smellHas && ['MEDIUM', 'DARK', 'ORANGE'].includes(String(updates.smellType).toUpperCase());

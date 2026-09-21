@@ -568,7 +568,13 @@ const attachLoadingLotsHistories = async (rows) => {
         if (baseAttemptDetails.length === 0) {
           baseAttemptDetails.push({ attemptNo: 1, ...currentDetail });
         } else if (persistedAttemptDetails.length > 0) {
-          if (latestEquivalent && Math.abs(currentTime - latestTime) <= 2000) {
+          if (baseAttemptDetails.length >= 2) {
+            baseAttemptDetails[baseAttemptDetails.length - 1] = {
+              ...baseAttemptDetails[baseAttemptDetails.length - 1],
+              ...currentDetail,
+              attemptNo: 2
+            };
+          } else if (latestEquivalent && Math.abs(currentTime - latestTime) <= 2000) {
             baseAttemptDetails[baseAttemptDetails.length - 1] = {
               ...baseAttemptDetails[baseAttemptDetails.length - 1],
               ...currentDetail
@@ -613,7 +619,13 @@ const attachLoadingLotsHistories = async (rows) => {
           const latestTime = toTime(latestAttempt?.updatedAt || latestAttempt?.createdAt);
           const currentTime = toTime(fallbackDetail.updatedAt || fallbackDetail.createdAt);
           const latestEquivalent = !!latestAttempt && areQualityAttemptsEquivalent(latestAttempt, fallbackDetail);
-          if (persistedAttemptDetails.length > 0
+          if (baseAttemptDetails.length >= 2) {
+            baseAttemptDetails[baseAttemptDetails.length - 1] = {
+              ...baseAttemptDetails[baseAttemptDetails.length - 1],
+              ...fallbackDetail,
+              attemptNo: 2
+            };
+          } else if (persistedAttemptDetails.length > 0
             && !(latestEquivalent && Math.abs(currentTime - latestTime) <= 2000)
             && !shouldMergeIntoLatestQualityAttempt(latestAttempt, fallbackDetail, latestTime, currentTime)) {
             baseAttemptDetails.push({ attemptNo: baseAttemptDetails.length + 1, ...fallbackDetail });
