@@ -2089,7 +2089,7 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                                             }
                                             return (
                                               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                                                {showResamplePrepAction && (
+                                                {showResamplePrepAction ? (
                                                   <button
                                                     onClick={() => handleOpenResamplePrep(entry)}
                                                     style={{
@@ -2100,30 +2100,33 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                                                   >
                                                     Add 100gms
                                                   </button>
-                                                )}
-                                                {actionState.canAdd && (
-                                                  <button
-                                                    onClick={() => handleOpenModal(entry)}
-                                                    style={{
-                                                      fontSize: '9px', padding: '4px 10px',
-                                                      backgroundColor: '#3498db', color: 'white', border: 'none',
-                                                      borderRadius: '10px', cursor: 'pointer', fontWeight: '600'
-                                                    }}
-                                                  >
-                                                    {isCookingStaffRole ? 'Add Cooking Done By' : 'Add Report'}
-                                                  </button>
-                                                )}
-                                                {showQualityAction && (
-                                                  <button
-                                                    onClick={() => handleOpenQualityCompletion(entry)}
-                                                    style={{
-                                                      fontSize: '9px', padding: '4px 10px',
-                                                      backgroundColor: '#e67e22', color: 'white', border: 'none',
-                                                      borderRadius: '10px', cursor: 'pointer', fontWeight: '700'
-                                                    }}
-                                                  >
-                                                    Complete Quality
-                                                  </button>
+                                                ) : (
+                                                  <>
+                                                    {actionState.canAdd && (
+                                                      <button
+                                                        onClick={() => handleOpenModal(entry)}
+                                                        style={{
+                                                          fontSize: '9px', padding: '4px 10px',
+                                                          backgroundColor: '#3498db', color: 'white', border: 'none',
+                                                          borderRadius: '10px', cursor: 'pointer', fontWeight: '600'
+                                                        }}
+                                                      >
+                                                        {isCookingStaffRole ? 'Add Cooking Done By' : 'Add Report'}
+                                                      </button>
+                                                    )}
+                                                    {showQualityAction && (
+                                                      <button
+                                                        onClick={() => handleOpenQualityCompletion(entry)}
+                                                        style={{
+                                                          fontSize: '9px', padding: '4px 10px',
+                                                          backgroundColor: '#e67e22', color: 'white', border: 'none',
+                                                          borderRadius: '10px', cursor: 'pointer', fontWeight: '700'
+                                                        }}
+                                                      >
+                                                        Complete Quality
+                                                      </button>
+                                                    )}
+                                                  </>
                                                 )}
                                               </div>
                                             );
@@ -2276,7 +2279,7 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                                             }
                                             return (
                                               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                                                {showResamplePrepAction && (
+                                                {showResamplePrepAction ? (
                                                   <button
                                                     onClick={() => handleOpenResamplePrep(entry)}
                                                     style={{
@@ -2287,30 +2290,33 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
                                                   >
                                                     Add 100gms
                                                   </button>
-                                                )}
-                                                {actionState.canAdd && (
-                                                  <button
-                                                    onClick={() => handleOpenModal(entry)}
-                                                    style={{
-                                                      fontSize: '9px', padding: '4px 10px',
-                                                      backgroundColor: '#3498db', color: 'white', border: 'none',
-                                                      borderRadius: '10px', cursor: 'pointer', fontWeight: '600'
-                                                    }}
-                                                  >
-                                                    {isCookingStaffRole ? 'Add Cooking Done By' : 'Add Report'}
-                                                  </button>
-                                                )}
-                                                {showQualityAction && (
-                                                  <button
-                                                    onClick={() => handleOpenQualityCompletion(entry)}
-                                                    style={{
-                                                      fontSize: '9px', padding: '4px 10px',
-                                                      backgroundColor: '#e67e22', color: 'white', border: 'none',
-                                                      borderRadius: '10px', cursor: 'pointer', fontWeight: '700'
-                                                    }}
-                                                  >
-                                                    Complete Quality
-                                                  </button>
+                                                ) : (
+                                                  <>
+                                                    {actionState.canAdd && (
+                                                      <button
+                                                        onClick={() => handleOpenModal(entry)}
+                                                        style={{
+                                                          fontSize: '9px', padding: '4px 10px',
+                                                          backgroundColor: '#3498db', color: 'white', border: 'none',
+                                                          borderRadius: '10px', cursor: 'pointer', fontWeight: '600'
+                                                        }}
+                                                      >
+                                                        {isCookingStaffRole ? 'Add Cooking Done By' : 'Add Report'}
+                                                      </button>
+                                                    )}
+                                                    {showQualityAction && (
+                                                      <button
+                                                        onClick={() => handleOpenQualityCompletion(entry)}
+                                                        style={{
+                                                          fontSize: '9px', padding: '4px 10px',
+                                                          backgroundColor: '#e67e22', color: 'white', border: 'none',
+                                                          borderRadius: '10px', cursor: 'pointer', fontWeight: '700'
+                                                        }}
+                                                      >
+                                                        Complete Quality
+                                                      </button>
+                                                    )}
+                                                  </>
                                                 )}
                                               </div>
                                             );
