@@ -1069,6 +1069,7 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
       formData.append('is100Grams', 'true');
       formData.append('resampleCookingPrepOnly', 'true');
       formData.append('qualityEntryIntent', 'next');
+      formData.append('reportedBy', user?.fullName || user?.username || '');
 
       await axios.post(
         `${API_URL}/sample-entries/${resamplePrepEntry.id}/quality-parameters`,

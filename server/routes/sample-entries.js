@@ -2693,9 +2693,14 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
         // Fetch existing quality parameters for merging / preservation
         const existingQuality = await QualityParametersService.getQualityParametersBySampleEntry(req.params.id);
 
-        // When saving 100gms / prep only, if existing quality has cutting, bend, mix etc., preserve them instead of wiping out
+        const isResampleAction = sampleEntry.entryType !== 'RICE_SAMPLE'
+          && isResampleWorkflowMarker(sampleEntry);
+        const qualityAttempts = Array.isArray(sampleEntry.qualityAttemptDetails) ? sampleEntry.qualityAttemptDetails : [];
+        const existingSecondAttempt = isResampleAction && qualityAttempts.length >= 2 ? qualityAttempts[qualityAttempts.length - 1] : null;
+
+        // When saving 100gms / prep only, only preserve cutting, bend, mix if this specific sample attempt already had them recorded
         const isPrepOr100gSave = is100gOnly || isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly;
-        const prevQ = existingQuality || {};
+        const prevQ = isResampleAction ? (existingSecondAttempt || {}) : (existingQuality || {});
 
         // Convert string values from FormData to numbers (with safe parsing)
         const qualityData = {
@@ -2735,10 +2740,10 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
           wbBkRaw: hasWbBk ? (wbEnabled ? normalizeRaw(req.body.wbBk) : null) : (isPrepOr100gSave ? prevQ.wbBkRaw : null),
           wbTRaw: isProvided(req.body.wbT) ? (wbEnabled ? normalizeRaw(req.body.wbT) : null) : (isPrepOr100gSave ? prevQ.wbTRaw : null),
           paddyWbRaw: hasPaddyWb ? (paddyWbEnabled ? normalizeRaw(req.body.paddyWb) : null) : (isPrepOr100gSave ? prevQ.paddyWbRaw : null),
-          gramsReport: normalizeGramsReport(req.body.gramsReport) || (isPrepOr100gSave ? prevQ.gramsReport : null),
-          reportedBy: reportedByValue || (isPrepOr100gSave ? prevQ.reportedBy : ''),
-          smellHas: isPrepOr100gSave && smellHas === undefined ? prevQ.smellHas : smellHas,
-          smellType: isPrepOr100gSave && !smellType ? prevQ.smellType : smellType,
+          gramsReport: normalizeGramsReport(req.body.gramsReport) || (isPrepOr100gSave ? (prevQ.gramsReport || null) : null),
+          reportedBy: reportedByValue || (isPrepOr100gSave ? (prevQ.reportedBy || req.user?.username || '') : (req.user?.username || '')),
+          smellHas: isPrepOr100gSave && smellHas === undefined ? (prevQ.smellHas || false) : (smellHas || false),
+          smellType: isPrepOr100gSave && !smellType ? (prevQ.smellType || null) : (smellType || null),
           smixEnabled,
           lmixEnabled,
           paddyWbEnabled
