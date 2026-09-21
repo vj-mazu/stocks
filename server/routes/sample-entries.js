@@ -2693,14 +2693,15 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
         // Fetch existing quality parameters for merging / preservation
         const existingQuality = await QualityParametersService.getQualityParametersBySampleEntry(req.params.id);
 
+        const isNextIntent = String(req.body.qualityEntryIntent || '').toLowerCase() === 'next';
         const isResampleAction = sampleEntry.entryType !== 'RICE_SAMPLE'
-          && isResampleWorkflowMarker(sampleEntry);
+          && (isResampleWorkflowMarker(sampleEntry) || isValidResampleCookingPrepOnly || isNextIntent);
         const qualityAttempts = Array.isArray(sampleEntry.qualityAttemptDetails) ? sampleEntry.qualityAttemptDetails : [];
-        const existingSecondAttempt = isResampleAction && qualityAttempts.length >= 2 ? qualityAttempts[qualityAttempts.length - 1] : null;
+        const existingSecondAttempt = isResampleAction && !isNextIntent && qualityAttempts.length >= 2 ? qualityAttempts[qualityAttempts.length - 1] : null;
 
-        // When saving 100gms / prep only, only preserve cutting, bend, mix if this specific sample attempt already had them recorded
+        // When saving 100gms / prep only or creating a new resample attempt, DO NOT inherit cutting, bend, mix, etc. from attempt 1
         const isPrepOr100gSave = is100gOnly || isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly;
-        const prevQ = isResampleAction ? (existingSecondAttempt || {}) : (existingQuality || {});
+        const prevQ = isResampleAction ? (existingSecondAttempt || {}) : (isPrepOr100gSave ? {} : (existingQuality || {}));
 
         // Convert string values from FormData to numbers (with safe parsing)
         const qualityData = {
@@ -2712,17 +2713,17 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
           bend: (hasBend1 || isProvided(req.body.bend)) ? parseFloatSafe(req.body.bend || req.body.bend1) : (isPrepOr100gSave ? prevQ.bend : null),
           bend1: hasBend1 ? parseFloatSafe(req.body.bend1) : (isPrepOr100gSave ? prevQ.bend1 : null),
           bend2: hasBend2 ? parseFloatSafe(req.body.bend2) : (isPrepOr100gSave ? prevQ.bend2 : null),
-          mixS: hasSmix ? (smixEnabled ? normalizeAlphaNumeric(req.body.mixS) : '0') : (isPrepOr100gSave ? prevQ.mixS : '0'),
-          mixL: hasLmix ? (lmixEnabled ? normalizeAlphaNumeric(req.body.mixL) : '0') : (isPrepOr100gSave ? prevQ.mixL : '0'),
+          mixS: hasSmix ? (smixEnabled ? normalizeAlphaNumeric(req.body.mixS) : '0') : (isPrepOr100gSave ? (prevQ.mixS || '0') : '0'),
+          mixL: hasLmix ? (lmixEnabled ? normalizeAlphaNumeric(req.body.mixL) : '0') : (isPrepOr100gSave ? (prevQ.mixL || '0') : '0'),
           mix: hasMix ? normalizeAlphaNumeric(req.body.mix) : (isPrepOr100gSave ? prevQ.mix : null),
           kandu: hasKandu ? normalizeAlphaNumeric(req.body.kandu) : (isPrepOr100gSave ? prevQ.kandu : null),
           oil: hasOil ? normalizeAlphaNumeric(req.body.oil) : (isPrepOr100gSave ? prevQ.oil : null),
           sk: hasSk ? normalizeAlphaNumeric(req.body.sk) : (isPrepOr100gSave ? prevQ.sk : null),
           grainsCount: hasGrains ? parseIntSafe(req.body.grainsCount) : (isPrepOr100gSave ? prevQ.grainsCount : null),
-          wbR: hasWbR ? (wbEnabled ? parseFloatSafe(req.body.wbR) : 0) : (isPrepOr100gSave ? prevQ.wbR : 0),
-          wbBk: hasWbBk ? (wbEnabled ? parseFloatSafe(req.body.wbBk) : 0) : (isPrepOr100gSave ? prevQ.wbBk : 0),
-          wbT: isProvided(req.body.wbT) ? (wbEnabled ? parseFloatSafe(req.body.wbT) : 0) : (isPrepOr100gSave ? prevQ.wbT : 0),
-          paddyWb: hasPaddyWb ? (paddyWbEnabled ? parseFloatSafe(req.body.paddyWb) : 0) : (isPrepOr100gSave ? prevQ.paddyWb : 0),
+          wbR: hasWbR ? (wbEnabled ? parseFloatSafe(req.body.wbR) : 0) : (isPrepOr100gSave ? (prevQ.wbR || 0) : 0),
+          wbBk: hasWbBk ? (wbEnabled ? parseFloatSafe(req.body.wbBk) : 0) : (isPrepOr100gSave ? (prevQ.wbBk || 0) : 0),
+          wbT: isProvided(req.body.wbT) ? (wbEnabled ? parseFloatSafe(req.body.wbT) : 0) : (isPrepOr100gSave ? (prevQ.wbT || 0) : 0),
+          paddyWb: hasPaddyWb ? (paddyWbEnabled ? parseFloatSafe(req.body.paddyWb) : 0) : (isPrepOr100gSave ? (prevQ.paddyWb || 0) : 0),
           moistureRaw: hasMoisture ? normalizeRaw(req.body.moisture) : (isPrepOr100gSave ? prevQ.moistureRaw : null),
           dryMoistureRaw: hasDryMoisture ? (dryMoistureEnabled ? normalizeRaw(req.body.dryMoisture) : null) : (isPrepOr100gSave ? prevQ.dryMoistureRaw : null),
           cutting1Raw: hasCutting1 ? normalizeRaw(req.body.cutting1) : (isPrepOr100gSave ? prevQ.cutting1Raw : null),
@@ -3064,49 +3065,65 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
           requireExplicitSmell: false
         });
 
+        const isNextIntent = String(req.body.qualityEntryIntent || '').toLowerCase() === 'next';
+        const isResampleAction = sampleEntry.entryType !== 'RICE_SAMPLE'
+            && (
+              String(sampleEntry.lotSelectionDecision || '').toUpperCase() === 'FAIL'
+              || Boolean(sampleEntry.resampleTriggerRequired)
+              || Boolean(sampleEntry.resampleTriggeredAt)
+              || Boolean(sampleEntry.resampleDecisionAt)
+              || Boolean(sampleEntry.resampleAfterFinal)
+              || isValidResampleCookingPrepOnly
+              || isNextIntent
+            );
+        const qualityAttempts = Array.isArray(sampleEntry.qualityAttemptDetails) ? sampleEntry.qualityAttemptDetails : [];
+        const existingSecondAttempt = isResampleAction && !isNextIntent && qualityAttempts.length >= 2 ? qualityAttempts[qualityAttempts.length - 1] : null;
+        const isPrepOr100gSave = isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly;
+        const fallbackSource = isResampleAction ? (existingSecondAttempt || {}) : (isPrepOr100gSave ? {} : existing);
+
         // Prepare update data
         const updates = {
           sampleEntryId,
           is100Grams: req.body.is100Grams === 'true' || req.body.is100Grams === true || isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly,
-          moisture: parseFloatSafe(req.body.moisture, existing.moisture),
-          dryMoisture: dryMoistureEnabled ? parseFloatSafe(req.body.dryMoisture, existing.dryMoisture) : null,
-          cutting1: parseFloatSafe(req.body.cutting1, existing.cutting1),
-          cutting2: parseFloatSafe(req.body.cutting2, existing.cutting2),
-          bend1: parseFloatSafe(req.body.bend1, existing.bend1),
-          bend2: parseFloatSafe(req.body.bend2, existing.bend2),
-          bend: parseFloatSafe(req.body.bend || req.body.bend1, existing.bend),
-          mixS: smixEnabled ? normalizeAlphaNumeric(req.body.mixS, existing.mixS) : '0',
-          mixL: lmixEnabled ? normalizeAlphaNumeric(req.body.mixL, existing.mixL) : '0',
-          mix: normalizeAlphaNumeric(req.body.mix, existing.mix),
-          kandu: normalizeAlphaNumeric(req.body.kandu, existing.kandu),
-          oil: normalizeAlphaNumeric(req.body.oil, existing.oil),
-          sk: normalizeAlphaNumeric(req.body.sk, existing.sk),
-          grainsCount: parseIntSafe(req.body.grainsCount, existing.grainsCount),
-          wbR: wbEnabled ? parseFloatSafe(req.body.wbR, existing.wbR) : 0,
-          wbBk: wbEnabled ? parseFloatSafe(req.body.wbBk, existing.wbBk) : 0,
-          wbT: wbEnabled ? parseFloatSafe(req.body.wbT, existing.wbT) : 0,
-          paddyWb: paddyWbEnabled ? parseFloatSafe(req.body.paddyWb, existing.paddyWb) : 0,
+          moisture: parseFloatSafe(req.body.moisture, fallbackSource.moisture),
+          dryMoisture: dryMoistureEnabled ? parseFloatSafe(req.body.dryMoisture, fallbackSource.dryMoisture) : null,
+          cutting1: parseFloatSafe(req.body.cutting1, fallbackSource.cutting1),
+          cutting2: parseFloatSafe(req.body.cutting2, fallbackSource.cutting2),
+          bend1: parseFloatSafe(req.body.bend1, fallbackSource.bend1),
+          bend2: parseFloatSafe(req.body.bend2, fallbackSource.bend2),
+          bend: parseFloatSafe(req.body.bend || req.body.bend1, fallbackSource.bend),
+          mixS: smixEnabled ? normalizeAlphaNumeric(req.body.mixS, fallbackSource.mixS) : '0',
+          mixL: lmixEnabled ? normalizeAlphaNumeric(req.body.mixL, fallbackSource.mixL) : '0',
+          mix: normalizeAlphaNumeric(req.body.mix, fallbackSource.mix),
+          kandu: normalizeAlphaNumeric(req.body.kandu, fallbackSource.kandu),
+          oil: normalizeAlphaNumeric(req.body.oil, fallbackSource.oil),
+          sk: normalizeAlphaNumeric(req.body.sk, fallbackSource.sk),
+          grainsCount: parseIntSafe(req.body.grainsCount, fallbackSource.grainsCount),
+          wbR: wbEnabled ? parseFloatSafe(req.body.wbR, fallbackSource.wbR) : 0,
+          wbBk: wbEnabled ? parseFloatSafe(req.body.wbBk, fallbackSource.wbBk) : 0,
+          wbT: wbEnabled ? parseFloatSafe(req.body.wbT, fallbackSource.wbT) : 0,
+          paddyWb: paddyWbEnabled ? parseFloatSafe(req.body.paddyWb, fallbackSource.paddyWb) : 0,
           smellHas,
           smellType,
-          moistureRaw: normalizeRaw(req.body.moisture) ?? existing.moistureRaw ?? null,
-          dryMoistureRaw: dryMoistureEnabled ? (normalizeRaw(req.body.dryMoisture) ?? existing.dryMoistureRaw ?? null) : null,
-          cutting1Raw: normalizeRaw(req.body.cutting1) ?? existing.cutting1Raw ?? null,
-          cutting2Raw: normalizeRaw(req.body.cutting2) ?? existing.cutting2Raw ?? null,
-          bend1Raw: normalizeRaw(req.body.bend1) ?? existing.bend1Raw ?? null,
-          bend2Raw: normalizeRaw(req.body.bend2) ?? existing.bend2Raw ?? null,
-          mixSRaw: smixEnabled ? (normalizeRaw(req.body.mixS) ?? existing.mixSRaw ?? null) : null,
-          mixLRaw: lmixEnabled ? (normalizeRaw(req.body.mixL) ?? existing.mixLRaw ?? null) : null,
-          mixRaw: hasMix ? (normalizeRaw(req.body.mix) ?? existing.mixRaw ?? null) : (existing.mixRaw ?? null),
-          kanduRaw: hasKandu ? (normalizeRaw(req.body.kandu) ?? existing.kanduRaw ?? null) : (existing.kanduRaw ?? null),
-          oilRaw: hasOil ? (normalizeRaw(req.body.oil) ?? existing.oilRaw ?? null) : (existing.oilRaw ?? null),
-          skRaw: hasSk ? (normalizeRaw(req.body.sk) ?? existing.skRaw ?? null) : (existing.skRaw ?? null),
-          grainsCountRaw: normalizeRaw(req.body.grainsCount) ?? existing.grainsCountRaw ?? null,
-          wbRRaw: wbEnabled ? (normalizeRaw(req.body.wbR) ?? existing.wbRRaw ?? null) : null,
-          wbBkRaw: wbEnabled ? (normalizeRaw(req.body.wbBk) ?? existing.wbBkRaw ?? null) : null,
-          wbTRaw: wbEnabled ? (normalizeRaw(req.body.wbT) ?? existing.wbTRaw ?? null) : null,
-          paddyWbRaw: paddyWbEnabled ? (normalizeRaw(req.body.paddyWb) ?? existing.paddyWbRaw ?? null) : null,
-          gramsReport: normalizeGramsReport(req.body.gramsReport, existing.gramsReport),
-          reportedBy: reportedByValue,
+          moistureRaw: normalizeRaw(req.body.moisture) ?? fallbackSource.moistureRaw ?? null,
+          dryMoistureRaw: dryMoistureEnabled ? (normalizeRaw(req.body.dryMoisture) ?? fallbackSource.dryMoistureRaw ?? null) : null,
+          cutting1Raw: normalizeRaw(req.body.cutting1) ?? fallbackSource.cutting1Raw ?? null,
+          cutting2Raw: normalizeRaw(req.body.cutting2) ?? fallbackSource.cutting2Raw ?? null,
+          bend1Raw: normalizeRaw(req.body.bend1) ?? fallbackSource.bend1Raw ?? null,
+          bend2Raw: normalizeRaw(req.body.bend2) ?? fallbackSource.bend2Raw ?? null,
+          mixSRaw: smixEnabled ? (normalizeRaw(req.body.mixS) ?? fallbackSource.mixSRaw ?? null) : null,
+          mixLRaw: lmixEnabled ? (normalizeRaw(req.body.mixL) ?? fallbackSource.mixLRaw ?? null) : null,
+          mixRaw: hasMix ? (normalizeRaw(req.body.mix) ?? fallbackSource.mixRaw ?? null) : (fallbackSource.mixRaw ?? null),
+          kanduRaw: hasKandu ? (normalizeRaw(req.body.kandu) ?? fallbackSource.kanduRaw ?? null) : (fallbackSource.kanduRaw ?? null),
+          oilRaw: hasOil ? (normalizeRaw(req.body.oil) ?? fallbackSource.oilRaw ?? null) : (fallbackSource.oilRaw ?? null),
+          skRaw: hasSk ? (normalizeRaw(req.body.sk) ?? fallbackSource.skRaw ?? null) : (fallbackSource.skRaw ?? null),
+          grainsCountRaw: normalizeRaw(req.body.grainsCount) ?? fallbackSource.grainsCountRaw ?? null,
+          wbRRaw: wbEnabled ? (normalizeRaw(req.body.wbR) ?? fallbackSource.wbRRaw ?? null) : null,
+          wbBkRaw: wbEnabled ? (normalizeRaw(req.body.wbBk) ?? fallbackSource.wbBkRaw ?? null) : null,
+          wbTRaw: wbEnabled ? (normalizeRaw(req.body.wbT) ?? fallbackSource.wbTRaw ?? null) : null,
+          paddyWbRaw: paddyWbEnabled ? (normalizeRaw(req.body.paddyWb) ?? fallbackSource.paddyWbRaw ?? null) : null,
+          gramsReport: normalizeGramsReport(req.body.gramsReport, fallbackSource.gramsReport),
+          reportedBy: reportedByValue || fallbackSource.reportedBy || req.user?.username || '',
           reportedByUserId: req.user.userId,
           smixEnabled,
           lmixEnabled,
