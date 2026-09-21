@@ -3132,14 +3132,6 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
 
         // --- GPS and Resample Timeline Update ---
         const userProvidedGps = typeof req.body.gpsCoordinates === 'string' ? req.body.gpsCoordinates.trim() : '';
-        const isResampleAction = sampleEntry.entryType !== 'RICE_SAMPLE'
-            && (
-              String(sampleEntry.lotSelectionDecision || '').toUpperCase() === 'FAIL'
-              || (Array.isArray(sampleEntry.resampleCollectedTimeline) && sampleEntry.resampleCollectedTimeline.length > 0)
-              || (Array.isArray(sampleEntry.resampleCollectedHistory) && sampleEntry.resampleCollectedHistory.length > 0)
-              || Boolean(sampleEntry.resampleStartAt)
-              || Number(sampleEntry.qualityReportAttempts || 0) > 1
-            );
 
         let gpsUpdatePromise = Promise.resolve();
         if (isResampleAction) {
