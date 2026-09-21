@@ -606,12 +606,23 @@ const attachLoadingLotsHistories = async (rows) => {
       qualityAttemptDetails.length = 0;
       dedupedAttempts.forEach((attempt) => qualityAttemptDetails.push(attempt));
     } else {
-      // Fallback if no transition logs (should not happen in normal workflow)
+      // Fallback if no transition logs
       const fallbackDetail = buildQualityAttemptDetail(row.qualityParameters, row.createdAt);
       const baseAttemptDetails = persistedAttemptDetails.length > 0
         ? [...persistedAttemptDetails]
         : [];
-      if (fallbackDetail) {
+
+      if (baseAttemptDetails.length === 0 && auditLogs.length > 1 && hasResampleFlow) {
+        // We have multiple quality audit logs from resample flow
+        const firstLog = auditLogs[0];
+        const firstDetail = buildQualityAttemptDetail(firstLog.newValues || firstLog.oldValues, firstLog.createdAt);
+        if (firstDetail) {
+          baseAttemptDetails.push({ attemptNo: 1, ...firstDetail });
+        }
+        if (fallbackDetail && (!firstDetail || !areQualityAttemptsEquivalent(firstDetail, fallbackDetail))) {
+          baseAttemptDetails.push({ attemptNo: 2, ...fallbackDetail });
+        }
+      } else if (fallbackDetail) {
         if (baseAttemptDetails.length === 0) {
           baseAttemptDetails.push({ attemptNo: 1, ...fallbackDetail });
         } else {

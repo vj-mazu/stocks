@@ -159,7 +159,7 @@ class ValidationService {
     }
 
     // Validate cutting columns (0-100%)
-    if (qualityData.cutting1 !== undefined) {
+    if (qualityData.cutting1 !== undefined && qualityData.cutting1 !== null && qualityData.cutting1 !== '') {
       const cutting1Validation = this.validateNumericRange(
         qualityData.cutting1,
         { min: 0, max: 100 },
@@ -170,7 +170,7 @@ class ValidationService {
       }
     }
 
-    if (qualityData.cutting2 !== undefined) {
+    if (qualityData.cutting2 !== undefined && qualityData.cutting2 !== null && qualityData.cutting2 !== '') {
       const cutting2Validation = this.validateNumericRange(
         qualityData.cutting2,
         { min: 0, max: 100 },
@@ -184,12 +184,12 @@ class ValidationService {
     // Validate other numeric fields (non-negative)
     const alphaAllowedFields = new Set(['mixS', 'mixL', 'mix', 'kandu', 'oil', 'sk']);
     const numericFields = [
-      'bend', 'grainsCount',
+      'bend', 'bend1', 'bend2', 'grainsCount',
       'wbR', 'wbBk', 'wbT', 'paddyWb'
     ];
 
     for (const field of alphaAllowedFields) {
-      if (qualityData[field] !== undefined) {
+      if (qualityData[field] !== undefined && qualityData[field] !== null) {
         const raw = String(qualityData[field] ?? '').trim();
         if (!raw) {
           continue;
@@ -209,7 +209,7 @@ class ValidationService {
     }
 
     for (const field of numericFields) {
-      if (qualityData[field] !== undefined) {
+      if (qualityData[field] !== undefined && qualityData[field] !== null && qualityData[field] !== '') {
         const validation = this.validateNumericRange(
           qualityData[field],
           { min: 0 },
