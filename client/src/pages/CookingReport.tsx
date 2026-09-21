@@ -1585,9 +1585,6 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
       return false;
     }
 
-    const actionState = canOpenCookingActionForEntry(entry);
-    if (actionState.canAdd) return false;
-    if (String(actionState.reason || '').toUpperCase() !== 'AWAITING QUALITY') return false;
     return !hasCurrentCycleQualityData(entry);
   };
 
