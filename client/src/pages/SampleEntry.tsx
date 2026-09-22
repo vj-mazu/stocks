@@ -3101,8 +3101,9 @@ const SampleEntryPage: React.FC<{
                               && !resampleDecisionTaken
                               && ['STAFF_ENTRY', 'FINAL_REPORT', 'LOT_ALLOTMENT'].includes(normalizedWorkflowStatus);
 
-
-
+                            if (isResampleRowInLocation || isPaddyResampleWorkflow || isPaddyResampleEntry || String((entry as any).resampleOriginDecision || '').includes('PASS')) {
+                              console.warn(`[RESAMPLE_DEBUG] Entry: ${entry.id} | Collector: "${entry.sampleCollectedBy}" | isAssignedCollector: ${isAssignedCollector} | showTrigger: ${showLocationResampleTrigger} | workflow: ${normalizedWorkflowStatus} | isResampleRow: ${isResampleRowInLocation} | triggered: ${resampleAlreadyTriggered} | decisionTaken: ${resampleDecisionTaken} | actionWillBe: ${showLocationResampleTrigger ? 'TRIGGER BUTTON (ORANGE)' : (isPaddyResampleEntry && canEditQuality ? 'NEXT > BUTTON' : 'OTHER')}`);
+                            }
 
                             const handleNextClick = () => {
                               handleViewEntry(entry, 'next');

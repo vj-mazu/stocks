@@ -2820,6 +2820,9 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
           reportedBy: reportedByValue || (isPrepOr100gSave ? (prevQ.reportedBy || req.user?.username || '') : (req.user?.username || '')),
           smellHas: isPrepOr100gSave && smellHas === undefined ? (prevQ.smellHas || false) : (smellHas || false),
           smellType: isPrepOr100gSave && !smellType ? (prevQ.smellType || null) : (smellType || null),
+          is100Grams: req.body.is100Grams === 'true' || req.body.is100Grams === true || is100gSave,
+          resampleCookingPrepOnly: isResampleCookingPrepOnlyRequest || isValidResampleCookingPrepOnly,
+          is100gSave,
           smixEnabled,
           lmixEnabled,
           paddyWbEnabled
@@ -3159,7 +3162,9 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
         // Prepare update data
         const updates = {
           sampleEntryId,
-          is100Grams: req.body.is100Grams === 'true' || req.body.is100Grams === true || isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly,
+          is100Grams: req.body.is100Grams === 'true' || req.body.is100Grams === true || is100gSave,
+          resampleCookingPrepOnly: isResampleCookingPrepOnlyRequest || isValidResampleCookingPrepOnly,
+          is100gSave,
           moisture: parseFloatSafe(req.body.moisture, fallbackSource.moisture),
           dryMoisture: dryMoistureEnabled ? parseFloatSafe(req.body.dryMoisture, fallbackSource.dryMoisture) : null,
           cutting1: parseFloatSafe(req.body.cutting1, fallbackSource.cutting1),

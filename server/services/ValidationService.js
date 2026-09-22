@@ -139,15 +139,23 @@ class ValidationService {
    */
   validateQualityParameters(qualityData) {
     const errors = [];
+    const is100gMode = qualityData.is100Grams === true
+      || qualityData.is100Grams === 'true'
+      || qualityData.resampleCookingPrepOnly === true
+      || qualityData.resampleCookingPrepOnly === 'true'
+      || qualityData.is100gOnly === true
+      || qualityData.is100gSave === true;
 
     // Validate moisture (0-100%)
-    const moistureValidation = this.validateNumericRange(
-      qualityData.moisture,
-      { min: 0, max: 100 },
-      'Moisture'
-    );
-    if (!moistureValidation.valid) {
-      errors.push(...moistureValidation.errors);
+    if (qualityData.moisture !== undefined && qualityData.moisture !== null && qualityData.moisture !== '') {
+      const moistureValidation = this.validateNumericRange(
+        qualityData.moisture,
+        { min: 0, max: 100 },
+        'Moisture'
+      );
+      if (!moistureValidation.valid) {
+        errors.push(...moistureValidation.errors);
+      }
     }
 
     // Validate smell (optional)
@@ -158,57 +166,75 @@ class ValidationService {
       }
     }
 
-    // Validate cutting columns (0-100%)
-    if (qualityData.cutting1 !== undefined && qualityData.cutting1 !== null && qualityData.cutting1 !== '') {
-      const cutting1Validation = this.validateNumericRange(
-        qualityData.cutting1,
-        { min: 0, max: 100 },
-        'Cutting 1'
-      );
-      if (!cutting1Validation.valid) {
-        errors.push(...cutting1Validation.errors);
+    // If saving 100gms / resample prep only, do not validate full cutting, bend, mix, etc.
+    if (!is100gMode) {
+      // Validate cutting columns (0-100%)
+      if (qualityData.cutting1 !== undefined && qualityData.cutting1 !== null && qualityData.cutting1 !== '') {
+        const cutting1Validation = this.validateNumericRange(
+          qualityData.cutting1,
+          { min: 0, max: 100 },
+          'Cutting 1'
+        );
+        if (!cutting1Validation.valid) {
+          errors.push(...cutting1Validation.errors);
+        }
+      }
+
+      if (qualityData.cutting2 !== undefined && qualityData.cutting2 !== null && qualityData.cutting2 !== '') {
+        const cutting2Validation = this.validateNumericRange(
+          qualityData.cutting2,
+          { min: 0, max: 100 },
+          'Cutting 2'
+        );
+        if (!cutting2Validation.valid) {
+          errors.push(...cutting2Validation.errors);
+        }
+      }
+
+      // Validate other numeric fields (non-negative)
+      const alphaAllowedFields = new Set(['mixS', 'mixL', 'mix', 'kandu', 'oil', 'sk']);
+      const numericFields = ['bend', 'bend1', 'bend2'];
+
+      for (const field of alphaAllowedFields) {
+        if (qualityData[field] !== undefined && qualityData[field] !== null) {
+          const raw = String(qualityData[field] ?? '').trim();
+          if (!raw) {
+            continue;
+          }
+          if (/[a-zA-Z]/.test(raw)) {
+            continue;
+          }
+          const validation = this.validateNumericRange(
+            qualityData[field],
+            { min: 0 },
+            field
+          );
+          if (!validation.valid) {
+            errors.push(...validation.errors);
+          }
+        }
+      }
+
+      for (const field of numericFields) {
+        if (qualityData[field] !== undefined && qualityData[field] !== null && qualityData[field] !== '') {
+          const validation = this.validateNumericRange(
+            qualityData[field],
+            { min: 0 },
+            field
+          );
+          if (!validation.valid) {
+            errors.push(...validation.errors);
+          }
+        }
       }
     }
 
-    if (qualityData.cutting2 !== undefined && qualityData.cutting2 !== null && qualityData.cutting2 !== '') {
-      const cutting2Validation = this.validateNumericRange(
-        qualityData.cutting2,
-        { min: 0, max: 100 },
-        'Cutting 2'
-      );
-      if (!cutting2Validation.valid) {
-        errors.push(...cutting2Validation.errors);
-      }
-    }
-
-    // Validate other numeric fields (non-negative)
-    const alphaAllowedFields = new Set(['mixS', 'mixL', 'mix', 'kandu', 'oil', 'sk']);
-    const numericFields = [
-      'bend', 'bend1', 'bend2', 'grainsCount',
+    // Validate 100gms / prep numeric fields
+    const prepNumericFields = [
+      'grainsCount',
       'wbR', 'wbBk', 'wbT', 'paddyWb'
     ];
-
-    for (const field of alphaAllowedFields) {
-      if (qualityData[field] !== undefined && qualityData[field] !== null) {
-        const raw = String(qualityData[field] ?? '').trim();
-        if (!raw) {
-          continue;
-        }
-        if (/[a-zA-Z]/.test(raw)) {
-          continue;
-        }
-        const validation = this.validateNumericRange(
-          qualityData[field],
-          { min: 0 },
-          field
-        );
-        if (!validation.valid) {
-          errors.push(...validation.errors);
-        }
-      }
-    }
-
-    for (const field of numericFields) {
+    for (const field of prepNumericFields) {
       if (qualityData[field] !== undefined && qualityData[field] !== null && qualityData[field] !== '') {
         const validation = this.validateNumericRange(
           qualityData[field],
