@@ -118,13 +118,13 @@ const syncQualityAttemptSnapshots = async (sampleEntryId, currentQualityBeforeUp
     const newAttempts = firstAttempt ? [firstAttempt, secondAttempt] : [secondAttempt];
 
     await SampleEntryRepository.update(sampleEntryId, {
-      qualityAttemptDetails: newAttempts,
-      qualityReportAttempts: 2
+      qualityAttemptDetails: newAttempts.slice(0, 2),
+      qualityReportAttempts: Math.min(2, newAttempts.length)
     });
   } else {
     if (existingAttempts.length >= 2) {
-      existingAttempts[existingAttempts.length - 1] = {
-        ...existingAttempts[existingAttempts.length - 1],
+      existingAttempts[1] = {
+        ...existingAttempts[1],
         ...updatedSnapshot,
         attemptNo: 2
       };
@@ -141,9 +141,10 @@ const syncQualityAttemptSnapshots = async (sampleEntryId, currentQualityBeforeUp
       });
     }
 
+    const finalAttempts = existingAttempts.slice(0, 2);
     await SampleEntryRepository.update(sampleEntryId, {
-      qualityAttemptDetails: existingAttempts,
-      qualityReportAttempts: existingAttempts.length
+      qualityAttemptDetails: finalAttempts,
+      qualityReportAttempts: Math.min(2, finalAttempts.length)
     });
   }
 };

@@ -467,21 +467,24 @@ const getQualityAttemptsForEntry = (entry = {}) => {
     : [];
   const currentQuality = entry.qualityParameters;
   if (!currentQuality || !hasQualitySnapshot(currentQuality)) {
-    return attempts;
+    return attempts.slice(0, 2);
   }
   const alreadyIncluded = attempts.some((attempt) => (
     areQualityAttemptsEquivalent(attempt, currentQuality)
   ));
-  if (alreadyIncluded) {
-    return attempts;
+  if (alreadyIncluded || attempts.length >= 2) {
+    if (attempts.length >= 2 && !alreadyIncluded) {
+      attempts[1] = { ...attempts[1], ...currentQuality, attemptNo: 2 };
+    }
+    return attempts.slice(0, 2);
   }
   return [
     ...attempts,
     {
       ...currentQuality,
-      attemptNo: attempts.length + 1
+      attemptNo: Math.min(2, attempts.length + 1)
     }
-  ];
+  ].slice(0, 2);
 };
 const shouldCreateNewResampleQualityAttempt = (entry = {}) => {
   const workflowStatus = String(entry?.workflowStatus || '').toUpperCase();
