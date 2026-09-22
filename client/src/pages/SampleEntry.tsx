@@ -3003,42 +3003,55 @@ const SampleEntryPage: React.FC<{
                             const isLocationStaff = user?.role === 'physical_supervisor';
                             const isLocationSample = entry.entryType === 'LOCATION_SAMPLE' || activeTab === 'LOCATION_SAMPLE' || isConvertedResampleType(entry);
                             const isEntryCreator = (entry as any).creator?.id === user?.id || (entry as any).createdByUserId === user?.id;
-                            const isAssignedCollector = (() => {
-                              if (!user) return false;
-                              if (isUserMatchingAssignedCollector(entry.sampleCollectedBy, user, paddySupervisors)) return true;
-                              if (getResampleCollectorNames(entry as any).some(name => isUserMatchingAssignedCollector(name, user, paddySupervisors))) return true;
-
-                              const timelineCandidates = [
-                                ...(Array.isArray((entry as any)?.resampleCollectedTimeline) ? (entry as any).resampleCollectedTimeline : []),
-                                ...(Array.isArray((entry as any)?.resampleCollectedHistory) ? (entry as any).resampleCollectedHistory : []),
-                                ...(Array.isArray((entry as any)?.sampleCollectedTimeline) ? (entry as any).sampleCollectedTimeline : []),
-                                ...(Array.isArray((entry as any)?.sampleCollectedHistory) ? (entry as any).sampleCollectedHistory : [])
-                              ];
-                              for (const item of timelineCandidates) {
-                                if (typeof item === 'string' && isUserMatchingAssignedCollector(item, user, paddySupervisors)) return true;
-                                if (item && typeof item === 'object') {
-                                  const val = item.sampleCollectedBy || item.name || item.username || item.fullName || (item.id != null ? String(item.id) : '');
-                                  if (isUserMatchingAssignedCollector(val, user, paddySupervisors)) return true;
-                                  if (item.userId != null && (String(item.userId) === String(user.id) || String((user as any).userId))) return true;
+                            const collectedByDisplay = getCollectedByDisplay(entry as any);
+                            const isAssignedCollector = Boolean(collectedByDisplay?.highlightPrimary)
+                              || Boolean(collectedByDisplay?.highlightSecondary)
+                              || isUserMatchingAssignedCollector(entry.sampleCollectedBy, user, paddySupervisors)
+                              || getResampleCollectorNames(entry as any).some(name => isUserMatchingAssignedCollector(name, user, paddySupervisors))
+                              || (() => {
+                                if (!user) return false;
+                                const cleanUser = String(user.username || '').trim().toLowerCase();
+                                const cleanFull = String(user.fullName || '').trim().toLowerCase();
+                                const cleanId = String(user.id != null ? user.id : (user as any).userId || '').trim();
+                                const rawAssigned = String(entry.sampleCollectedBy || '').trim().toLowerCase();
+                                if (cleanUser && cleanUser.length >= 3 && rawAssigned.includes(cleanUser)) return true;
+                                if (cleanFull && cleanFull.length >= 3 && rawAssigned.includes(cleanFull)) return true;
+                                if (cleanId && rawAssigned.includes(cleanId)) return true;
+                                return false;
+                              })()
+                              || (() => {
+                                if (!user) return false;
+                                const timelineCandidates = [
+                                  ...(Array.isArray((entry as any)?.resampleCollectedTimeline) ? (entry as any).resampleCollectedTimeline : []),
+                                  ...(Array.isArray((entry as any)?.resampleCollectedHistory) ? (entry as any).resampleCollectedHistory : []),
+                                  ...(Array.isArray((entry as any)?.sampleCollectedTimeline) ? (entry as any).sampleCollectedTimeline : []),
+                                  ...(Array.isArray((entry as any)?.sampleCollectedHistory) ? (entry as any).sampleCollectedHistory : [])
+                                ];
+                                for (const item of timelineCandidates) {
+                                  if (typeof item === 'string' && isUserMatchingAssignedCollector(item, user, paddySupervisors)) return true;
+                                  if (item && typeof item === 'object') {
+                                    const val = item.sampleCollectedBy || item.name || item.username || item.fullName || (item.id != null ? String(item.id) : '');
+                                    if (isUserMatchingAssignedCollector(val, user, paddySupervisors)) return true;
+                                    if (item.userId != null && (String(item.userId) === String(user.id) || String((user as any).userId))) return true;
+                                  }
                                 }
-                              }
 
-                              const lotAllot = (entry as any)?.lotAllotment;
-                              if (lotAllot) {
-                                if (lotAllot.allottedToSupervisorId != null && (String(lotAllot.allottedToSupervisorId) === String(user.id) || String(lotAllot.allottedToSupervisorId) === String((user as any).userId))) return true;
-                                if (lotAllot.supervisorId != null && (String(lotAllot.supervisorId) === String(user.id) || String(lotAllot.supervisorId) === String((user as any).userId))) return true;
-                                if (lotAllot.supervisor) {
-                                  if (isUserMatchingAssignedCollector(lotAllot.supervisor.username || lotAllot.supervisor.fullName || String(lotAllot.supervisor.id || ''), user, paddySupervisors)) return true;
+                                const lotAllot = (entry as any)?.lotAllotment;
+                                if (lotAllot) {
+                                  if (lotAllot.allottedToSupervisorId != null && (String(lotAllot.allottedToSupervisorId) === String(user.id) || String(lotAllot.allottedToSupervisorId) === String((user as any).userId))) return true;
+                                  if (lotAllot.supervisorId != null && (String(lotAllot.supervisorId) === String(user.id) || String(lotAllot.supervisorId) === String((user as any).userId))) return true;
+                                  if (lotAllot.supervisor) {
+                                    if (isUserMatchingAssignedCollector(lotAllot.supervisor.username || lotAllot.supervisor.fullName || String(lotAllot.supervisor.id || ''), user, paddySupervisors)) return true;
+                                  }
                                 }
-                              }
 
-                              const creatorId = (entry as any)?.creator?.id ?? (entry as any)?.createdByUserId;
-                              if (creatorId != null && (String(creatorId) === String(user.id) || String(creatorId) === String((user as any).userId))) return true;
-                              const creatorUsername = (entry as any)?.creator?.username;
-                              if (creatorUsername && isUserMatchingAssignedCollector(creatorUsername, user, paddySupervisors)) return true;
+                                const creatorId = (entry as any)?.creator?.id ?? (entry as any)?.createdByUserId;
+                                if (creatorId != null && (String(creatorId) === String(user.id) || String(creatorId) === String((user as any).userId))) return true;
+                                const creatorUsername = (entry as any)?.creator?.username;
+                                if (creatorUsername && isUserMatchingAssignedCollector(creatorUsername, user, paddySupervisors)) return true;
 
-                              return false;
-                            })();
+                                return false;
+                              })();
                             const canManageResampleTrigger = ['admin', 'manager', 'owner', 'ceo'].includes(String(user?.role || '').toLowerCase());
                             
                             // Staff can edit anyone's entry, but Location Samples NOT given to office are restricted to collector
