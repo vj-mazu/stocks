@@ -3532,7 +3532,7 @@ router.post('/:id/lot-selection', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Invalid decision' });
     }
 
-    if (!isLoadingStageResample && !isAlreadyFailedSoldOut) {
+    if (!isLoadingStageResample && !isAlreadyFailedSoldOut && nextStatus !== currentWorkflowStatus) {
       await WorkflowEngine.transitionTo(
         req.params.id, // Keep as UUID string, don't parse to int
         nextStatus,
@@ -3589,7 +3589,7 @@ router.post('/:id/lot-selection', authenticateToken, async (req, res) => {
 
     // Auto-skip Final Pass Lots for resample entries that already have offering/final price
     // Scenario 2: PASS_WITHOUT_COOKING goes to FINAL_REPORT, but if price exists, skip to LOT_ALLOTMENT
-    if (nextStatus === 'FINAL_REPORT') {
+    if (nextStatus === 'FINAL_REPORT' || currentWorkflowStatus === 'FINAL_REPORT') {
       try {
         const SampleEntryOffering = require('../models/SampleEntryOffering');
         const offering = await SampleEntryOffering.findOne({
