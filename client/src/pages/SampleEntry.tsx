@@ -220,46 +220,77 @@ const SampleEntryPage: React.FC<{
       isResampleWorkflow: isResampleWorkflowEntry(entry, qualityAttempts)
     });
   };
-  const isUserMatchingAssignedCollector = (assigned?: string | null, targetUser?: any) => {
+  const isUserMatchingAssignedCollector = (assigned?: string | null, targetUser?: any, supervisors?: Array<{ id?: number | string; username?: string; fullName?: string | null }>) => {
     if (!assigned) return false;
-    const cleanAssigned = assigned.trim().toLowerCase();
-    const cleanUsername = String(targetUser?.username || '').trim().toLowerCase();
-    const cleanFullName = String(targetUser?.fullName || '').trim().toLowerCase();
-    if (!cleanUsername && !cleanFullName) return false;
+    const cleanAssigned = String(assigned).trim().toLowerCase();
+    if (!cleanAssigned || cleanAssigned === 'broker office sample') return false;
 
-    // Helper: check if a single name part matches the user (exact, prefix, or first-word)
-    const matchesSinglePart = (part: string): boolean => {
-      if (!part) return false;
-      // Exact match
-      if ((cleanUsername && part === cleanUsername) || (cleanFullName && part === cleanFullName)) return true;
-      // Part starts with username (e.g. part="nitish kumar", username="nitish")
-      if (cleanUsername && cleanUsername.length >= 3 && part.startsWith(cleanUsername + ' ')) return true;
-      if (cleanUsername && cleanUsername.length >= 3 && part === cleanUsername) return true;
-      // Username starts with part (e.g. part="nitish", username="nitish kumar")
-      if (cleanUsername && part.length >= 3 && cleanUsername.startsWith(part + ' ')) return true;
-      // Part starts with fullName
-      if (cleanFullName && cleanFullName.length >= 3 && part.startsWith(cleanFullName + ' ')) return true;
-      if (cleanFullName && cleanFullName.length >= 3 && part === cleanFullName) return true;
-      // fullName starts with part
-      if (cleanFullName && part.length >= 3 && cleanFullName.startsWith(part + ' ')) return true;
-      // First word of part matches username/fullName exactly
-      const partWords = part.split(/\s+/);
-      if (partWords.length > 1 && partWords[0].length >= 3) {
-        if ((cleanUsername && partWords[0] === cleanUsername) || (cleanFullName && partWords[0] === cleanFullName)) return true;
+    const targetUsername = String(targetUser?.username || '').trim().toLowerCase();
+    const targetFullName = String(targetUser?.fullName || '').trim().toLowerCase();
+    const targetId = targetUser?.id != null ? String(targetUser.id).trim() : (targetUser?.userId != null ? String(targetUser.userId).trim() : '');
+
+    // Gather all candidate tokens for the current user
+    const userTokens = new Set<string>();
+    if (targetUsername) userTokens.add(targetUsername);
+    if (targetFullName) userTokens.add(targetFullName);
+    if (targetId) userTokens.add(targetId);
+
+    // Enrich with supervisors list from dropdown
+    if (Array.isArray(supervisors) && supervisors.length > 0) {
+      for (const sup of supervisors) {
+        const supUsername = String(sup.username || '').trim().toLowerCase();
+        const supFullName = String(sup.fullName || '').trim().toLowerCase();
+        const supId = sup.id != null ? String(sup.id).trim() : '';
+        const matchesTarget = (supUsername && supUsername === targetUsername)
+          || (supFullName && supFullName === targetFullName)
+          || (supId && supId === targetId)
+          || (targetUsername && supFullName && supFullName.startsWith(targetUsername + ' '))
+          || (targetFullName && supUsername && targetFullName.startsWith(supUsername + ' '));
+        if (matchesTarget) {
+          if (supUsername) userTokens.add(supUsername);
+          if (supFullName) userTokens.add(supFullName);
+          if (supId) userTokens.add(supId);
+        }
+      }
+    }
+
+    if (userTokens.size === 0) return false;
+
+    const matchesSingleToken = (part: string): boolean => {
+      const cleanPart = part.trim().toLowerCase();
+      if (!cleanPart || cleanPart === 'broker office sample') return false;
+
+      for (const token of userTokens) {
+        if (!token) continue;
+        if (cleanPart === token) return true;
+        if (/^\d+$/.test(token)) {
+          if (cleanPart === token) return true;
+          continue;
+        }
+        if (token.length >= 3) {
+          if (cleanPart.startsWith(token + ' ') || cleanPart.endsWith(' ' + token) || cleanPart.includes(' ' + token + ' ')) return true;
+          if (token.startsWith(cleanPart + ' ') || token.endsWith(' ' + cleanPart) || token.includes(' ' + cleanPart + ' ')) return true;
+        }
+        const partFirst = cleanPart.split(/\s+/)[0];
+        const tokenFirst = token.split(/\s+/)[0];
+        if (partFirst && tokenFirst && partFirst.length >= 3 && partFirst === tokenFirst) return true;
       }
       return false;
     };
 
-    // 1. Direct match on the whole assigned string
-    if (matchesSinglePart(cleanAssigned)) return true;
+    // 1. Direct match on whole string
+    if (matchesSingleToken(cleanAssigned)) return true;
 
     // 2. Pipe delimiter (e.g. "Broker Office Sample | Nitish Kumar")
     if (cleanAssigned.includes('|')) {
       const parts = cleanAssigned.split('|').map(p => p.trim()).filter(Boolean);
-      // Skip "broker office sample" — it's a label, not a person name
-      if (parts.some(p => p !== 'broker office sample' && matchesSinglePart(p))) {
-        return true;
-      }
+      if (parts.some(p => matchesSingleToken(p))) return true;
+    }
+
+    // 3. Comma or slash delimiter
+    if (cleanAssigned.includes(',') || cleanAssigned.includes('/')) {
+      const parts = cleanAssigned.split(/[,/]/).map(p => p.trim()).filter(Boolean);
+      if (parts.some(p => matchesSingleToken(p))) return true;
     }
 
     return false;
@@ -2972,8 +3003,42 @@ const SampleEntryPage: React.FC<{
                             const isLocationStaff = user?.role === 'physical_supervisor';
                             const isLocationSample = entry.entryType === 'LOCATION_SAMPLE';
                             const isEntryCreator = (entry as any).creator?.id === user?.id || (entry as any).createdByUserId === user?.id;
-                            const isAssignedCollector = isUserMatchingAssignedCollector(entry.sampleCollectedBy, user)
-                              || getResampleCollectorNames(entry as any).some(name => isUserMatchingAssignedCollector(name, user));
+                            const isAssignedCollector = (() => {
+                              if (!user) return false;
+                              if (isUserMatchingAssignedCollector(entry.sampleCollectedBy, user, paddySupervisors)) return true;
+                              if (getResampleCollectorNames(entry as any).some(name => isUserMatchingAssignedCollector(name, user, paddySupervisors))) return true;
+
+                              const timelineCandidates = [
+                                ...(Array.isArray((entry as any)?.resampleCollectedTimeline) ? (entry as any).resampleCollectedTimeline : []),
+                                ...(Array.isArray((entry as any)?.resampleCollectedHistory) ? (entry as any).resampleCollectedHistory : []),
+                                ...(Array.isArray((entry as any)?.sampleCollectedTimeline) ? (entry as any).sampleCollectedTimeline : []),
+                                ...(Array.isArray((entry as any)?.sampleCollectedHistory) ? (entry as any).sampleCollectedHistory : [])
+                              ];
+                              for (const item of timelineCandidates) {
+                                if (typeof item === 'string' && isUserMatchingAssignedCollector(item, user, paddySupervisors)) return true;
+                                if (item && typeof item === 'object') {
+                                  const val = item.sampleCollectedBy || item.name || item.username || item.fullName || (item.id != null ? String(item.id) : '');
+                                  if (isUserMatchingAssignedCollector(val, user, paddySupervisors)) return true;
+                                  if (item.userId != null && (String(item.userId) === String(user.id) || String((user as any).userId))) return true;
+                                }
+                              }
+
+                              const lotAllot = (entry as any)?.lotAllotment;
+                              if (lotAllot) {
+                                if (lotAllot.allottedToSupervisorId != null && (String(lotAllot.allottedToSupervisorId) === String(user.id) || String(lotAllot.allottedToSupervisorId) === String((user as any).userId))) return true;
+                                if (lotAllot.supervisorId != null && (String(lotAllot.supervisorId) === String(user.id) || String(lotAllot.supervisorId) === String((user as any).userId))) return true;
+                                if (lotAllot.supervisor) {
+                                  if (isUserMatchingAssignedCollector(lotAllot.supervisor.username || lotAllot.supervisor.fullName || String(lotAllot.supervisor.id || ''), user, paddySupervisors)) return true;
+                                }
+                              }
+
+                              const creatorId = (entry as any)?.creator?.id ?? (entry as any)?.createdByUserId;
+                              if (creatorId != null && (String(creatorId) === String(user.id) || String(creatorId) === String((user as any).userId))) return true;
+                              const creatorUsername = (entry as any)?.creator?.username;
+                              if (creatorUsername && isUserMatchingAssignedCollector(creatorUsername, user, paddySupervisors)) return true;
+
+                              return false;
+                            })();
                             const canManageResampleTrigger = ['admin', 'manager', 'owner', 'ceo'].includes(String(user?.role || '').toLowerCase());
                             
                             // Staff can edit anyone's entry, but Location Samples NOT given to office are restricted to collector
@@ -3016,6 +3081,8 @@ const SampleEntryPage: React.FC<{
                               && !resampleAlreadyTriggered
                               && !resampleDecisionTaken
                               && ['STAFF_ENTRY', 'FINAL_REPORT', 'LOT_ALLOTMENT'].includes(normalizedWorkflowStatus);
+
+
 
 
                             const handleNextClick = () => {

@@ -102,32 +102,38 @@ const { attachLoadingLotsHistories } = require('../utils/historyUtil');
 const { shouldCreateNewQualityAttempt, normalizeQualityEntryIntent } = require('../utils/qualityEntryIntent');
 const { Op, col, where: sqlWhere } = require('sequelize');
 const getWorkflowRole = (user) => user?.effectiveRole || user?.role;
-const isUserMatchingAssigned = (assigned, username, fullName) => {
+const isUserMatchingAssigned = (assigned, username, fullName, userId) => {
   if (!assigned) return false;
-  const cleanAssigned = assigned.trim().toLowerCase();
+  const cleanAssigned = String(assigned).trim().toLowerCase();
+  if (!cleanAssigned || cleanAssigned === 'broker office sample') return false;
+
   const cleanUsername = String(username || '').trim().toLowerCase();
   const cleanFullName = String(fullName || '').trim().toLowerCase();
+  const cleanUserId = userId != null ? String(userId).trim().toLowerCase() : '';
 
-  if (!cleanUsername && !cleanFullName) return false;
+  if (!cleanUsername && !cleanFullName && !cleanUserId) return false;
+
+  const userTokens = [cleanUsername, cleanFullName, cleanUserId].filter(Boolean);
 
   const matchesSinglePart = (part) => {
     if (!part) return false;
-    // Exact match
-    if ((cleanUsername && part === cleanUsername) || (cleanFullName && part === cleanFullName)) return true;
-    // Part starts with username (e.g. part="nitish kumar", username="nitish")
-    if (cleanUsername && cleanUsername.length >= 3 && part.startsWith(cleanUsername + ' ')) return true;
-    if (cleanUsername && cleanUsername.length >= 3 && part === cleanUsername) return true;
-    // Username starts with part (e.g. part="nitish", username="nitish kumar")
-    if (cleanUsername && part.length >= 3 && cleanUsername.startsWith(part + ' ')) return true;
-    // Part starts with fullName
-    if (cleanFullName && cleanFullName.length >= 3 && part.startsWith(cleanFullName + ' ')) return true;
-    if (cleanFullName && cleanFullName.length >= 3 && part === cleanFullName) return true;
-    // fullName starts with part
-    if (cleanFullName && part.length >= 3 && cleanFullName.startsWith(part + ' ')) return true;
-    // First word of part matches username/fullName exactly
-    const partWords = part.split(/\s+/);
-    if (partWords.length > 1 && partWords[0].length >= 3) {
-      if ((cleanUsername && partWords[0] === cleanUsername) || (cleanFullName && partWords[0] === cleanFullName)) return true;
+    const cleanPart = part.trim().toLowerCase();
+    if (!cleanPart || cleanPart === 'broker office sample') return false;
+
+    for (const token of userTokens) {
+      if (!token) continue;
+      if (cleanPart === token) return true;
+      if (/^\d+$/.test(token)) {
+        if (cleanPart === token) return true;
+        continue;
+      }
+      if (token.length >= 3) {
+        if (cleanPart.startsWith(token + ' ') || cleanPart.endsWith(' ' + token) || cleanPart.includes(' ' + token + ' ')) return true;
+        if (token.startsWith(cleanPart + ' ') || token.endsWith(' ' + cleanPart) || token.includes(' ' + cleanPart + ' ')) return true;
+      }
+      const partFirst = cleanPart.split(/\s+/)[0];
+      const tokenFirst = token.split(/\s+/)[0];
+      if (partFirst && tokenFirst && partFirst.length >= 3 && partFirst === tokenFirst) return true;
     }
     return false;
   };
@@ -138,9 +144,13 @@ const isUserMatchingAssigned = (assigned, username, fullName) => {
   // 2. Pipe delimiter (e.g., "Broker Office Sample | Nitish Kumar")
   if (cleanAssigned.includes('|')) {
     const parts = cleanAssigned.split('|').map(p => p.trim()).filter(Boolean);
-    if (parts.some(p => p !== 'broker office sample' && matchesSinglePart(p))) {
-      return true;
-    }
+    if (parts.some(p => matchesSinglePart(p))) return true;
+  }
+
+  // 3. Comma or slash delimiter
+  if (cleanAssigned.includes(',') || cleanAssigned.includes('/')) {
+    const parts = cleanAssigned.split(/[,/]/).map(p => p.trim()).filter(Boolean);
+    if (parts.some(p => matchesSinglePart(p))) return true;
   }
 
   return false;
@@ -838,12 +848,50 @@ router.post('/:id/send-to-quality', authenticateToken, async (req, res) => {
       && !entry.resampleDecisionAt;
 
     if (isLocationResampleTrigger && !['admin', 'manager', 'owner'].includes(requestRole)) {
-      const currentUser = await User.findByPk(req.user.userId, { attributes: ['username', 'fullName'], raw: true });
+      const currentUser = await User.findByPk(req.user.userId, { attributes: ['id', 'username', 'fullName'], raw: true });
       const currentUsername = String(currentUser?.username || req.user?.username || '').trim().toLowerCase();
       const currentFullName = String(currentUser?.fullName || '').trim().toLowerCase();
+      const currentUserId = String(currentUser?.id || req.user?.userId || '').trim();
 
       const assignedUsername = String(entry.sampleCollectedBy || '').trim().toLowerCase();
-      const userMatched = isUserMatchingAssigned(assignedUsername, currentUsername, currentFullName);
+      let userMatched = isUserMatchingAssigned(assignedUsername, currentUsername, currentFullName, currentUserId);
+
+      if (!userMatched) {
+        const timeline = [
+          ...(Array.isArray(entry.resampleCollectedTimeline) ? entry.resampleCollectedTimeline : []),
+          ...(Array.isArray(entry.resampleCollectedHistory) ? entry.resampleCollectedHistory : []),
+          ...(Array.isArray(entry.sampleCollectedTimeline) ? entry.sampleCollectedTimeline : []),
+          ...(Array.isArray(entry.sampleCollectedHistory) ? entry.sampleCollectedHistory : [])
+        ];
+        for (const item of timeline) {
+          const val = typeof item === 'string' ? item : (item?.sampleCollectedBy || item?.name || item?.username || item?.fullName || (item?.id ? String(item.id) : ''));
+          if (isUserMatchingAssigned(val, currentUsername, currentFullName, currentUserId)) {
+            userMatched = true;
+            break;
+          }
+          if (item && typeof item === 'object' && item.userId != null && String(item.userId) === currentUserId) {
+            userMatched = true;
+            break;
+          }
+        }
+      }
+
+      if (!userMatched && entry.lotAllotment) {
+        const allotSupId = String(entry.lotAllotment.allottedToSupervisorId || entry.lotAllotment.supervisorId || '');
+        if (allotSupId && allotSupId === currentUserId) {
+          userMatched = true;
+        }
+        if (!userMatched && entry.lotAllotment.supervisor) {
+          const supName = entry.lotAllotment.supervisor.username || entry.lotAllotment.supervisor.fullName;
+          if (isUserMatchingAssigned(supName, currentUsername, currentFullName, currentUserId)) {
+            userMatched = true;
+          }
+        }
+      }
+
+      if (!userMatched && (String(entry.createdByUserId || '') === currentUserId || (entry.creator && String(entry.creator.id || '') === currentUserId))) {
+        userMatched = true;
+      }
 
       if (!userMatched) {
         return res.status(403).json({ error: 'Only the assigned location sample staff can trigger this resample' });
