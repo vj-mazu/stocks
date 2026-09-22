@@ -1277,14 +1277,23 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             });
         }
 
-        // When resample is triggered (e.g. from Pass With Cooking), show 2nd Cooking as Pending
-        // until 2nd cooking report is actually added or approved.
+        // When resample is active (e.g. triggered from Pass With Cooking or with resample attempts),
+        // show 2nd Cooking as Pending until 2nd cooking report is actually added or approved.
         const isResampleTriggered = Boolean((entry as any)?.resampleTriggeredAt);
-        const isResamplePendingCooking = (isResampleTriggered || (entry as any)?.resampleTriggerRequired)
-            && resampleOriginDecision === 'PASS_WITH_COOKING'
-            && rows.length === 1;
+        const isConvertedLocationResample = String(entry.entryType || '').toUpperCase() === 'LOCATION_SAMPLE'
+            && !!String((entry as any)?.originalEntryType || '').trim()
+            && String((entry as any)?.originalEntryType || '').toUpperCase() !== 'LOCATION_SAMPLE';
+        const hasResampleTimelineOrHistory = (Array.isArray((entry as any)?.resampleCollectedTimeline) && (entry as any).resampleCollectedTimeline.length > 0)
+            || (Array.isArray((entry as any)?.resampleCollectedHistory) && (entry as any).resampleCollectedHistory.length > 0);
+        const isResampleActive = isResampleTriggered
+            || Boolean((entry as any)?.resampleTriggerRequired)
+            || Boolean((entry as any)?.resampleStartAt)
+            || resampleOriginDecision === 'PASS_WITH_COOKING'
+            || currentDecisionKey === 'FAIL'
+            || isConvertedLocationResample
+            || hasResampleTimelineOrHistory;
 
-        if (isResampleTriggered && rows.length === 1 && (isResamplePendingCooking || currentDecisionKey === 'FAIL')) {
+        if (isResampleActive && rows.length === 1 && resampleOriginDecision !== 'PASS_WITHOUT_COOKING') {
             rows.push({
                 status: 'Pending',
                 remarks: '',
