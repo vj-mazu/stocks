@@ -842,8 +842,14 @@ router.post('/:id/send-to-quality', authenticateToken, async (req, res) => {
     const workflowStatus = String(entry.workflowStatus || '').toUpperCase();
     const isLocationResampleTrigger =
       entry.entryType === 'LOCATION_SAMPLE'
-      && isResampleWorkflowMarker(entry)
-      && Boolean(entry.resampleTriggerRequired)
+      && (
+        isResampleWorkflowMarker(entry)
+        || Boolean(entry.resampleTriggerRequired)
+        || entry.lotSelectionDecision === 'FAIL'
+        || Boolean(entry.resampleStartAt)
+        || (Array.isArray(entry.resampleCollectedTimeline) && entry.resampleCollectedTimeline.length > 0)
+        || (Array.isArray(entry.resampleCollectedHistory) && entry.resampleCollectedHistory.length > 0)
+      )
       && !entry.resampleTriggeredAt
       && !entry.resampleDecisionAt;
 

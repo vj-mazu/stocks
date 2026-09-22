@@ -3071,13 +3071,20 @@ const SampleEntryPage: React.FC<{
                             // PASS_WITHOUT_COOKING resample follows normal workflow (just add quality)
                             const explicitTriggerRequired = Boolean((entry as any).resampleTriggerRequired)
                               || String((entry as any).resampleOriginDecision || '').toUpperCase() === 'PASS_WITH_COOKING';
-                            const isPassWithCookingResample = explicitTriggerRequired && isPaddyResampleWorkflow;
+                            const isResampleRowInLocation = isPaddyResampleWorkflow
+                              || isPaddyResampleEntry
+                              || isResamplePassFlow
+                              || explicitTriggerRequired
+                              || entry.lotSelectionDecision === 'FAIL'
+                              || Boolean((entry as any).resampleStartAt)
+                              || (Array.isArray((entry as any).resampleCollectedTimeline) && (entry as any).resampleCollectedTimeline.length > 0)
+                              || (Array.isArray((entry as any).resampleCollectedHistory) && (entry as any).resampleCollectedHistory.length > 0);
                             const resampleAlreadyTriggered = Boolean((entry as any).resampleTriggeredAt);
                             const resampleDecisionTaken = Boolean((entry as any).resampleDecisionAt);
                             const showLocationResampleTrigger = activeTab === 'LOCATION_SAMPLE'
                               && isLocationSample
                               && (canManageResampleTrigger || isAssignedCollector)
-                              && isPassWithCookingResample
+                              && isResampleRowInLocation
                               && !resampleAlreadyTriggered
                               && !resampleDecisionTaken
                               && ['STAFF_ENTRY', 'FINAL_REPORT', 'LOT_ALLOTMENT'].includes(normalizedWorkflowStatus);
