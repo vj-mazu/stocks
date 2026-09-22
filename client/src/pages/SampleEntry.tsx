@@ -220,6 +220,51 @@ const SampleEntryPage: React.FC<{
       isResampleWorkflow: isResampleWorkflowEntry(entry, qualityAttempts)
     });
   };
+  const isUserMatchingAssignedCollector = (assigned?: string | null, targetUser?: any) => {
+    if (!assigned) return false;
+    const cleanAssigned = assigned.trim().toLowerCase();
+    const cleanUsername = String(targetUser?.username || '').trim().toLowerCase();
+    const cleanFullName = String(targetUser?.fullName || '').trim().toLowerCase();
+    if (!cleanUsername && !cleanFullName) return false;
+
+    // 1. Exact match
+    if ((cleanUsername && cleanAssigned === cleanUsername) || (cleanFullName && cleanAssigned === cleanFullName)) {
+      return true;
+    }
+
+    // 2. Pipe delimiter (e.g. "Nitish Kumar | nitish" or "Collector | LoginUser")
+    if (cleanAssigned.includes('|')) {
+      const parts = cleanAssigned.split('|').map(p => p.trim()).filter(Boolean);
+      if (parts.some(p => p === cleanUsername || p === cleanFullName)) {
+        return true;
+      }
+    }
+
+    // 3. Prefix/First name match (e.g. assigned: "nitish", fullName: "nitish kumar")
+    const assignedWords = cleanAssigned.split(/\s+/);
+    if (assignedWords.length === 1 && assignedWords[0].length >= 3) {
+      const firstWord = assignedWords[0];
+      if ((cleanUsername && cleanUsername.startsWith(firstWord)) || (cleanFullName && cleanFullName.startsWith(firstWord))) {
+        return true;
+      }
+    }
+
+    // 4. Reverse prefix match (e.g. assigned: "nitish kumar", username: "nitish")
+    const usernameWords = cleanUsername ? cleanUsername.split(/\s+/) : [];
+    if (usernameWords.length === 1 && usernameWords[0].length >= 3) {
+      if (cleanAssigned.startsWith(usernameWords[0])) {
+        return true;
+      }
+    }
+    const fullNameWords = cleanFullName ? cleanFullName.split(/\s+/) : [];
+    if (fullNameWords.length === 1 && fullNameWords[0].length >= 3) {
+      if (cleanAssigned.startsWith(fullNameWords[0])) {
+        return true;
+      }
+    }
+
+    return false;
+  };
   const collectedByHighlightColor = '#7e22ce';
   const getEffectiveDate = (entry: any) => {
     const hasResampleFlow = String(entry?.resampleOriginDecision || '').trim().toUpperCase() === 'PASS_WITH_COOKING'
@@ -670,12 +715,12 @@ const SampleEntryPage: React.FC<{
   );
   const locationSupervisorSet = useMemo(
     () => new Set(
-      locationSupervisors.flatMap((sup) => ([
+      paddySupervisors.flatMap((sup) => ([
         String(sup.username || '').trim().toLowerCase(),
         String(sup.fullName || '').trim().toLowerCase()
       ])).filter(Boolean)
     ),
-    [locationSupervisors]
+    [paddySupervisors]
   );
   const collectedBySuggestions = useMemo(() => {
     const suggestionMap = new Map<string, string>();
@@ -2931,10 +2976,12 @@ const SampleEntryPage: React.FC<{
                             const currentUserNameLower = String(user?.username || '').trim().toLowerCase();
                             const currentUserFullNameLower = String((user as any)?.fullName || '').trim().toLowerCase();
                             const entryCollectorLower = String(entry.sampleCollectedBy || '').trim().toLowerCase();
-                            const isAssignedCollector = !!(
-                              (entryCollectorLower && (entryCollectorLower === currentUserNameLower || (currentUserFullNameLower && entryCollectorLower === currentUserFullNameLower)))
-                              || (isStaffUser && isPaddyResampleWorkflow && locationSupervisorSet.has(currentUserNameLower))
-                            );
+                            const isAssignedCollector = isUserMatchingAssignedCollector(entry.sampleCollectedBy, user)
+                              || (isLocationStaff && isPaddyResampleWorkflow && (
+                                locationSupervisorSet.has(currentUserNameLower) ||
+                                locationSupervisorSet.has(currentUserFullNameLower) ||
+                                getResampleCollectorNames(entry as any).some(name => isUserMatchingAssignedCollector(name, user))
+                              ));
                             const canManageResampleTrigger = ['admin', 'manager', 'owner', 'ceo'].includes(String(user?.role || '').toLowerCase());
                             
                             // Staff can edit anyone's entry, but Location Samples NOT given to office are restricted to collector
@@ -2944,14 +2991,14 @@ const SampleEntryPage: React.FC<{
                             const canAssignResample = ['admin', 'manager', 'owner', 'ceo'].includes(String(user?.role || '').toLowerCase());
                             
                             // Staff one-time edit visibility check (per row entry)
-                            const staffCanEditDetails = !isStaffUser || Number((entry as any).staffPartyNameEdits || 0) < Math.max(1, Number((entry as any).staffEntryEditAllowance || 1));
-                            const staffCanEditQuality = !isStaffUser || Number((entry as any).staffBagsEdits || 0) < Math.max(1, Number((entry as any).staffQualityEditAllowance || 1));
+                            const staffCanEditDetails = !isLocationStaff || Number((entry as any).staffPartyNameEdits || 0) < Math.max(1, Number((entry as any).staffEntryEditAllowance || 1));
+                            const staffCanEditQuality = !isLocationStaff || Number((entry as any).staffBagsEdits || 0) < Math.max(1, Number((entry as any).staffQualityEditAllowance || 1));
                             const resampleAllowsDirectStaffEdit = isPaddyResampleEntry || isPaddyResampleWorkflow;
-                            const effectiveStaffCanEditDetails = staffCanEditDetails || (isStaffUser && resampleAllowsDirectStaffEdit);
-                            const effectiveStaffCanEditQuality = staffCanEditQuality || (isStaffUser && resampleAllowsDirectStaffEdit);
+                            const effectiveStaffCanEditDetails = staffCanEditDetails || (isLocationStaff && resampleAllowsDirectStaffEdit);
+                            const effectiveStaffCanEditQuality = staffCanEditQuality || (isLocationStaff && resampleAllowsDirectStaffEdit);
                             const entryApprovalPending = String((entry as any).entryEditApprovalStatus || '').toLowerCase() === 'pending';
                             const qualityApprovalPending = String((entry as any).qualityEditApprovalStatus || '').toLowerCase() === 'pending';
-                            const canUploadPhotos = entry.entryType === 'LOCATION_SAMPLE' && (canEditQuality || !isStaffUser);
+                            const canUploadPhotos = entry.entryType === 'LOCATION_SAMPLE' && (canEditQuality || !isLocationStaff);
                             const isPaddySampleEntryTab = filterEntryType !== 'RICE_SAMPLE'
                               && ['MILL_SAMPLE', 'LOCATION_SAMPLE', 'SAMPLE_BOOK'].includes(activeTab);
                             const isCancelledClosedEntry = entry.workflowStatus === 'CANCELLED';
@@ -2972,7 +3019,7 @@ const SampleEntryPage: React.FC<{
                             const resampleDecisionTaken = Boolean((entry as any).resampleDecisionAt);
                             const showLocationResampleTrigger = activeTab === 'LOCATION_SAMPLE'
                               && isLocationSample
-                              && (canManageResampleTrigger || (isStaffUser && isAssignedCollector))
+                              && (canManageResampleTrigger || isAssignedCollector || isLocationStaff)
                               && isPassWithCookingResample
                               && !resampleAlreadyTriggered
                               && !resampleDecisionTaken
