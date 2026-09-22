@@ -260,6 +260,24 @@ const parseBoolFlag = (value) => {
   return null;
 };
 
+// Explicit null defaults for ALL quality fields.
+// CRITICAL: Sequelize treats `undefined` as "skip this column" (keeps old DB value),
+// but treats `null` as "set column to NULL". When creating a fallback object for
+// resample 100gms saves, spreading this under the actual data ensures every
+// missing field resolves to null instead of undefined.
+const QUALITY_FIELD_NULL_DEFAULTS = {
+  moisture: null, dryMoisture: null,
+  cutting1: null, cutting2: null, bend: null, bend1: null, bend2: null,
+  mix: null, mixS: null, mixL: null, kandu: null, oil: null, sk: null,
+  grainsCount: null, wbR: null, wbBk: null, wbT: null, paddyWb: null,
+  moistureRaw: null, dryMoistureRaw: null,
+  cutting1Raw: null, cutting2Raw: null, bend1Raw: null, bend2Raw: null,
+  mixRaw: null, mixSRaw: null, mixLRaw: null,
+  kanduRaw: null, oilRaw: null, skRaw: null,
+  grainsCountRaw: null, wbRRaw: null, wbBkRaw: null, wbTRaw: null, paddyWbRaw: null,
+  gramsReport: null, reportedBy: null, smellHas: null, smellType: null
+};
+
 const resolveQualitySmellInput = (body = {}, sampleEntry = {}, existingQuality = null, options = {}) => {
   const smellHasFlag = parseBoolFlag(body.smellHas);
   const smellAnsweredFlag = parseBoolFlag(body.smellAnswered);
@@ -2701,7 +2719,7 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
 
         // When saving 100gms / prep only or creating a new resample attempt, DO NOT inherit cutting, bend, mix, etc. from attempt 1
         const isPrepOr100gSave = is100gOnly || isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly;
-        const prevQ = isResampleAction ? (existingSecondAttempt || {}) : (isPrepOr100gSave ? {} : (existingQuality || {}));
+        const prevQ = { ...QUALITY_FIELD_NULL_DEFAULTS, ...(isResampleAction ? (existingSecondAttempt || {}) : (isPrepOr100gSave ? {} : (existingQuality || {}))) };
 
         // Convert string values from FormData to numbers (with safe parsing)
         const qualityData = {
@@ -3079,7 +3097,7 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
         const qualityAttempts = Array.isArray(sampleEntry.qualityAttemptDetails) ? sampleEntry.qualityAttemptDetails : [];
         const existingSecondAttempt = isResampleAction && !isNextIntent && qualityAttempts.length >= 2 ? qualityAttempts[qualityAttempts.length - 1] : null;
         const isPrepOr100gSave = isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly;
-        const fallbackSource = isResampleAction ? (existingSecondAttempt || {}) : (isPrepOr100gSave ? {} : existing);
+        const fallbackSource = { ...QUALITY_FIELD_NULL_DEFAULTS, ...(isResampleAction ? (existingSecondAttempt || {}) : (isPrepOr100gSave ? {} : existing)) };
 
         // Prepare update data
         const updates = {
