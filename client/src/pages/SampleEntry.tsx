@@ -2973,15 +2973,8 @@ const SampleEntryPage: React.FC<{
                             const isLocationStaff = user?.role === 'physical_supervisor';
                             const isLocationSample = entry.entryType === 'LOCATION_SAMPLE';
                             const isEntryCreator = (entry as any).creator?.id === user?.id || (entry as any).createdByUserId === user?.id;
-                            const currentUserNameLower = String(user?.username || '').trim().toLowerCase();
-                            const currentUserFullNameLower = String((user as any)?.fullName || '').trim().toLowerCase();
-                            const entryCollectorLower = String(entry.sampleCollectedBy || '').trim().toLowerCase();
                             const isAssignedCollector = isUserMatchingAssignedCollector(entry.sampleCollectedBy, user)
-                              || (isLocationStaff && isPaddyResampleWorkflow && (
-                                locationSupervisorSet.has(currentUserNameLower) ||
-                                locationSupervisorSet.has(currentUserFullNameLower) ||
-                                getResampleCollectorNames(entry as any).some(name => isUserMatchingAssignedCollector(name, user))
-                              ));
+                              || getResampleCollectorNames(entry as any).some(name => isUserMatchingAssignedCollector(name, user));
                             const canManageResampleTrigger = ['admin', 'manager', 'owner', 'ceo'].includes(String(user?.role || '').toLowerCase());
                             
                             // Staff can edit anyone's entry, but Location Samples NOT given to office are restricted to collector
@@ -3019,7 +3012,7 @@ const SampleEntryPage: React.FC<{
                             const resampleDecisionTaken = Boolean((entry as any).resampleDecisionAt);
                             const showLocationResampleTrigger = activeTab === 'LOCATION_SAMPLE'
                               && isLocationSample
-                              && (canManageResampleTrigger || isAssignedCollector || isLocationStaff)
+                              && (canManageResampleTrigger || isAssignedCollector)
                               && isPassWithCookingResample
                               && !resampleAlreadyTriggered
                               && !resampleDecisionTaken
