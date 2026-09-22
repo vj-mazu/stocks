@@ -1277,6 +1277,24 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             });
         }
 
+        // When resample is triggered (e.g. from Pass With Cooking), show 2nd Cooking as Pending
+        // until 2nd cooking report is actually added or approved.
+        const isResampleTriggered = Boolean((entry as any)?.resampleTriggeredAt);
+        const isResamplePendingCooking = (isResampleTriggered || (entry as any)?.resampleTriggerRequired)
+            && resampleOriginDecision === 'PASS_WITH_COOKING'
+            && rows.length === 1;
+
+        if (isResampleTriggered && rows.length === 1 && (isResamplePendingCooking || currentDecisionKey === 'FAIL')) {
+            rows.push({
+                status: 'Pending',
+                remarks: '',
+                doneBy: '',
+                doneDate: null,
+                approvedBy: '',
+                approvedDate: null
+            });
+        }
+
         return rows;
     };
 
