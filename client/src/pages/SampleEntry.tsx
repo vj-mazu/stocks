@@ -227,38 +227,37 @@ const SampleEntryPage: React.FC<{
     const cleanFullName = String(targetUser?.fullName || '').trim().toLowerCase();
     if (!cleanUsername && !cleanFullName) return false;
 
-    // 1. Exact match
-    if ((cleanUsername && cleanAssigned === cleanUsername) || (cleanFullName && cleanAssigned === cleanFullName)) {
-      return true;
-    }
+    // Helper: check if a single name part matches the user (exact, prefix, or first-word)
+    const matchesSinglePart = (part: string): boolean => {
+      if (!part) return false;
+      // Exact match
+      if ((cleanUsername && part === cleanUsername) || (cleanFullName && part === cleanFullName)) return true;
+      // Part starts with username (e.g. part="nitish kumar", username="nitish")
+      if (cleanUsername && cleanUsername.length >= 3 && part.startsWith(cleanUsername + ' ')) return true;
+      if (cleanUsername && cleanUsername.length >= 3 && part === cleanUsername) return true;
+      // Username starts with part (e.g. part="nitish", username="nitish kumar")
+      if (cleanUsername && part.length >= 3 && cleanUsername.startsWith(part + ' ')) return true;
+      // Part starts with fullName
+      if (cleanFullName && cleanFullName.length >= 3 && part.startsWith(cleanFullName + ' ')) return true;
+      if (cleanFullName && cleanFullName.length >= 3 && part === cleanFullName) return true;
+      // fullName starts with part
+      if (cleanFullName && part.length >= 3 && cleanFullName.startsWith(part + ' ')) return true;
+      // First word of part matches username/fullName exactly
+      const partWords = part.split(/\s+/);
+      if (partWords.length > 1 && partWords[0].length >= 3) {
+        if ((cleanUsername && partWords[0] === cleanUsername) || (cleanFullName && partWords[0] === cleanFullName)) return true;
+      }
+      return false;
+    };
 
-    // 2. Pipe delimiter (e.g. "Nitish Kumar | nitish" or "Collector | LoginUser")
+    // 1. Direct match on the whole assigned string
+    if (matchesSinglePart(cleanAssigned)) return true;
+
+    // 2. Pipe delimiter (e.g. "Broker Office Sample | Nitish Kumar")
     if (cleanAssigned.includes('|')) {
       const parts = cleanAssigned.split('|').map(p => p.trim()).filter(Boolean);
-      if (parts.some(p => p === cleanUsername || p === cleanFullName)) {
-        return true;
-      }
-    }
-
-    // 3. Prefix/First name match (e.g. assigned: "nitish", fullName: "nitish kumar")
-    const assignedWords = cleanAssigned.split(/\s+/);
-    if (assignedWords.length === 1 && assignedWords[0].length >= 3) {
-      const firstWord = assignedWords[0];
-      if ((cleanUsername && cleanUsername.startsWith(firstWord)) || (cleanFullName && cleanFullName.startsWith(firstWord))) {
-        return true;
-      }
-    }
-
-    // 4. Reverse prefix match (e.g. assigned: "nitish kumar", username: "nitish")
-    const usernameWords = cleanUsername ? cleanUsername.split(/\s+/) : [];
-    if (usernameWords.length === 1 && usernameWords[0].length >= 3) {
-      if (cleanAssigned.startsWith(usernameWords[0])) {
-        return true;
-      }
-    }
-    const fullNameWords = cleanFullName ? cleanFullName.split(/\s+/) : [];
-    if (fullNameWords.length === 1 && fullNameWords[0].length >= 3) {
-      if (cleanAssigned.startsWith(fullNameWords[0])) {
+      // Skip "broker office sample" — it's a label, not a person name
+      if (parts.some(p => p !== 'broker office sample' && matchesSinglePart(p))) {
         return true;
       }
     }
@@ -3017,6 +3016,7 @@ const SampleEntryPage: React.FC<{
                               && !resampleAlreadyTriggered
                               && !resampleDecisionTaken
                               && ['STAFF_ENTRY', 'FINAL_REPORT', 'LOT_ALLOTMENT'].includes(normalizedWorkflowStatus);
+
 
                             const handleNextClick = () => {
                               handleViewEntry(entry, 'next');
