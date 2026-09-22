@@ -3001,7 +3001,7 @@ const SampleEntryPage: React.FC<{
 
                             // Location staff restriction: only the creator can enter/edit quality FOR LOCATION SAMPLES
                             const isLocationStaff = user?.role === 'physical_supervisor';
-                            const isLocationSample = entry.entryType === 'LOCATION_SAMPLE';
+                            const isLocationSample = entry.entryType === 'LOCATION_SAMPLE' || activeTab === 'LOCATION_SAMPLE' || isConvertedResampleType(entry);
                             const isEntryCreator = (entry as any).creator?.id === user?.id || (entry as any).createdByUserId === user?.id;
                             const isAssignedCollector = (() => {
                               if (!user) return false;
@@ -3082,7 +3082,6 @@ const SampleEntryPage: React.FC<{
                             const resampleAlreadyTriggered = Boolean((entry as any).resampleTriggeredAt);
                             const resampleDecisionTaken = Boolean((entry as any).resampleDecisionAt);
                             const showLocationResampleTrigger = activeTab === 'LOCATION_SAMPLE'
-                              && isLocationSample
                               && (canManageResampleTrigger || isAssignedCollector)
                               && isResampleRowInLocation
                               && !resampleAlreadyTriggered
