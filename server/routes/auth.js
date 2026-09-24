@@ -52,6 +52,9 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    const JWT_SECRET = process.env.JWT_SECRET || 'a3f7e9b1c4d8f2e6a0b5c3d9e7f1a4b8c2d6e0f3a7b1c5d9e3f7a0b4c8d2e6';
+    const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+
     // Generate JWT token
     const token = jwt.sign(
       {
@@ -62,8 +65,8 @@ router.post('/login', async (req, res) => {
         staffType: user.staffType || null,
         subRole: user.subRole || null
       },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
     );
 
     res.json({
@@ -80,7 +83,7 @@ router.post('/login', async (req, res) => {
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Login failed' });
+    res.status(500).json({ error: 'Login failed', details: error.message });
   }
 });
 

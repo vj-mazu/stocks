@@ -14,9 +14,10 @@ const auth = async (req, res, next) => {
       return res.status(401).json({ error: 'Access denied. No token provided.' });
     }
 
+    const JWT_SECRET = process.env.JWT_SECRET || 'a3f7e9b1c4d8f2e6a0b5c3d9e7f1a4b8c2d6e0f3a7b1c5d9e3f7a0b4c8d2e6';
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
+      decoded = jwt.verify(token, JWT_SECRET);
     } catch (jwtError) {
       if (jwtError.name === 'TokenExpiredError') {
         return res.status(401).json({ error: 'Token has expired. Please login again.' });

@@ -292,6 +292,35 @@ const startServer = async () => {
       console.log('✅ Proceeding with migrations...');
     }
 
+    // Ensure users table and default admin exist
+    try {
+      await sequelize.query(`
+        ALTER TABLE users
+          ADD COLUMN IF NOT EXISTS "isActive" BOOLEAN DEFAULT true,
+          ADD COLUMN IF NOT EXISTS staff_type VARCHAR(50),
+          ADD COLUMN IF NOT EXISTS sub_role VARCHAR(50),
+          ADD COLUMN IF NOT EXISTS full_name VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS custom_user_id VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS quality_name VARCHAR(100);
+      `);
+      const bcrypt = require('bcryptjs');
+      const [existingAdmin] = await sequelize.query(`
+        SELECT id, username FROM users WHERE LOWER(username) = 'admin' LIMIT 1;
+      `);
+      if (!existingAdmin || existingAdmin.length === 0) {
+        const hashedPassword = await bcrypt.hash('admin123', 10);
+        await sequelize.query(`
+          INSERT INTO users (username, password, role, "isActive", "createdAt", "updatedAt")
+          VALUES ('admin', :password, 'admin', true, NOW(), NOW());
+        `, {
+          replacements: { password: hashedPassword }
+        });
+        console.log('✅ Default admin user created (username: admin / password: admin123).');
+      }
+    } catch (userErr) {
+      console.warn('⚠️ Users table verification warning:', userErr.message);
+    }
+
     // Ensure completion_type column exists
     try {
       await sequelize.query('ALTER TABLE lot_allotments ADD COLUMN IF NOT EXISTS completion_type VARCHAR(50);');
