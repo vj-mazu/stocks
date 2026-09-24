@@ -307,17 +307,153 @@ const startServer = async () => {
       console.warn('⚠️ Column alteration warning (weight_bridges location):', e.message);
     }
 
+    // Ensure essential columns exist in sample_entries
+    try {
+      await sequelize.query(`
+        ALTER TABLE sample_entries
+          ADD COLUMN IF NOT EXISTS "wbInputType" VARCHAR(50),
+          ADD COLUMN IF NOT EXISTS "millWbId" INTEGER,
+          ADD COLUMN IF NOT EXISTS "partyWbName" VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS "wbStatus" VARCHAR(50) DEFAULT 'none',
+          ADD COLUMN IF NOT EXISTS "wbRejectReason" TEXT,
+          ADD COLUMN IF NOT EXISTS "placeType" VARCHAR(50),
+          ADD COLUMN IF NOT EXISTS "placeWarehouseId" INTEGER,
+          ADD COLUMN IF NOT EXISTS "placeKunchinittuId" INTEGER,
+          ADD COLUMN IF NOT EXISTS "placeDate" DATE,
+          ADD COLUMN IF NOT EXISTS "placeStatus" VARCHAR(50) DEFAULT 'none',
+          ADD COLUMN IF NOT EXISTS "placeRejectReason" TEXT,
+          ADD COLUMN IF NOT EXISTS "outturnId" INTEGER,
+          ADD COLUMN IF NOT EXISTS "wbNo" VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS "grossWeight" DECIMAL(15, 2),
+          ADD COLUMN IF NOT EXISTS "tareWeight" DECIMAL(15, 2),
+          ADD COLUMN IF NOT EXISTS "netWeight" DECIMAL(15, 2),
+          ADD COLUMN IF NOT EXISTS "sute" DECIMAL(15, 2),
+          ADD COLUMN IF NOT EXISTS "wbDate" DATE,
+          ADD COLUMN IF NOT EXISTS "suteNetWeight" DECIMAL(15, 2),
+          ADD COLUMN IF NOT EXISTS wb_added_by INTEGER,
+          ADD COLUMN IF NOT EXISTS place_added_by INTEGER,
+          ADD COLUMN IF NOT EXISTS cancel_remarks TEXT,
+          ADD COLUMN IF NOT EXISTS fail_remarks TEXT,
+          ADD COLUMN IF NOT EXISTS entry_edit_approval_status VARCHAR(50) DEFAULT 'none',
+          ADD COLUMN IF NOT EXISTS entry_edit_approval_reason TEXT,
+          ADD COLUMN IF NOT EXISTS entry_edit_approval_requested_by INTEGER,
+          ADD COLUMN IF NOT EXISTS entry_edit_approval_requested_at TIMESTAMP WITH TIME ZONE,
+          ADD COLUMN IF NOT EXISTS entry_edit_approval_approved_by INTEGER,
+          ADD COLUMN IF NOT EXISTS entry_edit_approval_approved_at TIMESTAMP WITH TIME ZONE,
+          ADD COLUMN IF NOT EXISTS quality_edit_approval_status VARCHAR(50) DEFAULT 'none',
+          ADD COLUMN IF NOT EXISTS quality_edit_approval_reason TEXT,
+          ADD COLUMN IF NOT EXISTS quality_edit_approval_requested_by INTEGER,
+          ADD COLUMN IF NOT EXISTS quality_edit_approval_requested_at TIMESTAMP WITH TIME ZONE,
+          ADD COLUMN IF NOT EXISTS quality_edit_approval_approved_by INTEGER,
+          ADD COLUMN IF NOT EXISTS quality_edit_approval_approved_at TIMESTAMP WITH TIME ZONE,
+          ADD COLUMN IF NOT EXISTS staff_party_name_edits INTEGER DEFAULT 0,
+          ADD COLUMN IF NOT EXISTS staff_bags_edits INTEGER DEFAULT 0,
+          ADD COLUMN IF NOT EXISTS staff_entry_edit_allowance INTEGER DEFAULT 1,
+          ADD COLUMN IF NOT EXISTS staff_quality_edit_allowance INTEGER DEFAULT 1,
+          ADD COLUMN IF NOT EXISTS quality_attempt_details JSONB DEFAULT '[]',
+          ADD COLUMN IF NOT EXISTS quality_report_attempts INTEGER DEFAULT 0,
+          ADD COLUMN IF NOT EXISTS resample_origin_decision VARCHAR(50),
+          ADD COLUMN IF NOT EXISTS resample_trigger_required BOOLEAN DEFAULT false,
+          ADD COLUMN IF NOT EXISTS resample_triggered_at TIMESTAMP WITH TIME ZONE,
+          ADD COLUMN IF NOT EXISTS resample_decision_at TIMESTAMP WITH TIME ZONE,
+          ADD COLUMN IF NOT EXISTS resample_after_final BOOLEAN DEFAULT false,
+          ADD COLUMN IF NOT EXISTS smell_has BOOLEAN DEFAULT false,
+          ADD COLUMN IF NOT EXISTS smell_type VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS gps_coordinates VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS godown_image_url TEXT,
+          ADD COLUMN IF NOT EXISTS paddy_lot_image_url TEXT;
+      `);
+      console.log('✅ sample_entries essential columns verified.');
+    } catch (e) {
+      console.warn('⚠️ Column alteration warning (sample_entries):', e.message);
+    }
+
     // Ensure sample_entry_offerings columns exist
     try {
-      await sequelize.query("ALTER TABLE sample_entry_offerings ADD COLUMN IF NOT EXISTS check_post_unit VARCHAR(20) DEFAULT 'lumps';");
-      await sequelize.query("ALTER TABLE sample_entry_offerings ADD COLUMN IF NOT EXISTS market_price_unit VARCHAR(20) DEFAULT 'lumps';");
-      await sequelize.query("ALTER TABLE sample_entry_offerings ADD COLUMN IF NOT EXISTS check_post_value VARCHAR(255);");
-      await sequelize.query("ALTER TABLE sample_entry_offerings ADD COLUMN IF NOT EXISTS market_price_value NUMERIC(10, 2);");
-      await sequelize.query("ALTER TABLE sample_entry_offerings ADD COLUMN IF NOT EXISTS check_post BOOLEAN DEFAULT false;");
-      await sequelize.query("ALTER TABLE sample_entry_offerings ADD COLUMN IF NOT EXISTS market_price BOOLEAN DEFAULT false;");
-      console.log('✅ Checked/created check_post_unit & market_price columns in sample_entry_offerings.');
+      await sequelize.query(`
+        ALTER TABLE sample_entry_offerings
+          ADD COLUMN IF NOT EXISTS check_post_unit VARCHAR(20) DEFAULT 'lumps',
+          ADD COLUMN IF NOT EXISTS market_price_unit VARCHAR(20) DEFAULT 'lumps',
+          ADD COLUMN IF NOT EXISTS check_post_value VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS market_price_value NUMERIC(10, 2),
+          ADD COLUMN IF NOT EXISTS check_post BOOLEAN DEFAULT false,
+          ADD COLUMN IF NOT EXISTS market_price BOOLEAN DEFAULT false,
+          ADD COLUMN IF NOT EXISTS pending_manager_value_approval_status VARCHAR(30) DEFAULT 'none',
+          ADD COLUMN IF NOT EXISTS pending_manager_value_approval_requested_by INTEGER,
+          ADD COLUMN IF NOT EXISTS pending_manager_value_approval_requested_at TIMESTAMP WITH TIME ZONE,
+          ADD COLUMN IF NOT EXISTS pending_manager_value_approval_decided_by INTEGER,
+          ADD COLUMN IF NOT EXISTS pending_manager_value_approval_decided_at TIMESTAMP WITH TIME ZONE,
+          ADD COLUMN IF NOT EXISTS pending_manager_value_approval_remarks TEXT,
+          ADD COLUMN IF NOT EXISTS is_pending_manager_value_approval BOOLEAN DEFAULT false,
+          ADD COLUMN IF NOT EXISTS pending_manager_value_market_price_value NUMERIC(10, 2),
+          ADD COLUMN IF NOT EXISTS pending_manager_value_check_post_value VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS pending_manager_value_broker_name VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS pending_manager_value_price_type VARCHAR(20),
+          ADD COLUMN IF NOT EXISTS rate_linking_approval_status VARCHAR(30) DEFAULT 'none',
+          ADD COLUMN IF NOT EXISTS rate_linking_approval_requested_by INTEGER,
+          ADD COLUMN IF NOT EXISTS rate_linking_approval_requested_at TIMESTAMP WITH TIME ZONE,
+          ADD COLUMN IF NOT EXISTS rate_linking_approval_decided_by INTEGER,
+          ADD COLUMN IF NOT EXISTS rate_linking_approval_decided_at TIMESTAMP WITH TIME ZONE,
+          ADD COLUMN IF NOT EXISTS rate_linking_approval_remarks TEXT,
+          ADD COLUMN IF NOT EXISTS pending_linked_patti_id UUID,
+          ADD COLUMN IF NOT EXISTS pending_linked_patti_rate NUMERIC(10, 2),
+          ADD COLUMN IF NOT EXISTS linked_patti_rate NUMERIC(10, 2);
+      `);
+      console.log('✅ Checked/created columns in sample_entry_offerings.');
     } catch (e) {
       console.warn('⚠️ Column alteration warning (sample_entry_offerings columns):', e.message);
+    }
+
+    // Ensure lorry_transit_details table and columns exist
+    try {
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS lorry_transit_details (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          physical_inspection_id UUID NOT NULL,
+          sample_entry_id UUID NOT NULL,
+          "wbInputType" VARCHAR(50),
+          "millWbId" INTEGER,
+          "partyWbName" VARCHAR(255),
+          "wbNo" VARCHAR(100),
+          "grossWeight" DECIMAL(15, 2),
+          "tareWeight" DECIMAL(15, 2),
+          "netWeight" DECIMAL(15, 2),
+          "wbStatus" VARCHAR(50) NOT NULL DEFAULT 'none',
+          "wbRejectReason" TEXT,
+          "placeType" VARCHAR(50),
+          "placeWarehouseId" INTEGER,
+          "placeKunchinittuId" INTEGER,
+          "placeDate" DATE,
+          "placeStatus" VARCHAR(50) NOT NULL DEFAULT 'none',
+          "placeRejectReason" TEXT,
+          "outturnId" INTEGER,
+          place_approved_by INTEGER,
+          place_approved_at TIMESTAMP WITH TIME ZONE,
+          wb_approved_by INTEGER,
+          wb_approved_at TIMESTAMP WITH TIME ZONE,
+          created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+        );
+      `);
+      await sequelize.query(`
+        ALTER TABLE lorry_transit_details
+          ADD COLUMN IF NOT EXISTS "partyGrossWeight" DECIMAL(15, 2),
+          ADD COLUMN IF NOT EXISTS "partyTareWeight" DECIMAL(15, 2),
+          ADD COLUMN IF NOT EXISTS "partyNetWeight" DECIMAL(15, 2),
+          ADD COLUMN IF NOT EXISTS "partySute" DECIMAL(15, 2),
+          ADD COLUMN IF NOT EXISTS "partySuteNetWeight" DECIMAL(15, 2),
+          ADD COLUMN IF NOT EXISTS "partyWbNo" VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS "partyWbDate" DATE,
+          ADD COLUMN IF NOT EXISTS "partyWbEnabled" VARCHAR(50),
+          ADD COLUMN IF NOT EXISTS "sute" DECIMAL(15, 2),
+          ADD COLUMN IF NOT EXISTS "suteNetWeight" DECIMAL(15, 2),
+          ADD COLUMN IF NOT EXISTS "wbDate" DATE,
+          ADD COLUMN IF NOT EXISTS "wbAddedBy" INTEGER,
+          ADD COLUMN IF NOT EXISTS "wbAddedAt" TIMESTAMP WITH TIME ZONE;
+      `);
+      console.log('✅ lorry_transit_details table and columns verified.');
+    } catch (e) {
+      console.warn('⚠️ Table/column alteration warning (lorry_transit_details):', e.message);
     }
 
     // Ensure inventory_quality_parameters table exists
