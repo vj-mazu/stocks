@@ -452,7 +452,9 @@ const SampleEntryPage: React.FC<{
       attempt?.dryMoistureRaw ?? attempt?.dryMoisture ?? '',
       attempt?.grainsCountRaw ?? attempt?.grainsCount ?? '',
       attempt?.cutting1Raw ?? attempt?.cutting1 ?? '',
+      attempt?.cutting2Raw ?? attempt?.cutting2 ?? '',
       attempt?.bend1Raw ?? attempt?.bend1 ?? '',
+      attempt?.bend2Raw ?? attempt?.bend2 ?? '',
       attempt?.mixRaw ?? attempt?.mix ?? '',
       attempt?.mixSRaw ?? attempt?.mixS ?? '',
       attempt?.mixLRaw ?? attempt?.mixL ?? '',
@@ -489,28 +491,12 @@ const SampleEntryPage: React.FC<{
     }, []);
 
     const currentQuality = entry?.qualityParameters;
-    const normalizedAttempts = normalizedBaseAttempts.map((attempt: any, index: number) => ({
-      ...attempt,
-      attemptNo: Number(attempt?.attemptNo) || index + 1
-    }));
 
-    if (currentQuality && hasDisplayableQualitySnapshot(currentQuality)) {
-      const currentFingerprint = getAttemptFingerprint(currentQuality);
-      const latestAttempt = normalizedAttempts[normalizedAttempts.length - 1];
-      const latestFingerprint = latestAttempt ? getAttemptFingerprint(latestAttempt) : '';
-      const currentMatchesLatest = !!latestAttempt
-        && currentFingerprint === latestFingerprint;
-
-      if (!currentMatchesLatest) {
-        normalizedAttempts.push({
-          ...currentQuality,
-          attemptNo: normalizedAttempts.length + 1
-        });
-      }
-    }
-
-    if (normalizedAttempts.length > 0) {
-      return normalizedAttempts;
+    if (normalizedBaseAttempts.length > 0) {
+      return normalizedBaseAttempts.slice(0, 2).map((attempt: any, index: number) => ({
+        ...attempt,
+        attemptNo: index + 1
+      }));
     }
 
     if (!currentQuality || !hasDisplayableQualitySnapshot(currentQuality)) return [];

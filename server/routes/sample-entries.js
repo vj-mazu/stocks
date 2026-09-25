@@ -2790,13 +2790,16 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
 
         const isNextIntent = String(req.body.qualityEntryIntent || '').toLowerCase() === 'next';
         const isResampleAction = sampleEntry.entryType !== 'RICE_SAMPLE'
-          && (isResampleWorkflowMarker(sampleEntry) || isValidResampleCookingPrepOnly || isNextIntent);
+          && (isResampleActuallyInitiated(sampleEntry) || isValidResampleCookingPrepOnly || isNextIntent);
         const qualityAttempts = Array.isArray(sampleEntry.qualityAttemptDetails) ? sampleEntry.qualityAttemptDetails : [];
         const existingSecondAttempt = isResampleAction && !isNextIntent && qualityAttempts.length >= 2 ? qualityAttempts[qualityAttempts.length - 1] : null;
 
-        // When saving 100gms / prep only or creating a new resample attempt, DO NOT inherit cutting, bend, mix, etc. from attempt 1
+        // When saving 100gms / prep only or editing attempt 1, preserve existingQuality fields from attempt 1
         const isPrepOr100gSave = is100gOnly || isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly;
-        const prevQ = { ...QUALITY_FIELD_NULL_DEFAULTS, ...(isResampleAction ? (existingSecondAttempt || {}) : (isPrepOr100gSave ? {} : (existingQuality || {}))) };
+        const prevQ = {
+          ...QUALITY_FIELD_NULL_DEFAULTS,
+          ...(isResampleAction ? (existingSecondAttempt || {}) : (existingQuality || {}))
+        };
 
         // Convert string values from FormData to numbers (with safe parsing)
         const qualityData = {
@@ -2937,10 +2940,15 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
             Boolean(existingQuality.smellHas) === Boolean(qualityData.smellHas) &&
             String(existingQuality.smellType || '') === String(qualityData.smellType || '') &&
             Number(existingQuality.moisture || 0) === Number(qualityData.moisture || 0) &&
+            Number(existingQuality.dryMoisture || 0) === Number(qualityData.dryMoisture || 0) &&
             Number(existingQuality.cutting1 || 0) === Number(qualityData.cutting1 || 0) &&
             Number(existingQuality.cutting2 || 0) === Number(qualityData.cutting2 || 0) &&
             Number(existingQuality.bend1 || 0) === Number(qualityData.bend1 || 0) &&
             Number(existingQuality.bend2 || 0) === Number(qualityData.bend2 || 0) &&
+            Number(existingQuality.wbR || 0) === Number(qualityData.wbR || 0) &&
+            Number(existingQuality.wbBk || 0) === Number(qualityData.wbBk || 0) &&
+            Number(existingQuality.wbT || 0) === Number(qualityData.wbT || 0) &&
+            Number(existingQuality.paddyWb || 0) === Number(qualityData.paddyWb || 0) &&
             Number(existingQuality.grainsCount || 0) === Number(qualityData.grainsCount || 0);
 
           if (same && !isRecheckQualityPending && !isResampleQualityPending) {
