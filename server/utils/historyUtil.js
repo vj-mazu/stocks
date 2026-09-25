@@ -62,14 +62,7 @@ const dedupeQualityAttempts = (attempts = []) => {
   const deduped = [];
   attempts.forEach((attempt) => {
     if (!attempt) return;
-    const existingIndex = deduped.findIndex((item) => {
-      const itemAttemptNo = Number(item?.attemptNo || 0);
-      const attemptAttemptNo = Number(attempt?.attemptNo || 0);
-      if (itemAttemptNo > 0 && attemptAttemptNo > 0 && itemAttemptNo !== attemptAttemptNo) {
-        return false;
-      }
-      return areQualityAttemptsEquivalent(item, attempt);
-    });
+    const existingIndex = deduped.findIndex((item) => areQualityAttemptsEquivalent(item, attempt));
     if (existingIndex >= 0) {
       deduped[existingIndex] = { ...deduped[existingIndex], ...attempt };
       return;

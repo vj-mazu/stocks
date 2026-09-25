@@ -1493,10 +1493,9 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
         return acc;
       }
 
-      const sameAttemptNo = Number(previous?.attemptNo || 0) === Number(attempt?.attemptNo || 0);
       const sameFingerprint = getAttemptFingerprint(previous) === getAttemptFingerprint(attempt);
 
-      if (sameAttemptNo && sameFingerprint) {
+      if (sameFingerprint) {
         acc[acc.length - 1] = { ...previous, ...attempt };
         return acc;
       }
