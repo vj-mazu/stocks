@@ -201,8 +201,7 @@ const SampleEntryPage: React.FC<{
       || Boolean(entry?.resampleTriggerRequired)
       || Boolean(entry?.resampleTriggeredAt)
       || Boolean(entry?.resampleDecisionAt)
-      || Boolean(entry?.resampleAfterFinal)
-      || String(entry?.resampleOriginDecision || '').trim() !== '';
+      || Boolean(entry?.resampleAfterFinal);
     return entry?.entryType !== 'RICE_SAMPLE'
       && String(entry?.workflowStatus || '').toUpperCase() !== 'FAILED'
       && (
@@ -2894,8 +2893,7 @@ const SampleEntryPage: React.FC<{
                               || Boolean((entry as any).resampleTriggerRequired)
                               || Boolean((entry as any).resampleTriggeredAt)
                               || Boolean((entry as any).resampleDecisionAt)
-                              || Boolean((entry as any).resampleAfterFinal)
-                              || String((entry as any).resampleOriginDecision || '').trim() !== '';
+                              || Boolean((entry as any).resampleAfterFinal);
                             const isPaddyResampleWorkflow =
                               filterEntryType !== 'RICE_SAMPLE'
                               && entry.workflowStatus !== 'FAILED'

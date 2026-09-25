@@ -280,6 +280,15 @@ const isResampleWorkflowEntry = (entry: any) => {
     || baseAttempts.length > 1
     || Number(entry?.qualityReportAttempts || 0) > 1;
 };
+// Client-side mirror of the server's check: true when a resample collector has
+// actually been assigned/recorded for this entry.
+const hasAssignedResampleCollector = (entry: any) => {
+  const timeline = Array.isArray(entry?.resampleCollectedTimeline) ? entry.resampleCollectedTimeline.filter(Boolean) : [];
+  const history = Array.isArray(entry?.resampleCollectedHistory) ? entry.resampleCollectedHistory.filter(Boolean) : [];
+  if (timeline.length > 0 || history.length > 0) return true;
+  const assignedName = String(entry?.sampleCollectedBy || '').trim().toLowerCase();
+  return !!assignedName && assignedName !== 'broker office sample';
+};
 const getQualityAttemptsForEntry = (entry: any) => {
   const getAttemptFingerprint = (attempt: any) => ([
     attempt?.reportedBy ?? '',
@@ -1074,7 +1083,14 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
       formData.append('wbEnabled', 'true');
       formData.append('is100Grams', 'true');
       formData.append('resampleCookingPrepOnly', 'true');
-      const isActualResample = isResampleWorkflowEntry(resamplePrepEntry) && hasAssignedResampleCollector(resamplePrepEntry);
+      // Only create a NEW sample when the current cycle has no sample yet (a genuine
+      // resample that still needs its first 100g quality). If a sample already exists
+      // for this cycle and we are only topping up missed WB-R / WB-BK, this save must
+      // UPDATE that sample in place instead of writing a second one.
+      const currentCycleAlreadyHasSample = hasCurrentCycleQualityData(resamplePrepEntry);
+      const isActualResample = isResampleWorkflowEntry(resamplePrepEntry)
+        && hasAssignedResampleCollector(resamplePrepEntry)
+        && !currentCycleAlreadyHasSample;
       formData.append('qualityEntryIntent', isActualResample ? 'next' : 'edit');
       formData.append('reportedBy', user?.fullName || user?.username || '');
 

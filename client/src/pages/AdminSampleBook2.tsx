@@ -398,11 +398,8 @@ const getQualityAttemptsForEntry = (entry: any) => {
     const _resampleTimeline = Array.isArray(entry?.resampleCollectedTimeline) ? entry.resampleCollectedTimeline : [];
     const _resampleHistory = Array.isArray(entry?.resampleCollectedHistory) ? entry.resampleCollectedHistory : [];
     const _hasResampleCollector = _resampleTimeline.length > 0 || _resampleHistory.length > 0;
-    const _originDecision = String((entry as any)?.resampleOriginDecision || '').toUpperCase();
     const _hasExplicitResampleWorkflow =
-        _originDecision === 'PASS_WITH_COOKING'
-        || _originDecision === 'PASS_WITHOUT_COOKING'
-        || Boolean((entry as any)?.resampleStartAt)
+        Boolean((entry as any)?.resampleStartAt)
         || Boolean((entry as any)?.resampleTriggerRequired)
         || Boolean((entry as any)?.resampleTriggeredAt)
         || Boolean((entry as any)?.resampleDecisionAt)

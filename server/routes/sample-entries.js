@@ -2873,9 +2873,10 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
           );
           const isRecheckQualityPending = recheckState.qualityPending === true;
           const isResampleQualityPending = isResampleWorkflowMarker(sampleEntry);
+          const hasConcreteResample = hasActiveResampleTrigger(sampleEntry || {});
           const normalizedQualityIntent = normalizeQualityEntryIntent(req.body.qualityEntryIntent);
           const isResampleQualityCreateRequest =
-            hasActiveResampleTrigger(sampleEntry || {})
+            hasConcreteResample
             && normalizedQualityIntent !== 'edit';
           const heuristicCreateNewResampleAttempt = shouldCreateNewResampleQualityAttempt(sampleEntry || {});
           const strictResampleNextAttempt =
@@ -2890,7 +2891,7 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
           const shouldCreateNewResampleAttempt = shouldCreateNewQualityAttempt({
             intent: req.body.qualityEntryIntent,
             heuristicDecision: strictResampleNextAttempt || explicitCreateNewResampleAttempt || heuristicCreateNewResampleAttempt,
-            isResampleQualityPending
+            isResampleQualityPending: hasConcreteResample
           });
 
           // Staff one-time edit check: if already used their available chances, block
@@ -3059,15 +3060,16 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
         );
         const isRecheckQualityPending = recheckState.qualityPending === true;
         const isResampleQualityPending = isResampleWorkflowMarker(sampleEntry);
+        const hasConcreteResample = hasActiveResampleTrigger(sampleEntry || {});
         const normalizedQualityIntent = normalizeQualityEntryIntent(req.body.qualityEntryIntent);
         const heuristicCreateNewResampleAttempt = shouldCreateNewResampleQualityAttempt(sampleEntry || {});
         const strictResampleNextAttempt =
           normalizedQualityIntent === 'next'
-          && hasActiveResampleTrigger(sampleEntry || {});
+          && hasConcreteResample;
         const shouldCreateNewResampleAttempt = shouldCreateNewQualityAttempt({
           intent: req.body.qualityEntryIntent,
           heuristicDecision: strictResampleNextAttempt || heuristicCreateNewResampleAttempt,
-          isResampleQualityPending
+          isResampleQualityPending: hasConcreteResample
         });
 
         // Admin/Manager edit only. Staff can edit quality only up to their approved allowance.

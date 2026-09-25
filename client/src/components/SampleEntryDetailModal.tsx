@@ -421,13 +421,12 @@ const getSamplingLabel = (attemptNo: number) => {
 };
 const getQualityAttemptsForEntry = (entry: any) => {
     const getAttemptFingerprint = (attempt: any) => ([
-        attempt?.reportedBy ?? '',
+        typeof attempt?.reportedBy === 'string' ? attempt.reportedBy.trim().toLowerCase() : '',
         attempt?.moistureRaw ?? attempt?.moisture ?? '',
+        attempt?.dryMoistureRaw ?? attempt?.dryMoisture ?? '',
         attempt?.grainsCountRaw ?? attempt?.grainsCount ?? '',
         attempt?.cutting1Raw ?? attempt?.cutting1 ?? '',
-        attempt?.cutting2Raw ?? attempt?.cutting2 ?? '',
         attempt?.bend1Raw ?? attempt?.bend1 ?? '',
-        attempt?.bend2Raw ?? attempt?.bend2 ?? '',
         attempt?.mixRaw ?? attempt?.mix ?? '',
         attempt?.mixSRaw ?? attempt?.mixS ?? '',
         attempt?.mixLRaw ?? attempt?.mixL ?? '',
@@ -438,7 +437,7 @@ const getQualityAttemptsForEntry = (entry: any) => {
         attempt?.wbBkRaw ?? attempt?.wbBk ?? '',
         attempt?.wbTRaw ?? attempt?.wbT ?? '',
         attempt?.paddyWbRaw ?? attempt?.paddyWb ?? '',
-        attempt?.smellHas ?? '',
+        attempt?.smellHas ? 'true' : 'false',
         attempt?.smellType ?? ''
     ].map((value) => String(value ?? '').trim()).join('|'));
 
