@@ -459,6 +459,17 @@ const SampleEntryLedger: React.FC = () => {
       }, { headers });
 
       // 2. Update quality parameters (if they exist)
+      // [SAMPLE_DEBUG] This path sends NO qualityEntryIntent, so the server treats
+      // it as 'auto' and applies its own resample heuristic.
+      console.log('[SAMPLE_DEBUG] Ledger quality edit (server intent = auto)', {
+        entryId: editEntry.id,
+        qualityReportAttempts: (editEntry as any)?.qualityReportAttempts ?? null,
+        lotSelectionDecision: (editEntry as any)?.lotSelectionDecision ?? null,
+        resampleOriginDecision: (editEntry as any)?.resampleOriginDecision ?? null,
+        resampleTriggerRequired: Boolean((editEntry as any)?.resampleTriggerRequired),
+        resampleTriggeredAt: (editEntry as any)?.resampleTriggeredAt ?? null,
+        resampleStartAt: (editEntry as any)?.resampleStartAt ?? null
+      });
       if (editEntry.qualityParameters) {
         await axios.put(`${API_URL}/sample-entries/${editEntry.id}/quality-parameters`, {
           moisture: editForm.moisture,

@@ -444,6 +444,32 @@ const getQualityAttemptsForEntry = (entry: any) => {
     const baseAttempts = Array.isArray(entry?.qualityAttemptDetails)
         ? [...entry.qualityAttemptDetails].filter(Boolean).sort((a: any, b: any) => (a.attemptNo || 0) - (b.attemptNo || 0))
         : [];
+
+    // [SAMPLE_DEBUG] Explains why two sample rows are shown in this popup.
+    // If 'differingFields' is a raw/numeric pair for the SAME value (e.g. wbRRaw ''
+    // vs wbR 12), the two rows are actually one sample saved twice.
+    if (baseAttempts.length > 1) {
+        const compareKeys = [
+            'reportedBy', 'moistureRaw', 'moisture', 'dryMoistureRaw', 'dryMoisture',
+            'grainsCountRaw', 'grainsCount', 'cutting1Raw', 'cutting1', 'cutting2Raw', 'cutting2',
+            'bend1Raw', 'bend1', 'bend2Raw', 'bend2', 'mixRaw', 'mix', 'mixSRaw', 'mixS',
+            'mixLRaw', 'mixL', 'kanduRaw', 'kandu', 'oilRaw', 'oil', 'skRaw', 'sk',
+            'wbRRaw', 'wbR', 'wbBkRaw', 'wbBk', 'wbTRaw', 'wbT', 'paddyWbRaw', 'paddyWb',
+            'smellHas', 'smellType'
+        ];
+        const first = baseAttempts[0] || {};
+        const second = baseAttempts[1] || {};
+        console.log('[SAMPLE_DEBUG] detail popup sample rows', {
+            entryId: entry?.id ?? null,
+            attemptCount: baseAttempts.length,
+            sameFingerprint: getAttemptFingerprint(first) === getAttemptFingerprint(second),
+            differingFields: compareKeys
+                .filter((key) => String(first[key] ?? '').trim() !== String(second[key] ?? '').trim())
+                .map((key) => ({ field: key, firstSample: first[key] ?? null, secondSample: second[key] ?? null })),
+            firstFingerprint: getAttemptFingerprint(first),
+            secondFingerprint: getAttemptFingerprint(second)
+        });
+    }
     const normalizedBaseAttempts = baseAttempts.reduce((acc: any[], attempt: any) => {
         const previous = acc[acc.length - 1];
         if (!previous) {

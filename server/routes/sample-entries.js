@@ -192,6 +192,20 @@ const hasActiveResampleTrigger = (entry = {}) => (
   || hasResampleCollectorTimeline(entry)
   || isConvertedLocationResample(entry)
 );
+// isResampleActuallyInitiated: stricter than hasActiveResampleTrigger.
+// A bare resampleTriggerRequired flag only means "a resample WILL be needed" -- it
+// is set the moment a Pass-with-Cooking lot is marked for resample, BEFORE the
+// Trigger button is pressed. It must never be enough on its own to create a second
+// quality sample, otherwise a plain WB-R / WB-BK edit silently spawns a duplicate
+// sample. Only a genuinely initiated resample may create one.
+const isResampleActuallyInitiated = (entry = {}) => (
+  String(entry?.lotSelectionDecision || '').toUpperCase() === 'FAIL'
+  || Boolean(entry?.resampleTriggeredAt)
+  || Boolean(entry?.resampleStartAt)
+  || Boolean(entry?.resampleDecisionAt)
+  || Boolean(entry?.resampleAfterFinal)
+  || isConvertedLocationResample(entry)
+);
 const canLocationStaffEditQuality = async (sampleEntry, reqUser) => {
   const workflowRole = getWorkflowRole(reqUser);
   if (workflowRole !== 'physical_supervisor') {
@@ -508,7 +522,7 @@ const shouldCreateNewResampleQualityAttempt = (entry = {}) => {
   // Only create a new attempt when a resample has actually been triggered —
   // having resampleOriginDecision = 'PASS_WITH_COOKING' alone is NOT enough.
   const isExplicitResampleCycle = isResampleWorkflowMarker(entry)
-    && hasActiveResampleTrigger(entry);
+    && isResampleActuallyInitiated(entry);
   return isExplicitResampleCycle
     && persistedAttemptCount <= 1
     && !['FAILED', 'COMPLETED_LOT'].includes(workflowStatus);
@@ -2873,7 +2887,7 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
           );
           const isRecheckQualityPending = recheckState.qualityPending === true;
           const isResampleQualityPending = isResampleWorkflowMarker(sampleEntry);
-          const hasConcreteResample = hasActiveResampleTrigger(sampleEntry || {});
+          const hasConcreteResample = isResampleActuallyInitiated(sampleEntry || {});
           const normalizedQualityIntent = normalizeQualityEntryIntent(req.body.qualityEntryIntent);
           const isResampleQualityCreateRequest =
             hasConcreteResample
@@ -2892,6 +2906,18 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
             intent: req.body.qualityEntryIntent,
             heuristicDecision: strictResampleNextAttempt || explicitCreateNewResampleAttempt || heuristicCreateNewResampleAttempt,
             isResampleQualityPending: hasConcreteResample
+          });
+          console.log('[SAMPLE_DEBUG] quality save decision', {
+            route: 'POST /:id/quality-parameters',
+            entryId: req.params.id,
+            intent: req.body.qualityEntryIntent,
+            createNewAttempt: shouldCreateNewResampleAttempt,
+            qualityReportAttempts: sampleEntry?.qualityReportAttempts ?? null,
+            lotSelectionDecision: sampleEntry?.lotSelectionDecision ?? null,
+            resampleTriggerRequired: Boolean(sampleEntry?.resampleTriggerRequired),
+            resampleTriggeredAt: sampleEntry?.resampleTriggeredAt ?? null,
+            resampleStartAt: sampleEntry?.resampleStartAt ?? null,
+            resampleDecisionAt: sampleEntry?.resampleDecisionAt ?? null
           });
 
           // Staff one-time edit check: if already used their available chances, block
@@ -3060,7 +3086,7 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
         );
         const isRecheckQualityPending = recheckState.qualityPending === true;
         const isResampleQualityPending = isResampleWorkflowMarker(sampleEntry);
-        const hasConcreteResample = hasActiveResampleTrigger(sampleEntry || {});
+        const hasConcreteResample = isResampleActuallyInitiated(sampleEntry || {});
         const normalizedQualityIntent = normalizeQualityEntryIntent(req.body.qualityEntryIntent);
         const heuristicCreateNewResampleAttempt = shouldCreateNewResampleQualityAttempt(sampleEntry || {});
         const strictResampleNextAttempt =
@@ -3070,6 +3096,18 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
           intent: req.body.qualityEntryIntent,
           heuristicDecision: strictResampleNextAttempt || heuristicCreateNewResampleAttempt,
           isResampleQualityPending: hasConcreteResample
+        });
+        console.log('[SAMPLE_DEBUG] quality save decision', {
+          route: 'PUT /:id/quality-parameters',
+          entryId: req.params.id,
+          intent: req.body.qualityEntryIntent,
+          createNewAttempt: shouldCreateNewResampleAttempt,
+          qualityReportAttempts: sampleEntry?.qualityReportAttempts ?? null,
+          lotSelectionDecision: sampleEntry?.lotSelectionDecision ?? null,
+          resampleTriggerRequired: Boolean(sampleEntry?.resampleTriggerRequired),
+          resampleTriggeredAt: sampleEntry?.resampleTriggeredAt ?? null,
+          resampleStartAt: sampleEntry?.resampleStartAt ?? null,
+          resampleDecisionAt: sampleEntry?.resampleDecisionAt ?? null
         });
 
         // Admin/Manager edit only. Staff can edit quality only up to their approved allowance.

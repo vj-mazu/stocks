@@ -2192,6 +2192,19 @@ const SampleEntryPage: React.FC<{
       console.log('[QUALITY SAVE DEBUG] Is Resample Entry:', isResampleEntry);
       console.log('[QUALITY SAVE DEBUG] Quality Record Exists:', qualityRecordExists);
       console.log('[QUALITY SAVE DEBUG] Using Method:', method);
+      console.log('[SAMPLE_DEBUG] SampleEntry quality save', {
+        entryId: selectedEntry.id,
+        intent: qualityModalIntent,
+        method,
+        qualityRecordExists,
+        attempts: getQualityAttemptsForEntry(selectedEntry as any).length,
+        qualityReportAttempts: (selectedEntry as any)?.qualityReportAttempts ?? null,
+        lotSelectionDecision: (selectedEntry as any)?.lotSelectionDecision ?? null,
+        resampleOriginDecision: (selectedEntry as any)?.resampleOriginDecision ?? null,
+        resampleTriggerRequired: Boolean((selectedEntry as any)?.resampleTriggerRequired),
+        resampleTriggeredAt: (selectedEntry as any)?.resampleTriggeredAt ?? null,
+        resampleStartAt: (selectedEntry as any)?.resampleStartAt ?? null
+      });
       
       await axios[method](
         `${API_URL}/sample-entries/${selectedEntry.id}/quality-parameters`,

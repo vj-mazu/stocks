@@ -1092,6 +1092,18 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
         && hasAssignedResampleCollector(resamplePrepEntry)
         && !currentCycleAlreadyHasSample;
       formData.append('qualityEntryIntent', isActualResample ? 'next' : 'edit');
+      console.log('[SAMPLE_DEBUG] CookingBook 100gms save', {
+        entryId: resamplePrepEntry.id,
+        intent: isActualResample ? 'next' : 'edit',
+        currentCycleAlreadyHasSample,
+        isResampleWorkflowEntry: isResampleWorkflowEntry(resamplePrepEntry),
+        hasAssignedResampleCollector: hasAssignedResampleCollector(resamplePrepEntry),
+        qualityReportAttempts: (resamplePrepEntry as any)?.qualityReportAttempts ?? null,
+        lotSelectionDecision: (resamplePrepEntry as any)?.lotSelectionDecision ?? null,
+        resampleOriginDecision: (resamplePrepEntry as any)?.resampleOriginDecision ?? null,
+        resampleTriggerRequired: Boolean((resamplePrepEntry as any)?.resampleTriggerRequired),
+        resampleTriggeredAt: (resamplePrepEntry as any)?.resampleTriggeredAt ?? null
+      });
       formData.append('reportedBy', user?.fullName || user?.username || '');
 
       await axios.post(
