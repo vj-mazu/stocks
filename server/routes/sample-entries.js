@@ -179,6 +179,19 @@ const isResampleWorkflowMarker = (entry = {}) => {
     || isConvertedLocationResample(entry)
     || Number(entry?.qualityReportAttempts || 0) > 1;
 };
+// hasActiveResampleTrigger: returns true ONLY when a resample has actually been
+// initiated (collector assigned, trigger fired, etc.) — NOT just because a
+// "Pass with Cooking" or "Pass without Cooking" origin decision exists.
+const hasActiveResampleTrigger = (entry = {}) => (
+  String(entry?.lotSelectionDecision || '').toUpperCase() === 'FAIL'
+  || Boolean(entry?.resampleTriggerRequired)
+  || Boolean(entry?.resampleTriggeredAt)
+  || Boolean(entry?.resampleStartAt)
+  || Boolean(entry?.resampleDecisionAt)
+  || Boolean(entry?.resampleAfterFinal)
+  || hasResampleCollectorTimeline(entry)
+  || isConvertedLocationResample(entry)
+);
 const canLocationStaffEditQuality = async (sampleEntry, reqUser) => {
   const workflowRole = getWorkflowRole(reqUser);
   if (workflowRole !== 'physical_supervisor') {
@@ -488,24 +501,14 @@ const getQualityAttemptsForEntry = (entry = {}) => {
 };
 const shouldCreateNewResampleQualityAttempt = (entry = {}) => {
   const workflowStatus = String(entry?.workflowStatus || '').toUpperCase();
-  const originDecision = String(entry?.resampleOriginDecision || '').toUpperCase();
   const persistedAttemptCount = Math.max(
     Number(entry?.qualityReportAttempts || 0),
     Array.isArray(entry?.qualityAttemptDetails) ? entry.qualityAttemptDetails.length : 0
   );
+  // Only create a new attempt when a resample has actually been triggered —
+  // having resampleOriginDecision = 'PASS_WITH_COOKING' alone is NOT enough.
   const isExplicitResampleCycle = isResampleWorkflowMarker(entry)
-    && (
-      String(entry?.lotSelectionDecision || '').toUpperCase() === 'FAIL'
-      || originDecision === 'PASS_WITHOUT_COOKING'
-      || originDecision === 'PASS_WITH_COOKING'
-      || Boolean(entry?.resampleTriggerRequired)
-      || Boolean(entry?.resampleTriggeredAt)
-      || Boolean(entry?.resampleDecisionAt)
-      || Boolean(entry?.resampleAfterFinal)
-      || Boolean(entry?.resampleStartAt)
-      || hasResampleCollectorTimeline(entry)
-      || isConvertedLocationResample(entry)
-    );
+    && hasActiveResampleTrigger(entry);
   return isExplicitResampleCycle
     && persistedAttemptCount <= 1
     && !['FAILED', 'COMPLETED_LOT'].includes(workflowStatus);
@@ -2872,7 +2875,7 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
           const isResampleQualityPending = isResampleWorkflowMarker(sampleEntry);
           const normalizedQualityIntent = normalizeQualityEntryIntent(req.body.qualityEntryIntent);
           const isResampleQualityCreateRequest =
-            isResampleWorkflowMarker(sampleEntry || {})
+            hasActiveResampleTrigger(sampleEntry || {})
             && normalizedQualityIntent !== 'edit';
           const heuristicCreateNewResampleAttempt = shouldCreateNewResampleQualityAttempt(sampleEntry || {});
           const strictResampleNextAttempt =
@@ -3060,7 +3063,7 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
         const heuristicCreateNewResampleAttempt = shouldCreateNewResampleQualityAttempt(sampleEntry || {});
         const strictResampleNextAttempt =
           normalizedQualityIntent === 'next'
-          && isResampleWorkflowMarker(sampleEntry || {});
+          && hasActiveResampleTrigger(sampleEntry || {});
         const shouldCreateNewResampleAttempt = shouldCreateNewQualityAttempt({
           intent: req.body.qualityEntryIntent,
           heuristicDecision: strictResampleNextAttempt || heuristicCreateNewResampleAttempt,
