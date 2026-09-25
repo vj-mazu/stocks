@@ -1222,6 +1222,15 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             || isConvertedLocationResample
             || hasResampleTimelineOrHistory;
 
+        // A Pass-with-Cooking resample must show its second cycle only after a
+        // resample user has actually been allotted AND the Trigger button has been
+        // pressed. Otherwise the "Pending" second cycle row appears far too early.
+        const isResampleInitiated = isResampleTriggered
+            || Boolean((entry as any)?.resampleStartAt)
+            || Boolean((entry as any)?.resampleDecisionAt);
+        const isPassWithCookingResampleReady = resampleOriginDecision !== 'PASS_WITH_COOKING'
+            || (isResampleInitiated && hasResampleTimelineOrHistory);
+
         if (String(d || '').toUpperCase() === 'FAIL' && rows.length === 0 && !hasStoredCookingHistory && !isResampleActive) {
             return [];
         }
@@ -1287,7 +1296,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             });
         }
 
-        if (rows.length === 0 && isResampleActive && resampleOriginDecision === 'PASS_WITH_COOKING') {
+        if (rows.length === 0 && isResampleActive && resampleOriginDecision === 'PASS_WITH_COOKING' && isPassWithCookingResampleReady) {
             rows.push({
                 status: 'Pass',
                 remarks: '',
@@ -1304,7 +1313,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                 approvedBy: '',
                 approvedDate: null
             });
-        } else if (isResampleActive && rows.length === 1 && resampleOriginDecision !== 'PASS_WITHOUT_COOKING') {
+        } else if (isResampleActive && rows.length === 1 && resampleOriginDecision !== 'PASS_WITHOUT_COOKING' && isPassWithCookingResampleReady) {
             rows.push({
                 status: 'Pending',
                 remarks: '',
