@@ -512,7 +512,9 @@ const hasCurrentCycleQualityData = (entry: SampleEntry) => {
     || null;
 
   if (!resampleStartValue || !qualityUpdatedValue) {
-    return Boolean((entry as any)?.resampleTriggerRequired) || String((entry as any)?.workflowStatus || '').toUpperCase() === 'COOKING_REPORT';
+    return Boolean((entry as any)?.resampleTriggerRequired)
+      || Boolean((entry as any)?.resampleTriggeredAt)
+      || String((entry as any)?.workflowStatus || '').toUpperCase() === 'COOKING_REPORT';
   }
 
   const resampleStartAt = getTimeValue(resampleStartValue);
@@ -595,7 +597,12 @@ const canUseIndependentResampleCookingFlow = (entry: SampleEntry) => {
   if (!isResampleWorkflowEntry(entry)) return false;
   const history = Array.isArray(entry.cookingReport?.history) ? entry.cookingReport?.history || [] : [];
   const cookingStatus = String(entry.cookingReport?.status || '').trim().toUpperCase();
-  return history.length > 0 || !!cookingStatus;
+  const originDecision = String((entry as any)?.resampleOriginDecision || '').toUpperCase();
+  return history.length > 0
+    || !!cookingStatus
+    || originDecision === 'PASS_WITH_COOKING'
+    || Boolean((entry as any)?.resampleTriggerRequired)
+    || Boolean((entry as any)?.resampleTriggeredAt);
 };
 const getCurrentCycleCookingHistory = (entry: SampleEntry, history: any[]) => {
   if (!isResampleWorkflowEntry(entry)) return history;
@@ -1300,6 +1307,10 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
       });
 
       const latestAfterStatus = normalizeStatus(lastAfterAdmin?.status || null);
+      const isResampleTriggerActive = Boolean((entry as any)?.resampleTriggeredAt)
+        || Boolean((entry as any)?.resampleTriggerRequired)
+        || String((entry as any)?.resampleOriginDecision || '').toUpperCase() === 'PASS_WITH_COOKING'
+        || ['STAFF_ENTRY', 'QUALITY_CHECK', 'LOT_SELECTION', 'COOKING_REPORT'].includes(workflow);
       const shouldAppendPending =
         waitingAdminAfterResample
         || (
@@ -1310,6 +1321,11 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
         || (
           workflow === 'COOKING_REPORT'
           && decision === 'PASS_WITH_COOKING'
+          && afterAdminHistory.length === 0
+          && afterStaffHistory.length === 0
+        )
+        || (
+          isResampleTriggerActive
           && afterAdminHistory.length === 0
           && afterStaffHistory.length === 0
         );
@@ -1709,7 +1725,11 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
     if (activeTab !== 'RESAMPLE_COOKING_REPORT') return entries;
     return entries.filter((entry) => {
       if (isResolvedResampleEntry(entry)) return false;
-      return hasCurrentCycleQualityData(entry) || canUseIndependentResampleCookingFlow(entry);
+      return hasCurrentCycleQualityData(entry)
+        || canUseIndependentResampleCookingFlow(entry)
+        || Boolean((entry as any)?.resampleTriggeredAt)
+        || Boolean((entry as any)?.resampleTriggerRequired)
+        || String((entry as any)?.resampleOriginDecision || '').toUpperCase() === 'PASS_WITH_COOKING';
     });
   }, [entries, activeTab]);
 

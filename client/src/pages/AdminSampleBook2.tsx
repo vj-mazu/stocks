@@ -1212,7 +1212,21 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             return [];
         }
 
-        if (String(d || '').toUpperCase() === 'FAIL' && rows.length === 0 && !hasStoredCookingHistory) {
+        const isResampleTriggered = Boolean((entry as any)?.resampleTriggeredAt);
+        const isConvertedLocationResample = String(entry.entryType || '').toUpperCase() === 'LOCATION_SAMPLE'
+            && !!String((entry as any)?.originalEntryType || '').trim()
+            && String((entry as any)?.originalEntryType || '').toUpperCase() !== 'LOCATION_SAMPLE';
+        const hasResampleTimelineOrHistory = (Array.isArray((entry as any)?.resampleCollectedTimeline) && (entry as any).resampleCollectedTimeline.length > 0)
+            || (Array.isArray((entry as any)?.resampleCollectedHistory) && (entry as any).resampleCollectedHistory.length > 0);
+        const isResampleActive = isResampleTriggered
+            || Boolean((entry as any)?.resampleTriggerRequired)
+            || Boolean((entry as any)?.resampleStartAt)
+            || resampleOriginDecision === 'PASS_WITH_COOKING'
+            || currentDecisionKey === 'FAIL'
+            || isConvertedLocationResample
+            || hasResampleTimelineOrHistory;
+
+        if (String(d || '').toUpperCase() === 'FAIL' && rows.length === 0 && !hasStoredCookingHistory && !isResampleActive) {
             return [];
         }
 
@@ -1277,23 +1291,24 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             });
         }
 
-        // When resample is active (e.g. triggered from Pass With Cooking or with resample attempts),
-        // show 2nd Cooking as Pending until 2nd cooking report is actually added or approved.
-        const isResampleTriggered = Boolean((entry as any)?.resampleTriggeredAt);
-        const isConvertedLocationResample = String(entry.entryType || '').toUpperCase() === 'LOCATION_SAMPLE'
-            && !!String((entry as any)?.originalEntryType || '').trim()
-            && String((entry as any)?.originalEntryType || '').toUpperCase() !== 'LOCATION_SAMPLE';
-        const hasResampleTimelineOrHistory = (Array.isArray((entry as any)?.resampleCollectedTimeline) && (entry as any).resampleCollectedTimeline.length > 0)
-            || (Array.isArray((entry as any)?.resampleCollectedHistory) && (entry as any).resampleCollectedHistory.length > 0);
-        const isResampleActive = isResampleTriggered
-            || Boolean((entry as any)?.resampleTriggerRequired)
-            || Boolean((entry as any)?.resampleStartAt)
-            || resampleOriginDecision === 'PASS_WITH_COOKING'
-            || currentDecisionKey === 'FAIL'
-            || isConvertedLocationResample
-            || hasResampleTimelineOrHistory;
-
-        if (isResampleActive && rows.length === 1 && resampleOriginDecision !== 'PASS_WITHOUT_COOKING') {
+        if (rows.length === 0 && isResampleActive && resampleOriginDecision === 'PASS_WITH_COOKING') {
+            rows.push({
+                status: 'Pass',
+                remarks: '',
+                doneBy: '',
+                doneDate: null,
+                approvedBy: '',
+                approvedDate: null
+            });
+            rows.push({
+                status: 'Pending',
+                remarks: '',
+                doneBy: '',
+                doneDate: null,
+                approvedBy: '',
+                approvedDate: null
+            });
+        } else if (isResampleActive && rows.length === 1 && resampleOriginDecision !== 'PASS_WITHOUT_COOKING') {
             rows.push({
                 status: 'Pending',
                 remarks: '',
@@ -1309,22 +1324,10 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
 
     const cookingBadge = (entry: SampleEntry) => {
         const rows = buildCookingStatusRows(entry);
-        const qualityRows = buildQualityStatusRows(entry);
         if (entry.lotSelectionDecision === 'PASS_WITHOUT_COOKING' && rows.length === 0) {
             return <span style={{ color: '#999', fontSize: '10px' }}>-</span>;
         }
-        const normalizedLotDecision = String(entry.lotSelectionDecision || '').toUpperCase();
-        const isLotPassed = normalizedLotDecision === 'PASS_WITH_COOKING' || normalizedLotDecision === 'PASS_WITHOUT_COOKING';
-        const resampleOriginDecision = String((entry as any)?.resampleOriginDecision || '').toUpperCase();
-        const isResamplePassFlow = resampleOriginDecision === 'PASS_WITH_COOKING' || resampleOriginDecision === 'PASS_WITHOUT_COOKING';
-        const hasSecondQualityPass = qualityRows.length > 1 && qualityRows[qualityRows.length - 1]?.status === 'Pass';
-        const displayRows = isResamplePassFlow && isLotPassed && hasSecondQualityPass
-            ? rows.map((row, idx) => (
-                idx === rows.length - 1 && row.status === 'Pending'
-                    ? { ...row, status: 'Pass' }
-                    : row
-            ))
-            : rows;
+        const displayRows = rows;
         if (displayRows.length === 0) return null;
 
         return (

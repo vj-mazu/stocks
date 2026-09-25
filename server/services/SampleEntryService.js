@@ -253,7 +253,11 @@ const hasResampleCookingSource = (entry = {}) => {
   const history = Array.isArray(entry.cookingReport?.history) ? entry.cookingReport.history : [];
   const cookingStatus = String(entry.cookingReport?.status || '').trim().toUpperCase();
   const decision = String(entry.lotSelectionDecision || '').toUpperCase();
+  const originDecision = String(entry.resampleOriginDecision || '').toUpperCase();
   if (entry.resampleDecisionAt && decision === 'PASS_WITH_COOKING') {
+    return true;
+  }
+  if (originDecision === 'PASS_WITH_COOKING' || Boolean(entry.resampleTriggerRequired) || Boolean(entry.resampleTriggeredAt)) {
     return true;
   }
   return Boolean(entry.cookingReport?.id || history.length > 0 || cookingStatus);

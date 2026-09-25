@@ -4378,6 +4378,44 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             }
         }
 
+        const resampleOriginDecision = String((entry as any)?.resampleOriginDecision || '').toUpperCase();
+        const isResampleTriggered = Boolean((entry as any)?.resampleTriggeredAt);
+        const hasResampleTimelineOrHistory = (Array.isArray((entry as any)?.resampleCollectedTimeline) && (entry as any).resampleCollectedTimeline.length > 0)
+            || (Array.isArray((entry as any)?.resampleCollectedHistory) && (entry as any).resampleCollectedHistory.length > 0);
+        const isResampleActive = isResampleTriggered
+            || Boolean((entry as any)?.resampleTriggerRequired)
+            || Boolean((entry as any)?.resampleStartAt)
+            || resampleOriginDecision === 'PASS_WITH_COOKING'
+            || hasResampleTimelineOrHistory;
+
+        if (rows.length === 0 && isResampleActive && resampleOriginDecision === 'PASS_WITH_COOKING') {
+            rows.push({
+                status: 'Pass',
+                remarks: '',
+                doneBy: '',
+                doneDate: null,
+                approvedBy: '',
+                approvedDate: null
+            });
+            rows.push({
+                status: 'Pending',
+                remarks: '',
+                doneBy: '',
+                doneDate: null,
+                approvedBy: '',
+                approvedDate: null
+            });
+        } else if (isResampleActive && rows.length === 1 && resampleOriginDecision !== 'PASS_WITHOUT_COOKING') {
+            rows.push({
+                status: 'Pending',
+                remarks: '',
+                doneBy: '',
+                doneDate: null,
+                approvedBy: '',
+                approvedDate: null
+            });
+        }
+
         return rows;
     };
 
