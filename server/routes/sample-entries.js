@@ -100,7 +100,18 @@ const PhysicalInspection = require('../models/PhysicalInspection');
 const User = require('../models/User');
 const { attachLoadingLotsHistories } = require('../utils/historyUtil');
 const { shouldCreateNewQualityAttempt, normalizeQualityEntryIntent } = require('../utils/qualityEntryIntent');
-const { isConvertedLocationResample, isResampleActuallyInitiated } = require('../utils/resampleFlow');
+const isConvertedLocationResample = (entry = {}) => (
+  String(entry?.entryType || '').toUpperCase() === 'LOCATION_SAMPLE'
+  && !!String(entry?.originalEntryType || '').trim()
+  && String(entry?.originalEntryType || '').toUpperCase() !== 'LOCATION_SAMPLE'
+);
+const isResampleActuallyInitiated = (entry = {}) => (
+  String(entry?.lotSelectionDecision || '').toUpperCase() === 'FAIL'
+  || Boolean(entry?.resampleTriggeredAt)
+  || Boolean(entry?.resampleStartAt)
+  || Boolean(entry?.resampleAfterFinal)
+  || isConvertedLocationResample(entry)
+);
 const { Op, col, where: sqlWhere } = require('sequelize');
 const getWorkflowRole = (user) => user?.effectiveRole || user?.role;
 const isUserMatchingAssigned = (assigned, username, fullName, userId) => {

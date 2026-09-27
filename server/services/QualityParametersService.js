@@ -102,7 +102,7 @@ const buildQualityAttemptSnapshot = (quality = {}) => ({
   updatedAt: quality.updatedAt || null
 });
 
-const syncQualityAttemptSnapshots = async (sampleEntryId, currentQualityBeforeUpdate, updatedQuality, isNewAttempt = false) => {
+const syncQualityAttemptSnapshots = async (sampleEntryId, currentQualityBeforeUpdate, updatedQuality, isNewAttempt = false, collapseToSingleAttempt = false) => {
   const sampleEntry = await SampleEntryRepository.findById(sampleEntryId);
   if (!sampleEntry || !updatedQuality) return;
 
@@ -120,6 +120,20 @@ const syncQualityAttemptSnapshots = async (sampleEntryId, currentQualityBeforeUp
     await SampleEntryRepository.update(sampleEntryId, {
       qualityAttemptDetails: newAttempts.slice(0, 2),
       qualityReportAttempts: Math.min(2, newAttempts.length)
+    });
+  } else if (collapseToSingleAttempt) {
+    // A save on a lot that is NOT in a genuine resample flow can never own a
+    // second sample. Merge whatever we have into a single attempt 1 so stale
+    // phantom 2nd-sample rows (from earlier bugs) heal instead of lingering.
+    const firstAttempt = existingAttempts[0]
+      || (currentQualityBeforeUpdate ? { ...buildQualityAttemptSnapshot(currentQualityBeforeUpdate), attemptNo: 1 } : null);
+    const collapsedAttempts = firstAttempt
+      ? [{ ...firstAttempt, ...updatedSnapshot, attemptNo: 1 }]
+      : [];
+
+    await SampleEntryRepository.update(sampleEntryId, {
+      qualityAttemptDetails: collapsedAttempts,
+      qualityReportAttempts: Math.min(2, collapsedAttempts.length)
     });
   } else {
     if (existingAttempts.length >= 2) {
@@ -405,7 +419,13 @@ class QualityParametersService {
       const updated = await QualityParametersRepository.update(id, updates);
 
       // Sync attempt snapshots (ensures attempt 2 is accurately updated with latest fields without inheriting attempt 1 cutting/bend)
-      await syncQualityAttemptSnapshots(updates.sampleEntryId, current, updated, options.createNewAttempt === true);
+      await syncQualityAttemptSnapshots(
+        updates.sampleEntryId,
+        current,
+        updated,
+        options.createNewAttempt === true,
+        options.collapseAttempts === true
+      );
 
       // Auto-fail logic for smell (Medium, Dark, Orange ONLY) - sync to SampleEntry
       const shouldAutoFailPostUpdate = updates.smellHas && ['MEDIUM', 'DARK', 'ORANGE'].includes(String(updates.smellType).toUpperCase());
