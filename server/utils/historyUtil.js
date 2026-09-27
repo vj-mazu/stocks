@@ -468,17 +468,23 @@ const attachLoadingLotsHistories = async (rows) => {
     target.qualityReportHistory = history;
 
     // --- Refined Quality Attempt Grouping Logic ---
-    // Boundaries are transitions TO 'QUALITY_CHECK' OR transitions TO 'LOT_SELECTION' with resampleQualitySaved metadata
+    // Boundaries are transitions TO 'QUALITY_CHECK' (resample / recheck only) OR transitions TO 'LOT_SELECTION' with resampleQualitySaved metadata
     const transitionLogs = sampleEntryAuditLogs.filter(l => {
       if (l.actionType !== 'WORKFLOW_TRANSITION') return false;
       const nv = normalizeAuditMetadata(l.newValues) || {};
+      const ov = normalizeAuditMetadata(l.oldValues) || {};
       const metadata = normalizeAuditMetadata(l.metadata) || {};
-      // Include transitions to QUALITY_CHECK (recheck/resample assignment)
-      if (nv.workflowStatus === 'QUALITY_CHECK') return true;
+      // Include transitions to QUALITY_CHECK ONLY if it is a real recheck / resample assignment,
+      // NOT the standard initial creation transition from STAFF_ENTRY -> QUALITY_CHECK
+      if (nv.workflowStatus === 'QUALITY_CHECK') {
+        if (ov.workflowStatus === 'STAFF_ENTRY' && !metadata.resample && !metadata.recheck && !hasResampleFlow) {
+          return false;
+        }
+        return true;
+      }
       // Include transitions to LOT_SELECTION with resampleQualitySaved flag (resample quality saved)
       // BUT: only if it wasn't already in QUALITY_CHECK (because QUALITY_CHECK transition already started the boundary)
       if (nv.workflowStatus === 'LOT_SELECTION' && metadata.resampleQualitySaved === true) {
-        const ov = normalizeAuditMetadata(l.oldValues) || {};
         if (ov.workflowStatus !== 'QUALITY_CHECK') return true;
       }
       return false;

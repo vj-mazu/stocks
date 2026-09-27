@@ -100,6 +100,7 @@ const PhysicalInspection = require('../models/PhysicalInspection');
 const User = require('../models/User');
 const { attachLoadingLotsHistories } = require('../utils/historyUtil');
 const { shouldCreateNewQualityAttempt, normalizeQualityEntryIntent } = require('../utils/qualityEntryIntent');
+const { isConvertedLocationResample, isResampleActuallyInitiated } = require('../utils/resampleFlow');
 const { Op, col, where: sqlWhere } = require('sequelize');
 const getWorkflowRole = (user) => user?.effectiveRole || user?.role;
 const isUserMatchingAssigned = (assigned, username, fullName, userId) => {
@@ -159,11 +160,6 @@ const hasResampleCollectorTimeline = (entry = {}) => (
   (Array.isArray(entry?.resampleCollectedTimeline) && entry.resampleCollectedTimeline.length > 0)
   || (Array.isArray(entry?.resampleCollectedHistory) && entry.resampleCollectedHistory.length > 0)
 );
-const isConvertedLocationResample = (entry = {}) => (
-  String(entry?.entryType || '').toUpperCase() === 'LOCATION_SAMPLE'
-  && !!String(entry?.originalEntryType || '').trim()
-  && String(entry?.originalEntryType || '').toUpperCase() !== 'LOCATION_SAMPLE'
-);
 const isResampleWorkflowMarker = (entry = {}) => {
   const decision = String(entry?.lotSelectionDecision || '').toUpperCase();
   const originDecision = String(entry?.resampleOriginDecision || '').toUpperCase();
@@ -190,20 +186,6 @@ const hasActiveResampleTrigger = (entry = {}) => (
   || Boolean(entry?.resampleDecisionAt)
   || Boolean(entry?.resampleAfterFinal)
   || hasResampleCollectorTimeline(entry)
-  || isConvertedLocationResample(entry)
-);
-// isResampleActuallyInitiated: stricter than hasActiveResampleTrigger.
-// A bare resampleTriggerRequired flag only means "a resample WILL be needed" -- it
-// is set the moment a Pass-with-Cooking lot is marked for resample, BEFORE the
-// Trigger button is pressed. It must never be enough on its own to create a second
-// quality sample, otherwise a plain WB-R / WB-BK edit silently spawns a duplicate
-// sample. Only a genuinely initiated resample may create one.
-const isResampleActuallyInitiated = (entry = {}) => (
-  String(entry?.lotSelectionDecision || '').toUpperCase() === 'FAIL'
-  || Boolean(entry?.resampleTriggeredAt)
-  || Boolean(entry?.resampleStartAt)
-  || Boolean(entry?.resampleDecisionAt)
-  || Boolean(entry?.resampleAfterFinal)
   || isConvertedLocationResample(entry)
 );
 const canLocationStaffEditQuality = async (sampleEntry, reqUser) => {
@@ -2972,7 +2954,12 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
               },
               req.user.userId,
               getWorkflowRole(req.user),
-              { createNewAttempt: shouldCreateNewResampleAttempt }
+              {
+                createNewAttempt: shouldCreateNewResampleAttempt,
+                // A non-resample save must collapse any stale phantom 2nd sample back
+                // into attempt 1 -- only a genuinely initiated resample may keep two.
+                collapseAttempts: !hasConcreteResample && !shouldCreateNewResampleAttempt
+              }
             );
             // Increment the edit counter to lock future edits
             if (sampleEntry && !isResampleQualityPending) {
@@ -3003,7 +2990,12 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
               },
               req.user.userId,
               getWorkflowRole(req.user),
-              { createNewAttempt: shouldCreateNewResampleAttempt }
+              {
+                createNewAttempt: shouldCreateNewResampleAttempt,
+                // A non-resample save must collapse any stale phantom 2nd sample back
+                // into attempt 1 -- only a genuinely initiated resample may keep two.
+                collapseAttempts: !hasConcreteResample && !shouldCreateNewResampleAttempt
+              }
             );
             invalidateSampleEntryTabCaches();
             return res.status(200).json(updatedQuality);
@@ -3200,18 +3192,17 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
         const isNextIntent = String(req.body.qualityEntryIntent || '').toLowerCase() === 'next';
         const isResampleAction = sampleEntry.entryType !== 'RICE_SAMPLE'
             && (
-              String(sampleEntry.lotSelectionDecision || '').toUpperCase() === 'FAIL'
-              || Boolean(sampleEntry.resampleTriggerRequired)
-              || Boolean(sampleEntry.resampleTriggeredAt)
-              || Boolean(sampleEntry.resampleDecisionAt)
-              || Boolean(sampleEntry.resampleAfterFinal)
+              isResampleActuallyInitiated(sampleEntry)
               || isValidResampleCookingPrepOnly
               || isNextIntent
             );
         const qualityAttempts = Array.isArray(sampleEntry.qualityAttemptDetails) ? sampleEntry.qualityAttemptDetails : [];
         const existingSecondAttempt = isResampleAction && !isNextIntent && qualityAttempts.length >= 2 ? qualityAttempts[qualityAttempts.length - 1] : null;
         const isPrepOr100gSave = isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly;
-        const fallbackSource = { ...QUALITY_FIELD_NULL_DEFAULTS, ...(isResampleAction ? (existingSecondAttempt || {}) : (isPrepOr100gSave ? {} : existing)) };
+        const fallbackSource = {
+          ...QUALITY_FIELD_NULL_DEFAULTS,
+          ...(isResampleAction ? (existingSecondAttempt || {}) : (existing || {}))
+        };
 
         // Prepare update data
         const updates = {
@@ -3298,7 +3289,12 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
           updates,
           req.user.userId,
           getWorkflowRole(req.user),
-          { createNewAttempt: shouldCreateNewResampleAttempt }
+          {
+            createNewAttempt: shouldCreateNewResampleAttempt,
+            // A non-resample save must collapse any stale phantom 2nd sample back
+            // into attempt 1 -- only a genuinely initiated resample may keep two.
+            collapseAttempts: !hasConcreteResample && !shouldCreateNewResampleAttempt
+          }
         );
 
         // Increment edit counter for staff to prevent further changes (skip during recheck)

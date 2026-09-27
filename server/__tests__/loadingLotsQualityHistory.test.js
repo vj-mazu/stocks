@@ -156,4 +156,105 @@ describe('attachLoadingLotsHistories', () => {
       bend1Raw: '3'
     });
   });
+
+  it('does NOT create attempt 2 when STAFF_ENTRY -> QUALITY_CHECK transition log exists for normal sample creation', async () => {
+    const rows = [{
+      id: 303,
+      createdAt: '2026-04-08T10:00:00.000Z',
+      lotSelectionDecision: 'PASS_WITH_COOKING',
+      sampleCollectedBy: 'Broker Office Sample',
+      lotSelectionAt: '2026-04-08T10:05:00.000Z',
+      qualityParameters: {
+        id: 503,
+        reportedBy: 'Staff User',
+        moisture: '14.0',
+        moistureRaw: '14.0',
+        grainsCount: '280',
+        grainsCountRaw: '280',
+        cutting1: '15',
+        cutting1Raw: '15',
+        cutting2: '25',
+        cutting2Raw: '25',
+        bend1: '3',
+        bend1Raw: '3',
+        bend2: '4',
+        bend2Raw: '4',
+        mix: '3',
+        mixRaw: '3',
+        wbR: '65',
+        wbRRaw: '65',
+        wbBk: '10',
+        wbBkRaw: '10',
+        wbT: '75',
+        wbTRaw: '75',
+        updatedAt: '2026-04-08T10:15:00.000Z',
+        createdAt: '2026-04-08T10:00:00.000Z'
+      }
+    }];
+
+    SampleEntryAuditLog.findAll.mockImplementation(({ where }) => {
+      if (where.tableName === 'sample_entries') {
+        return Promise.resolve([
+          {
+            recordId: 303,
+            actionType: 'WORKFLOW_TRANSITION',
+            oldValues: JSON.stringify({ workflowStatus: 'STAFF_ENTRY' }),
+            newValues: JSON.stringify({ workflowStatus: 'QUALITY_CHECK' }),
+            createdAt: '2026-04-08T10:00:01.000Z',
+            metadata: null
+          }
+        ]);
+      }
+      if (where.tableName === 'quality_parameters') {
+        return Promise.resolve([
+          {
+            recordId: 503,
+            newValues: {
+              reportedBy: 'Staff User',
+              moisture: '14.0',
+              cutting1: '15',
+              cutting2: '25',
+              bend1: '3',
+              bend2: '4',
+              mix: '3',
+              grainsCount: '280',
+              wbR: 0,
+              wbBk: 0
+            },
+            createdAt: '2026-04-08T10:00:00.000Z'
+          },
+          {
+            recordId: 503,
+            newValues: {
+              reportedBy: 'Staff User',
+              moisture: '14.0',
+              cutting1: '15',
+              cutting2: '25',
+              bend1: '3',
+              bend2: '4',
+              mix: '3',
+              grainsCount: '280',
+              wbR: '65',
+              wbBk: '10',
+              wbT: '75'
+            },
+            createdAt: '2026-04-08T10:15:00.000Z'
+          }
+        ]);
+      }
+      return Promise.resolve([]);
+    });
+
+    const [entry] = await attachLoadingLotsHistories(rows);
+
+    expect(entry.qualityAttemptDetails).toHaveLength(1);
+    expect(entry.qualityAttemptDetails[0]).toMatchObject({
+      attemptNo: 1,
+      wbRRaw: '65',
+      wbBkRaw: '10',
+      wbTRaw: '75',
+      cutting1Raw: '15',
+      bend1Raw: '3'
+    });
+  });
 });
