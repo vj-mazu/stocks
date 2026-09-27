@@ -3089,16 +3089,14 @@ const SampleEntryPage: React.FC<{
                               || (Array.isArray((entry as any).resampleCollectedTimeline) && (entry as any).resampleCollectedTimeline.length > 0)
                               || (Array.isArray((entry as any).resampleCollectedHistory) && (entry as any).resampleCollectedHistory.length > 0);
                             const resampleAlreadyTriggered = Boolean((entry as any).resampleTriggeredAt);
-                            const resampleDecisionTaken = Boolean((entry as any).resampleDecisionAt);
                             const showLocationResampleTrigger = activeTab === 'LOCATION_SAMPLE'
                               && (canManageResampleTrigger || isAssignedCollector)
                               && isResampleRowInLocation
                               && !resampleAlreadyTriggered
-                              && !resampleDecisionTaken
-                              && ['STAFF_ENTRY', 'FINAL_REPORT', 'LOT_ALLOTMENT'].includes(normalizedWorkflowStatus);
+                              && ['STAFF_ENTRY', 'FINAL_REPORT', 'LOT_ALLOTMENT', 'COOKING_REPORT', 'LOT_SELECTION'].includes(normalizedWorkflowStatus);
 
                             if (isResampleRowInLocation || isPaddyResampleWorkflow || isPaddyResampleEntry || String((entry as any).resampleOriginDecision || '').includes('PASS')) {
-                              console.warn(`[RESAMPLE_DEBUG] Entry: ${entry.id} | Collector: "${entry.sampleCollectedBy}" | isAssignedCollector: ${isAssignedCollector} | showTrigger: ${showLocationResampleTrigger} | workflow: ${normalizedWorkflowStatus} | isResampleRow: ${isResampleRowInLocation} | triggered: ${resampleAlreadyTriggered} | decisionTaken: ${resampleDecisionTaken} | actionWillBe: ${showLocationResampleTrigger ? 'TRIGGER BUTTON (ORANGE)' : (isPaddyResampleEntry && canEditQuality ? 'NEXT > BUTTON' : 'OTHER')}`);
+                              console.warn(`[RESAMPLE_DEBUG] Entry: ${entry.id} | Collector: "${entry.sampleCollectedBy}" | isAssignedCollector: ${isAssignedCollector} | showTrigger: ${showLocationResampleTrigger} | workflow: ${normalizedWorkflowStatus} | isResampleRow: ${isResampleRowInLocation} | triggered: ${resampleAlreadyTriggered} | actionWillBe: ${showLocationResampleTrigger ? 'TRIGGER BUTTON (ORANGE)' : (isPaddyResampleEntry && canEditQuality ? 'NEXT > BUTTON' : 'OTHER')}`);
                             }
 
                             const handleNextClick = () => {

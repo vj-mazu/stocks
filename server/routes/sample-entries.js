@@ -862,8 +862,7 @@ router.post('/:id/send-to-quality', authenticateToken, async (req, res) => {
         || (Array.isArray(entry.resampleCollectedTimeline) && entry.resampleCollectedTimeline.length > 0)
         || (Array.isArray(entry.resampleCollectedHistory) && entry.resampleCollectedHistory.length > 0)
       )
-      && !entry.resampleTriggeredAt
-      && !entry.resampleDecisionAt;
+      && !entry.resampleTriggeredAt;
 
     if (isLocationResampleTrigger && !['admin', 'manager', 'owner'].includes(requestRole)) {
       const currentUser = await User.findByPk(req.user.userId, { attributes: ['id', 'username', 'fullName'], raw: true });
@@ -924,7 +923,7 @@ router.post('/:id/send-to-quality', authenticateToken, async (req, res) => {
     }
 
     const allowedStatuses = isLocationResampleTrigger
-      ? ['STAFF_ENTRY', 'FINAL_REPORT', 'LOT_ALLOTMENT']
+      ? ['STAFF_ENTRY', 'FINAL_REPORT', 'LOT_ALLOTMENT', 'COOKING_REPORT', 'LOT_SELECTION']
       : ['STAFF_ENTRY'];
 
     if (!allowedStatuses.includes(workflowStatus)) {

@@ -583,14 +583,12 @@ const attachLoadingLotsHistories = async (rows) => {
               ...baseAttemptDetails[baseAttemptDetails.length - 1],
               ...currentDetail
             };
-          } else if (!hasResampleFlow && baseAttemptDetails.length === 1) {
+          } else if (baseAttemptDetails.length === 1) {
             baseAttemptDetails[0] = {
               ...baseAttemptDetails[0],
               ...currentDetail,
               attemptNo: 1
             };
-          } else if (hasResampleFlow) {
-            baseAttemptDetails.push({ attemptNo: baseAttemptDetails.length + 1, ...currentDetail });
           } else {
             baseAttemptDetails[0] = {
               ...baseAttemptDetails[0],
@@ -647,11 +645,6 @@ const attachLoadingLotsHistories = async (rows) => {
               ...fallbackDetail,
               attemptNo: 2
             };
-          } else if (persistedAttemptDetails.length > 0
-            && hasResampleFlow
-            && !(latestEquivalent && Math.abs(currentTime - latestTime) <= 2000)
-            && !shouldMergeIntoLatestQualityAttempt(latestAttempt, fallbackDetail, latestTime, currentTime)) {
-            baseAttemptDetails.push({ attemptNo: baseAttemptDetails.length + 1, ...fallbackDetail });
           } else if (latestAttempt) {
             baseAttemptDetails[baseAttemptDetails.length - 1] = { ...latestAttempt, ...fallbackDetail };
           }
