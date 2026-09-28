@@ -3091,7 +3091,7 @@ const SampleEntryPage: React.FC<{
                             const resampleAlreadyTriggered = Boolean((entry as any).resampleTriggeredAt);
                             const showLocationResampleTrigger = activeTab === 'LOCATION_SAMPLE'
                               && (canManageResampleTrigger || isAssignedCollector)
-                              && isResampleRowInLocation
+                              && explicitTriggerRequired
                               && !resampleAlreadyTriggered
                               && ['STAFF_ENTRY', 'FINAL_REPORT', 'LOT_ALLOTMENT', 'COOKING_REPORT', 'LOT_SELECTION'].includes(normalizedWorkflowStatus);
 
