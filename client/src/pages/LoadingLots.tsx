@@ -1464,6 +1464,7 @@ const LoadingLots: React.FC<LoadingLotsProps> = ({ entryType, excludeEntryType }
     const getAttemptFingerprint = (attempt: any) => ([
       attempt?.reportedBy ?? '',
       attempt?.moistureRaw ?? attempt?.moisture ?? '',
+      attempt?.dryMoistureRaw ?? attempt?.dryMoisture ?? '',
       attempt?.grainsCountRaw ?? attempt?.grainsCount ?? '',
       attempt?.cutting1Raw ?? attempt?.cutting1 ?? '',
       attempt?.cutting2Raw ?? attempt?.cutting2 ?? '',

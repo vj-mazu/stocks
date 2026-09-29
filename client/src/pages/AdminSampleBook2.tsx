@@ -341,6 +341,7 @@ const getQualityAttemptsForEntry = (entry: any) => {
     const getAttemptFingerprint = (attempt: any) => ([
         attempt?.reportedBy ?? '',
         attempt?.moistureRaw ?? attempt?.moisture ?? '',
+        attempt?.dryMoistureRaw ?? attempt?.dryMoisture ?? '',
         attempt?.grainsCountRaw ?? attempt?.grainsCount ?? '',
         attempt?.cutting1Raw ?? attempt?.cutting1 ?? '',
         attempt?.cutting2Raw ?? attempt?.cutting2 ?? '',
@@ -1229,7 +1230,8 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             || Boolean((entry as any)?.resampleStartAt)
             || Boolean((entry as any)?.resampleDecisionAt);
         const isPassWithCookingResampleReady = resampleOriginDecision !== 'PASS_WITH_COOKING'
-            || (isResampleInitiated && hasResampleTimelineOrHistory);
+            || isResampleTriggered
+            || (isResampleInitiated && (hasResampleTimelineOrHistory || Boolean(entry.sampleCollectedBy)));
 
         if (String(d || '').toUpperCase() === 'FAIL' && rows.length === 0 && !hasStoredCookingHistory && !isResampleActive) {
             return [];
