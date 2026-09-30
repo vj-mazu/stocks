@@ -341,7 +341,7 @@ const AllottedSupervisors: React.FC = () => {
 
     const totalCustomAdd = customAdditions.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
     const totalCustomDed = customDeductions.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-    const totalPayable = Number((baseFreight + (showWb ? Number(wbAmount) || 0 : 0) + (showShortage ? Number(shortageAmount) || 0 : 0) + (showLfAdvance ? Number(lfAdvanceBrk) || 0 : 0) + totalCustomAdd - totalCustomDed).toFixed(2));
+    const totalPayable = Number((baseFreight + (showWb ? Number(wbAmount) || 0 : 0) - (showShortage ? Number(shortageAmount) || 0 : 0) - (showLfAdvance ? Number(lfAdvanceBrk) || 0 : 0) + totalCustomAdd - totalCustomDed).toFixed(2));
 
     try {
       setLorryFreightModal(prev => ({ ...prev, isSaving: true }));
@@ -2943,7 +2943,7 @@ const AllottedSupervisors: React.FC = () => {
 
         const totalCustomAdd = customAdditions.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
         const totalCustomDed = customDeductions.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-        const totalPayable = Number((baseFreight + (showWb ? Number(wbAmount) || 0 : 0) + (showShortage ? Number(shortageAmount) || 0 : 0) + (showLfAdvance ? Number(lfAdvanceBrk) || 0 : 0) + totalCustomAdd - totalCustomDed).toFixed(2));
+        const totalPayable = Number((baseFreight + (showWb ? Number(wbAmount) || 0 : 0) - (showShortage ? Number(shortageAmount) || 0 : 0) - (showLfAdvance ? Number(lfAdvanceBrk) || 0 : 0) + totalCustomAdd - totalCustomDed).toFixed(2));
 
         const handleAddAdditionRow = () => {
           setLorryFreightModal(prev => ({
@@ -3117,10 +3117,10 @@ const AllottedSupervisors: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Add: Shortage */}
+                  {/* Less: Shortage */}
                   {showShortage && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
-                      <span style={{ width: '150px', fontSize: '13px', fontWeight: 600, color: '#16a34a' }}>Shortage:</span>
+                      <span style={{ width: '150px', fontSize: '13px', fontWeight: 600, color: '#dc2626' }}>Shortage:</span>
                       <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span style={{ fontSize: '12px', color: '#64748b' }}>₹</span>
                         <input
@@ -3129,11 +3129,11 @@ const AllottedSupervisors: React.FC = () => {
                           value={shortageAmount === '0' ? '' : shortageAmount}
                           onChange={(e) => setLorryFreightModal(prev => ({ ...prev, shortageAmount: e.target.value === '' ? '0' : e.target.value }))}
                           placeholder="0"
-                          style={{ width: '90px', padding: '4px 6px', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '4px', textAlign: 'right', fontWeight: 700 }}
+                          style={{ width: '90px', padding: '4px 6px', fontSize: '12px', border: '1.5px solid #dc2626', borderRadius: '4px', textAlign: 'right', fontWeight: 700 }}
                         />
                       </div>
-                      <span style={{ width: '90px', textAlign: 'right', fontSize: '13px', fontWeight: 700, color: '#16a34a' }}>
-                        + ₹{Number(shortageAmount || 0).toLocaleString('en-IN')}
+                      <span style={{ width: '90px', textAlign: 'right', fontSize: '13px', fontWeight: 700, color: '#dc2626' }}>
+                        - ₹{Number(shortageAmount || 0).toLocaleString('en-IN')}
                       </span>
                       <button
                         type="button"
@@ -3146,11 +3146,11 @@ const AllottedSupervisors: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Add: LF Advance (BRK) */}
+                  {/* Less: LF Advance (BRK) */}
                   {showLfAdvance && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
                       <div style={{ width: '150px' }}>
-                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#16a34a', display: 'block' }}>LF Advance (brk):</span>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#dc2626', display: 'block' }}>LF Advance (brk):</span>
                       </div>
                       <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span style={{ fontSize: '12px', color: '#64748b' }}>₹</span>
@@ -3160,11 +3160,11 @@ const AllottedSupervisors: React.FC = () => {
                           value={lfAdvanceBrk === '0' ? '' : lfAdvanceBrk}
                           onChange={(e) => setLorryFreightModal(prev => ({ ...prev, lfAdvanceBrk: e.target.value === '' ? '0' : e.target.value }))}
                           placeholder="0"
-                          style={{ width: '90px', padding: '4px 6px', fontSize: '12px', border: '1.5px solid #16a34a', borderRadius: '4px', textAlign: 'right', fontWeight: 700 }}
+                          style={{ width: '90px', padding: '4px 6px', fontSize: '12px', border: '1.5px solid #dc2626', borderRadius: '4px', textAlign: 'right', fontWeight: 700 }}
                         />
                       </div>
-                      <span style={{ width: '90px', textAlign: 'right', fontSize: '13px', fontWeight: 700, color: '#16a34a' }}>
-                        + ₹{Number(lfAdvanceBrk || 0).toLocaleString('en-IN')}
+                      <span style={{ width: '90px', textAlign: 'right', fontSize: '13px', fontWeight: 700, color: '#dc2626' }}>
+                        - ₹{Number(lfAdvanceBrk || 0).toLocaleString('en-IN')}
                       </span>
                       <button
                         type="button"
@@ -3256,7 +3256,7 @@ const AllottedSupervisors: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setLorryFreightModal(prev => ({ ...prev, showShortage: true }))}
-                        style={{ background: 'none', border: 'none', color: '#16a34a', fontWeight: 700, fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
+                        style={{ background: 'none', border: 'none', color: '#dc2626', fontWeight: 700, fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
                       >
                         + Add Shortage
                       </button>
@@ -3265,7 +3265,7 @@ const AllottedSupervisors: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setLorryFreightModal(prev => ({ ...prev, showLfAdvance: true }))}
-                        style={{ background: 'none', border: 'none', color: '#16a34a', fontWeight: 700, fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
+                        style={{ background: 'none', border: 'none', color: '#dc2626', fontWeight: 700, fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
                       >
                         + Add LF Advance (brk)
                       </button>
@@ -3312,7 +3312,7 @@ const AllottedSupervisors: React.FC = () => {
                       TOTAL NET PAYABLE FREIGHT
                     </span>
                     <span style={{ fontSize: '10px', color: '#166534' }}>
-                      (Base Freight + WB + Shortage + LF Advance + Additions - Deductions)
+                      (Base Freight + WB - Shortage - LF Advance + Additions - Deductions)
                     </span>
                   </div>
                   <div style={{ fontSize: '20px', fontWeight: 800, color: '#15803d' }}>

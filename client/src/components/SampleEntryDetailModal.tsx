@@ -4321,23 +4321,36 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             return Number.isFinite(time) ? time : 0;
         };
 
-        const rows: Array<{ status: string; remarks: string; doneBy: string; doneDate: any; approvedBy: string; approvedDate: any; }> = [];
+        const rows: Array<{ status: string; remarks: string; doneBy: string; doneDate: any; approvedBy: string; approvedDate: any; attemptNo?: number }> = [];
         
+        const resampleOriginDecision = String((entry as any)?.resampleOriginDecision || '').toUpperCase();
+        const isResampleTriggered = Boolean((entry as any)?.resampleTriggeredAt);
+        const hasResampleTimelineOrHistory = (Array.isArray((entry as any)?.resampleCollectedTimeline) && (entry as any).resampleCollectedTimeline.length > 0)
+            || (Array.isArray((entry as any)?.resampleCollectedHistory) && (entry as any).resampleCollectedHistory.length > 0);
+        const isResampleActive = isResampleTriggered
+            || Boolean((entry as any)?.resampleTriggerRequired)
+            || Boolean((entry as any)?.resampleStartAt)
+            || resampleOriginDecision === 'PASS_WITH_COOKING'
+            || hasResampleTimelineOrHistory;
+
         // Inject original Pass Without Cooking row if this is a resample from that state
-        if (String((entry as any)?.resampleOriginDecision || '').toUpperCase() === 'PASS_WITHOUT_COOKING') {
+        if (resampleOriginDecision === 'PASS_WITHOUT_COOKING') {
             rows.push({
                 status: 'Pass Without Cooking',
                 remarks: '',
                 doneBy: 'NA',
                 doneDate: null,
                 approvedBy: 'NA',
-                approvedDate: null
+                approvedDate: null,
+                attemptNo: 1
             });
         }
 
         const historyRaw = Array.isArray(cr?.history) ? cr!.history : [];
         const history = [...historyRaw].sort((a, b) => toTs((a as any)?.date || (a as any)?.updatedAt || (a as any)?.createdAt || '') - toTs((b as any)?.date || (b as any)?.updatedAt || (b as any)?.createdAt || ''));
         let pendingDone: { doneBy: string; doneDate: any; remarks: string } | null = null as { doneBy: string; doneDate: any; remarks: string } | null;
+
+        let completedFirstCycle = resampleOriginDecision === 'PASS_WITHOUT_COOKING';
 
         history.forEach((h: any) => {
             const hasStatus = !!h?.status;
@@ -4354,15 +4367,22 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             }
 
             if (hasStatus) {
+                const currentAttemptNo = (isResampleActive && completedFirstCycle) ? 2 : 1;
                 rows.push({
                     status: normalizeCookingStatusLabel(h.status),
                     remarks: String(h?.remarks || '').trim(),
                     doneBy: pendingDone?.doneBy || doneByValue || String(cr?.cookingDoneBy || '').trim(),
                     doneDate: pendingDone?.doneDate || doneDateValue,
                     approvedBy: String(h?.approvedBy || h?.cookingApprovedBy || cr?.cookingApprovedBy || '').trim(),
-                    approvedDate: h?.approvedDate || h?.cookingApprovedAt || h?.date || null
+                    approvedDate: h?.approvedDate || h?.cookingApprovedAt || h?.date || null,
+                    attemptNo: currentAttemptNo
                 });
                 pendingDone = null;
+
+                const statusKey = String(h.status || '').toUpperCase();
+                if (['PASS', 'MEDIUM', 'FAIL'].includes(statusKey)) {
+                    completedFirstCycle = true;
+                }
             }
         });
 
@@ -4373,7 +4393,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 doneBy: String(cr.cookingDoneBy || '').trim(),
                 doneDate: (cr as any)?.doneDate || (cr as any)?.cookingDoneAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
                 approvedBy: String(cr.cookingApprovedBy || '').trim(),
-                approvedDate: (cr as any)?.approvedDate || (cr as any)?.cookingApprovedAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null
+                approvedDate: (cr as any)?.approvedDate || (cr as any)?.cookingApprovedAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
+                attemptNo: isResampleActive && completedFirstCycle ? 2 : 1
             });
         }
 
@@ -4388,7 +4409,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 doneBy: pendingDone.doneBy,
                 doneDate: pendingDone.doneDate,
                 approvedBy: '',
-                approvedDate: null
+                approvedDate: null,
+                attemptNo: isResampleActive && completedFirstCycle ? 2 : 1
             });
         } else if (isCookingRecheckPending && !isQualityOnlyRecheck) {
             const lastRow = rows.length > 0 ? rows[rows.length - 1] : null;
@@ -4399,20 +4421,11 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     doneBy: '',
                     doneDate: null,
                     approvedBy: '',
-                    approvedDate: null
+                    approvedDate: null,
+                    attemptNo: isResampleActive && completedFirstCycle ? 2 : 1
                 });
             }
         }
-
-        const resampleOriginDecision = String((entry as any)?.resampleOriginDecision || '').toUpperCase();
-        const isResampleTriggered = Boolean((entry as any)?.resampleTriggeredAt);
-        const hasResampleTimelineOrHistory = (Array.isArray((entry as any)?.resampleCollectedTimeline) && (entry as any).resampleCollectedTimeline.length > 0)
-            || (Array.isArray((entry as any)?.resampleCollectedHistory) && (entry as any).resampleCollectedHistory.length > 0);
-        const isResampleActive = isResampleTriggered
-            || Boolean((entry as any)?.resampleTriggerRequired)
-            || Boolean((entry as any)?.resampleStartAt)
-            || resampleOriginDecision === 'PASS_WITH_COOKING'
-            || hasResampleTimelineOrHistory;
 
         if (rows.length === 0 && isResampleActive && resampleOriginDecision === 'PASS_WITH_COOKING') {
             rows.push({
@@ -4421,7 +4434,8 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 doneBy: '',
                 doneDate: null,
                 approvedBy: '',
-                approvedDate: null
+                approvedDate: null,
+                attemptNo: 1
             });
             rows.push({
                 status: 'Pending',
@@ -4429,16 +4443,18 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 doneBy: '',
                 doneDate: null,
                 approvedBy: '',
-                approvedDate: null
+                approvedDate: null,
+                attemptNo: 2
             });
-        } else if (isResampleActive && rows.length === 1 && resampleOriginDecision !== 'PASS_WITHOUT_COOKING') {
+        } else if (isResampleActive && rows.length > 0 && !rows.some(r => r.attemptNo === 2) && resampleOriginDecision !== 'PASS_WITHOUT_COOKING') {
             rows.push({
                 status: 'Pending',
                 remarks: '',
                 doneBy: '',
                 doneDate: null,
                 approvedBy: '',
-                approvedDate: null
+                approvedDate: null,
+                attemptNo: 2
             });
         }
 
@@ -4458,7 +4474,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             && rows.length === 1
             && rows[0]?.status !== 'Pass Without Cooking';
         const displayRows = shouldPrefixPassWithoutCooking
-            ? [{ status: 'Pass Without Cooking', remarks: '', doneBy: '', doneDate: null, approvedBy: '', approvedDate: null }, ...rows]
+            ? [{ status: 'Pass Without Cooking', remarks: '', doneBy: '', doneDate: null, approvedBy: '', approvedDate: null, attemptNo: 1 }, ...rows]
             : rows;
         if (displayRows.length === 0) return null;
 
@@ -4469,7 +4485,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                     return (
                         <div key={`${entry.id}-cook-status-${idx}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', width: '100%' }}>
                             <span style={{ fontSize: '9px', fontWeight: '800', color: '#334155' }}>
-                                {getSamplingLabel(idx + 1)}
+                                {getSamplingLabel((row as any).attemptNo || idx + 1)}
                             </span>
                             <span style={{ background: style.bg, color: style.color, padding: '1px 6px', borderRadius: '10px', fontSize: '9px', fontWeight: '700' }}>
                                 {row.status}

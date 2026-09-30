@@ -1145,7 +1145,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             return Number.isFinite(time) ? time : 0;
         };
 
-        const rows: Array<{ status: string; remarks: string; doneBy: string; doneDate: any; approvedBy: string; approvedDate: any; }> = [];
+        const rows: Array<{ status: string; remarks: string; doneBy: string; doneDate: any; approvedBy: string; approvedDate: any; attemptNo?: number; }> = [];
 
         // Inject original Pass Without Cooking row if this is a resample from that state
         if (resampleOriginDecision === 'PASS_WITHOUT_COOKING') {
@@ -1155,58 +1155,9 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                 doneBy: 'NA',
                 doneDate: null,
                 approvedBy: 'NA',
-                approvedDate: null
+                approvedDate: null,
+                attemptNo: 1
             });
-        }
-
-        const historyRaw = Array.isArray(cr?.history) ? cr!.history : [];
-        const history = [...historyRaw].sort((a, b) => toTs((a as any)?.date || (a as any)?.updatedAt || (a as any)?.createdAt || '') - toTs((b as any)?.date || (b as any)?.updatedAt || (b as any)?.createdAt || ''));
-        let pendingDone: { doneBy: string; doneDate: any; remarks: string } | null = null as { doneBy: string; doneDate: any; remarks: string } | null;
-
-        history.forEach((h: any) => {
-            const hasStatus = !!h?.status;
-            const doneByValue = String(h?.cookingDoneBy || '').trim();
-            const doneDateValue = h?.doneDate || h?.cookingDoneAt || h?.submittedAt || h?.date || null;
-
-            if (!hasStatus && doneByValue) {
-                pendingDone = {
-                    doneBy: doneByValue,
-                    doneDate: doneDateValue,
-                    remarks: String(h?.remarks || '').trim()
-                };
-                return;
-            }
-
-            if (hasStatus) {
-                rows.push({
-                    status: normalizeCookingStatusLabel(h.status),
-                    remarks: String(h?.remarks || '').trim(),
-                    doneBy: pendingDone?.doneBy || doneByValue || String(cr?.cookingDoneBy || '').trim(),
-                    doneDate: pendingDone?.doneDate || doneDateValue,
-                    approvedBy: String(h?.approvedBy || h?.cookingApprovedBy || cr?.cookingApprovedBy || '').trim(),
-                    approvedDate: h?.approvedDate || h?.cookingApprovedAt || h?.date || null
-                });
-                pendingDone = null;
-            }
-        });
-
-        if (rows.length === 0 && cr?.status) {
-            rows.push({
-                status: normalizeCookingStatusLabel(cr.status),
-                remarks: String(cr.remarks || '').trim(),
-                doneBy: String(cr.cookingDoneBy || '').trim(),
-                doneDate: (cr as any)?.doneDate || (cr as any)?.cookingDoneAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
-                approvedBy: String(cr.cookingApprovedBy || '').trim(),
-                approvedDate: (cr as any)?.approvedDate || (cr as any)?.cookingApprovedAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null
-            });
-        }
-
-        if (entry.workflowStatus === 'CANCELLED') {
-            return rows;
-        }
-
-        if (isSmellFail && rows.length === 0) {
-            return [];
         }
 
         const isResampleTriggered = Boolean((entry as any)?.resampleTriggeredAt);
@@ -1223,15 +1174,72 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             || isConvertedLocationResample
             || hasResampleTimelineOrHistory;
 
-        // A Pass-with-Cooking resample must show its second cycle only after a
-        // resample user has actually been allotted AND the Trigger button has been
-        // pressed. Otherwise the "Pending" second cycle row appears far too early.
         const isResampleInitiated = isResampleTriggered
             || Boolean((entry as any)?.resampleStartAt)
             || Boolean((entry as any)?.resampleDecisionAt);
         const isPassWithCookingResampleReady = resampleOriginDecision !== 'PASS_WITH_COOKING'
             || isResampleTriggered
             || (isResampleInitiated && (hasResampleTimelineOrHistory || Boolean(entry.sampleCollectedBy)));
+
+        const historyRaw = Array.isArray(cr?.history) ? cr!.history : [];
+        const history = [...historyRaw].sort((a, b) => toTs((a as any)?.date || (a as any)?.updatedAt || (a as any)?.createdAt || '') - toTs((b as any)?.date || (b as any)?.updatedAt || (b as any)?.createdAt || ''));
+        let pendingDone: { doneBy: string; doneDate: any; remarks: string } | null = null as { doneBy: string; doneDate: any; remarks: string } | null;
+
+        let completedFirstCycle = resampleOriginDecision === 'PASS_WITHOUT_COOKING';
+
+        history.forEach((h: any) => {
+            const hasStatus = !!h?.status;
+            const doneByValue = String(h?.cookingDoneBy || '').trim();
+            const doneDateValue = h?.doneDate || h?.cookingDoneAt || h?.submittedAt || h?.date || null;
+
+            if (!hasStatus && doneByValue) {
+                pendingDone = {
+                    doneBy: doneByValue,
+                    doneDate: doneDateValue,
+                    remarks: String(h?.remarks || '').trim()
+                };
+                return;
+            }
+
+            if (hasStatus) {
+                const currentAttemptNo = (isResampleActive && completedFirstCycle) ? 2 : 1;
+                rows.push({
+                    status: normalizeCookingStatusLabel(h.status),
+                    remarks: String(h?.remarks || '').trim(),
+                    doneBy: pendingDone?.doneBy || doneByValue || String(cr?.cookingDoneBy || '').trim(),
+                    doneDate: pendingDone?.doneDate || doneDateValue,
+                    approvedBy: String(h?.approvedBy || h?.cookingApprovedBy || cr?.cookingApprovedBy || '').trim(),
+                    approvedDate: h?.approvedDate || h?.cookingApprovedAt || h?.date || null,
+                    attemptNo: currentAttemptNo
+                });
+                pendingDone = null;
+
+                const statusKey = String(h.status || '').toUpperCase();
+                if (['PASS', 'MEDIUM', 'FAIL'].includes(statusKey)) {
+                    completedFirstCycle = true;
+                }
+            }
+        });
+
+        if (rows.length === 0 && cr?.status) {
+            rows.push({
+                status: normalizeCookingStatusLabel(cr.status),
+                remarks: String(cr.remarks || '').trim(),
+                doneBy: String(cr.cookingDoneBy || '').trim(),
+                doneDate: (cr as any)?.doneDate || (cr as any)?.cookingDoneAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
+                approvedBy: String(cr.cookingApprovedBy || '').trim(),
+                approvedDate: (cr as any)?.approvedDate || (cr as any)?.cookingApprovedAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
+                attemptNo: isResampleActive && completedFirstCycle ? 2 : 1
+            });
+        }
+
+        if (entry.workflowStatus === 'CANCELLED') {
+            return rows;
+        }
+
+        if (isSmellFail && rows.length === 0) {
+            return [];
+        }
 
         if (String(d || '').toUpperCase() === 'FAIL' && rows.length === 0 && !hasStoredCookingHistory && !isResampleActive) {
             return [];
@@ -1255,7 +1263,8 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                 doneBy: pendingDone.doneBy,
                 doneDate: pendingDone.doneDate,
                 approvedBy: '',
-                approvedDate: null
+                approvedDate: null,
+                attemptNo: isResampleActive && completedFirstCycle ? 2 : 1
             });
         } else if (isCookingRecheckPending && !isQualityOnlyRecheck) {
             const lastRow = rows.length > 0 ? rows[rows.length - 1] : null;
@@ -1266,7 +1275,8 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                     doneBy: '',
                     doneDate: null,
                     approvedBy: '',
-                    approvedDate: null
+                    approvedDate: null,
+                    attemptNo: isResampleActive && completedFirstCycle ? 2 : 1
                 });
             }
         } else if (rows.length === 0 && cookingRequired) {
@@ -1277,7 +1287,8 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                 doneBy: '',
                 doneDate: null,
                 approvedBy: '',
-                approvedDate: null
+                approvedDate: null,
+                attemptNo: 1
             });
         }
 
@@ -1294,7 +1305,8 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                 doneBy: 'NA',
                 doneDate: null,
                 approvedBy: 'NA',
-                approvedDate: null
+                approvedDate: null,
+                attemptNo: 2
             });
         }
 
@@ -1305,7 +1317,8 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                 doneBy: '',
                 doneDate: null,
                 approvedBy: '',
-                approvedDate: null
+                approvedDate: null,
+                attemptNo: 1
             });
             rows.push({
                 status: 'Pending',
@@ -1313,16 +1326,18 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                 doneBy: '',
                 doneDate: null,
                 approvedBy: '',
-                approvedDate: null
+                approvedDate: null,
+                attemptNo: 2
             });
-        } else if (isResampleActive && rows.length === 1 && resampleOriginDecision !== 'PASS_WITHOUT_COOKING' && isPassWithCookingResampleReady) {
+        } else if (isResampleActive && rows.length > 0 && !rows.some(r => r.attemptNo === 2) && resampleOriginDecision !== 'PASS_WITHOUT_COOKING' && isPassWithCookingResampleReady) {
             rows.push({
                 status: 'Pending',
                 remarks: '',
                 doneBy: '',
                 doneDate: null,
                 approvedBy: '',
-                approvedDate: null
+                approvedDate: null,
+                attemptNo: 2
             });
         }
 
@@ -1341,6 +1356,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
                 {displayRows.map((row, idx) => {
                     const style = getStatusStyle(row.status);
+                    const samplingLabel = getSamplingLabel(row.attemptNo || idx + 1);
                     return (
                         <div
                             key={`${entry.id}-cook-status-${idx}`}
@@ -1356,7 +1372,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                             }}
                         >
                             <span style={{ fontSize: '9px', fontWeight: '800', color: '#334155' }}>
-                                {getSamplingLabel(idx + 1)}
+                                {samplingLabel}
                             </span>
                             <span style={{ background: style.bg, color: style.color, padding: '1px 6px', borderRadius: '10px', fontSize: '9px', fontWeight: '700' }}>
                                 {row.status}
