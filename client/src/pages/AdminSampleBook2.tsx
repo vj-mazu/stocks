@@ -1177,6 +1177,15 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
         const isResampleInitiated = isResampleTriggered
             || Boolean((entry as any)?.resampleStartAt)
             || Boolean((entry as any)?.resampleDecisionAt);
+        const resampleStartTime = toTs(
+            (entry as any)?.resampleStartAt ||
+            (entry as any)?.resampleTriggeredAt ||
+            (entry as any)?.resampleDecisionAt ||
+            (Array.isArray((entry as any)?.resampleCollectedTimeline) && (entry as any).resampleCollectedTimeline[0]?.date) ||
+            (Array.isArray((entry as any)?.resampleCollectedHistory) && (entry as any).resampleCollectedHistory[0]?.date) ||
+            (entry as any)?.lotSelectionAt
+        );
+
         const isPassWithCookingResampleReady = resampleOriginDecision !== 'PASS_WITH_COOKING'
             || isResampleTriggered
             || (isResampleInitiated && (hasResampleTimelineOrHistory || Boolean(entry.sampleCollectedBy)));
@@ -1202,7 +1211,9 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             }
 
             if (hasStatus) {
-                const currentAttemptNo = (isResampleActive && completedFirstCycle) ? 2 : 1;
+                const itemTime = toTs(h?.date || h?.cookingDoneAt || h?.submittedAt || h?.updatedAt || h?.createdAt);
+                const isAfterResample = resampleStartTime > 0 && itemTime >= resampleStartTime;
+                const currentAttemptNo = (isResampleActive && (completedFirstCycle || isAfterResample)) ? 2 : 1;
                 rows.push({
                     status: normalizeCookingStatusLabel(h.status),
                     remarks: String(h?.remarks || '').trim(),
@@ -1215,13 +1226,15 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                 pendingDone = null;
 
                 const statusKey = String(h.status || '').toUpperCase();
-                if (['PASS', 'MEDIUM', 'FAIL'].includes(statusKey)) {
+                if (currentAttemptNo === 1 && ['PASS', 'MEDIUM', 'FAIL'].includes(statusKey)) {
                     completedFirstCycle = true;
                 }
             }
         });
 
         if (rows.length === 0 && cr?.status) {
+            const crTime = toTs((cr as any)?.doneDate || (cr as any)?.cookingDoneAt || (cr as any)?.date || cr.updatedAt || cr.createdAt);
+            const isAfterResample = resampleStartTime > 0 && crTime >= resampleStartTime;
             rows.push({
                 status: normalizeCookingStatusLabel(cr.status),
                 remarks: String(cr.remarks || '').trim(),
@@ -1229,7 +1242,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                 doneDate: (cr as any)?.doneDate || (cr as any)?.cookingDoneAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
                 approvedBy: String(cr.cookingApprovedBy || '').trim(),
                 approvedDate: (cr as any)?.approvedDate || (cr as any)?.cookingApprovedAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
-                attemptNo: isResampleActive && completedFirstCycle ? 2 : 1
+                attemptNo: isResampleActive && (completedFirstCycle || isAfterResample) ? 2 : 1
             });
         }
 
@@ -1257,6 +1270,8 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             || entry.workflowStatus === 'COMPLETED';
 
         if (pendingDone) {
+            const pendingTime = toTs(pendingDone.doneDate);
+            const isPendingAfterResample = resampleStartTime > 0 && pendingTime >= resampleStartTime;
             rows.push({
                 status: 'Pending',
                 remarks: pendingDone.remarks,
@@ -1264,7 +1279,7 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
                 doneDate: pendingDone.doneDate,
                 approvedBy: '',
                 approvedDate: null,
-                attemptNo: isResampleActive && completedFirstCycle ? 2 : 1
+                attemptNo: isResampleActive && (completedFirstCycle || isPendingAfterResample) ? 2 : 1
             });
         } else if (isCookingRecheckPending && !isQualityOnlyRecheck) {
             const lastRow = rows.length > 0 ? rows[rows.length - 1] : null;
