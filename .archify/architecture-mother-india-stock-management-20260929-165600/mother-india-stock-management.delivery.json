@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "5fc92ccb-072c-4aad-be6a-e6641103a275",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "C:\\Users\\maju\\Downloads\\stocks-main\\stocks-main\\.archify\\architecture-mother-india-stock-management-20260929-165600\\candidate.json",
+  "output": "C:\\Users\\maju\\Downloads\\stocks-main\\stocks-main\\.archify\\architecture-mother-india-stock-management-20260929-165600\\mother-india-stock-management.html",
+  "specification": {
+    "sha256": "7a6c183e1079197ecf25821cceaa90ce69a833d6d939b3e690bb8e2e05d716c1",
+    "bytes": 6245
+  },
+  "artifact": {
+    "sha256": "52628577c9c50256e073ab230d7aa7d2177d12af820159127b94876426318430",
+    "bytes": 770873
+  }
+}

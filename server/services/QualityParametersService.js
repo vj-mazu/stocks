@@ -55,52 +55,79 @@ const areQualityAttemptsEquivalent = (left, right) => {
   return keys.every((key) => normalizeAttemptValue(left?.[key]) === normalizeAttemptValue(right?.[key]));
 };
 
-const buildQualityAttemptSnapshot = (quality = {}) => ({
-  sourceQualityId: quality.id || null,
-  reportedBy: quality.reportedBy || '',
-  reportedByUserId: quality.reportedByUserId || null,
-  moisture: quality.moisture,
-  moistureRaw: quality.moistureRaw || '',
-  dryMoisture: quality.dryMoisture,
-  dryMoistureRaw: quality.dryMoistureRaw || '',
-  cutting1: quality.cutting1,
-  cutting1Raw: quality.cutting1Raw || '',
-  cutting2: quality.cutting2,
-  cutting2Raw: quality.cutting2Raw || '',
-  bend1: quality.bend1,
-  bend1Raw: quality.bend1Raw || '',
-  bend2: quality.bend2,
-  bend2Raw: quality.bend2Raw || '',
-  mix: quality.mix,
-  mixRaw: quality.mixRaw || '',
-  mixS: quality.mixS,
-  mixSRaw: quality.mixSRaw || '',
-  mixL: quality.mixL,
-  mixLRaw: quality.mixLRaw || '',
-  kandu: quality.kandu,
-  kanduRaw: quality.kanduRaw || '',
-  oil: quality.oil,
-  oilRaw: quality.oilRaw || '',
-  sk: quality.sk,
-  skRaw: quality.skRaw || '',
-  grainsCount: quality.grainsCount,
-  grainsCountRaw: quality.grainsCountRaw || '',
-  wbR: quality.wbR,
-  wbRRaw: quality.wbRRaw || '',
-  wbBk: quality.wbBk,
-  wbBkRaw: quality.wbBkRaw || '',
-  wbT: quality.wbT,
-  wbTRaw: quality.wbTRaw || '',
-  paddyWb: quality.paddyWb,
-  paddyWbRaw: quality.paddyWbRaw || '',
-  smellHas: !!quality.smellHas,
-  smellType: quality.smellType || '',
-  gramsReport: quality.gramsReport || '',
-  uploadFileUrl: quality.uploadFileUrl || null,
-  gpsCoordinates: quality.gpsCoordinates || '',
-  createdAt: quality.createdAt || null,
-  updatedAt: quality.updatedAt || null
-});
+const buildQualityAttemptSnapshot = (quality = {}) => {
+  const now = new Date().toISOString();
+  return {
+    sourceQualityId: quality.id || null,
+    reportedBy: quality.reportedBy || '',
+    reportedByUserId: quality.reportedByUserId || null,
+    reportedAt: quality.reportedAt || quality.updatedAt || quality.createdAt || now,
+    moisture: quality.moisture,
+    moistureRaw: quality.moistureRaw || '',
+    dryMoisture: quality.dryMoisture,
+    dryMoistureRaw: quality.dryMoistureRaw || '',
+    cutting1: quality.cutting1,
+    cutting1Raw: quality.cutting1Raw || '',
+    cutting2: quality.cutting2,
+    cutting2Raw: quality.cutting2Raw || '',
+    bend1: quality.bend1,
+    bend1Raw: quality.bend1Raw || '',
+    bend2: quality.bend2,
+    bend2Raw: quality.bend2Raw || '',
+    mix: quality.mix,
+    mixRaw: quality.mixRaw || '',
+    mixS: quality.mixS,
+    mixSRaw: quality.mixSRaw || '',
+    mixL: quality.mixL,
+    mixLRaw: quality.mixLRaw || '',
+    kandu: quality.kandu,
+    kanduRaw: quality.kanduRaw || '',
+    oil: quality.oil,
+    oilRaw: quality.oilRaw || '',
+    sk: quality.sk,
+    skRaw: quality.skRaw || '',
+    grainsCount: quality.grainsCount,
+    grainsCountRaw: quality.grainsCountRaw || '',
+    wbR: quality.wbR,
+    wbRRaw: quality.wbRRaw || '',
+    wbBk: quality.wbBk,
+    wbBkRaw: quality.wbBkRaw || '',
+    wbT: quality.wbT,
+    wbTRaw: quality.wbTRaw || '',
+    paddyWb: quality.paddyWb,
+    paddyWbRaw: quality.paddyWbRaw || '',
+    smellHas: !!quality.smellHas,
+    smellType: quality.smellType || '',
+    gramsReport: quality.gramsReport || '',
+    uploadFileUrl: quality.uploadFileUrl || null,
+    gpsCoordinates: quality.gpsCoordinates || '',
+    createdAt: quality.createdAt || now,
+    updatedAt: quality.updatedAt || now
+  };
+};
+
+const mergeQualityAttemptSnapshot = (existingAttempt = {}, updatedSnapshot = {}) => {
+  const merged = { ...existingAttempt };
+  for (const [key, val] of Object.entries(updatedSnapshot)) {
+    if (val !== null && val !== undefined && val !== '') {
+      merged[key] = val;
+    } else if (merged[key] === undefined || merged[key] === null || merged[key] === '') {
+      merged[key] = val;
+    }
+  }
+  // Ensure timestamps and metadata are preserved/updated
+  merged.updatedAt = updatedSnapshot.updatedAt || new Date().toISOString();
+  if (!merged.createdAt) {
+    merged.createdAt = existingAttempt.createdAt || updatedSnapshot.createdAt || merged.updatedAt;
+  }
+  if (!merged.reportedAt || merged.reportedAt === '-') {
+    merged.reportedAt = updatedSnapshot.reportedAt || existingAttempt.reportedAt || merged.updatedAt;
+  }
+  if (!merged.reportedBy && updatedSnapshot.reportedBy) {
+    merged.reportedBy = updatedSnapshot.reportedBy;
+  }
+  return merged;
+};
 
 const syncQualityAttemptSnapshots = async (sampleEntryId, currentQualityBeforeUpdate, updatedQuality, isNewAttempt = false, collapseToSingleAttempt = false) => {
   const sampleEntry = await SampleEntryRepository.findById(sampleEntryId);
@@ -128,7 +155,7 @@ const syncQualityAttemptSnapshots = async (sampleEntryId, currentQualityBeforeUp
     const firstAttempt = existingAttempts[0]
       || (currentQualityBeforeUpdate ? { ...buildQualityAttemptSnapshot(currentQualityBeforeUpdate), attemptNo: 1 } : null);
     const collapsedAttempts = firstAttempt
-      ? [{ ...firstAttempt, ...updatedSnapshot, attemptNo: 1 }]
+      ? [{ ...mergeQualityAttemptSnapshot(firstAttempt, updatedSnapshot), attemptNo: 1 }]
       : [];
 
     await SampleEntryRepository.update(sampleEntryId, {
@@ -138,14 +165,12 @@ const syncQualityAttemptSnapshots = async (sampleEntryId, currentQualityBeforeUp
   } else {
     if (existingAttempts.length >= 2) {
       existingAttempts[1] = {
-        ...existingAttempts[1],
-        ...updatedSnapshot,
+        ...mergeQualityAttemptSnapshot(existingAttempts[1], updatedSnapshot),
         attemptNo: 2
       };
     } else if (existingAttempts.length === 1) {
       existingAttempts[0] = {
-        ...existingAttempts[0],
-        ...updatedSnapshot,
+        ...mergeQualityAttemptSnapshot(existingAttempts[0], updatedSnapshot),
         attemptNo: 1
       };
     } else {

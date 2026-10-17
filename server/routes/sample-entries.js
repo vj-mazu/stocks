@@ -2248,6 +2248,8 @@ router.post('/:id/patti', authenticateToken, async (req, res) => {
       lfRate: lfRate !== undefined ? Number(lfRate) : 0,
       lfUnit: lfUnit || 'per_bag',
       lfAmount: lfAmount !== undefined ? Number(lfAmount) : 0,
+      marketFeesAmount: req.body.marketFeesAmount !== undefined ? Number(req.body.marketFeesAmount) : 0,
+      checkPostAmount: req.body.checkPostAmount !== undefined ? Number(req.body.checkPostAmount) : 0,
       egbRate: req.body.egbRate !== undefined ? Number(req.body.egbRate) : 0,
       egbAmount: req.body.egbAmount !== undefined ? Number(req.body.egbAmount) : 0,
       showEgb: req.body.showEgb !== undefined ? req.body.showEgb : false,
@@ -2743,11 +2745,7 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
           && hasMoisture
           && hasWbR
           && hasWbBk
-          && hasGrains
-          && !hasAnyFullDetail
-          && !hasDryMoisture
-          && !hasSmix
-          && !hasLmix;
+          && hasGrains;
         const isValidPaddy100gThreeFieldOnly =
           sampleEntry?.entryType !== 'RICE_SAMPLE'
           && hasMoisture
@@ -2766,7 +2764,7 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
           return res.status(400).json({ error: 'Sample Reported By is required' });
         }
 
-        if (!is100gOnly && !isValidResampleCookingPrepOnly && !isValidPaddy100gThreeFieldOnly) {
+        if (!is100gOnly && !isValidResampleCookingPrepOnly && !isValidPaddy100gThreeFieldOnly && !isResampleCookingPrepOnlyRequest) {
           if (!hasMoisture) return res.status(400).json({ error: 'Moisture is required' });
           if (!hasGrains) return res.status(400).json({ error: 'Grains Count is required' });
           if (!hasCutting1 || !hasCutting2) return res.status(400).json({ error: 'Cutting is required' });
@@ -2782,16 +2780,18 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
 
         const isNextIntent = String(req.body.qualityEntryIntent || '').toLowerCase() === 'next';
         const isResampleAction = sampleEntry.entryType !== 'RICE_SAMPLE'
-          && (isResampleActuallyInitiated(sampleEntry) || isValidResampleCookingPrepOnly || isNextIntent);
+          && (isResampleActuallyInitiated(sampleEntry) || isValidResampleCookingPrepOnly || isResampleCookingPrepOnlyRequest || isNextIntent);
         const qualityAttempts = Array.isArray(sampleEntry.qualityAttemptDetails) ? sampleEntry.qualityAttemptDetails : [];
-        const existingSecondAttempt = isResampleAction && !isNextIntent && qualityAttempts.length >= 2 ? qualityAttempts[qualityAttempts.length - 1] : null;
+        const candidateSecondAttempt = qualityAttempts.find(a => a?.attemptNo === 2) || qualityAttempts[1] || null;
+        const existingSecondAttempt = isResampleAction && !isNextIntent ? (candidateSecondAttempt || (qualityAttempts.length >= 2 ? qualityAttempts[qualityAttempts.length - 1] : null)) : null;
 
         // When saving 100gms / prep only or editing attempt 1, preserve existingQuality fields from attempt 1
-        const isPrepOr100gSave = is100gOnly || isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly;
-        const prevQ = {
+        const isPrepOr100gSave = is100gOnly || isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly || isResampleCookingPrepOnlyRequest;
+        const fallbackSource = {
           ...QUALITY_FIELD_NULL_DEFAULTS,
-          ...(isResampleAction ? (existingSecondAttempt || {}) : (existingQuality || {}))
+          ...(isResampleAction ? (candidateSecondAttempt || existingSecondAttempt || existingQuality || qualityAttempts[0] || {}) : (existingQuality || {}))
         };
+        const prevQ = fallbackSource;
 
         // Convert string values from FormData to numbers (with safe parsing)
         const qualityData = {
@@ -2833,6 +2833,7 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
           paddyWbRaw: hasPaddyWb ? (paddyWbEnabled ? normalizeRaw(req.body.paddyWb) : null) : (isPrepOr100gSave ? prevQ.paddyWbRaw : null),
           gramsReport: normalizeGramsReport(req.body.gramsReport) || (isPrepOr100gSave ? (prevQ.gramsReport || null) : null),
           reportedBy: reportedByValue || (isPrepOr100gSave ? (prevQ.reportedBy || req.user?.username || '') : (req.user?.username || '')),
+          reportedAt: req.body.reportedAt || prevQ.reportedAt || new Date().toISOString(),
           smellHas: isPrepOr100gSave && smellHas === undefined ? (prevQ.smellHas || false) : (smellHas || false),
           smellType: isPrepOr100gSave && !smellType ? (prevQ.smellType || null) : (smellType || null),
           is100Grams: req.body.is100Grams === 'true' || req.body.is100Grams === true || is100gSave,
@@ -2863,6 +2864,11 @@ router.post('/:id/quality-parameters', authenticateToken, async (req, res) => {
               updates.resampleCollectedTimeline = timeline;
             }
           }
+          
+          if (!sampleEntry.resampleStartAt) {
+            updates.resampleStartAt = new Date();
+          }
+          updates.updatedAt = new Date();
           
           if (Object.keys(updates).length > 0) {
             gpsUpdatePromise = sampleEntry.update(updates);
@@ -3158,18 +3164,7 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
           && hasWbR
           && hasWbBk
           && normalizeRaw(req.body.moisture) !== null
-          && normalizeRaw(req.body.grainsCount) !== null
-          && !hasMix
-          && !hasKandu
-          && !hasOil
-          && !hasSk
-          && !hasSmix
-          && !hasLmix
-          && normalizeRaw(req.body.cutting1) === null
-          && normalizeRaw(req.body.cutting2) === null
-          && normalizeRaw(req.body.bend1) === null
-          && normalizeRaw(req.body.bend2) === null
-          && !hasDryMoisture;
+          && normalizeRaw(req.body.grainsCount) !== null;
         const isValidPaddy100gThreeFieldOnly =
           sampleEntry?.entryType !== 'RICE_SAMPLE'
           && normalizeRaw(req.body.moisture) !== null
@@ -3190,7 +3185,7 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
           && !hasDryMoisture;
         const rawReportedByValue = typeof req.body.reportedBy === 'string' ? req.body.reportedBy.trim() : '';
         const reportedByValue = rawReportedByValue;
-        const is100gSave = isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly;
+        const is100gSave = isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly || isResampleCookingPrepOnlyRequest;
         if ((!is100gSave && !reportedByValue) || reportedByValue.toLowerCase() === 'unknown') {
           return res.status(400).json({ error: 'Sample Reported By is required' });
         }
@@ -3204,14 +3199,16 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
             && (
               isResampleActuallyInitiated(sampleEntry)
               || isValidResampleCookingPrepOnly
+              || isResampleCookingPrepOnlyRequest
               || isNextIntent
             );
         const qualityAttempts = Array.isArray(sampleEntry.qualityAttemptDetails) ? sampleEntry.qualityAttemptDetails : [];
-        const existingSecondAttempt = isResampleAction && !isNextIntent && qualityAttempts.length >= 2 ? qualityAttempts[qualityAttempts.length - 1] : null;
-        const isPrepOr100gSave = isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly;
+        const candidateSecondAttempt = qualityAttempts.find(a => a?.attemptNo === 2) || qualityAttempts[1] || null;
+        const existingSecondAttempt = isResampleAction && !isNextIntent ? (candidateSecondAttempt || (qualityAttempts.length >= 2 ? qualityAttempts[qualityAttempts.length - 1] : null)) : null;
+        const isPrepOr100gSave = isValidResampleCookingPrepOnly || isValidPaddy100gThreeFieldOnly || isResampleCookingPrepOnlyRequest;
         const fallbackSource = {
           ...QUALITY_FIELD_NULL_DEFAULTS,
-          ...(isResampleAction ? (existingSecondAttempt || {}) : (existing || {}))
+          ...(isResampleAction ? (candidateSecondAttempt || existingSecondAttempt || existing || qualityAttempts[0] || {}) : (existing || {}))
         };
 
         // Prepare update data
@@ -3258,7 +3255,8 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
           wbTRaw: wbEnabled ? (normalizeRaw(req.body.wbT) ?? fallbackSource.wbTRaw ?? null) : null,
           paddyWbRaw: paddyWbEnabled ? (normalizeRaw(req.body.paddyWb) ?? fallbackSource.paddyWbRaw ?? null) : null,
           gramsReport: normalizeGramsReport(req.body.gramsReport, fallbackSource.gramsReport),
-          reportedBy: reportedByValue || fallbackSource.reportedBy || req.user?.username || '',
+          reportedBy: reportedByValue || fallbackSource.reportedBy || sampleEntry.createdBy || req.user?.username || '',
+          reportedAt: req.body.reportedAt || fallbackSource.reportedAt || new Date().toISOString(),
           reportedByUserId: req.user.userId,
           smixEnabled,
           lmixEnabled,
@@ -3282,6 +3280,10 @@ router.put('/:id/quality-parameters', authenticateToken, async (req, res) => {
               entryUpdates.resampleCollectedTimeline = timeline;
             }
           }
+          if (!sampleEntry.resampleStartAt) {
+            entryUpdates.resampleStartAt = new Date();
+          }
+          entryUpdates.updatedAt = new Date();
           if (Object.keys(entryUpdates).length > 0) {
             gpsUpdatePromise = sampleEntry.update(entryUpdates);
           }

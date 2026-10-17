@@ -2244,20 +2244,42 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
 
     const getAllMillQualityParameters = () => {
         const list: any[] = [];
+        const targetLorry = (isArrivalsView && detailEntry.lorryNumber
+            ? String(detailEntry.lorryNumber).trim().replace(/\s+/g, '').toUpperCase()
+            : '') || (targetLorryTripId ? String(detailEntry.lorryNumber || '').trim().replace(/\s+/g, '').toUpperCase() : '');
+
+        const insps = inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections)
+            ? inspectionsProgress.previousInspections
+            : (Array.isArray((detailEntry as any).physicalInspections) ? (detailEntry as any).physicalInspections : []);
+
         const entryParams = [
             ...((detailEntry as any).inventoryQualityParameters || []),
             ...((detailEntry as any).lorryTransitDetail?.inventoryQualityParameters || [])
         ];
         entryParams.forEach((p: any) => {
             if (p && !list.some(item => String(item.id) === String(p.id))) {
+                if (targetLorry && p.lorryTransitDetailId) {
+                    const matchingInsp = insps.find((insp: any) =>
+                        String(insp.lorryTransitDetail?.id || insp.transitDetailId) === String(p.lorryTransitDetailId) ||
+                        String(insp.id) === String(p.physicalInspectionId)
+                    );
+                    if (matchingInsp) {
+                        const mInspLorry = String(matchingInsp.lorryNumber || matchingInsp.lorryTransitDetail?.lorryNumber || '').trim().replace(/\s+/g, '').toUpperCase();
+                        if (mInspLorry && mInspLorry !== targetLorry) {
+                            return;
+                        }
+                    }
+                }
                 const copy = { ...p, lorryNumber: detailEntry.lorryNumber, bags: detailEntry.bags };
                 list.push(copy);
             }
         });
-        const insps = inspectionsProgress && Array.isArray(inspectionsProgress.previousInspections)
-            ? inspectionsProgress.previousInspections
-            : (Array.isArray((detailEntry as any).physicalInspections) ? (detailEntry as any).physicalInspections : []);
+
         insps.forEach((insp: any) => {
+            const inspLorry = String(insp.lorryNumber || insp.lorryTransitDetail?.lorryNumber || '').trim().replace(/\s+/g, '').toUpperCase();
+            if (targetLorry && inspLorry && inspLorry !== targetLorry) {
+                return;
+            }
             const inspParams = [
                 ...(insp.inventoryQualityParameters || []),
                 ...(insp.lorryTransitDetail?.inventoryQualityParameters || [])
@@ -2269,11 +2291,29 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 }
             });
         });
+
+        if (targetLorry) {
+            return list.filter((item: any) => {
+                const itemLorry = String(item.lorryNumber || '').trim().replace(/\s+/g, '').toUpperCase();
+                return !itemLorry || itemLorry === targetLorry;
+            });
+        }
+
         return list;
     };
 
     const buildBmbQualityRows = (paramsList?: any[]) => {
-        const params = paramsList || (detailEntry as any).inventoryQualityParameters || [];
+        const rawParams = paramsList || (detailEntry as any).inventoryQualityParameters || [];
+        const targetLorry = (isArrivalsView && detailEntry.lorryNumber
+            ? String(detailEntry.lorryNumber).trim().replace(/\s+/g, '').toUpperCase()
+            : '') || (targetLorryTripId ? String(detailEntry.lorryNumber || '').trim().replace(/\s+/g, '').toUpperCase() : '');
+
+        const params = targetLorry
+            ? rawParams.filter((param: any) => {
+                const pLorry = String(param.lorryNumber || '').trim().replace(/\s+/g, '').toUpperCase();
+                return !pLorry || pLorry === targetLorry;
+            })
+            : rawParams;
         
         // Group params by lorryNumber
         const groups: { [lorry: string]: any[] } = {};
@@ -3132,11 +3172,16 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             const stages = insp.samplingStages || {};
             const bagsLoaded = getApprovedFullAvgBags(stages, insp.bags);
             const lorryLabel = (insp.lorryNumber || detailEntry.lorryNumber || 'Lorry').toUpperCase();
+            const originalIdx = rawInsps.findIndex((r: any) =>
+                (r && insp && r.id && insp.id && String(r.id) === String(insp.id)) ||
+                (r && insp && r.lorryNumber && insp.lorryNumber && String(r.lorryNumber).replace(/\s+/g, '').toUpperCase() === String(insp.lorryNumber).replace(/\s+/g, '').toUpperCase())
+            );
+            const loadNumber = originalIdx >= 0 ? originalIdx + 1 : idx + 1;
             merged.push({
                 type: 'header',
-                content: `Load ${idx + 1} - ${lorryLabel} | Bags Loaded: ${bagsLoaded}`
+                content: `Load ${loadNumber} - ${lorryLabel} | Bags Loaded: ${bagsLoaded}`
             });
-            const tripRows = buildTripQualityRows(insp, idx);
+            const tripRows = buildTripQualityRows(insp, originalIdx >= 0 ? originalIdx : idx);
             tripRows.forEach((r: any) => {
                 if (r && r.type) { merged.push(r); return; }
                 merged.push(normalizeQualityRow(r, 20));
@@ -3146,9 +3191,12 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         // 3. Mill - Avg Quality Sampling section
         const paramsList = getAllMillQualityParameters();
         if (paramsList.length > 0) {
+            const millTitle = detailEntry.lorryNumber && isArrivalsView
+                ? `Mill - Avg Quality Sampling (${String(detailEntry.lorryNumber).toUpperCase()})`
+                : 'Mill - Avg Quality Sampling';
             merged.push({
                 type: 'header',
-                content: 'Mill - Avg Quality Sampling'
+                content: millTitle
             });
             // Sort so the "Lot Avg (before unloading)" row appears before the Full Lorry Avg row
             [...paramsList].sort((a, b) => {
@@ -4398,17 +4446,38 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         });
 
         if (rows.length === 0 && cr?.status) {
-            const crTime = toTs((cr as any)?.doneDate || (cr as any)?.cookingDoneAt || (cr as any)?.date || cr.updatedAt || cr.createdAt);
-            const isAfterResample = resampleStartTime > 0 && crTime >= resampleStartTime;
-            rows.push({
-                status: normalizeCookingStatusLabel(cr.status),
-                remarks: String(cr.remarks || '').trim(),
-                doneBy: String(cr.cookingDoneBy || '').trim(),
-                doneDate: (cr as any)?.doneDate || (cr as any)?.cookingDoneAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
-                approvedBy: String(cr.cookingApprovedBy || '').trim(),
-                approvedDate: (cr as any)?.approvedDate || (cr as any)?.cookingApprovedAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
-                attemptNo: isResampleActive && (completedFirstCycle || isAfterResample) ? 2 : 1
-            });
+            if (isResampleActive && resampleOriginDecision === 'PASS_WITH_COOKING') {
+                rows.push({
+                    status: 'Pass',
+                    remarks: '',
+                    doneBy: 'NA',
+                    doneDate: null,
+                    approvedBy: 'NA',
+                    approvedDate: null,
+                    attemptNo: 1
+                });
+                rows.push({
+                    status: normalizeCookingStatusLabel(cr.status),
+                    remarks: String(cr.remarks || '').trim(),
+                    doneBy: String(cr.cookingDoneBy || '').trim(),
+                    doneDate: (cr as any)?.doneDate || (cr as any)?.cookingDoneAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
+                    approvedBy: String(cr.cookingApprovedBy || '').trim(),
+                    approvedDate: (cr as any)?.approvedDate || (cr as any)?.cookingApprovedAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
+                    attemptNo: 2
+                });
+            } else {
+                const crTime = toTs((cr as any)?.doneDate || (cr as any)?.cookingDoneAt || (cr as any)?.date || cr.updatedAt || cr.createdAt);
+                const isAfterResample = resampleStartTime > 0 && crTime >= resampleStartTime;
+                rows.push({
+                    status: normalizeCookingStatusLabel(cr.status),
+                    remarks: String(cr.remarks || '').trim(),
+                    doneBy: String(cr.cookingDoneBy || '').trim(),
+                    doneDate: (cr as any)?.doneDate || (cr as any)?.cookingDoneAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
+                    approvedBy: String(cr.cookingApprovedBy || '').trim(),
+                    approvedDate: (cr as any)?.approvedDate || (cr as any)?.cookingApprovedAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
+                    attemptNo: isResampleActive && (completedFirstCycle || isAfterResample) ? 2 : 1
+                });
+            }
         }
 
         if (entry.workflowStatus === 'CANCELLED') {
@@ -4446,31 +4515,81 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
             rows.push({
                 status: 'Pass',
                 remarks: '',
-                doneBy: '',
+                doneBy: 'NA',
                 doneDate: null,
-                approvedBy: '',
+                approvedBy: 'NA',
                 approvedDate: null,
                 attemptNo: 1
             });
-            rows.push({
-                status: 'Pending',
-                remarks: '',
-                doneBy: '',
-                doneDate: null,
-                approvedBy: '',
-                approvedDate: null,
-                attemptNo: 2
-            });
+            const crStatus = cr?.status ? normalizeCookingStatusLabel(cr.status) : null;
+            if (crStatus) {
+                rows.push({
+                    status: crStatus,
+                    remarks: String(cr.remarks || '').trim(),
+                    doneBy: String(cr.cookingDoneBy || '').trim(),
+                    doneDate: (cr as any)?.doneDate || (cr as any)?.cookingDoneAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
+                    approvedBy: String(cr.cookingApprovedBy || '').trim(),
+                    approvedDate: (cr as any)?.approvedDate || (cr as any)?.cookingApprovedAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
+                    attemptNo: 2
+                });
+            } else if (cr?.cookingDoneBy) {
+                rows.push({
+                    status: 'Pending',
+                    remarks: String(cr.remarks || '').trim(),
+                    doneBy: String(cr.cookingDoneBy || '').trim(),
+                    doneDate: (cr as any)?.doneDate || (cr as any)?.cookingDoneAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
+                    approvedBy: '',
+                    approvedDate: null,
+                    attemptNo: 2
+                });
+            } else {
+                rows.push({
+                    status: 'Pending',
+                    remarks: '',
+                    doneBy: '',
+                    doneDate: null,
+                    approvedBy: '',
+                    approvedDate: null,
+                    attemptNo: 2
+                });
+            }
         } else if (isResampleActive && rows.length > 0 && !rows.some(r => r.attemptNo === 2) && resampleOriginDecision !== 'PASS_WITHOUT_COOKING') {
-            rows.push({
-                status: 'Pending',
-                remarks: '',
-                doneBy: '',
-                doneDate: null,
-                approvedBy: '',
-                approvedDate: null,
-                attemptNo: 2
-            });
+            const crStatus = cr?.status ? normalizeCookingStatusLabel(cr.status) : null;
+            const lastRow = rows[rows.length - 1];
+            const isCrDifferentFromLastRow = !lastRow ||
+                (crStatus && (crStatus !== lastRow.status || String(cr.cookingApprovedBy || '').trim() !== String(lastRow.approvedBy || '').trim()));
+
+            if (crStatus && isCrDifferentFromLastRow) {
+                rows.push({
+                    status: crStatus,
+                    remarks: String(cr.remarks || '').trim(),
+                    doneBy: String(cr.cookingDoneBy || '').trim(),
+                    doneDate: (cr as any)?.doneDate || (cr as any)?.cookingDoneAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
+                    approvedBy: String(cr.cookingApprovedBy || '').trim(),
+                    approvedDate: (cr as any)?.approvedDate || (cr as any)?.cookingApprovedAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
+                    attemptNo: 2
+                });
+            } else if (cr?.cookingDoneBy && !cr?.status) {
+                rows.push({
+                    status: 'Pending',
+                    remarks: String(cr.remarks || '').trim(),
+                    doneBy: String(cr.cookingDoneBy || '').trim(),
+                    doneDate: (cr as any)?.doneDate || (cr as any)?.cookingDoneAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
+                    approvedBy: '',
+                    approvedDate: null,
+                    attemptNo: 2
+                });
+            } else {
+                rows.push({
+                    status: 'Pending',
+                    remarks: '',
+                    doneBy: '',
+                    doneDate: null,
+                    approvedBy: '',
+                    approvedDate: null,
+                    attemptNo: 2
+                });
+            }
         }
 
         return rows;
@@ -4955,7 +5074,17 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                             }
                                         }
 
-                                        if (transitDetailsList.length === 0) return null;
+                                        const targetLorry = isArrivalsView && detailEntry.lorryNumber
+                                            ? String(detailEntry.lorryNumber).trim().replace(/\s+/g, '').toUpperCase()
+                                            : '';
+                                        const filteredTransitDetailsList = targetLorry
+                                            ? transitDetailsList.filter((de: any) => {
+                                                const lNum = String(de.lorryNumber || de.physicalInspection?.lorryNumber || '').trim().replace(/\s+/g, '').toUpperCase();
+                                                return !lNum || lNum === targetLorry;
+                                              })
+                                            : transitDetailsList;
+
+                                        if (filteredTransitDetailsList.length === 0) return null;
 
                                         const fmtDt = (dt: any) => {
                                             if (!dt) return '-';
@@ -4979,7 +5108,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
 
                                         return (
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
-                                                {transitDetailsList.map((de: any, index: number) => {
+                                                {filteredTransitDetailsList.map((de: any, index: number) => {
                                                     const millWbName = de.millWeightBridge?.location
                                                         ? `${de.millWeightBridge.name} (${de.millWeightBridge.location})`
                                                         : (de.millWeightBridge?.name || de.partyWbName || '-');
@@ -5517,7 +5646,14 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                                     {(detailEntry as any).isBandMalalBook && (() => {
                                         const rawInspections = (detailEntry as any).physicalInspections || [];
                                         const patti = detailEntry.offering || {};
+                                        const targetLorry = isArrivalsView && detailEntry.lorryNumber
+                                            ? String(detailEntry.lorryNumber).trim().replace(/\s+/g, '').toUpperCase()
+                                            : '';
                                         const inspections = rawInspections.filter((insp: any) => {
+                                            if (targetLorry) {
+                                                const lNum = String(insp.lorryNumber || '').trim().replace(/\s+/g, '').toUpperCase();
+                                                if (lNum && lNum !== targetLorry) return false;
+                                            }
                                             const isPendingRate = patti?.pendingRateLinkingStatus === 'pending' && String(patti?.pendingRateLinkingData?.targetLorryTripId) === String(insp.id);
                                             return !!insp.linkedPattiRate || isPendingRate;
                                         });

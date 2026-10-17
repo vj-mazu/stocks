@@ -169,15 +169,25 @@ const getEffectiveDate = (entry: any) => {
     || (Array.isArray(entry?.resampleCollectedHistory) && entry.resampleCollectedHistory.length > 0)
     || Number(entry?.qualityReportAttempts || 0) > 1;
 
-  if (hasResampleFlow && Array.isArray(entry?.resampleCollectedTimeline) && entry.resampleCollectedTimeline.length > 0) {
-    const lastAssigned = entry.resampleCollectedTimeline[entry.resampleCollectedTimeline.length - 1];
-    if (lastAssigned && lastAssigned.date) {
-      return new Date(lastAssigned.date);
-    }
-  }
-  // Fallback for resample entries: use lotSelectionAt or updatedAt (allotment date)
   if (hasResampleFlow) {
+    if (Array.isArray(entry?.resampleCollectedTimeline) && entry.resampleCollectedTimeline.length > 0) {
+      const lastAssigned = entry.resampleCollectedTimeline[entry.resampleCollectedTimeline.length - 1];
+      if (lastAssigned && lastAssigned.date) {
+        return new Date(lastAssigned.date);
+      }
+    }
+    const attempts = Array.isArray(entry?.qualityAttemptDetails) ? entry.qualityAttemptDetails.filter(Boolean) : [];
+    if (attempts.length >= 2) {
+      const secondAttempt = attempts[1];
+      const attemptDate = secondAttempt?.reportedAt || secondAttempt?.updatedAt || secondAttempt?.createdAt;
+      if (attemptDate) {
+        return new Date(attemptDate);
+      }
+    }
+    // Fallback for resample entries: use resample timestamps, lotSelectionAt or updatedAt
     if (entry?.resampleStartAt) return new Date(entry.resampleStartAt);
+    if (entry?.resampleDecisionAt) return new Date(entry.resampleDecisionAt);
+    if (entry?.resampleTriggeredAt) return new Date(entry.resampleTriggeredAt);
     if (entry?.lotSelectionAt) return new Date(entry.lotSelectionAt);
     if (entry?.updatedAt) return new Date(entry.updatedAt);
   }
@@ -408,14 +418,33 @@ const buildCookingStatusRows = (entry: any) => {
   });
 
   if (rows.length === 0 && cr?.status) {
-    rows.push({
-      status: normalizeCookingStatus(cr.status),
-      doneBy: String(cr.cookingDoneBy || '').trim(),
-      doneDate: cr?.doneDate || cr?.cookingDoneAt || cr?.date || cr?.updatedAt || cr?.createdAt || null,
-      approvedBy: String(cr.cookingApprovedBy || '').trim(),
-      approvedDate: cr?.approvedDate || cr?.cookingApprovedAt || cr?.date || cr?.updatedAt || cr?.createdAt || null,
-      remarks: String(cr.remarks || '').trim()
-    });
+    if (String((entry as any)?.resampleOriginDecision || '').toUpperCase() === 'PASS_WITH_COOKING') {
+      rows.push({
+        status: 'Pass',
+        doneBy: 'NA',
+        doneDate: null,
+        approvedBy: 'NA',
+        approvedDate: null,
+        remarks: ''
+      });
+      rows.push({
+        status: normalizeCookingStatus(cr.status),
+        doneBy: String(cr.cookingDoneBy || '').trim(),
+        doneDate: cr?.doneDate || cr?.cookingDoneAt || cr?.date || cr?.updatedAt || cr?.createdAt || null,
+        approvedBy: String(cr.cookingApprovedBy || '').trim(),
+        approvedDate: cr?.approvedDate || cr?.cookingApprovedAt || cr?.date || cr?.updatedAt || cr?.createdAt || null,
+        remarks: String(cr.remarks || '').trim()
+      });
+    } else {
+      rows.push({
+        status: normalizeCookingStatus(cr.status),
+        doneBy: String(cr.cookingDoneBy || '').trim(),
+        doneDate: cr?.doneDate || cr?.cookingDoneAt || cr?.date || cr?.updatedAt || cr?.createdAt || null,
+        approvedBy: String(cr.cookingApprovedBy || '').trim(),
+        approvedDate: cr?.approvedDate || cr?.cookingApprovedAt || cr?.date || cr?.updatedAt || cr?.createdAt || null,
+        remarks: String(cr.remarks || '').trim()
+      });
+    }
   }
 
   if (pendingDone) {
@@ -1084,6 +1113,51 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
       formData.append('wbEnabled', 'true');
       formData.append('is100Grams', 'true');
       formData.append('resampleCookingPrepOnly', 'true');
+      // Preserve any existing full quality fields from this cycle so 100g save does not drop them
+      const currentCycleQuality = getCurrentCycleQualitySnapshot(resamplePrepEntry) as any;
+      if (currentCycleQuality) {
+        if (currentCycleQuality.cutting1Raw || currentCycleQuality.cutting1) {
+          formData.append('cutting1', String(currentCycleQuality.cutting1Raw ?? currentCycleQuality.cutting1));
+        }
+        if (currentCycleQuality.cutting2Raw || currentCycleQuality.cutting2) {
+          formData.append('cutting2', String(currentCycleQuality.cutting2Raw ?? currentCycleQuality.cutting2));
+        }
+        if (currentCycleQuality.bend1Raw || currentCycleQuality.bend1) {
+          formData.append('bend1', String(currentCycleQuality.bend1Raw ?? currentCycleQuality.bend1));
+        }
+        if (currentCycleQuality.bend2Raw || currentCycleQuality.bend2) {
+          formData.append('bend2', String(currentCycleQuality.bend2Raw ?? currentCycleQuality.bend2));
+        }
+        if (currentCycleQuality.mixRaw || currentCycleQuality.mix) {
+          formData.append('mix', String(currentCycleQuality.mixRaw ?? currentCycleQuality.mix));
+        }
+        if (currentCycleQuality.mixSRaw || currentCycleQuality.mixS) {
+          formData.append('mixS', String(currentCycleQuality.mixSRaw ?? currentCycleQuality.mixS));
+          formData.append('smixEnabled', 'true');
+        }
+        if (currentCycleQuality.mixLRaw || currentCycleQuality.mixL) {
+          formData.append('mixL', String(currentCycleQuality.mixLRaw ?? currentCycleQuality.mixL));
+          formData.append('lmixEnabled', 'true');
+        }
+        if (currentCycleQuality.kanduRaw || currentCycleQuality.kandu) {
+          formData.append('kandu', String(currentCycleQuality.kanduRaw ?? currentCycleQuality.kandu));
+        }
+        if (currentCycleQuality.oilRaw || currentCycleQuality.oil) {
+          formData.append('oil', String(currentCycleQuality.oilRaw ?? currentCycleQuality.oil));
+        }
+        if (currentCycleQuality.skRaw || currentCycleQuality.sk) {
+          formData.append('sk', String(currentCycleQuality.skRaw ?? currentCycleQuality.sk));
+        }
+        if (currentCycleQuality.dryMoistureRaw || currentCycleQuality.dryMoisture) {
+          formData.append('dryMoisture', String(currentCycleQuality.dryMoistureRaw ?? currentCycleQuality.dryMoisture));
+          formData.append('dryMoistureEnabled', 'true');
+        }
+        if (currentCycleQuality.smellHas !== undefined) {
+          formData.append('smellHas', String(currentCycleQuality.smellHas));
+          if (currentCycleQuality.smellType) formData.append('smellType', currentCycleQuality.smellType);
+        }
+      }
+
       // Only create a NEW sample when the current cycle has no sample yet (a genuine
       // resample that still needs its first 100g quality). If a sample already exists
       // for this cycle and we are only topping up missed WB-R / WB-BK, this save must
@@ -1105,7 +1179,8 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
         resampleTriggerRequired: Boolean((resamplePrepEntry as any)?.resampleTriggerRequired),
         resampleTriggeredAt: (resamplePrepEntry as any)?.resampleTriggeredAt ?? null
       });
-      formData.append('reportedBy', user?.fullName || user?.username || '');
+      formData.append('reportedBy', (currentCycleQuality?.reportedBy) || user?.fullName || user?.username || '');
+      formData.append('reportedAt', new Date().toISOString());
 
       await axios.post(
         `${API_URL}/sample-entries/${resamplePrepEntry.id}/quality-parameters`,

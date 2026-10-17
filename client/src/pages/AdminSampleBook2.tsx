@@ -267,11 +267,26 @@ const getEffectiveDate = (entry: any) => {
     || (Array.isArray(entry?.resampleCollectedHistory) && entry.resampleCollectedHistory.length > 0)
     || Number(entry?.qualityReportAttempts || 0) > 1;
 
-  if (hasResampleFlow && Array.isArray(entry?.resampleCollectedTimeline) && entry.resampleCollectedTimeline.length > 0) {
-    const lastAssigned = entry.resampleCollectedTimeline[entry.resampleCollectedTimeline.length - 1];
-    if (lastAssigned && lastAssigned.date) {
-      return new Date(lastAssigned.date);
+  if (hasResampleFlow) {
+    if (Array.isArray(entry?.resampleCollectedTimeline) && entry.resampleCollectedTimeline.length > 0) {
+      const lastAssigned = entry.resampleCollectedTimeline[entry.resampleCollectedTimeline.length - 1];
+      if (lastAssigned && lastAssigned.date) {
+        return new Date(lastAssigned.date);
+      }
     }
+    const attempts = Array.isArray(entry?.qualityAttemptDetails) ? entry.qualityAttemptDetails.filter(Boolean) : [];
+    if (attempts.length >= 2) {
+      const secondAttempt = attempts[1];
+      const attemptDate = secondAttempt?.reportedAt || secondAttempt?.updatedAt || secondAttempt?.createdAt;
+      if (attemptDate) {
+        return new Date(attemptDate);
+      }
+    }
+    if (entry?.resampleStartAt) return new Date(entry.resampleStartAt);
+    if (entry?.resampleDecisionAt) return new Date(entry.resampleDecisionAt);
+    if (entry?.resampleTriggeredAt) return new Date(entry.resampleTriggeredAt);
+    if (entry?.lotSelectionAt) return new Date(entry.lotSelectionAt);
+    if (entry?.updatedAt) return new Date(entry.updatedAt);
   }
   return new Date(entry.entryDate);
 };
@@ -1233,17 +1248,38 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
         });
 
         if (rows.length === 0 && cr?.status) {
-            const crTime = toTs((cr as any)?.doneDate || (cr as any)?.cookingDoneAt || (cr as any)?.date || cr.updatedAt || cr.createdAt);
-            const isAfterResample = resampleStartTime > 0 && crTime >= resampleStartTime;
-            rows.push({
-                status: normalizeCookingStatusLabel(cr.status),
-                remarks: String(cr.remarks || '').trim(),
-                doneBy: String(cr.cookingDoneBy || '').trim(),
-                doneDate: (cr as any)?.doneDate || (cr as any)?.cookingDoneAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
-                approvedBy: String(cr.cookingApprovedBy || '').trim(),
-                approvedDate: (cr as any)?.approvedDate || (cr as any)?.cookingApprovedAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
-                attemptNo: isResampleActive && (completedFirstCycle || isAfterResample) ? 2 : 1
-            });
+            if (isResampleActive && resampleOriginDecision === 'PASS_WITH_COOKING') {
+                rows.push({
+                    status: 'Pass',
+                    remarks: '',
+                    doneBy: 'NA',
+                    doneDate: null,
+                    approvedBy: 'NA',
+                    approvedDate: null,
+                    attemptNo: 1
+                });
+                rows.push({
+                    status: normalizeCookingStatusLabel(cr.status),
+                    remarks: String(cr.remarks || '').trim(),
+                    doneBy: String(cr.cookingDoneBy || '').trim(),
+                    doneDate: (cr as any)?.doneDate || (cr as any)?.cookingDoneAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
+                    approvedBy: String(cr.cookingApprovedBy || '').trim(),
+                    approvedDate: (cr as any)?.approvedDate || (cr as any)?.cookingApprovedAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
+                    attemptNo: 2
+                });
+            } else {
+                const crTime = toTs((cr as any)?.doneDate || (cr as any)?.cookingDoneAt || (cr as any)?.date || cr.updatedAt || cr.createdAt);
+                const isAfterResample = resampleStartTime > 0 && crTime >= resampleStartTime;
+                rows.push({
+                    status: normalizeCookingStatusLabel(cr.status),
+                    remarks: String(cr.remarks || '').trim(),
+                    doneBy: String(cr.cookingDoneBy || '').trim(),
+                    doneDate: (cr as any)?.doneDate || (cr as any)?.cookingDoneAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
+                    approvedBy: String(cr.cookingApprovedBy || '').trim(),
+                    approvedDate: (cr as any)?.approvedDate || (cr as any)?.cookingApprovedAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
+                    attemptNo: isResampleActive && (completedFirstCycle || isAfterResample) ? 2 : 1
+                });
+            }
         }
 
         if (entry.workflowStatus === 'CANCELLED') {
@@ -1329,31 +1365,81 @@ const buildQualityStatusRows = (entry: SampleEntry) => {
             rows.push({
                 status: 'Pass',
                 remarks: '',
-                doneBy: '',
+                doneBy: 'NA',
                 doneDate: null,
-                approvedBy: '',
+                approvedBy: 'NA',
                 approvedDate: null,
                 attemptNo: 1
             });
-            rows.push({
-                status: 'Pending',
-                remarks: '',
-                doneBy: '',
-                doneDate: null,
-                approvedBy: '',
-                approvedDate: null,
-                attemptNo: 2
-            });
+            const crStatus = cr?.status ? normalizeCookingStatusLabel(cr.status) : null;
+            if (crStatus) {
+                rows.push({
+                    status: crStatus,
+                    remarks: String(cr.remarks || '').trim(),
+                    doneBy: String(cr.cookingDoneBy || '').trim(),
+                    doneDate: (cr as any)?.doneDate || (cr as any)?.cookingDoneAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
+                    approvedBy: String(cr.cookingApprovedBy || '').trim(),
+                    approvedDate: (cr as any)?.approvedDate || (cr as any)?.cookingApprovedAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
+                    attemptNo: 2
+                });
+            } else if (cr?.cookingDoneBy) {
+                rows.push({
+                    status: 'Pending',
+                    remarks: String(cr.remarks || '').trim(),
+                    doneBy: String(cr.cookingDoneBy || '').trim(),
+                    doneDate: (cr as any)?.doneDate || (cr as any)?.cookingDoneAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
+                    approvedBy: '',
+                    approvedDate: null,
+                    attemptNo: 2
+                });
+            } else {
+                rows.push({
+                    status: 'Pending',
+                    remarks: '',
+                    doneBy: '',
+                    doneDate: null,
+                    approvedBy: '',
+                    approvedDate: null,
+                    attemptNo: 2
+                });
+            }
         } else if (isResampleActive && rows.length > 0 && !rows.some(r => r.attemptNo === 2) && resampleOriginDecision !== 'PASS_WITHOUT_COOKING' && isPassWithCookingResampleReady) {
-            rows.push({
-                status: 'Pending',
-                remarks: '',
-                doneBy: '',
-                doneDate: null,
-                approvedBy: '',
-                approvedDate: null,
-                attemptNo: 2
-            });
+            const crStatus = cr?.status ? normalizeCookingStatusLabel(cr.status) : null;
+            const lastRow = rows[rows.length - 1];
+            const isCrDifferentFromLastRow = !lastRow ||
+                (crStatus && (crStatus !== lastRow.status || String(cr.cookingApprovedBy || '').trim() !== String(lastRow.approvedBy || '').trim()));
+
+            if (crStatus && isCrDifferentFromLastRow) {
+                rows.push({
+                    status: crStatus,
+                    remarks: String(cr.remarks || '').trim(),
+                    doneBy: String(cr.cookingDoneBy || '').trim(),
+                    doneDate: (cr as any)?.doneDate || (cr as any)?.cookingDoneAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
+                    approvedBy: String(cr.cookingApprovedBy || '').trim(),
+                    approvedDate: (cr as any)?.approvedDate || (cr as any)?.cookingApprovedAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
+                    attemptNo: 2
+                });
+            } else if (cr?.cookingDoneBy && !cr?.status) {
+                rows.push({
+                    status: 'Pending',
+                    remarks: String(cr.remarks || '').trim(),
+                    doneBy: String(cr.cookingDoneBy || '').trim(),
+                    doneDate: (cr as any)?.doneDate || (cr as any)?.cookingDoneAt || (cr as any)?.date || cr.updatedAt || cr.createdAt || null,
+                    approvedBy: '',
+                    approvedDate: null,
+                    attemptNo: 2
+                });
+            } else {
+                rows.push({
+                    status: 'Pending',
+                    remarks: '',
+                    doneBy: '',
+                    doneDate: null,
+                    approvedBy: '',
+                    approvedDate: null,
+                    attemptNo: 2
+                });
+            }
         }
 
         return rows;

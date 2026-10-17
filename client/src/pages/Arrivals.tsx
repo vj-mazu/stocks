@@ -6207,14 +6207,15 @@ const Arrivals: React.FC = () => {
           headers: { Authorization: `Bearer ${token}` }
         });
         // Preserve the specific lorry context so the modal doesn't expand into
-        // a full page of ALL lorry loads after approving.
+        const fullEntry = response.data?.entry || response.data?.sampleEntry || response.data;
         setSelectedDetailEntry({
-          ...response.data,
+          ...fullEntry,
           lorryNumber: selectedDetailEntry.lorryNumber,
           isBandMalalBook: selectedDetailEntry.isBandMalalBook,
           isTransit: selectedDetailEntry.isTransit,
           isInTransit: selectedDetailEntry.isInTransit,
           transitDetailId: selectedDetailEntry.transitDetailId,
+          lorryTransitDetail: selectedDetailEntry.lorryTransitDetail,
           partyWbName: selectedDetailEntry.partyWbName || null,
         });
       }
@@ -6240,13 +6241,15 @@ const Arrivals: React.FC = () => {
         });
         // Preserve the specific lorry context so the modal doesn't expand into
         // a full page of ALL lorry loads after rejecting.
+        const fullEntry = response.data?.entry || response.data?.sampleEntry || response.data;
         setSelectedDetailEntry({
-          ...response.data,
+          ...fullEntry,
           lorryNumber: selectedDetailEntry.lorryNumber,
           isBandMalalBook: selectedDetailEntry.isBandMalalBook,
           isTransit: selectedDetailEntry.isTransit,
           isInTransit: selectedDetailEntry.isInTransit,
           transitDetailId: selectedDetailEntry.transitDetailId,
+          lorryTransitDetail: selectedDetailEntry.lorryTransitDetail,
           partyWbName: selectedDetailEntry.partyWbName || null,
         });
       }
@@ -6272,13 +6275,15 @@ const Arrivals: React.FC = () => {
         });
         // Preserve the specific lorry context so the modal doesn't expand into
         // a full page of ALL lorry loads after recheck.
+        const fullEntry = response.data?.entry || response.data?.sampleEntry || response.data;
         setSelectedDetailEntry({
-          ...response.data,
+          ...fullEntry,
           lorryNumber: selectedDetailEntry.lorryNumber,
           isBandMalalBook: selectedDetailEntry.isBandMalalBook,
           isTransit: selectedDetailEntry.isTransit,
           isInTransit: selectedDetailEntry.isInTransit,
           transitDetailId: selectedDetailEntry.transitDetailId,
+          lorryTransitDetail: selectedDetailEntry.lorryTransitDetail,
           partyWbName: selectedDetailEntry.partyWbName || null,
         });
       }
@@ -7187,7 +7192,11 @@ const Arrivals: React.FC = () => {
                                           ...entry,
                                           ...transitDetail,
                                           id: sampleEntryId,
+                                          transitDetailId: transitDetail?.id || (entry as any).transitDetailId,
+                                          lorryTransitDetail: transitDetail,
                                           lorryNumber: lorryNum,
+                                          isTransit: true,
+                                          isInTransit: true,
                                           partyWbName: transitDetail?.partyWbName || null,
                                           qualityParameters: fullSampleEntry.qualityParameters || entry.qualityParameters || null,
                                           qualityAttemptDetails: fullSampleEntry.qualityAttemptDetails || entry.qualityAttemptDetails || []
@@ -7199,7 +7208,11 @@ const Arrivals: React.FC = () => {
                                       console.error("Error fetching detail sample entry:", err);
                                       setSelectedDetailEntry({
                                         ...entry,
-                                        lorryNumber: lorryNum
+                                        transitDetailId: transitDetail?.id || (entry as any).transitDetailId,
+                                        lorryTransitDetail: transitDetail,
+                                        lorryNumber: lorryNum,
+                                        isTransit: true,
+                                        isInTransit: true
                                       });
                                       setIsDetailOpen(true);
                                     } finally {
@@ -8928,6 +8941,14 @@ const Arrivals: React.FC = () => {
 
 
                                       id: sampleEntryId,
+
+
+
+                                      transitDetailId: (entry as any).transitDetailId || (entry as any).id,
+
+
+
+                                      lorryTransitDetail: (entry as any).lorryTransitDetail || entry,
 
 
 

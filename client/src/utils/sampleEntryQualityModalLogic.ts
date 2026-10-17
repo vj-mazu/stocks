@@ -92,8 +92,10 @@ export const shouldRefillQualityModal = ({
 };
 
 export const getDisplayQualityParameters = (entry: any) => {
-  if (!entry || !entry.qualityParameters) return null;
+  if (!entry) return null;
   const qp = entry.qualityParameters;
+  const attempts = Array.isArray(entry.qualityAttemptDetails) ? entry.qualityAttemptDetails.filter(Boolean) : [];
+  const resampleAttempt = attempts.length >= 2 ? attempts[1] : null;
 
   // 1. Is this a quality recheck pending?
   const isQualityRecheckPending = entry.qualityPending === true ||
@@ -113,6 +115,10 @@ export const getDisplayQualityParameters = (entry: any) => {
   const isResampleFlow = isFailDecision || hasResampleCollectorHistory || isConvertedLocationResample;
 
   if (isResampleFlow) {
+    if (resampleAttempt) {
+      return resampleAttempt;
+    }
+    if (!qp) return null;
     const qpUpdated = toTimeValue(qp.updatedAt || qp.createdAt);
     const resampleStart = getExplicitResampleStartTime(entry);
     const failDate = toTimeValue(entry.lotSelectionAt);
@@ -127,11 +133,5 @@ export const getDisplayQualityParameters = (entry: any) => {
     }
   }
 
-  // 3. For extra safety, check recheck requested at
-  const recheckRequested = toTimeValue(entry.qualityRecheckRequestedAt);
-  if (recheckRequested > 0 && toTimeValue(qp.updatedAt || qp.createdAt) < recheckRequested) {
-    return null;
-  }
-
-  return qp;
+  return resampleAttempt || qp;
 };

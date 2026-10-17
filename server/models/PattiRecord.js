@@ -69,6 +69,18 @@ const PattiRecord = sequelize.define('PattiRecord', {
     defaultValue: 0.00,
     field: 'lf_amount'
   },
+  marketFeesAmount: {
+    type: DataTypes.DECIMAL(12, 2),
+    allowNull: true,
+    defaultValue: 0.00,
+    field: 'market_fees_amount'
+  },
+  checkPostAmount: {
+    type: DataTypes.DECIMAL(12, 2),
+    allowNull: true,
+    defaultValue: 0.00,
+    field: 'check_post_amount'
+  },
   customAdditions: {
     type: DataTypes.JSONB,
     allowNull: true,
@@ -213,7 +225,9 @@ const runPattiAutoMigration = async () => {
       `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS show_lf_advance_brk BOOLEAN DEFAULT false;`,
       `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS cd_rate DECIMAL(10, 2) DEFAULT 0.00;`,
       `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS cd_amount DECIMAL(12, 2) DEFAULT 0.00;`,
-      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS show_cd BOOLEAN DEFAULT false;`
+      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS show_cd BOOLEAN DEFAULT false;`,
+      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS market_fees_amount DECIMAL(12, 2) DEFAULT 0.00;`,
+      `ALTER TABLE patti_records ADD COLUMN IF NOT EXISTS check_post_amount DECIMAL(12, 2) DEFAULT 0.00;`
     ];
     for (const q of queries) {
       await sequelize.query(q).catch(() => {});

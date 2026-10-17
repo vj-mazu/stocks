@@ -1,0 +1,231 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Mother India Stock Management System Architecture",
+    "subtitle": "Full System Architecture: React Frontend, Express Workflow Engine, Quality & Cooking Services, Supabase PostgreSQL",
+    "output": ".archify/architecture-mother-india-stock-management-20260929-165600/mother-india-stock-management.html",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    {
+      "id": "users",
+      "type": "external",
+      "label": "Mill & Field Users",
+      "sublabel": "Staff, Supervisors, Admin, Buyers",
+      "pos": [40, 300],
+      "size": [150, 70]
+    },
+    {
+      "id": "web_app",
+      "type": "frontend",
+      "label": "React Vite Web App",
+      "sublabel": "SPA :5173 / React 18 + TS",
+      "pos": [270, 300],
+      "size": [170, 70],
+      "tag": "Tailwind + Axios"
+    },
+    {
+      "id": "auth_jwt",
+      "type": "security",
+      "label": "JWT & RBAC Auth",
+      "sublabel": "Role-Based Token Verification",
+      "pos": [270, 140],
+      "size": [170, 64],
+      "tag": "Admin, Staff, Supv, Buyer"
+    },
+    {
+      "id": "api_server",
+      "type": "backend",
+      "label": "Express API Server",
+      "sublabel": "Node.js REST Gateway",
+      "pos": [520, 300],
+      "size": [170, 70],
+      "tag": "Render.com"
+    },
+    {
+      "id": "workflow_engine",
+      "type": "backend",
+      "label": "Workflow Engine",
+      "sublabel": "State Machine (10+ Stages)",
+      "pos": [520, 140],
+      "size": [170, 64],
+      "tag": "Staff -> QC -> Lot -> Cook -> Final"
+    },
+    {
+      "id": "quality_service",
+      "type": "backend",
+      "label": "Quality Service",
+      "sublabel": "Multi-Attempt Snapshots",
+      "pos": [520, 460],
+      "size": [170, 70],
+      "tag": "Attempt 1/2 + In-place Edits"
+    },
+    {
+      "id": "cooking_service",
+      "type": "backend",
+      "label": "Cooking Service",
+      "sublabel": "Cooking Tests & Rechecks",
+      "pos": [800, 460],
+      "size": [170, 70],
+      "tag": "Pass / Medium / Fail Flow"
+    },
+    {
+      "id": "file_storage",
+      "type": "cloud",
+      "label": "Media & GPS Store",
+      "sublabel": "Godown & Lot Images",
+      "pos": [800, 140],
+      "size": [170, 64],
+      "tag": "Multer / Uploads"
+    },
+    {
+      "id": "db_postgres",
+      "type": "database",
+      "label": "Supabase PostgreSQL",
+      "sublabel": "Sequelize ORM :5432",
+      "pos": [800, 300],
+      "size": [170, 70],
+      "tag": "Transactional Data"
+    },
+    {
+      "id": "audit_logs",
+      "type": "database",
+      "label": "Audit & History",
+      "sublabel": "Immutable Event Logs",
+      "pos": [1060, 300],
+      "size": [160, 70],
+      "tag": "SampleEntryAuditLog"
+    },
+    {
+      "id": "pdf_service",
+      "type": "backend",
+      "label": "PDF & Ledger Engine",
+      "sublabel": "Sample Books & Slips",
+      "pos": [1060, 460],
+      "size": [160, 70],
+      "tag": "PDFKit / Ledger Export"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Application Runtime (Render.com Docker / Node.js)",
+      "wraps": ["web_app", "auth_jwt", "api_server", "workflow_engine", "quality_service", "cooking_service", "pdf_service"]
+    },
+    {
+      "kind": "region",
+      "label": "Data & Persistence Tier (Supabase PostgreSQL Cloud)",
+      "wraps": ["db_postgres", "audit_logs"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "users-to-app",
+      "from": "users",
+      "to": "web_app",
+      "label": "HTTPS / UI",
+      "variant": "emphasis"
+    },
+    {
+      "id": "app-to-auth",
+      "from": "web_app",
+      "to": "auth_jwt",
+      "label": "Login / JWT",
+      "variant": "security",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "app-to-api",
+      "from": "web_app",
+      "to": "api_server",
+      "label": "REST API",
+      "variant": "emphasis"
+    },
+    {
+      "id": "api-to-workflow",
+      "from": "api_server",
+      "to": "workflow_engine",
+      "label": "State Transitions",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "api-to-quality",
+      "from": "api_server",
+      "to": "quality_service",
+      "label": "Quality Sync",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "quality-to-cooking",
+      "from": "quality_service",
+      "to": "cooking_service",
+      "label": "Pass with Cook",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "api-to-db",
+      "from": "api_server",
+      "to": "db_postgres",
+      "label": "Sequelize ORM",
+      "variant": "emphasis"
+    },
+    {
+      "id": "db-to-media",
+      "from": "db_postgres",
+      "to": "file_storage",
+      "label": "Asset Paths",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "db-to-audit",
+      "from": "db_postgres",
+      "to": "audit_logs",
+      "label": "Log History",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "db-to-pdf",
+      "from": "db_postgres",
+      "to": "pdf_service",
+      "label": "Export Ledger",
+      "fromSide": "bottom",
+      "toSide": "left"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Frontend & Workspaces",
+      "items": [
+        "Sample Entry (Staff Entry, Location Sample, Mill Sample, Rechecks)",
+        "Quality & Cooking Management (Multi-attempt quality, cooking test tracking)",
+        "Admin Sample Books (Broker Grouped, Live Status Badges, Edit Approvals)",
+        "Stock & Logistics (Loading Lots, In-Transit Arrivals, Godown Inventories)"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Backend Services & Engine",
+      "items": [
+        "WorkflowEngine orchestrates 10+ status lifecycle transitions with role gates",
+        "QualityParametersService manages dual-attempt snapshots and prevents phantom duplicates",
+        "CookingReportService tracks historical tests, approvals, and supervisor triggers"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Data & Security",
+      "items": [
+        "JWT role-based access control (Admin, Manager, Staff, Supervisors, Buyers)",
+        "Supabase PostgreSQL with Sequelize models and immutable audit history logs"
+      ]
+    }
+  ]
+}

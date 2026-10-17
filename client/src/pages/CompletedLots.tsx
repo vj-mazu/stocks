@@ -1051,6 +1051,7 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
     const [millCdRate, setMillCdRate] = useState<number>(defaultCdRate);
     const [showMillCd, setShowMillCd] = useState<boolean>(defaultShowCd);
     const [showMarketFeesModal, setShowMarketFeesModal] = useState<boolean>(false);
+    const [showCheckPostModal, setShowCheckPostModal] = useState<boolean>(false);
     const [showBankLoanModal, setShowBankLoanModal] = useState<boolean>(false);
 
     const initialLfAdvanceBrk = pattiTrips.reduce((sum: number, trip: any) => {
@@ -1286,6 +1287,82 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
     const totalSuteNetWt = Math.round(calculatedTrips.reduce((sum, t) => sum + t.suteNetWt, 0));
     const totalLorryAmount = calculatedTrips.reduce((sum, t) => sum + t.amount, 0);
 
+    // Helper to calculate Market Fees for a specific trip
+    const getTripMarketFees = (insp: any, calcTrip?: any) => {
+        const lpr = insp.linkedPattiRate || {};
+        const off = entry.offering || {};
+        const mValRaw = lpr.marketPriceValue !== undefined && lpr.marketPriceValue !== null && String(lpr.marketPriceValue).trim() !== ''
+            ? lpr.marketPriceValue
+            : (off.finalMarketPriceValue2 ?? off.finalMarketPriceValue ?? off.marketPriceValue2 ?? off.marketPriceValue);
+        const mUnit = lpr.marketPriceUnit || off.finalMarketPriceUnit2 || off.finalMarketPriceUnit || off.marketPriceUnit2 || off.marketPriceUnit || 'percentage';
+        const mEnabled = lpr.marketPrice === true || lpr.marketPrice === 'true' || off.marketPrice === true || off.marketPrice === 'true';
+
+        if (!mEnabled && (mValRaw === undefined || mValRaw === null || String(mValRaw).trim() === '')) {
+            return 0;
+        }
+
+        const numVal = Number(mValRaw) || 0;
+        if (numVal <= 0) return 0;
+
+        const tripAmount = calcTrip?.amount || 0;
+        const tripBags = calcTrip?.bags || 0;
+        const tripNetWt = calcTrip?.netWt || 0;
+
+        if (mUnit === 'percentage') {
+            return Math.round((tripAmount * numVal) / 100);
+        } else if (mUnit === 'per_bag') {
+            return Math.round(tripBags * numVal);
+        } else if (mUnit === 'per_qtl' || mUnit === 'per_quintal') {
+            return Math.round((tripNetWt / 100) * numVal);
+        } else {
+            // 'lumps'
+            return Math.round(numVal);
+        }
+    };
+
+    const totalMarketFeesAmount = pattiTrips.reduce((sum: number, insp: any) => {
+        const ct = calculatedTrips.find((t: any) => t.id === insp.id);
+        return sum + getTripMarketFees(insp, ct);
+    }, 0);
+
+    // Helper to calculate Check Post for a specific trip
+    const getTripCheckPost = (insp: any, calcTrip?: any) => {
+        const lpr = insp.linkedPattiRate || {};
+        const off = entry.offering || {};
+        const cpValRaw = lpr.checkPostValue !== undefined && lpr.checkPostValue !== null && String(lpr.checkPostValue).trim() !== ''
+            ? lpr.checkPostValue
+            : (off.finalCheckPostValue2 ?? off.finalCheckPostValue ?? off.checkPostValue2 ?? off.checkPostValue);
+        const cpUnit = lpr.checkPostUnit || off.finalCheckPostUnit2 || off.finalCheckPostUnit || off.checkPostUnit2 || off.checkPostUnit || 'lumps';
+        const cpEnabled = lpr.checkPost === true || lpr.checkPost === 'true' || off.checkPost === true || off.checkPost === 'true';
+
+        if (!cpEnabled && (cpValRaw === undefined || cpValRaw === null || String(cpValRaw).trim() === '')) {
+            return 0;
+        }
+
+        const numVal = Number(cpValRaw) || 0;
+        if (numVal <= 0) return 0;
+
+        const tripAmount = calcTrip?.amount || 0;
+        const tripBags = calcTrip?.bags || 0;
+        const tripNetWt = calcTrip?.netWt || 0;
+
+        if (cpUnit === 'percentage') {
+            return Math.round((tripAmount * numVal) / 100);
+        } else if (cpUnit === 'per_bag') {
+            return Math.round(tripBags * numVal);
+        } else if (cpUnit === 'per_qtl' || cpUnit === 'per_quintal') {
+            return Math.round((tripNetWt / 100) * numVal);
+        } else {
+            // 'lumps'
+            return Math.round(numVal);
+        }
+    };
+
+    const totalCheckPostAmount = pattiTrips.reduce((sum: number, insp: any) => {
+        const ct = calculatedTrips.find((t: any) => t.id === insp.id);
+        return sum + getTripCheckPost(insp, ct);
+    }, 0);
+
     // Hamali calculation: if per_qtl -> (totalNetWt / 100) * rate, if per_bag -> totalBags * rate
     const hamaliAmount = Number((
         hamaliUnit === 'per_qtl'
@@ -1314,7 +1391,7 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
     const totalCustomAdditions = customAdditions.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0);
     const totalCustomDeductions = customDeductions.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0);
 
-    const totalAdditions = Number((hamaliAmount + brokerageAmount + lfAmount + (showEgb ? egbAmount : 0) + totalCustomAdditions).toFixed(2));
+    const totalAdditions = Number((hamaliAmount + brokerageAmount + lfAmount + totalMarketFeesAmount + totalCheckPostAmount + (showEgb ? egbAmount : 0) + totalCustomAdditions).toFixed(2));
     const cdAmount = showCd && Number(cdRate) > 0 ? Math.round((totalLorryAmount + totalAdditions) * (Number(cdRate) / 100)) : 0;
     const totalDeductions = Number(((showCd ? cdAmount : 0) + (showLessDf ? dfAmount : 0) + (showLessWb ? Number(lessWb) : 0) + (showLfAdvanceBrk ? Number(lfAdvanceBrk) : 0) + totalCustomDeductions).toFixed(2));
     const grandTotal = Math.round(totalLorryAmount + totalAdditions - totalDeductions);
@@ -1341,6 +1418,8 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                 lfRate,
                 lfUnit,
                 lfAmount,
+                marketFeesAmount: totalMarketFeesAmount,
+                checkPostAmount: totalCheckPostAmount,
                 egbRate: showEgb ? egbRate : 0,
                 egbAmount: showEgb ? egbAmount : 0,
                 showEgb,
@@ -1528,6 +1607,28 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                             >
                                 🏷️ Market Fees
                             </button>
+                            {/* Check Post Link */}
+                            <button
+                                type="button"
+                                onClick={() => setShowCheckPostModal(true)}
+                                style={{
+                                    fontSize: '12px',
+                                    fontWeight: '700',
+                                    backgroundColor: '#fffbeb',
+                                    color: '#b45309',
+                                    border: '1px solid #fde68a',
+                                    padding: '2px 8px',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    textDecoration: 'underline'
+                                }}
+                                title="Click to view Check Post by Lorry Number"
+                            >
+                                🚧 Check Post
+                            </button>
                             {/* Bank Loan Link */}
                             <button
                                 type="button"
@@ -1676,6 +1777,40 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                             <span style={{ flex: 1, textAlign: 'right', fontWeight: '600' }}>Rs {lfAmount.toLocaleString('en-IN')}</span>
                         </div>
 
+                        {/* Market Fees (All Lorries) */}
+                        {(totalMarketFeesAmount > 0 || pattiTrips.some((t: any) => t.linkedPattiRate?.marketPrice || entry.offering?.marketPrice)) && (
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
+                                <span style={{ width: '135px', whiteSpace: 'nowrap', fontWeight: '500' }}>Add: Market Fees:</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', width: '110px' }}>
+                                    <span
+                                        onClick={() => setShowMarketFeesModal(true)}
+                                        style={{ fontSize: '11px', color: '#0284c7', fontWeight: '700', cursor: 'pointer', textDecoration: 'underline', backgroundColor: '#e0f2fe', padding: '2px 6px', borderRadius: '4px', border: '1px solid #bae6fd' }}
+                                        title="Click to view Market Fees by Lorry"
+                                    >
+                                        All Lorries 🏷️
+                                    </span>
+                                </div>
+                                <span style={{ flex: 1, textAlign: 'right', fontWeight: '600' }}>Rs {totalMarketFeesAmount.toLocaleString('en-IN')}</span>
+                            </div>
+                        )}
+
+                        {/* Check Post (All Lorries) */}
+                        {(totalCheckPostAmount > 0 || pattiTrips.some((t: any) => t.linkedPattiRate?.checkPost || entry.offering?.checkPost)) && (
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
+                                <span style={{ width: '135px', whiteSpace: 'nowrap', fontWeight: '500' }}>Add: Check Post:</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', width: '110px' }}>
+                                    <span
+                                        onClick={() => setShowCheckPostModal(true)}
+                                        style={{ fontSize: '11px', color: '#b45309', fontWeight: '700', cursor: 'pointer', textDecoration: 'underline', backgroundColor: '#fef3c7', padding: '2px 6px', borderRadius: '4px', border: '1px solid #fde68a' }}
+                                        title="Click to view Check Post by Lorry"
+                                    >
+                                        All Lorries 🚧
+                                    </span>
+                                </div>
+                                <span style={{ flex: 1, textAlign: 'right', fontWeight: '600' }}>Rs {totalCheckPostAmount.toLocaleString('en-IN')}</span>
+                            </div>
+                        )}
+
                         {/* EGB */}
                         {showEgb && (
                             <div style={{ display: 'flex', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
@@ -1794,30 +1929,15 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '180px' }}>
                                     <input
                                         type="number"
-                                        step="0.01"
-                                        disabled={isReadOnly}
-                                        value={cdRate === 0 && !isReadOnly ? '' : cdRate}
-                                        onChange={(e) => setCdRate(e.target.value === '' ? 0 : Number(e.target.value))}
-                                        placeholder="0"
-                                        style={{ width: '60px', padding: '2px 4px', textAlign: 'center', fontSize: '12px', border: '1px solid #ccc', borderRadius: '3px', fontWeight: '600' }}
+                                        readOnly
+                                        value={cdRate}
+                                        style={{ width: '55px', padding: '3px', textAlign: 'center', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '3px', background: '#f1f5f9', color: '#334155', fontWeight: '700', cursor: 'not-allowed' }}
                                     />
                                     <span style={{ fontSize: '12px', color: '#1e293b', fontWeight: '600', whiteSpace: 'nowrap' }}>
                                         % on Rs {(totalLorryAmount + totalAdditions).toLocaleString('en-IN')}
                                     </span>
                                 </div>
                                 <span style={{ flex: 1, textAlign: 'right', fontWeight: '600', color: '#dc2626' }}>- Rs {cdAmount.toLocaleString('en-IN')}</span>
-                                {!isReadOnly && (
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setShowCd(false);
-                                        }}
-                                        style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: 'bold', cursor: 'pointer', padding: '0 4px', fontSize: '14px', marginLeft: '6px' }}
-                                        title="Remove Less CD"
-                                    >
-                                        ✕
-                                    </button>
-                                )}
                             </div>
                         )}
 
@@ -2179,6 +2299,18 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                                             </tr>
                                         )}
                                     </tbody>
+                                    {pattiTrips.length > 0 && (
+                                        <tfoot>
+                                            <tr style={{ backgroundColor: '#f1f5f9', borderTop: '2px solid #cbd5e1' }}>
+                                                <td colSpan={2} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: '800', color: '#0f172a' }}>
+                                                    Total Market Fees:
+                                                </td>
+                                                <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800', color: '#059669', fontSize: '13px' }}>
+                                                    Rs {totalMarketFeesAmount.toLocaleString('en-IN')}
+                                                </td>
+                                            </tr>
+                                        </tfoot>
+                                    )}
                                 </table>
                             </div>
 
@@ -2187,14 +2319,203 @@ const PattiCalculationModal: React.FC<PattiCalculationModalProps> = ({ entry, is
                                 padding: '10px 18px',
                                 backgroundColor: '#f8fafc',
                                 borderTop: '1px solid #e2e8f0',
-                                textAlign: 'right'
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
                             }}>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowMarketFeesModal(false);
+                                        setShowCheckPostModal(true);
+                                    }}
+                                    style={{
+                                        padding: '5px 10px',
+                                        backgroundColor: '#fffbeb',
+                                        color: '#b45309',
+                                        border: '1px solid #fde68a',
+                                        borderRadius: '4px',
+                                        fontSize: '12px',
+                                        fontWeight: '700',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    🚧 View Check Post
+                                </button>
                                 <button
                                     type="button"
                                     onClick={() => setShowMarketFeesModal(false)}
                                     style={{
                                         padding: '6px 14px',
                                         backgroundColor: '#16a34a',
+                                        color: '#ffffff',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        fontSize: '12px',
+                                        fontWeight: '700',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Check Post Modal (Popup showing Lorry Number & linked Check Post details) */}
+                {showCheckPostModal && (
+                    <div style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        backgroundColor: 'rgba(0, 0, 0, 0.55)',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        zIndex: 1100
+                    }}>
+                        <div style={{
+                            backgroundColor: '#ffffff',
+                            borderRadius: '8px',
+                            width: '90%',
+                            maxWidth: '460px',
+                            boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+                            overflow: 'hidden',
+                            border: '1px solid #e2e8f0'
+                        }}>
+                            {/* Modal Header */}
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                padding: '14px 18px',
+                                backgroundColor: '#fffbeb',
+                                borderBottom: '1px solid #fde68a'
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{ fontSize: '18px' }}>🚧</span>
+                                    <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#92400e' }}>
+                                        Check Post by Lorry
+                                    </h3>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCheckPostModal(false)}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        fontSize: '18px',
+                                        color: '#64748b',
+                                        cursor: 'pointer',
+                                        fontWeight: 'bold',
+                                        padding: '0 4px',
+                                        lineHeight: 1
+                                    }}
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            {/* Modal Content */}
+                            <div style={{ padding: '16px 18px', maxHeight: '60vh', overflowY: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                                    <thead>
+                                        <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #cbd5e1' }}>
+                                            <th style={{ padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#475569', width: '50px' }}>#</th>
+                                            <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: '700', color: '#475569' }}>Lorry No</th>
+                                            <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '700', color: '#475569' }}>Check Post</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {pattiTrips.map((trip: any, idx: number) => {
+                                            const lpr = trip.linkedPattiRate || {};
+                                            const off = entry.offering || {};
+                                            const cpVal = lpr.checkPostValue !== undefined && lpr.checkPostValue !== null && String(lpr.checkPostValue).trim() !== ''
+                                                ? lpr.checkPostValue
+                                                : (off.finalCheckPostValue2 ?? off.finalCheckPostValue ?? off.checkPostValue2 ?? off.checkPostValue);
+                                            const cpUnit = lpr.checkPostUnit || off.finalCheckPostUnit2 || off.finalCheckPostUnit || off.checkPostUnit2 || off.checkPostUnit || 'lumps';
+                                            const cpEnabled = lpr.checkPost === true || lpr.checkPost === 'true' || off.checkPost === true || off.checkPost === 'true';
+
+                                            let formattedFees = '-';
+                                            if (cpVal !== undefined && cpVal !== null && String(cpVal).trim() !== '') {
+                                                const unitLabel = cpUnit === 'percentage' ? '%' : (cpUnit === 'per_bag' ? ' / Bag' : (cpUnit === 'per_qtl' ? ' / Qtl' : ' Lumps'));
+                                                formattedFees = `${cpVal}${unitLabel}`;
+                                            } else if (cpEnabled) {
+                                                formattedFees = 'Yes';
+                                            }
+
+                                            return (
+                                                <tr key={trip.id || idx} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
+                                                    <td style={{ padding: '8px 10px', textAlign: 'center', color: '#64748b', fontWeight: '600' }}>{idx + 1}</td>
+                                                    <td style={{ padding: '8px 10px', textAlign: 'left', fontWeight: '700', color: '#0f172a' }}>
+                                                        {trip.lorryNumber?.toUpperCase() || '-'}
+                                                    </td>
+                                                    <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '700', color: formattedFees !== '-' ? '#b45309' : '#94a3b8' }}>
+                                                        {formattedFees}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                        {pattiTrips.length === 0 && (
+                                            <tr>
+                                                <td colSpan={3} style={{ padding: '16px', textAlign: 'center', color: '#94a3b8' }}>
+                                                    No lorries linked with patti rate
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                    {pattiTrips.length > 0 && (
+                                        <tfoot>
+                                            <tr style={{ backgroundColor: '#fffbeb', borderTop: '2px solid #fde68a' }}>
+                                                <td colSpan={2} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: '800', color: '#0f172a' }}>
+                                                    Total Check Post:
+                                                </td>
+                                                <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800', color: '#b45309', fontSize: '13px' }}>
+                                                    Rs {totalCheckPostAmount.toLocaleString('en-IN')}
+                                                </td>
+                                            </tr>
+                                        </tfoot>
+                                    )}
+                                </table>
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div style={{
+                                padding: '10px 18px',
+                                backgroundColor: '#f8fafc',
+                                borderTop: '1px solid #e2e8f0',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
+                            }}>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowCheckPostModal(false);
+                                        setShowMarketFeesModal(true);
+                                    }}
+                                    style={{
+                                        padding: '5px 10px',
+                                        backgroundColor: '#ecfdf5',
+                                        color: '#059669',
+                                        border: '1px solid #a7f3d0',
+                                        borderRadius: '4px',
+                                        fontSize: '12px',
+                                        fontWeight: '700',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    🏷️ View Market Fees
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCheckPostModal(false)}
+                                    style={{
+                                        padding: '6px 14px',
+                                        backgroundColor: '#d97706',
                                         color: '#ffffff',
                                         border: 'none',
                                         borderRadius: '4px',
