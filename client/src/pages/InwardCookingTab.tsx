@@ -4,11 +4,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
 
 import { API_URL } from '../config/api';
+import { SampleEntryDetailModal } from '../components/SampleEntryDetailModal';
 
 interface InwardCookingRecord {
   id: string; // PhysicalInspection id
   sampleEntryId: string;
-  sampleId: string;
+  entryType?: string;
   lorryNumber: string;
   inspectionDate?: string;
   party?: string;
@@ -79,6 +80,26 @@ export const InwardCookingTab: React.FC = () => {
 
   // Reject Modal
   const [showRejectModal, setShowRejectModal] = useState(false);
+  // Detail Modal State
+  const [detailEntry, setDetailEntry] = useState<any | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const handleOpenDetail = async (sampleEntryId: string) => {
+    if (!sampleEntryId) return;
+    try {
+      setDetailLoading(true);
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`${API_URL}/sample-entries/${sampleEntryId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setDetailEntry(res.data);
+    } catch (err: any) {
+      showNotification(err.response?.data?.error || 'Failed to load sample details', 'error');
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
   const [rejectInspectionId, setRejectInspectionId] = useState<string | null>(null);
   const [rejectRemarks, setRejectRemarks] = useState('');
 
@@ -465,7 +486,7 @@ export const InwardCookingTab: React.FC = () => {
               <th style={{ border: '1px solid #000', padding: '6px 4px', fontWeight: 700, fontSize: '12px', textAlign: 'center', width: '40px' }}>SL No</th>
               <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: 700, fontSize: '12px', textAlign: 'center', minWidth: '90px' }}>Date</th>
               <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: 700, fontSize: '12px', textAlign: 'center', minWidth: '120px' }}>Lorry Number</th>
-              <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: 700, fontSize: '12px', textAlign: 'center', minWidth: '85px' }}>Sample ID</th>
+              <th style={{ border: '1px solid #000', padding: '6px 4px', fontWeight: 700, fontSize: '12px', textAlign: 'center', width: '50px' }}>Type</th>
               <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: 700, fontSize: '12px', textAlign: 'left', minWidth: '150px' }}>Party & Broker</th>
               <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: 700, fontSize: '12px', textAlign: 'left', minWidth: '110px' }}>Variety</th>
               <th style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: 700, fontSize: '12px', textAlign: 'left', minWidth: '100px' }}>Location</th>
@@ -526,14 +547,43 @@ export const InwardCookingTab: React.FC = () => {
                       {item.lorryNumber}
                     </td>
 
-                    {/* 4. Sample ID */}
-                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'center', fontWeight: 700, color: '#1e40af' }}>
-                      {item.sampleId}
+                    {/* 4. Type */}
+                    <td style={{ border: '1px solid #cbd5e1', padding: '6px 4px', textAlign: 'center' }}>
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        fontWeight: 800,
+                        fontSize: '11px',
+                        background: item.entryType === 'DIRECT_LOADED_VEHICLE' ? '#1565c0' : item.entryType === 'LOCATION_SAMPLE' ? '#c2410c' : '#166534',
+                        color: '#ffffff'
+                      }}>
+                        {item.entryType === 'DIRECT_LOADED_VEHICLE' ? 'RL' : item.entryType === 'LOCATION_SAMPLE' ? 'LS' : 'MS'}
+                      </span>
                     </td>
 
                     {/* 5. Party & Broker */}
                     <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'left', lineHeight: 1.3 }}>
-                      <div style={{ fontWeight: 700, color: '#0f172a' }}>{item.party || '-'}</div>
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDetail(item.sampleEntryId)}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#1565c0',
+                            textDecoration: 'underline',
+                            cursor: 'pointer',
+                            fontWeight: 700,
+                            fontSize: '13px',
+                            padding: 0,
+                            textAlign: 'left'
+                          }}
+                          title="Click to view Sample Entry Details"
+                        >
+                          {item.party || '-'}
+                        </button>
+                      </div>
                       <div style={{ fontSize: '11px', color: '#64748b' }}>Broker: <b>{item.broker || '-'}</b></div>
                     </td>
 
@@ -1082,6 +1132,16 @@ export const InwardCookingTab: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+    
+      {/* Sample Entry Detail Modal */}
+      {detailEntry && (
+        <SampleEntryDetailModal
+          detailEntry={detailEntry}
+          detailMode="history"
+          onClose={() => setDetailEntry(null)}
+          showCollectorLoginPair={true}
+        />
       )}
     </div>
   );

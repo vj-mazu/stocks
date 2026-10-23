@@ -817,8 +817,10 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         try {
             setProcessingAction(true);
             const token = localStorage.getItem('token');
+            const isManager = ['manager', 'ceo'].includes(String(user?.role || '').toLowerCase());
             const payload = {
-                isFinalized: true,
+                isFinalized: false,
+                fillMissingValues: isManager ? true : undefined,
                 disputeBaseRate: Number(disputeModalData.disputeRate),
                 disputeBaseRateType: disputeModalData.disputeRateType,
                 finalSute: disputeModalData.sute ? Number(disputeModalData.sute) : null,
@@ -831,7 +833,7 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 inspectionId: disputeModalData.inspectionId,
                 stageKey: disputeModalData.stageKey
             };
-            await axios.post(
+            const response = await axios.post(
                 `${API_URL}/sample-entries/${detailEntry.id}/final-price`,
                 payload,
                 { headers: { Authorization: `Bearer ${token}` } }
@@ -841,7 +843,11 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
                 { stage: disputeModalData.stageKey },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
-            toast.success('Dispute submitted & stage approved successfully!');
+            if (response.data?.pendingApproval) {
+                toast.success('Dispute rate submitted for admin approval & stage approved!');
+            } else {
+                toast.success('Dispute submitted & stage approved successfully!');
+            }
             setDisputeModalData(prev => ({ ...prev, isOpen: false }));
             await refreshProgressData();
         } catch (error: any) {

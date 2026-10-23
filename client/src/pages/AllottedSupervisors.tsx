@@ -1091,8 +1091,8 @@ const AllottedSupervisors: React.FC = () => {
       setIsSavingValues(true);
       const token = localStorage.getItem('token');
       
-      const payload: any = { isFinalized: true };
       const isManager = user?.role === 'manager' || user?.role === 'ceo';
+      const payload: any = { isFinalized: isManager ? false : true };
       if (isManager) {
         payload.fillMissingValues = true;
       }

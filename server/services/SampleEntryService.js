@@ -1008,7 +1008,17 @@ class SampleEntryService {
   }
 
   async setFinalPrice(id, finalData, userId, userRole) {
-    const pricingMode = finalData?.fillMissingValues ? 'final_missing_values' : 'final';
+    const isManagerDisputeOrMissing = Boolean(
+      finalData?.fillMissingValues ||
+      (userRole === 'manager' && (
+        finalData?.__requestType === 'dispute' ||
+        finalData?.disputeBaseRate !== undefined ||
+        finalData?.revisedRateOption !== undefined ||
+        finalData?.revisedHamali !== undefined ||
+        finalData?.revisedLf !== undefined
+      ))
+    );
+    const pricingMode = isManagerDisputeOrMissing ? 'final_missing_values' : 'final';
     await this.assertPricingAccess(id, userId, userRole, pricingMode);
 
     let offering = await SampleEntryOffering.findOne({
@@ -1075,7 +1085,14 @@ class SampleEntryService {
     }
 
     const updates = { updatedBy: userId, updatedByFullName };
-    const isManagerMissingValueRequest = userRole === 'manager' && finalData?.fillMissingValues === true;
+    const isManagerMissingValueRequest = userRole === 'manager' && Boolean(
+      finalData?.fillMissingValues === true ||
+      finalData?.__requestType === 'dispute' ||
+      finalData?.disputeBaseRate !== undefined ||
+      finalData?.revisedRateOption !== undefined ||
+      finalData?.revisedHamali !== undefined ||
+      finalData?.revisedLf !== undefined
+    );
     const normalizeComparableValue = (value) => {
       if (value === undefined || value === null || value === '') return null;
       if (typeof value === 'boolean') return value;
@@ -1134,6 +1151,12 @@ class SampleEntryService {
       if (finalData.linkedRevisionId !== undefined) {
         pendingData.linkedRevisionId = finalData.linkedRevisionId;
       }
+      if (finalData.inspectionId !== undefined) {
+        pendingData.inspectionId = finalData.inspectionId;
+      }
+      if (finalData.stageKey !== undefined) {
+        pendingData.stageKey = finalData.stageKey;
+      }
 
       if (Object.keys(pendingData).length === 0) {
         return this.formatOfferingPayload(offering);
@@ -1145,7 +1168,10 @@ class SampleEntryService {
         const requestData = request?.data || {};
         return requestData.disputeBaseRate !== undefined && requestData.disputeBaseRate !== null && requestData.disputeBaseRate !== '';
       });
-      const isDisputeRequest = pendingData.disputeBaseRate !== undefined && pendingData.disputeBaseRate !== null && pendingData.disputeBaseRate !== '';
+      const isDisputeRequest = Boolean(
+        (pendingData.disputeBaseRate !== undefined && pendingData.disputeBaseRate !== null && pendingData.disputeBaseRate !== '')
+        || finalData?.__requestType === 'dispute'
+      );
       const isRevisionRequest = !isDisputeRequest && hasOfferVersions && (
         (pendingData.revisedHamali !== undefined && pendingData.revisedHamali !== null && pendingData.revisedHamali !== '')
         || (pendingData.revisedLf !== undefined && pendingData.revisedLf !== null && pendingData.revisedLf !== '')
