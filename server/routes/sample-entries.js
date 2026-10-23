@@ -2430,9 +2430,6 @@ router.get('/tabs/inward-cooking', authenticateToken, async (req, res) => {
     const CookingReport = require('../models/CookingReport');
     const LotAllotment = require('../models/LotAllotment');
     const User = require('../models/User');
-    const LorryTransitDetail = require('../models/LorryTransitDetail');
-    const InventoryQualityParameter = require('../models/InventoryQualityParameter');
-    const { Op } = require('sequelize');
 
     const {
       page = 1,
@@ -2448,6 +2445,9 @@ router.get('/tabs/inward-cooking', authenticateToken, async (req, res) => {
 
     const limit = parseInt(pageSize, 10) || 50;
     const offset = ((parseInt(page, 10) || 1) - 1) * limit;
+
+    const LorryTransitDetail = require('../models/LorryTransitDetail');
+    const InventoryQualityParameter = require('../models/InventoryQualityParameter');
 
     const inspections = await PhysicalInspection.findAll({
       include: [
@@ -2490,60 +2490,38 @@ router.get('/tabs/inward-cooking', authenticateToken, async (req, res) => {
       order: [['created_at', 'DESC']]
     });
 
-    // Batch fetch any related LorryTransitDetails + InventoryQualityParameters to ensure 100% data coverage
-    const inspectionIds = inspections.map(i => i.id).filter(Boolean);
-    const sampleEntryIds = inspections.map(i => i.sampleEntryId).filter(Boolean);
-
-    const allTransitDetails = await LorryTransitDetail.findAll({
-      where: {
-        [Op.or]: [
-          { physicalInspectionId: { [Op.in]: inspectionIds } },
-          { sampleEntryId: { [Op.in]: sampleEntryIds } }
-        ]
-      },
-      include: [
-        {
-          model: InventoryQualityParameter,
-          as: 'inventoryQualityParameters',
-          required: false
-        }
-      ]
-    });
-
-    const transitByInspectionId = new Map();
-    const transitBySampleEntryId = new Map();
-    allTransitDetails.forEach(td => {
-      if (td.physicalInspectionId) transitByInspectionId.set(String(td.physicalInspectionId), td);
-      if (td.sampleEntryId) transitBySampleEntryId.set(String(td.sampleEntryId), td);
-    });
-
     const qualifying = inspections.filter((inspection) => {
       const entry = inspection.sampleEntry;
       if (!entry) return false;
 
-      // Condition 1: STRICT - Lot MUST have been PASS_WITH_COOKING or had cooking report
+      // Condition 1: Lot must have been PASS_WITH_COOKING or had cooking report
       const lotDecision = String(entry.lotSelectionDecision || '').toUpperCase();
       const originDecision = String(entry.resampleOriginDecision || '').toUpperCase();
-      const hasCookingReport = Boolean(entry.cookingReport?.status && entry.cookingReport.status !== 'FAIL');
+      const hasCookingReport = Boolean(entry.cookingReport?.status);
       const isCookingLot = lotDecision === 'PASS_WITH_COOKING'
         || originDecision === 'PASS_WITH_COOKING'
         || hasCookingReport;
 
       if (!isCookingLot) return false;
 
-      // Condition 2: STRICT - This specific lorry MUST have its Full Lorry Average (Gutti) APPROVED in Inward Mill Quality Sampling
-      // Matches Arrivals.tsx: params.some((p: any) => p.type === 'full_lorry_avg' && p.status === 'approved')
-      const transit = inspection.lorryTransitDetail
-        || transitByInspectionId.get(String(inspection.id))
-        || transitBySampleEntryId.get(String(entry.id));
+      // Condition 2: Lorry must have approved full_avg (Full Lorry Avg)
+      const stages = inspection.samplingStages || {};
+      const isFullAvgApprovedInStages = Object.keys(stages).some(key => {
+        const base = stages[key]?.baseStage || key.replace(/_hold_\d+$/, '').replace(/_reattempt_\d+$/, '');
+        const stg = stages[key];
+        const status = String(stg?.approvalStatus || stg?.status || '').toLowerCase();
+        return (base === 'full_avg' || base === 'full_lorry_avg') && status === 'approved';
+      });
 
-      const iqParams = transit?.inventoryQualityParameters || inspection.lorryTransitDetail?.inventoryQualityParameters || [];
-      const approvedFullIq = Array.isArray(iqParams) && iqParams.find(p => {
+      const iqParams = inspection.lorryTransitDetail?.inventoryQualityParameters || [];
+      const isFullAvgApprovedInIQ = Array.isArray(iqParams) && iqParams.some(p => {
         return p.type === 'full_lorry_avg' && String(p.status || '').toLowerCase() === 'approved';
       });
 
-      // If full lorry average (Gutti) is not approved in Inward Quality Sampling, EXCLUDE IT!
-      if (!approvedFullIq) return false;
+      const isFullAvgApproved = isFullAvgApprovedInStages || isFullAvgApprovedInIQ;
+
+      // If full lorry average is not approved for this specific lorry, EXCLUDE IT!
+      if (!isFullAvgApproved) return false;
 
       // Condition 3: Search filter
       if (search) {
@@ -2576,7 +2554,6 @@ router.get('/tabs/inward-cooking', authenticateToken, async (req, res) => {
       }
 
       // Condition 5: Status filter
-      const stages = inspection.samplingStages || {};
       const inwardCooking = stages.inward_cooking || null;
       if (status && status !== 'all') {
         const st = String(status).toLowerCase();
@@ -2598,24 +2575,11 @@ router.get('/tabs/inward-cooking', authenticateToken, async (req, res) => {
     const rows = paginated.map(inspection => {
       const entry = inspection.sampleEntry || {};
       const stages = inspection.samplingStages || {};
-      const transit = inspection.lorryTransitDetail
-        || transitByInspectionId.get(String(inspection.id))
-        || transitBySampleEntryId.get(String(entry.id));
-      const iqParams = transit?.inventoryQualityParameters || inspection.lorryTransitDetail?.inventoryQualityParameters || [];
-      const approvedFullIq = Array.isArray(iqParams) && iqParams.find(p => {
-        return p.type === 'full_lorry_avg' && String(p.status || '').toLowerCase() === 'approved';
-      });
-
       const fullAvgKey = Object.keys(stages).find(key => {
         const base = stages[key]?.baseStage || key.replace(/_hold_\d+$/, '').replace(/_reattempt_\d+$/, '');
-        return (base === 'full_avg' || base === 'full_lorry_avg');
+        return (base === 'full_avg' || base === 'full_lorry_avg') && stages[key]?.approvalStatus === 'approved';
       });
       const fullAvgStage = fullAvgKey ? stages[fullAvgKey] : (stages.full_avg || {});
-
-      // Use approved Full Lorry values from Inward Quality Sampling (or fallback to stage)
-      const cuttingVal = approvedFullIq?.cutting || fullAvgStage.cutting || (fullAvgStage.cutting1 && fullAvgStage.cutting2 ? `${fullAvgStage.cutting1}x${fullAvgStage.cutting2}` : (inspection.cutting1 && inspection.cutting2 ? `${inspection.cutting1}x${inspection.cutting2}` : '-'));
-      const bendVal = approvedFullIq?.bend || fullAvgStage.bend || (fullAvgStage.bend1 && fullAvgStage.bend2 ? `${fullAvgStage.bend1}x${fullAvgStage.bend2}` : (inspection.bend && inspection.bend2 ? `${inspection.bend}x${inspection.bend2}` : '-'));
-      const moistureVal = approvedFullIq?.moisture ? `${Number(approvedFullIq.moisture)}%` : (fullAvgStage.moisture ? `${fullAvgStage.moisture}%` : (inspection.moisture ? `${inspection.moisture}%` : '-'));
 
       return {
         id: inspection.id,
@@ -2628,9 +2592,9 @@ router.get('/tabs/inward-cooking', authenticateToken, async (req, res) => {
         variety: entry.variety,
         location: entry.location,
         bags: fullAvgStage.actualBags || fullAvgStage.bags || inspection.bags || entry.bags || 0,
-        cutting: cuttingVal,
-        bend: bendVal,
-        moisture: moistureVal,
+        cutting: fullAvgStage.cutting || (fullAvgStage.cutting1 && fullAvgStage.cutting2 ? `${fullAvgStage.cutting1}x${fullAvgStage.cutting2}` : (inspection.cutting1 && inspection.cutting2 ? `${inspection.cutting1}x${inspection.cutting2}` : inspection.cutting1 || '-')),
+        bend: fullAvgStage.bend || (fullAvgStage.bend1 && fullAvgStage.bend2 ? `${fullAvgStage.bend1}x${fullAvgStage.bend2}` : (inspection.bend && inspection.bend2 ? `${inspection.bend}x${inspection.bend2}` : inspection.bend || '-')),
+        moisture: fullAvgStage.moisture || inspection.moisture || '-',
         inwardCooking: stages.inward_cooking || null,
         reportedBy: inspection.reportedBy?.fullName || inspection.reportedBy?.username || '-'
       };
