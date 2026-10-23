@@ -2422,6 +2422,285 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// ─── Inward Cooking (Lorries with Approved Full Lorry Avg from Cooking Lots) ───
+router.get('/tabs/inward-cooking', authenticateToken, async (req, res) => {
+  try {
+    const PhysicalInspection = require('../models/PhysicalInspection');
+    const SampleEntry = require('../models/SampleEntry');
+    const CookingReport = require('../models/CookingReport');
+    const LotAllotment = require('../models/LotAllotment');
+    const User = require('../models/User');
+
+    const {
+      page = 1,
+      pageSize = 50,
+      search,
+      broker,
+      variety,
+      location,
+      startDate,
+      endDate,
+      status
+    } = req.query;
+
+    const limit = parseInt(pageSize, 10) || 50;
+    const offset = ((parseInt(page, 10) || 1) - 1) * limit;
+
+    const inspections = await PhysicalInspection.findAll({
+      include: [
+        {
+          model: SampleEntry,
+          as: 'sampleEntry',
+          required: true,
+          include: [
+            {
+              model: CookingReport,
+              as: 'cookingReport',
+              required: false
+            }
+          ]
+        },
+        {
+          model: LotAllotment,
+          as: 'lotAllotment',
+          required: false
+        },
+        {
+          model: User,
+          as: 'reportedBy',
+          attributes: ['id', 'username', 'fullName'],
+          required: false
+        }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    const qualifying = inspections.filter((inspection) => {
+      const entry = inspection.sampleEntry;
+      if (!entry) return false;
+
+      // Condition 1: Lot must have been PASS_WITH_COOKING or had cooking report
+      const lotDecision = String(entry.lotSelectionDecision || '').toUpperCase();
+      const originDecision = String(entry.resampleOriginDecision || '').toUpperCase();
+      const hasCookingReport = Boolean(entry.cookingReport?.status);
+      const isCookingLot = lotDecision === 'PASS_WITH_COOKING'
+        || originDecision === 'PASS_WITH_COOKING'
+        || hasCookingReport;
+
+      if (!isCookingLot) return false;
+
+      // Condition 2: Lorry must have approved full_avg (Full Lorry Avg)
+      const stages = inspection.samplingStages || {};
+      const isFullAvgApproved = Object.keys(stages).some(key => {
+        const base = stages[key]?.baseStage || key.replace(/_hold_\d+$/, '').replace(/_reattempt_\d+$/, '');
+        return (base === 'full_avg' || base === 'full_lorry_avg') && stages[key]?.approvalStatus === 'approved';
+      });
+
+      if (!isFullAvgApproved) return false;
+
+      // Condition 3: Search filter
+      if (search) {
+        const q = String(search).trim().toLowerCase();
+        const lorryNo = String(inspection.lorryNumber || '').toLowerCase();
+        const sampleId = String(entry.sampleId || '').toLowerCase();
+        const party = String(entry.party || entry.partyName || '').toLowerCase();
+        const b = String(entry.broker || entry.brokerName || '').toLowerCase();
+        const v = String(entry.variety || '').toLowerCase();
+        const l = String(entry.location || '').toLowerCase();
+        if (!lorryNo.includes(q) && !sampleId.includes(q) && !party.includes(q) && !b.includes(q) && !v.includes(q) && !l.includes(q)) {
+          return false;
+        }
+      }
+
+      // Condition 4: Filters
+      if (broker && !String(entry.broker || entry.brokerName || '').toLowerCase().includes(String(broker).toLowerCase())) {
+        return false;
+      }
+      if (variety && !String(entry.variety || '').toLowerCase().includes(String(variety).toLowerCase())) {
+        return false;
+      }
+      if (location && !String(entry.location || '').toLowerCase().includes(String(location).toLowerCase())) {
+        return false;
+      }
+      if (startDate && endDate) {
+        const inspDate = inspection.inspectionDate || entry.entryDate;
+        if (inspDate && (inspDate < startDate || inspDate > endDate)) {
+          return false;
+        }
+      }
+
+      // Condition 5: Status filter
+      const inwardCooking = stages.inward_cooking || null;
+      if (status && status !== 'all') {
+        const st = String(status).toLowerCase();
+        if (st === 'pending') {
+          if (inwardCooking && inwardCooking.approvalStatus === 'approved') return false;
+        } else if (st === 'approved') {
+          if (!inwardCooking || inwardCooking.approvalStatus !== 'approved') return false;
+        } else if (st === 'rejected') {
+          if (!inwardCooking || inwardCooking.approvalStatus !== 'rejected') return false;
+        }
+      }
+
+      return true;
+    });
+
+    const total = qualifying.length;
+    const paginated = qualifying.slice(offset, offset + limit);
+
+    const rows = paginated.map(inspection => {
+      const entry = inspection.sampleEntry || {};
+      const stages = inspection.samplingStages || {};
+      const fullAvgKey = Object.keys(stages).find(key => {
+        const base = stages[key]?.baseStage || key.replace(/_hold_\d+$/, '').replace(/_reattempt_\d+$/, '');
+        return (base === 'full_avg' || base === 'full_lorry_avg') && stages[key]?.approvalStatus === 'approved';
+      });
+      const fullAvgStage = fullAvgKey ? stages[fullAvgKey] : (stages.full_avg || {});
+
+      return {
+        id: inspection.id,
+        sampleEntryId: entry.id,
+        sampleId: entry.sampleId,
+        lorryNumber: inspection.lorryNumber,
+        inspectionDate: inspection.inspectionDate || entry.entryDate,
+        party: entry.party || entry.partyName,
+        broker: entry.broker || entry.brokerName,
+        variety: entry.variety,
+        location: entry.location,
+        bags: fullAvgStage.actualBags || fullAvgStage.bags || inspection.bags || entry.bags || 0,
+        cutting: fullAvgStage.cutting || (fullAvgStage.cutting1 && fullAvgStage.cutting2 ? `${fullAvgStage.cutting1}x${fullAvgStage.cutting2}` : (inspection.cutting1 && inspection.cutting2 ? `${inspection.cutting1}x${inspection.cutting2}` : inspection.cutting1 || '-')),
+        bend: fullAvgStage.bend || (fullAvgStage.bend1 && fullAvgStage.bend2 ? `${fullAvgStage.bend1}x${fullAvgStage.bend2}` : (inspection.bend && inspection.bend2 ? `${inspection.bend}x${inspection.bend2}` : inspection.bend || '-')),
+        moisture: fullAvgStage.moisture || inspection.moisture || '-',
+        inwardCooking: stages.inward_cooking || null,
+        reportedBy: inspection.reportedBy?.fullName || inspection.reportedBy?.username || '-'
+      };
+    });
+
+    res.json({
+      success: true,
+      entries: rows,
+      total,
+      page: parseInt(page, 10),
+      pageSize: limit,
+      totalPages: Math.ceil(total / limit) || 1
+    });
+  } catch (error) {
+    console.error('Error fetching inward cooking entries:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /sample-entries/inward-cooking/:inspectionId - Staff submits 100gms cooking
+router.post('/inward-cooking/:inspectionId', authenticateToken, async (req, res) => {
+  try {
+    const PhysicalInspection = require('../models/PhysicalInspection');
+    const { inspectionId } = req.params;
+    const { moisture, grainsCount, wbR, wbBk, cookingStatus, cookingDoneBy, remarks } = req.body;
+
+    if (!moisture || !grainsCount || !wbR || !wbBk) {
+      return res.status(400).json({ error: 'Moisture, Grains Count, WB-R, and WB-BK are required for 100gms test' });
+    }
+    if (!cookingStatus) {
+      return res.status(400).json({ error: 'Cooking status (PASS, FAIL, MEDIUM, RECHECK) is required' });
+    }
+
+    const inspection = await PhysicalInspection.findByPk(inspectionId);
+    if (!inspection) {
+      return res.status(404).json({ error: 'Physical inspection record not found' });
+    }
+
+    const User = require('../models/User');
+    const currentUser = await User.findByPk(req.user.userId);
+    const reporterName = currentUser?.fullName || currentUser?.username || 'Staff';
+
+    const stages = inspection.samplingStages || {};
+    const wbTVal = String((parseFloat(wbR) || 0) + (parseFloat(wbBk) || 0));
+
+    stages.inward_cooking = {
+      moisture: String(moisture).trim(),
+      grainsCount: String(grainsCount).trim(),
+      wbR: String(wbR).trim(),
+      wbBk: String(wbBk).trim(),
+      wbT: wbTVal,
+      cookingStatus: String(cookingStatus).toUpperCase().trim(),
+      cookingDoneBy: cookingDoneBy || reporterName,
+      cookingDoneByUserId: req.user.userId,
+      cookingDoneAt: new Date(),
+      approvalStatus: 'pending',
+      cookingApprovedBy: null,
+      cookingApprovedByUserId: null,
+      cookingApprovedAt: null,
+      remarks: remarks || ''
+    };
+
+    inspection.samplingStages = { ...stages };
+    inspection.changed('samplingStages', true);
+    await inspection.save();
+
+    invalidateSampleEntryTabCaches();
+
+    res.json({
+      success: true,
+      message: 'Inward 100gms cooking report submitted for approval',
+      inwardCooking: stages.inward_cooking
+    });
+  } catch (error) {
+    console.error('Error submitting inward cooking report:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /sample-entries/inward-cooking/:inspectionId/approve - Manager/CEO/Admin approves/rejects
+router.post('/inward-cooking/:inspectionId/approve', authenticateToken, async (req, res) => {
+  try {
+    const userRole = String(getWorkflowRole(req.user) || req.user.role || '').toLowerCase();
+    if (!['admin', 'owner', 'manager', 'ceo'].includes(userRole)) {
+      return res.status(403).json({ error: 'Only Manager, CEO, Owner, or Admin can approve inward cooking reports' });
+    }
+
+    const PhysicalInspection = require('../models/PhysicalInspection');
+    const { inspectionId } = req.params;
+    const { decision = 'approve', remarks } = req.body;
+
+    const inspection = await PhysicalInspection.findByPk(inspectionId);
+    if (!inspection) {
+      return res.status(404).json({ error: 'Physical inspection record not found' });
+    }
+
+    const stages = inspection.samplingStages || {};
+    if (!stages.inward_cooking) {
+      return res.status(400).json({ error: 'No inward cooking report submitted for this lorry yet' });
+    }
+
+    const User = require('../models/User');
+    const approver = await User.findByPk(req.user.userId);
+    const approverName = approver?.fullName || approver?.username || 'Admin';
+
+    stages.inward_cooking.approvalStatus = decision === 'reject' ? 'rejected' : 'approved';
+    stages.inward_cooking.cookingApprovedBy = approverName;
+    stages.inward_cooking.cookingApprovedByUserId = req.user.userId;
+    stages.inward_cooking.cookingApprovedAt = new Date();
+    if (decision === 'reject') {
+      stages.inward_cooking.rejectRemarks = remarks || 'Rejected by ' + approverName;
+    }
+
+    inspection.samplingStages = { ...stages };
+    inspection.changed('samplingStages', true);
+    await inspection.save();
+
+    invalidateSampleEntryTabCaches();
+
+    res.json({
+      success: true,
+      message: `Inward cooking report ${decision === 'reject' ? 'rejected' : 'approved'} successfully`,
+      inwardCooking: stages.inward_cooking
+    });
+  } catch (error) {
+    console.error('Error approving inward cooking report:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Update sample entry
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
@@ -4048,13 +4327,21 @@ router.post('/:id/final-price', authenticateToken, async (req, res) => {
 
     console.log(`[FINAL-PRICE] setFinalPrice succeeded. isFinalized in body: ${req.body.isFinalized}`);
 
+    const isManagerRequest = getWorkflowRole(req.user) === 'manager' && Boolean(
+      req.body.fillMissingValues ||
+      req.body.__requestType === 'dispute' ||
+      req.body.disputeBaseRate !== undefined ||
+      req.body.revisedRateOption !== undefined ||
+      req.body.revisedHamali !== undefined ||
+      req.body.revisedLf !== undefined
+    );
+
     if (
-      getWorkflowRole(req.user) === 'manager'
-      && req.body.fillMissingValues
+      isManagerRequest
       && String(result?.pendingManagerValueApprovalStatus || '').toLowerCase() === 'pending'
     ) {
       invalidateSampleEntryTabCaches();
-      console.log(`[FINAL-PRICE] Manager missing values staged for admin approval`);
+      console.log(`[FINAL-PRICE] Manager values/dispute staged for admin approval`);
       return res.json({
         ...result,
         pendingApproval: true,
@@ -4095,7 +4382,7 @@ router.post('/:id/final-price', authenticateToken, async (req, res) => {
     }
 
     // After updating the final price, ALWAYS check if we can transition to LOT_ALLOTMENT
-    if (req.body.isFinalized) {
+    if (req.body.isFinalized && !isManagerRequest) {
       try {
         const entry = await SampleEntryService.getSampleEntryById(req.params.id);
         console.log(`[FINAL-PRICE] Entry found: ${!!entry}, workflowStatus: ${entry ? entry.workflowStatus : 'N/A'}`);

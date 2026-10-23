@@ -8,6 +8,7 @@ import { getCollectedByDisplay as getSharedCollectedByDisplay, getConvertedEntry
 import { getDisplayQualityParameters } from '../utils/sampleEntryQualityModalLogic';
 
 import { API_URL } from '../config/api';
+import InwardCookingTab from './InwardCookingTab';
 
 interface SampleEntry {
   id: string;
@@ -720,7 +721,7 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
   const [remarksPopup, setRemarksPopup] = useState<{ isOpen: boolean; text: string }>({ isOpen: false, text: '' });
 
   // --- NEW RICE FEATURE STATES ---
-  const [activeTab, setActiveTab] = useState<'PADDY_COOKING_REPORT' | 'RICE_COOKING_REPORT' | 'RESAMPLE_COOKING_REPORT'>(
+  const [activeTab, setActiveTab] = useState<'PADDY_COOKING_REPORT' | 'RICE_COOKING_REPORT' | 'RESAMPLE_COOKING_REPORT' | 'INWARD_COOKING_REPORT'>(
     entryType === 'RICE_SAMPLE' ? 'RICE_COOKING_REPORT' : 'PADDY_COOKING_REPORT'
   );
 
@@ -1890,6 +1891,19 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
             {renderTabBadge(resampleCookingCount, '#b91c1c')}
           </button>
         )}
+        {(!entryType || entryType !== 'RICE_SAMPLE') && (
+          <button
+            onClick={() => setActiveTab('INWARD_COOKING_REPORT')}
+            style={{
+              padding: '8px 20px', fontSize: '13px', fontWeight: '700', border: 'none', borderRadius: '6px 6px 0 0', cursor: 'pointer', whiteSpace: 'nowrap',
+              backgroundColor: activeTab === 'INWARD_COOKING_REPORT' ? '#0d9488' : '#e0e0e0',
+              color: activeTab === 'INWARD_COOKING_REPORT' ? 'white' : '#555',
+              boxShadow: activeTab === 'INWARD_COOKING_REPORT' ? '0 -2px 5px rgba(0,0,0,0.1)' : 'none',
+            }}
+          >
+            🚚 INWARD COOKING
+          </button>
+        )}
         {(!excludeEntryType || excludeEntryType !== 'RICE_SAMPLE') && (
           <button
             onClick={() => setActiveTab('RICE_COOKING_REPORT')}
@@ -2273,6 +2287,10 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
             )}
           </div >
         </>
+      )}
+
+      {activeTab === 'INWARD_COOKING_REPORT' && (
+        <InwardCookingTab />
       )}
 
       {
@@ -2838,25 +2856,27 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
       )}
 
       {/* Pagination Controls */}
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', padding: '16px 0', marginTop: '12px' }}>
-        <button
-          disabled={page <= 1}
-          onClick={() => setPage(p => Math.max(1, p - 1))}
-          style={{ padding: '6px 16px', borderRadius: '4px', border: '1px solid #ccc', background: page <= 1 ? '#eee' : '#fff', cursor: page <= 1 ? 'not-allowed' : 'pointer', fontWeight: '600' }}
-        >
-          ← Prev
-        </button>
-        <span style={{ fontSize: '13px', color: '#666' }}>
-          Page {page} of {totalPages} &nbsp;({total} total)
-        </span>
-        <button
-          disabled={page >= totalPages}
-          onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-          style={{ padding: '6px 16px', borderRadius: '4px', border: '1px solid #ccc', background: page >= totalPages ? '#eee' : '#fff', cursor: page >= totalPages ? 'not-allowed' : 'pointer', fontWeight: '600' }}
-        >
-          Next →
-        </button>
-      </div>
+      {activeTab !== 'INWARD_COOKING_REPORT' && (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', padding: '16px 0', marginTop: '12px' }}>
+          <button
+            disabled={page <= 1}
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            style={{ padding: '6px 16px', borderRadius: '4px', border: '1px solid #ccc', background: page <= 1 ? '#eee' : '#fff', cursor: page <= 1 ? 'not-allowed' : 'pointer', fontWeight: '600' }}
+          >
+            ← Prev
+          </button>
+          <span style={{ fontSize: '13px', color: '#666' }}>
+            Page {page} of {totalPages} &nbsp;({total} total)
+          </span>
+          <button
+            disabled={page >= totalPages}
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            style={{ padding: '6px 16px', borderRadius: '4px', border: '1px solid #ccc', background: page >= totalPages ? '#eee' : '#fff', cursor: page >= totalPages ? 'not-allowed' : 'pointer', fontWeight: '600' }}
+          >
+            Next →
+          </button>
+        </div>
+      )}
     </div >
   );
 };
