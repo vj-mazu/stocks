@@ -3398,6 +3398,63 @@ export const SampleEntryDetailModal = ({ detailEntry, detailMode, onClose, onUpd
         return merged;
     };
 
+    const buildInwardCookingRows = () => {
+        const rawInsps = (detailEntry as any).physicalInspections || (detailEntry.lotAllotment?.physicalInspections) || [];
+        const rows: any[] = [];
+        let count = 1;
+
+        rawInsps.forEach((insp: any) => {
+            const stages = insp.samplingStages || {};
+            const ic = stages.inward_cooking;
+            if (!ic) return;
+
+            const status = ic.cookingStatus || 'PASS';
+            const style = getStatusStyle(status);
+            const isApproved = ic.approvalStatus === 'approved';
+            const isPending = ic.approvalStatus === 'pending';
+
+            rows.push([
+                `${count++}.`,
+                <span style={{ fontWeight: 700, color: '#1e40af' }}>{insp.lorryNumber?.toUpperCase() || '-'}</span>,
+                <div style={{ fontSize: '0.75rem', lineHeight: 1.3 }}>
+                    <div><b>M:</b> {ic.moisture}% | <b>G.C:</b> {ic.grainsCount}</div>
+                    <div><b>WB-R:</b> {ic.wbR} | <b>WB-BK:</b> {ic.wbBk}</div>
+                    <div style={{ fontWeight: 700, color: '#0f766e' }}>Total WB-T: {ic.wbT}</div>
+                </div>,
+                <div>
+                    <span style={{ backgroundColor: style.bg, color: style.color, padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 700 }}>
+                        {status}
+                    </span>
+                    <div style={{ fontSize: '0.7rem', marginTop: '2px', color: isApproved ? '#166534' : isPending ? '#d97706' : '#dc2626', fontWeight: 600 }}>
+                        {isApproved ? 'Approved' : isPending ? 'Pending Approval' : 'Rejected'}
+                    </div>
+                </div>,
+                <div>
+                    <div style={{ fontWeight: 600 }}>{getCollectorLabel(ic.cookingDoneBy)}</div>
+                    <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{formatShortDateTime(ic.cookingDoneAt)}</div>
+                </div>,
+                <div>
+                    <div style={{ fontWeight: 600, color: ic.cookingApprovedBy ? '#047857' : '#d97706' }}>
+                        {ic.cookingApprovedBy ? getCollectorLabel(ic.cookingApprovedBy) : 'Pending'}
+                    </div>
+                    {ic.cookingApprovedAt && (
+                        <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{formatShortDateTime(ic.cookingApprovedAt)}</div>
+                    )}
+                </div>,
+                ic.remarks ? (
+                    <button 
+                        onClick={() => setRemarksPopup({ isOpen: true, text: ic.remarks })}
+                        style={{ padding: '2px 10px', borderRadius: '4px', border: '1px solid #0d9488', color: '#0d9488', background: 'transparent', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}
+                    >
+                        View
+                    </button>
+                ) : '-'
+            ]);
+        });
+
+        return rows;
+    };
+
     const buildCookingRows = () => {
         const statusRows = buildCookingStatusRows(detailEntry);
         if (statusRows.length === 0) return [];

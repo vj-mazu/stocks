@@ -1500,7 +1500,9 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
     const history = Array.isArray(cr?.history) ? cr.history : [];
     const staffHistory = history.filter((item: any) => !!item?.cookingDoneBy && !item?.status);
     const adminHistory = history.filter((item: any) => !!item?.status);
-    const waitingAdmin = staffHistory.length > adminHistory.length;
+    const lastHistoryItem = history[history.length - 1] || null;
+    const hasUnmatchedPendingStaff = !!lastHistoryItem && !!lastHistoryItem.cookingDoneBy && !lastHistoryItem.status;
+    const waitingAdmin = hasUnmatchedPendingStaff || (staffHistory.length > adminHistory.length);
     const latestAdminStatus = normalizeStatus(adminHistory[adminHistory.length - 1]?.status || cr?.status || null);
     const isResampleCase = isResampleWorkflowEntry(entry) || activeTab === 'RESAMPLE_COOKING_REPORT';
 
@@ -1536,8 +1538,12 @@ const canStaffAddCookingForEntry = (entry: SampleEntry) => {
 
     // Normal flow: one staff entry, then wait for admin.
     if (!isResampleCase) {
+      // If staff has already added Cooking Done By and waiting for admin approval, lock the button!
       if (waitingAdmin) return { canAdd: false, reason: 'Awaiting Admin' };
-      if (!cr || staffHistory.length === 0 || latestAdminStatus === 'RECHECK') {
+      
+      // Allow adding Cooking Done By ONLY if no cooking report yet, or no staff entries,
+      // OR if the latest admin decision was RECHECK and staff has NOT yet re-submitted for this recheck!
+      if (!cr || staffHistory.length === 0 || (latestAdminStatus === 'RECHECK' && !waitingAdmin)) {
         return { canAdd: true, reason: '' };
       }
       return { canAdd: false, reason: 'Locked' };

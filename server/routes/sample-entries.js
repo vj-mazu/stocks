@@ -2581,6 +2581,10 @@ router.get('/tabs/inward-cooking', authenticateToken, async (req, res) => {
       });
       const fullAvgStage = fullAvgKey ? stages[fullAvgKey] : (stages.full_avg || {});
 
+      // Look up Mill Quality Sampling (Gutti) parameter for auto-filling
+      const iqParams = inspection.lorryTransitDetail?.inventoryQualityParameters || [];
+      const guttiParam = Array.isArray(iqParams) && iqParams.find(p => p.type === 'full_lorry_avg' && p.status === 'approved');
+
       return {
         id: inspection.id,
         sampleEntryId: entry.id,
@@ -2592,9 +2596,13 @@ router.get('/tabs/inward-cooking', authenticateToken, async (req, res) => {
         variety: entry.variety,
         location: entry.location,
         bags: fullAvgStage.actualBags || fullAvgStage.bags || inspection.bags || entry.bags || 0,
-        cutting: fullAvgStage.cutting || (fullAvgStage.cutting1 && fullAvgStage.cutting2 ? `${fullAvgStage.cutting1}x${fullAvgStage.cutting2}` : (inspection.cutting1 && inspection.cutting2 ? `${inspection.cutting1}x${inspection.cutting2}` : inspection.cutting1 || '-')),
-        bend: fullAvgStage.bend || (fullAvgStage.bend1 && fullAvgStage.bend2 ? `${fullAvgStage.bend1}x${fullAvgStage.bend2}` : (inspection.bend && inspection.bend2 ? `${inspection.bend}x${inspection.bend2}` : inspection.bend || '-')),
-        moisture: fullAvgStage.moisture || inspection.moisture || '-',
+        cutting: guttiParam?.cutting || fullAvgStage.cutting || (fullAvgStage.cutting1 && fullAvgStage.cutting2 ? `${fullAvgStage.cutting1}x${fullAvgStage.cutting2}` : (inspection.cutting1 && inspection.cutting2 ? `${inspection.cutting1}x${inspection.cutting2}` : inspection.cutting1 || '-')),
+        bend: guttiParam?.bend || fullAvgStage.bend || (fullAvgStage.bend1 && fullAvgStage.bend2 ? `${fullAvgStage.bend1}x${fullAvgStage.bend2}` : (inspection.bend && inspection.bend2 ? `${inspection.bend}x${inspection.bend2}` : inspection.bend || '-')),
+        moisture: guttiParam?.moisture ? `${guttiParam.moisture}%` : (fullAvgStage.moisture ? `${fullAvgStage.moisture}%` : (inspection.moisture ? `${inspection.moisture}%` : '-')),
+        guttiWbR: guttiParam?.wbR || '',
+        guttiWbBk: guttiParam?.wbBk || '',
+        guttiMoisture: guttiParam?.moisture || (fullAvgStage.moisture ? String(fullAvgStage.moisture) : (inspection.moisture ? String(inspection.moisture) : '')),
+        guttiGrains: guttiParam?.grains || '',
         inwardCooking: stages.inward_cooking || null,
         reportedBy: inspection.reportedBy?.fullName || inspection.reportedBy?.username || '-'
       };
@@ -2638,9 +2646,18 @@ router.post('/inward-cooking/:inspectionId', authenticateToken, async (req, res)
     const reporterName = currentUser?.fullName || currentUser?.username || 'Staff';
 
     const stages = inspection.samplingStages || {};
+    const existing = stages.inward_cooking || {};
     const wbTVal = String((parseFloat(wbR) || 0) + (parseFloat(wbBk) || 0));
 
+    // Check edit permission if report already exists and was approved or submitted
+    const userRole = String(getWorkflowRole(req.user) || req.user.role || '').toLowerCase();
+    const isPrivileged = ['admin', 'owner', 'manager', 'ceo'].includes(userRole);
+    if (existing.approvalStatus === 'approved' && !isPrivileged && existing.editApproved !== true) {
+      return res.status(403).json({ error: 'Editing approved 100gms cooking report requires Manager or Admin authorization' });
+    }
+
     stages.inward_cooking = {
+      ...existing,
       moisture: String(moisture).trim(),
       grainsCount: String(grainsCount).trim(),
       wbR: String(wbR).trim(),
@@ -2649,11 +2666,14 @@ router.post('/inward-cooking/:inspectionId', authenticateToken, async (req, res)
       cookingStatus: String(cookingStatus).toUpperCase().trim(),
       cookingDoneBy: cookingDoneBy || reporterName,
       cookingDoneByUserId: req.user.userId,
-      cookingDoneAt: new Date(),
-      approvalStatus: 'pending',
-      cookingApprovedBy: null,
-      cookingApprovedByUserId: null,
-      cookingApprovedAt: null,
+      cookingDoneAt: existing.cookingDoneAt || new Date(),
+      approvalStatus: isPrivileged && existing.approvalStatus === 'approved' ? 'approved' : 'pending',
+      cookingApprovedBy: isPrivileged && existing.approvalStatus === 'approved' ? (currentUser?.fullName || currentUser?.username) : null,
+      cookingApprovedByUserId: isPrivileged && existing.approvalStatus === 'approved' ? req.user.userId : null,
+      cookingApprovedAt: isPrivileged && existing.approvalStatus === 'approved' ? new Date() : null,
+      editRequested: false,
+      editApproved: false,
+      editReason: null,
       remarks: remarks || ''
     };
 
@@ -2724,6 +2744,106 @@ router.post('/inward-cooking/:inspectionId/approve', authenticateToken, async (r
     res.status(500).json({ error: error.message });
   }
 });
+
+// POST /sample-entries/inward-cooking/:inspectionId/request-edit - Staff requests edit authorization
+router.post('/inward-cooking/:inspectionId/request-edit', authenticateToken, async (req, res) => {
+  try {
+    const PhysicalInspection = require('../models/PhysicalInspection');
+    const { inspectionId } = req.params;
+    const { reason } = req.body;
+
+    const inspection = await PhysicalInspection.findByPk(inspectionId);
+    if (!inspection) {
+      return res.status(404).json({ error: 'Physical inspection record not found' });
+    }
+
+    const stages = inspection.samplingStages || {};
+    if (!stages.inward_cooking) {
+      return res.status(400).json({ error: 'No inward cooking report exists to request edit for' });
+    }
+
+    const User = require('../models/User');
+    const user = await User.findByPk(req.user.userId);
+    const userName = user?.fullName || user?.username || 'Staff';
+
+    stages.inward_cooking.editRequested = true;
+    stages.inward_cooking.editRequestedBy = userName;
+    stages.inward_cooking.editRequestedByUserId = req.user.userId;
+    stages.inward_cooking.editRequestedAt = new Date();
+    stages.inward_cooking.editReason = reason || 'Staff requested edit authorization';
+
+    inspection.samplingStages = { ...stages };
+    inspection.changed('samplingStages', true);
+    await inspection.save();
+
+    invalidateSampleEntryTabCaches();
+
+    res.json({
+      success: true,
+      message: 'Edit authorization request submitted to Manager/Admin',
+      inwardCooking: stages.inward_cooking
+    });
+  } catch (error) {
+    console.error('Error requesting inward cooking edit:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /sample-entries/inward-cooking/:inspectionId/authorize-edit - Manager/Admin authorizes or rejects edit
+router.post('/inward-cooking/:inspectionId/authorize-edit', authenticateToken, async (req, res) => {
+  try {
+    const userRole = String(getWorkflowRole(req.user) || req.user.role || '').toLowerCase();
+    if (!['admin', 'owner', 'manager', 'ceo'].includes(userRole)) {
+      return res.status(403).json({ error: 'Only Manager, CEO, Owner, or Admin can authorize edits' });
+    }
+
+    const PhysicalInspection = require('../models/PhysicalInspection');
+    const { inspectionId } = req.params;
+    const { allow = true } = req.body;
+
+    const inspection = await PhysicalInspection.findByPk(inspectionId);
+    if (!inspection) {
+      return res.status(404).json({ error: 'Physical inspection record not found' });
+    }
+
+    const stages = inspection.samplingStages || {};
+    if (!stages.inward_cooking) {
+      return res.status(400).json({ error: 'No inward cooking report exists' });
+    }
+
+    const User = require('../models/User');
+    const approver = await User.findByPk(req.user.userId);
+    const approverName = approver?.fullName || approver?.username || 'Manager';
+
+    if (allow) {
+      stages.inward_cooking.editApproved = true;
+      stages.inward_cooking.editRequested = false;
+      stages.inward_cooking.editAuthorizedBy = approverName;
+      stages.inward_cooking.editAuthorizedAt = new Date();
+    } else {
+      stages.inward_cooking.editApproved = false;
+      stages.inward_cooking.editRequested = false;
+      stages.inward_cooking.editRejectedBy = approverName;
+      stages.inward_cooking.editRejectedAt = new Date();
+    }
+
+    inspection.samplingStages = { ...stages };
+    inspection.changed('samplingStages', true);
+    await inspection.save();
+
+    invalidateSampleEntryTabCaches();
+
+    res.json({
+      success: true,
+      message: allow ? 'Edit authorization granted' : 'Edit request rejected',
+      inwardCooking: stages.inward_cooking
+    });
+  } catch (error) {
+    console.error('Error authorizing inward cooking edit:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 // Update sample entry
 router.put('/:id', authenticateToken, async (req, res) => {
@@ -4168,7 +4288,8 @@ router.post('/:id/cooking-report', authenticateToken, async (req, res) => {
     };
     // Staff/quality supervisor should only submit "Cooking Done By".
     // They cannot set final cooking status transitions.
-    if (['staff', 'quality_supervisor'].includes(workflowRole)) {
+    const isStaffRole = ['staff', 'quality_supervisor', 'paddy_supervisor'].includes(String(workflowRole || '').toLowerCase());
+    if (isStaffRole) {
       reportData.status = null;
       reportData.cookingApprovedBy = null;
     }

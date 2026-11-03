@@ -63,6 +63,7 @@ class CookingReportService {
         const lastHistory = currentHistory[currentHistory.length - 1] || null;
 
         if (reportData.status) {
+          // Admin / Manager decision: pair with the latest pending cooking done
           let pendingIndex = -1;
           for (let idx = currentHistory.length - 1; idx >= 0; idx -= 1) {
             if (hasPendingCookingDone(currentHistory[idx])) {
@@ -96,10 +97,21 @@ class CookingReportService {
           } else {
             updates.history = [...currentHistory, historyEntry];
           }
-        } else if (lastHistory && hasSameHistoryPayload(lastHistory, historyEntry)) {
-          updates.history = currentHistory;
         } else {
-          updates.history = [...currentHistory, historyEntry];
+          // Staff submitting Cooking Done By:
+          // If the last history row is ALREADY an unmatched pending cooking done, update its name rather than creating a duplicate
+          if (lastHistory && hasPendingCookingDone(lastHistory)) {
+            const mergedHistory = [...currentHistory];
+            mergedHistory[mergedHistory.length - 1] = {
+              ...lastHistory,
+              cookingDoneBy: historyEntry.cookingDoneBy,
+              date: historyEntry.date,
+              remarks: historyEntry.remarks || lastHistory.remarks
+            };
+            updates.history = mergedHistory;
+          } else {
+            updates.history = [...currentHistory, historyEntry];
+          }
         }
 
         report = await CookingReportRepository.update(existing.id, updates);

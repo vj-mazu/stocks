@@ -20,6 +20,10 @@ interface InwardCookingRecord {
   cutting?: string;
   bend?: string;
   moisture?: string;
+  guttiWbR?: string;
+  guttiWbBk?: string;
+  guttiMoisture?: string;
+  guttiGrains?: string;
   reportedBy?: string;
   inwardCooking?: {
     moisture?: string;
@@ -33,6 +37,10 @@ interface InwardCookingRecord {
     cookingApprovedBy?: string;
     cookingApprovedAt?: string;
     approvalStatus?: 'pending' | 'approved' | 'rejected';
+    editRequested?: boolean;
+    editRequestedBy?: string;
+    editReason?: string;
+    editApproved?: boolean;
     remarks?: string;
     rejectRemarks?: string;
   } | null;
@@ -102,6 +110,11 @@ export const InwardCookingTab: React.FC = () => {
 
   const [rejectInspectionId, setRejectInspectionId] = useState<string | null>(null);
   const [rejectRemarks, setRejectRemarks] = useState('');
+
+  // Edit Request State
+  const [showEditRequestModal, setShowEditRequestModal] = useState(false);
+  const [editRequestInspectionId, setEditRequestInspectionId] = useState<string | null>(null);
+  const [editRequestReason, setEditRequestReason] = useState('');
 
   const loadEntries = async () => {
     try {
@@ -189,26 +202,69 @@ export const InwardCookingTab: React.FC = () => {
     const existing = item.inwardCooking;
     if (existing) {
       setFormData({
-        moisture: existing.moisture || '',
-        grainsCount: existing.grainsCount || '',
-        wbR: existing.wbR || '',
-        wbBk: existing.wbBk || '',
+        moisture: existing.moisture || item.guttiMoisture || '',
+        grainsCount: existing.grainsCount || item.guttiGrains || '',
+        wbR: existing.wbR || item.guttiWbR || '',
+        wbBk: existing.wbBk || item.guttiWbBk || '',
         cookingStatus: existing.cookingStatus || 'PASS',
         cookingDoneBy: existing.cookingDoneBy || (user?.fullName || user?.username || ''),
         remarks: existing.remarks || ''
       });
     } else {
       setFormData({
-        moisture: item.moisture && item.moisture !== '-' ? String(item.moisture) : '',
-        grainsCount: '',
-        wbR: '',
-        wbBk: '',
+        moisture: item.guttiMoisture || (item.moisture && item.moisture !== '-' ? String(item.moisture).replace('%', '') : ''),
+        grainsCount: item.guttiGrains || '',
+        wbR: item.guttiWbR || '',
+        wbBk: item.guttiWbBk || '',
         cookingStatus: 'PASS',
         cookingDoneBy: user?.fullName || user?.username || '',
         remarks: ''
       });
     }
     setShowModal(true);
+  };
+
+  const handleRequestEditOpen = (inspectionId: string) => {
+    setEditRequestInspectionId(inspectionId);
+    setEditRequestReason('');
+    setShowEditRequestModal(true);
+  };
+
+  const handleConfirmEditRequest = async () => {
+    if (!editRequestInspectionId) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post(`${API_URL}/sample-entries/inward-cooking/${editRequestInspectionId}/request-edit`, {
+        reason: editRequestReason.trim()
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data?.success) {
+        showNotification('Edit authorization request sent to Manager/Admin', 'info');
+        setShowEditRequestModal(false);
+        setEditRequestInspectionId(null);
+        loadEntries();
+      }
+    } catch (err: any) {
+      showNotification(err.response?.data?.error || 'Failed to request edit', 'error');
+    }
+  };
+
+  const handleAuthorizeEdit = async (inspectionId: string, allow: boolean) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post(`${API_URL}/sample-entries/inward-cooking/${inspectionId}/authorize-edit`, {
+        allow
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data?.success) {
+        showNotification(allow ? 'Edit authorization granted' : 'Edit request rejected', allow ? 'success' : 'info');
+        loadEntries();
+      }
+    } catch (err: any) {
+      showNotification(err.response?.data?.error || 'Failed to authorize edit', 'error');
+    }
   };
 
   const handleSubmitReport = async (e: React.FormEvent) => {
@@ -752,38 +808,95 @@ export const InwardCookingTab: React.FC = () => {
                           </button>
                         </div>
                       ) : isApproved ? (
-                        <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                          <button
-                            onClick={() => openAddReportModal(item, 'view')}
-                            style={{
-                              padding: '4px 8px',
-                              backgroundColor: '#f8fafc',
-                              color: '#0f766e',
-                              border: '1px solid #0d9488',
-                              borderRadius: '4px',
-                              fontWeight: 700,
-                              fontSize: '11px',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            👁️ View
-                          </button>
-                          {canApprove && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
                             <button
-                              onClick={() => openAddReportModal(item, 'edit')}
+                              onClick={() => openAddReportModal(item, 'view')}
                               style={{
-                                padding: '4px 8px',
-                                backgroundColor: '#f1f5f9',
-                                color: '#475569',
-                                border: '1px solid #cbd5e1',
+                                padding: '3px 8px',
+                                backgroundColor: '#f8fafc',
+                                color: '#0f766e',
+                                border: '1px solid #0d9488',
                                 borderRadius: '4px',
-                                fontWeight: 600,
+                                fontWeight: 700,
                                 fontSize: '11px',
                                 cursor: 'pointer'
                               }}
                             >
-                              Edit
+                              👁️ View
                             </button>
+                            {canApprove ? (
+                              <button
+                                onClick={() => openAddReportModal(item, 'edit')}
+                                style={{
+                                  padding: '3px 8px',
+                                  backgroundColor: '#f1f5f9',
+                                  color: '#475569',
+                                  border: '1px solid #cbd5e1',
+                                  borderRadius: '4px',
+                                  fontWeight: 600,
+                                  fontSize: '11px',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                ✏️ Edit
+                              </button>
+                            ) : ic.editApproved ? (
+                              <button
+                                onClick={() => openAddReportModal(item, 'edit')}
+                                style={{
+                                  padding: '3px 8px',
+                                  backgroundColor: '#16a34a',
+                                  color: '#ffffff',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  fontWeight: 700,
+                                  fontSize: '11px',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                ✏️ Edit (Authorized)
+                              </button>
+                            ) : ic.editRequested ? (
+                              <span style={{ fontSize: '10px', color: '#d97706', fontWeight: 600, background: '#fef3c7', padding: '2px 6px', borderRadius: '4px' }}>
+                                ⏳ Edit Req Pending
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => handleRequestEditOpen(item.id)}
+                                style={{
+                                  padding: '3px 8px',
+                                  backgroundColor: '#ede9fe',
+                                  color: '#6d28d9',
+                                  border: '1px solid #c4b5fd',
+                                  borderRadius: '4px',
+                                  fontWeight: 700,
+                                  fontSize: '10px',
+                                  cursor: 'pointer'
+                                }}
+                                title="Request Manager approval to edit this approved report"
+                              >
+                                🔒 Request Edit
+                              </button>
+                            )}
+                          </div>
+                          {/* Manager action when staff has requested edit */}
+                          {canApprove && ic.editRequested && (
+                            <div style={{ display: 'flex', gap: '3px', marginTop: '2px' }}>
+                              <button
+                                onClick={() => handleAuthorizeEdit(item.id, true)}
+                                style={{ padding: '2px 6px', background: '#059669', color: '#fff', border: 'none', borderRadius: '3px', fontSize: '9px', fontWeight: 700, cursor: 'pointer' }}
+                                title={`Allow staff to edit: ${ic.editReason || 'No reason provided'}`}
+                              >
+                                Allow Edit
+                              </button>
+                              <button
+                                onClick={() => handleAuthorizeEdit(item.id, false)}
+                                style={{ padding: '2px 6px', background: '#b91c1c', color: '#fff', border: 'none', borderRadius: '3px', fontSize: '9px', fontWeight: 700, cursor: 'pointer' }}
+                              >
+                                Deny
+                              </button>
+                            </div>
                           )}
                         </div>
                       ) : (
