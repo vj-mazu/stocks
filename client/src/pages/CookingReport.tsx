@@ -1214,9 +1214,20 @@ const CookingReport: React.FC<CookingReportProps> = ({ entryType, excludeEntryTy
     const capitalize = (str: string) => str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
 
     // Determine cookingDoneBy value (from form, fallback to existing, or clear if RECHECK)
-    let finalCookingDoneBy = capitalize(useManualEntry ? manualCookingName.trim() : cookingData.cookingDoneBy);
-    if (!finalCookingDoneBy && selectedEntry.cookingReport?.cookingDoneBy) {
-      finalCookingDoneBy = selectedEntry.cookingReport.cookingDoneBy;
+    const rawDoneBy = useManualEntry ? manualCookingName.trim() : String(cookingData.cookingDoneBy || '').trim();
+    let finalCookingDoneBy = capitalize(rawDoneBy);
+
+    // Validation: When staff is submitting Cooking Done By, a name MUST be selected or typed!
+    if (isCookingStaffRole) {
+      if (!rawDoneBy) {
+        showNotification('Please select or enter Cooking Done by', 'error');
+        releaseSubmissionLock(lockKey);
+        return;
+      }
+    } else {
+      if (!finalCookingDoneBy && selectedEntry.cookingReport?.cookingDoneBy) {
+        finalCookingDoneBy = selectedEntry.cookingReport.cookingDoneBy;
+      }
     }
 
     // On RECHECK, preserve the existing cookingDoneBy and cookingApprovedBy names

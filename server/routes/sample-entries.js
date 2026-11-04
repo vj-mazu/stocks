@@ -4290,6 +4290,9 @@ router.post('/:id/cooking-report', authenticateToken, async (req, res) => {
     // They cannot set final cooking status transitions.
     const isStaffRole = ['staff', 'quality_supervisor', 'paddy_supervisor'].includes(String(workflowRole || '').toLowerCase());
     if (isStaffRole) {
+      if (!reportData.cookingDoneBy || !String(reportData.cookingDoneBy).trim()) {
+        return res.status(400).json({ error: 'Cooking Done by is required' });
+      }
       reportData.status = null;
       reportData.cookingApprovedBy = null;
     }
